@@ -1,0 +1,6 @@
+export enum SubscriptionType {
+  ASSOCIATION = 'ASSOCIATION',
+  BUSINESS = 'BUSINESS',
+  FEDERATION = 'FEDERATION',
+  MEMBER = 'MEMBER'
+} 

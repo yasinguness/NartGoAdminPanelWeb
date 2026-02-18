@@ -1,0 +1,7 @@
+export enum BillingCycle {
+  MONTHLY = 'MONTHLY',
+  QUARTERLY = 'QUARTERLY',
+  BIANNUALLY = 'BIANNUALLY',
+  ANNUALLY = 'ANNUALLY',
+  ONE_TIME = 'ONE_TIME'
+} 

@@ -1,0 +1,7 @@
+export enum AgreementStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  EXPIRED = 'EXPIRED',
+  CANCELLED = 'CANCELLED',
+  REJECTED = 'REJECTED'
+} 

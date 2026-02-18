@@ -1,0 +1,25 @@
+export enum BusinessType {
+    BUSINESS = 'BUSINESS',
+    ASSOCIATION = 'ASSOCIATION',
+    FEDERATION = 'FEDERATION',
+    STUDENT_CLUB = 'STUDENT_CLUB',
+    COMMERCIAL = 'COMMERCIAL',
+    CULTURAL = 'CULTURAL',
+    MEDIA = 'MEDIA',
+    EDUCATION = 'EDUCATION',
+    OTHER = 'OTHER'
+}
+
+export enum AccountType {
+    INDIVIDUAL = 'INDIVIDUAL',
+    BUSINESS = 'BUSINESS'
+}
+
+export enum UserStatusEnum {
+    PENDING = 'PENDING',
+    ACTIVE = 'ACTIVE',
+    PASSIVE = 'PASSIVE',
+    DELETED = 'DELETED',
+    BLOCKED = 'BLOCKED'
+
+}

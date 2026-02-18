@@ -1,0 +1,6 @@
+export enum BenefitType {
+  DISCOUNT = 'DISCOUNT',
+  COUPON = 'COUPON',
+  FREE_PRODUCT = 'FREE_PRODUCT',
+  SPECIAL_OFFER = 'SPECIAL_OFFER'
+} 

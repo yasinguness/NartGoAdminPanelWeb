@@ -1,0 +1,6 @@
+export enum BusinessStatus {
+  ACTIVE = 'ACTIVE',
+  CANCELLED = 'CANCELLED',
+  PASSIVE = 'PASSIVE',
+  PENDING_APPROVAL = 'PENDING_APPROVAL'
+}
