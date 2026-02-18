@@ -1,0 +1,12 @@
+nohup: ignoring input
+
+> xeku-admin-panel@0.1.0 dev
+> vite --host
+
+
+  VITE v5.4.14  ready in 211 ms
+
+  ➜  Local:   http://localhost:5173/admin
+  ➜  Network: http://46.62.239.120:5173/admin
+  ➜  Network: http://172.21.0.1:5173/admin
+  ➜  Network: http://172.20.0.1:5173/admin
