@@ -1,0 +1,515 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  Box, Typography, Button, TextField, InputAdornment, Chip, Stack,
+  IconButton, Tooltip, Menu, MenuItem, Paper, Skeleton, Snackbar, Alert,
+  Fade, Pagination,
+} from '@mui/material';
+import {
+  Search, LayoutGrid, List, ChevronDown,
+  Bookmark, CheckCircle2, XCircle, Archive, Trash2, X, Keyboard,
+  Video, Filter,
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { PageContainer, PageHeader } from '../../components/Page';
+import { useFeedStore } from '../../store/feeds/feedStore';
+import { FeedDto, FeedStatus } from '../../types/feed/feedModel';
+import { STATUS_CONFIG, SAVED_VIEWS, SORT_OPTIONS } from './feedConfig';
+import FeedVideoCard from './FeedVideoCard';
+import FeedVideoTable from './FeedVideoTable';
+import FeedSlideOver from './FeedSlideOver';
+
+interface Toast {
+  id: string;
+  message: string;
+  severity: 'success' | 'info' | 'warning';
+  undoAction?: () => void;
+}
+
+export default function FeedVideos() {
+  const { 
+    feeds, 
+    loading, 
+    fetchFeeds, 
+    updateFeedStatus,
+    totalElements,
+    totalPages,
+    currentPage
+  } = useFeedStore();
+
+  // View state
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [pageSize, setPageSize] = useState(12);
+
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilters, setStatusFilters] = useState<FeedStatus[]>([]);
+  const [sortBy, setSortBy] = useState('newest');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [savedView, setSavedView] = useState('Tüm Videolar');
+  
+  // Anchors
+  const [sortAnchor, setSortAnchor] = useState<null | HTMLElement>(null);
+  const [viewAnchor, setViewAnchor] = useState<null | HTMLElement>(null);
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmAction, setConfirmAction] = useState<{ action: string; label: string } | null>(null);
+
+  // Slide-over
+  const [slideOverVideo, setSlideOverVideo] = useState<FeedDto | null>(null);
+  const [slideOverOpen, setSlideOverOpen] = useState(false);
+
+  // Toasts
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // Keyboard shortcut visibility
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Data fetching
+  const loadData = useCallback(async (page: number = 0) => {
+    await fetchFeeds({
+      keyword: searchQuery || undefined,
+      status: statusFilters.length === 1 ? statusFilters[0] : undefined, // API currently might only support single status
+      page,
+      size: pageSize
+    });
+  }, [fetchFeeds, searchQuery, statusFilters, pageSize]);
+
+  useEffect(() => {
+    loadData(0);
+  }, [searchQuery, statusFilters, pageSize]);
+
+  const handlePageChange = (_: any, page: number) => {
+    loadData(page - 1);
+  };
+
+  // Toast management
+  const addToast = useCallback((message: string, severity: Toast['severity'] = 'success', undoAction?: () => void) => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, message, severity, undoAction }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Status change
+  const handleStatusChange = useCallback(async (videoId: string, newStatus: FeedStatus) => {
+    try {
+      const video = feeds.find(f => f.id === videoId);
+      if (!video) return;
+      
+      const oldStatus = video.status;
+      await updateFeedStatus(videoId, { status: newStatus });
+      
+      addToast(
+        `"${video.title}" → ${STATUS_CONFIG[newStatus].label}`,
+        'success',
+        () => {
+          updateFeedStatus(videoId, { status: oldStatus });
+        }
+      );
+
+      if (slideOverVideo?.id === videoId) {
+        setSlideOverVideo({ ...video, status: newStatus });
+      }
+    } catch (error) {
+      addToast('Status update failed', 'warning');
+    }
+  }, [feeds, updateFeedStatus, addToast, slideOverVideo]);
+
+  // Selection
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === feeds.length) return new Set();
+      return new Set(feeds.map((v) => v.id));
+    });
+  }, [feeds]);
+
+  // Bulk actions
+  const handleBulkAction = useCallback(async (action: string) => {
+    const ids = Array.from(selectedIds);
+    const count = ids.length;
+
+    const statusMap: Record<string, FeedStatus> = {
+      approve: FeedStatus.APPROVED, 
+      reject: FeedStatus.REJECTED, 
+      archive: FeedStatus.ARCHIVED,
+    };
+    
+    const newStatus = statusMap[action];
+    if (newStatus) {
+      for (const id of ids) {
+        await handleStatusChange(id, newStatus);
+      }
+    }
+    
+    setSelectedIds(new Set());
+    setConfirmAction(null);
+  }, [selectedIds, handleStatusChange]);
+
+  // Toggle status filter
+  const toggleStatusFilter = useCallback((status: FeedStatus) => {
+    setStatusFilters((prev) =>
+      prev.includes(status)
+        ? prev.filter((s) => s !== status)
+        : [status] // Single select for now as API might prefer it
+    );
+    setSavedView('');
+  }, []);
+
+  // Saved views
+  const applySavedView = useCallback((view: typeof SAVED_VIEWS[0]) => {
+    setSavedView(view.label);
+    setStatusFilters(view.filter ? [view.filter] : []);
+    setSearchQuery('');
+    setViewAnchor(null);
+  }, []);
+
+  // Sort handler
+  const handleSort = useCallback((field: string) => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(field);
+      setSortDir('desc');
+    }
+  }, [sortBy]);
+
+  const activeFilterCount = statusFilters.length + (searchQuery ? 1 : 0);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === '?') { setShowShortcuts((s) => !s); return; }
+      if (e.key === 'Escape') { setSlideOverOpen(false); setShowShortcuts(false); return; }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  return (
+    <PageContainer>
+      <PageHeader
+        title="Feed Videos"
+        subtitle="Video feed içeriklerini yönetin"
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Feed Videos', active: true },
+        ]}
+        actions={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Tooltip title="Keyboard Shortcuts (?)" arrow>
+              <IconButton size="small" onClick={() => setShowShortcuts((s) => !s)} sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <Keyboard size={16} />
+              </IconButton>
+            </Tooltip>
+            <Button
+              variant="contained"
+              startIcon={<Video size={16} />}
+              sx={{
+                textTransform: 'none', fontWeight: 600, fontSize: '0.82rem',
+                bgcolor: 'primary.main', borderRadius: 2,
+                boxShadow: '0 2px 8px rgba(22, 70, 28, 0.25)',
+              }}
+            >
+              Video Ekle
+            </Button>
+          </Stack>
+        }
+      />
+
+      {/* Keyboard shortcuts hint */}
+      <AnimatePresence>
+        {showShortcuts && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+            <Paper elevation={0} sx={{ p: 2, mb: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: '#fafafa' }}>
+              <Stack direction="row" spacing={3} flexWrap="wrap">
+                {[['?', 'Toggle shortcuts'], ['Esc', 'Close panel'], ['j/k', 'Navigate'], ['a', 'Approve'], ['r', 'Reject']].map(([key, desc]) => (
+                  <Stack key={key} direction="row" alignItems="center" spacing={0.75}>
+                    <Box sx={{ px: 0.75, py: 0.25, bgcolor: '#e5e7eb', borderRadius: 0.75, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'monospace' }}>{key}</Box>
+                    <Typography variant="caption" color="text.secondary">{desc}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Paper>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toolbar */}
+      <Box sx={{ mb: 2.5 }}>
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+          <TextField
+            placeholder="Search videos…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            size="small"
+            sx={{
+              width: 300,
+              '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.85rem' },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={16} color="#9ca3af" />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchQuery('')}><X size={14} /></IconButton>
+                </InputAdornment>
+              ) : null,
+            }}
+          />
+
+          <Button
+            size="small"
+            variant="outlined"
+            endIcon={<ChevronDown size={14} />}
+            onClick={(e) => setViewAnchor(e.currentTarget)}
+            sx={{
+              textTransform: 'none', fontWeight: 500, fontSize: '0.8rem',
+              borderColor: '#e5e7eb', color: 'text.primary', borderRadius: 2,
+            }}
+          >
+            <Bookmark size={14} style={{ marginRight: 6 }} />
+            {savedView || 'Views'}
+          </Button>
+          <Menu
+            anchorEl={viewAnchor}
+            open={Boolean(viewAnchor)}
+            onClose={() => setViewAnchor(null)}
+            PaperProps={{ sx: { minWidth: 180, borderRadius: 2, mt: 0.5 } }}
+          >
+            {SAVED_VIEWS.map((v) => (
+              <MenuItem key={v.label} selected={savedView === v.label} onClick={() => applySavedView(v)} sx={{ fontSize: '0.82rem' }}>
+                {v.label}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          <Button
+            size="small"
+            variant="outlined"
+            endIcon={<ChevronDown size={14} />}
+            onClick={(e) => setSortAnchor(e.currentTarget)}
+            sx={{
+              textTransform: 'none', fontWeight: 500, fontSize: '0.8rem',
+              borderColor: '#e5e7eb', color: 'text.primary', borderRadius: 2,
+            }}
+          >
+            {SORT_OPTIONS.find((s) => s.value === sortBy)?.label || 'Sort'}
+          </Button>
+          <Menu
+            anchorEl={sortAnchor}
+            open={Boolean(sortAnchor)}
+            onClose={() => setSortAnchor(null)}
+            PaperProps={{ sx: { minWidth: 150, borderRadius: 2, mt: 0.5 } }}
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <MenuItem key={opt.value} selected={sortBy === opt.value} onClick={() => { setSortBy(opt.value); setSortAnchor(null); }} sx={{ fontSize: '0.82rem' }}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          <Box sx={{ ml: 'auto !important' }}>
+            <Stack direction="row" spacing={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, overflow: 'hidden' }}>
+              <IconButton
+                size="small"
+                onClick={() => setViewMode('grid')}
+                sx={{
+                  borderRadius: 0, px: 1.25,
+                  bgcolor: viewMode === 'grid' ? 'primary.main' : 'transparent',
+                  color: viewMode === 'grid' ? '#fff' : 'text.secondary',
+                }}
+              >
+                <LayoutGrid size={16} />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => setViewMode('table')}
+                sx={{
+                  borderRadius: 0, px: 1.25,
+                  bgcolor: viewMode === 'table' ? 'primary.main' : 'transparent',
+                  color: viewMode === 'table' ? '#fff' : 'text.secondary',
+                }}
+              >
+                <List size={16} />
+              </IconButton>
+            </Stack>
+          </Box>
+        </Stack>
+
+        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, mr: 0.5 }}>
+            <Filter size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            Status:
+          </Typography>
+          {(Object.values(FeedStatus)).map((s) => {
+            const sc = STATUS_CONFIG[s];
+            if (!sc) return null;
+            const active = statusFilters.includes(s);
+            return (
+              <Chip
+                key={s}
+                label={sc.label}
+                size="small"
+                onClick={() => toggleStatusFilter(s)}
+                sx={{
+                  height: 26, fontSize: '0.72rem', fontWeight: 600,
+                  color: active ? sc.color : '#6b7280',
+                  bgcolor: active ? sc.bg : 'transparent',
+                  border: `1px solid ${active ? sc.border : '#e5e7eb'}`,
+                  cursor: 'pointer',
+                }}
+              />
+            );
+          })}
+          {activeFilterCount > 0 && (
+            <Chip
+              label={`Clear (${activeFilterCount})`}
+              size="small"
+              onClick={() => { setStatusFilters([]); setSearchQuery(''); setSavedView('Tüm Videolar'); }}
+              sx={{ height: 26, fontSize: '0.7rem', ml: 0.5 }}
+            />
+          )}
+          <Box sx={{ ml: 'auto' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+              {totalElements} videos found
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      {/* Loading & Empty States */}
+      {loading && feeds.length === 0 ? (
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 2.5 }}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} variant="rectangular" height={220} sx={{ borderRadius: 2.5 }} />
+          ))}
+        </Box>
+      ) : feeds.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Box sx={{ width: 64, height: 64, borderRadius: 3, bgcolor: '#f3f4f6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+            <Video size={28} color="#9ca3af" />
+          </Box>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>Video bulunamadı</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Filtreleri değiştirmeyi veya farklı bir arama yapmayı deneyin
+          </Typography>
+          <Button variant="outlined" size="small" onClick={() => { setStatusFilters([]); setSearchQuery(''); setSavedView('Tüm Videolar'); }}
+            sx={{ textTransform: 'none', borderRadius: 2 }}>
+            Filtreleri Temizle
+          </Button>
+        </Box>
+      ) : (
+        <>
+          {viewMode === 'grid' ? (
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 2.5 }}>
+              <AnimatePresence mode="popLayout">
+                {feeds.map((video) => (
+                  <FeedVideoCard
+                    key={video.id}
+                    video={video}
+                    selected={selectedIds.has(video.id)}
+                    onSelect={toggleSelect}
+                    onClick={(v) => { setSlideOverVideo(v); setSlideOverOpen(true); }}
+                    onStatusChange={handleStatusChange}
+                    statusConfig={STATUS_CONFIG}
+                  />
+                ))}
+              </AnimatePresence>
+            </Box>
+          ) : (
+            <FeedVideoTable
+              videos={feeds}
+              selectedIds={selectedIds}
+              onSelect={toggleSelect}
+              onSelectAll={toggleSelectAll}
+              onClick={(v) => { setSlideOverVideo(v); setSlideOverOpen(true); }}
+              onStatusChange={handleStatusChange}
+              sortField={sortBy}
+              sortDir={sortDir}
+              onSort={handleSort}
+              statusConfig={STATUS_CONFIG}
+            />
+          )}
+
+          {totalPages > 1 && (
+            <Stack direction="row" justifyContent="center" sx={{ mt: 4 }}>
+              <Pagination 
+                count={totalPages} 
+                page={currentPage + 1} 
+                onChange={handlePageChange} 
+                color="primary"
+                shape="rounded"
+              />
+            </Stack>
+          )}
+        </>
+      )}
+
+      {/* Bulk Action Bar */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
+            style={{ position: 'fixed', bottom: 24, left: '50%', translateX: '-50%', zIndex: 1100 }}>
+            <Paper elevation={3} sx={{ px: 3, py: 1.5, borderRadius: 3, bgcolor: '#1a1a1a', color: '#fff', display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedIds.size} selected</Typography>
+              <Box sx={{ width: 1, height: 24, bgcolor: 'rgba(255,255,255,0.15)' }} />
+              
+              {confirmAction ? (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography variant="caption">{confirmAction.label}?</Typography>
+                  <Button size="small" variant="contained" color="error" onClick={() => handleBulkAction(confirmAction.action)}>Confirm</Button>
+                  <Button size="small" onClick={() => setConfirmAction(null)} sx={{ color: '#fff' }}>Cancel</Button>
+                </Stack>
+              ) : (
+                <>
+                  <Button size="small" startIcon={<CheckCircle2 size={14} />} onClick={() => handleBulkAction('approve')} sx={{ color: '#4ade80' }}>Approve</Button>
+                  <Button size="small" startIcon={<XCircle size={14} />} onClick={() => handleBulkAction('reject')} sx={{ color: '#f87171' }}>Reject</Button>
+                  <Button size="small" startIcon={<Archive size={14} />} onClick={() => handleBulkAction('archive')} sx={{ color: '#9ca3af' }}>Archive</Button>
+                  <IconButton size="small" onClick={() => setSelectedIds(new Set())} sx={{ color: 'rgba(255,255,255,0.5)' }}><X size={16} /></IconButton>
+                </>
+              )}
+            </Paper>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <FeedSlideOver
+        video={slideOverVideo}
+        open={slideOverOpen}
+        onClose={() => setSlideOverOpen(false)}
+        onStatusChange={handleStatusChange}
+        statusConfig={STATUS_CONFIG}
+      />
+
+      {toasts.map((toast, i) => (
+        <Snackbar key={toast.id} open anchorOrigin={{ vertical: 'top', horizontal: 'right' }} sx={{ top: `${72 + i * 60}px !important` }}>
+          <Alert severity={toast.severity} variant="filled" sx={{ borderRadius: 2 }} action={
+            <Stack direction="row" spacing={0.5}>
+              {toast.undoAction && <Button size="small" sx={{ color: '#fff' }} onClick={() => { toast.undoAction!(); removeToast(toast.id); }}>Undo</Button>}
+              <IconButton size="small" sx={{ color: '#fff' }} onClick={() => removeToast(toast.id)}><X size={14} /></IconButton>
+            </Stack>
+          }>
+            {toast.message}
+          </Alert>
+        </Snackbar>
+      ))}
+    </PageContainer>
+  );
+}

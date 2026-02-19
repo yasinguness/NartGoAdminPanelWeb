@@ -23,7 +23,7 @@ import Associations from './pages/Associations/Associations';
 import NotificationsRefactored from './pages/Notifications/NotificationsRefactored';
 import TicketCreationPage from './pages/Tickets/TicketCreationPage';
 import RaffleLivePage from './pages/Event/RaffleLivePage';
-import Feeds from './pages/Feeds/Feeds';
+import FeedVideos from './pages/Feeds/FeedVideos';
 import Bulletins from './pages/Bulletins/Bulletins';
 
 const queryClient = new QueryClient({
@@ -50,7 +50,7 @@ function App() {
 
                 <Route path="devices" element={<Devices />} />
                 <Route path="notifications" element={<NotificationsRefactored />} />
-                <Route path="feeds" element={<Feeds />} />
+                <Route path="feeds" element={<FeedVideos />} />
                 <Route path="bulletins" element={<Bulletins />} />
                 <Route path="users" element={<Users />} />
                 <Route path="users/:id" element={<UserDetails />} />
