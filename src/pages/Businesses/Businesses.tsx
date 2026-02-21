@@ -143,6 +143,28 @@ export default function Businesses() {
         []
     );
 
+    // Filter Clears
+    const handleClearFilters = useCallback(() => {
+        setSelectedCategory('');
+        setSelectedStatus('');
+        setFeaturedOnly(false);
+        setSelectedCity('');
+        setRadiusInKm(null);
+        setSortBy('');
+        // We do not clear keyword, keyword has its own clear button
+    }, []);
+
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (selectedCategory) count++;
+        if (selectedStatus) count++;
+        if (featuredOnly) count++;
+        if (selectedCity) count++;
+        if (radiusInKm) count++;
+        if (sortBy) count++;
+        return count;
+    }, [selectedCategory, selectedStatus, featuredOnly, selectedCity, radiusInKm, sortBy]);
+
     // Local search value for immediate display (controlled by SearchInput's internal state)
     const [localSearchValue, setLocalSearchValue] = useState('');
 
@@ -471,6 +493,8 @@ export default function Businesses() {
                         onChange: handleSearchChange,
                         placeholder: "Search businesses..."
                     }}
+                    onClearFilters={handleClearFilters}
+                    activeFilterCount={activeFilterCount}
                     filters={
                         <>
                             <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -684,28 +708,67 @@ export default function Businesses() {
                                 </>
                             ) : (
                                 <Stack spacing={3} sx={{ py: 2 }}>
-                                    <Typography variant="subtitle1" gutterBottom>
-                                        Current Status:
-                                    </Typography>
-                                    <Stack direction="row" spacing={1}>
-                                        <Chip
-                                            icon={<StarIcon />}
-                                            label="Global"
-                                            color={selectedBusiness.globallyFeatured ? "primary" : "default"}
-                                            variant={selectedBusiness.globallyFeatured ? "filled" : "outlined"}
-                                        />
-                                        <Chip
-                                            icon={<LocationIcon />}
-                                            label="Local"
-                                            color={selectedBusiness.locallyFeatured ? "secondary" : "default"}
-                                            variant={selectedBusiness.locallyFeatured ? "filled" : "outlined"}
-                                        />
-                                    </Stack>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Typography variant="subtitle1" fontWeight={600}>
+                                            Current Status
+                                        </Typography>
+                                        <Stack direction="row" spacing={1}>
+                                            <Chip
+                                                icon={<StarIcon />}
+                                                label="Global"
+                                                color={selectedBusiness.globallyFeatured ? "primary" : "default"}
+                                                variant={selectedBusiness.globallyFeatured ? "filled" : "outlined"}
+                                            />
+                                            <Chip
+                                                icon={<LocationIcon />}
+                                                label="Local"
+                                                color={selectedBusiness.locallyFeatured ? "secondary" : "default"}
+                                                variant={selectedBusiness.locallyFeatured ? "filled" : "outlined"}
+                                            />
+                                        </Stack>
+                                    </Box>
+
+                                    {(selectedBusiness.globallyFeatured || selectedBusiness.locallyFeatured) && (
+                                        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                                Featured Performance
+                                            </Typography>
+                                            <Grid container spacing={2}>
+                                                <Grid item xs={6} md={3}>
+                                                    <Typography variant="caption" color="text.secondary">Remaining Days</Typography>
+                                                    <Typography variant="h6">{selectedBusiness.remainingFeaturedDays || 0}</Typography>
+                                                </Grid>
+                                                <Grid item xs={6} md={3}>
+                                                    <Typography variant="caption" color="text.secondary">Views</Typography>
+                                                    <Typography variant="h6">{selectedBusiness.featuredViewsCount || 0}</Typography>
+                                                </Grid>
+                                                <Grid item xs={6} md={3}>
+                                                    <Typography variant="caption" color="text.secondary">Clicks</Typography>
+                                                    <Typography variant="h6">{selectedBusiness.featuredClicksCount || 0}</Typography>
+                                                </Grid>
+                                                <Grid item xs={6} md={3}>
+                                                    <Typography variant="caption" color="text.secondary">Conversion Rate</Typography>
+                                                    <Typography variant="h6">{selectedBusiness.featuredConversionRate ? `${selectedBusiness.featuredConversionRate.toFixed(1)}%` : '0%'}</Typography>
+                                                </Grid>
+                                            </Grid>
+                                            <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Start: {selectedBusiness.featuredStartDate ? new Date(selectedBusiness.featuredStartDate).toLocaleDateString() : 'N/A'}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    End: {selectedBusiness.featuredEndDate ? new Date(selectedBusiness.featuredEndDate).toLocaleDateString() : 'N/A'}
+                                                </Typography>
+                                            </Box>
+                                        </Paper>
+                                    )}
 
                                     <Divider />
-
+                                    
+                                    <Typography variant="subtitle2" fontWeight={600}>
+                                        Set Featured Status
+                                    </Typography>
                                     <Grid container spacing={2}>
-                                        <Grid item xs={6}>
+                                        <Grid item xs={12} sm={6}>
                                             <TextField
                                                 fullWidth
                                                 type="number"
@@ -713,9 +776,10 @@ export default function Businesses() {
                                                 value={durationInDays}
                                                 onChange={(e) => setDurationInDays(Number(e.target.value))}
                                                 InputProps={{ inputProps: { min: 1 } }}
+                                                size="small"
                                             />
                                         </Grid>
-                                        <Grid item xs={6}>
+                                        <Grid item xs={12} sm={6}>
                                             <TextField
                                                 fullWidth
                                                 type="number"
@@ -723,27 +787,30 @@ export default function Businesses() {
                                                 value={featuredRadiusInKm}
                                                 onChange={(e) => setFeaturedRadiusInKm(Number(e.target.value))}
                                                 InputProps={{ inputProps: { min: 1 } }}
+                                                size="small"
+                                                disabled={selectedBusiness.globallyFeatured && !selectedBusiness.locallyFeatured}
                                             />
                                         </Grid>
                                     </Grid>
 
-                                    <Stack spacing={2}>
+                                    <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
                                         {!selectedBusiness.globallyFeatured && (
-                                            <Button variant="outlined" startIcon={<StarIcon />} onClick={handleSetGlobalFeatured}>
-                                                Set as Globally Featured
+                                            <Button variant="contained" color="primary" startIcon={<StarIcon />} onClick={handleSetGlobalFeatured} fullWidth>
+                                                Globally Featured
                                             </Button>
                                         )}
                                         {!selectedBusiness.locallyFeatured && (
-                                            <Button variant="outlined" startIcon={<LocationIcon />} onClick={handleSetLocalFeatured}>
-                                                Set as Locally Featured
-                                            </Button>
-                                        )}
-                                        {(selectedBusiness.globallyFeatured || selectedBusiness.locallyFeatured) && (
-                                            <Button variant="outlined" color="error" onClick={handleRemoveFeatured}>
-                                                Remove All Featured Status
+                                            <Button variant="contained" color="secondary" startIcon={<LocationIcon />} onClick={handleSetLocalFeatured} fullWidth>
+                                                Locally Featured
                                             </Button>
                                         )}
                                     </Stack>
+
+                                    {(selectedBusiness.globallyFeatured || selectedBusiness.locallyFeatured) && (
+                                        <Button variant="outlined" color="error" onClick={handleRemoveFeatured} fullWidth sx={{ mt: 2 }}>
+                                            Remove All Featured Status
+                                        </Button>
+                                    )}
                                 </Stack>
                             )}
                         </Box>

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Typography, Button, TextField, InputAdornment, Chip, Stack,
   IconButton, Tooltip, Menu, MenuItem, Paper, Skeleton, Snackbar, Alert,
-  Fade, Pagination,
+  Fade, Pagination, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
 } from '@mui/material';
 import {
   Search, LayoutGrid, List, ChevronDown,
@@ -62,6 +62,9 @@ export default function FeedVideos() {
   // Toasts
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  // Reject Dialog
+  const [rejectDialog, setRejectDialog] = useState<{ open: boolean; videoIds: string[]; reason: string }>({ open: false, videoIds: [], reason: '' });
+
   // Keyboard shortcut visibility
   const [showShortcuts, setShowShortcuts] = useState(false);
 
@@ -100,8 +103,8 @@ export default function FeedVideos() {
       const video = feeds.find(f => f.id === videoId);
       if (!video) return;
       
-      const oldStatus = video.status;
-      await updateFeedStatus(videoId, { status: newStatus });
+        const oldStatus = video.status;
+      await updateFeedStatus(videoId, { status: newStatus, rejectionReason: reason });
       
       addToast(
         `"${video.title}" → ${STATUS_CONFIG[newStatus].label}`,
@@ -112,13 +115,20 @@ export default function FeedVideos() {
       );
 
       if (slideOverVideo?.id === videoId) {
-        setSlideOverVideo({ ...video, status: newStatus });
+        setSlideOverVideo({ ...video, status: newStatus, rejectionReason: reason || video.rejectionReason });
       }
     } catch (error) {
       addToast('Status update failed', 'warning');
     }
   }, [feeds, updateFeedStatus, addToast, slideOverVideo]);
 
+  const requestStatusChange = useCallback((videoId: string, status: FeedStatus) => {
+    if (status === FeedStatus.REJECTED) {
+      setRejectDialog({ open: true, videoIds: [videoId], reason: '' });
+    } else {
+      handleStatusChange(videoId, status);
+    }
+  }, [handleStatusChange]);
   // Selection
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -140,10 +150,16 @@ export default function FeedVideos() {
   const handleBulkAction = useCallback(async (action: string) => {
     const ids = Array.from(selectedIds);
     const count = ids.length;
+    if (count === 0) return;
+
+    if (action === 'reject') {
+      setRejectDialog({ open: true, videoIds: ids, reason: '' });
+      setConfirmAction(null);
+      return;
+    }
 
     const statusMap: Record<string, FeedStatus> = {
       approve: FeedStatus.APPROVED, 
-      reject: FeedStatus.REJECTED, 
       archive: FeedStatus.ARCHIVED,
     };
     
@@ -157,6 +173,20 @@ export default function FeedVideos() {
     setSelectedIds(new Set());
     setConfirmAction(null);
   }, [selectedIds, handleStatusChange]);
+
+  const confirmReject = useCallback(async () => {
+    if (!rejectDialog.reason.trim()) {
+      addToast('Rejection reason cannot be empty', 'warning');
+      return;
+    }
+    setRejectDialog(prev => ({ ...prev, open: false }));
+    for (const id of rejectDialog.videoIds) {
+      await handleStatusChange(id, FeedStatus.REJECTED, rejectDialog.reason);
+    }
+    if (rejectDialog.videoIds.length > 1) {
+      setSelectedIds(new Set());
+    }
+  }, [rejectDialog, handleStatusChange, addToast]);
 
   // Toggle status filter
   const toggleStatusFilter = useCallback((status: FeedStatus) => {
@@ -427,7 +457,7 @@ export default function FeedVideos() {
                     selected={selectedIds.has(video.id)}
                     onSelect={toggleSelect}
                     onClick={(v) => { setSlideOverVideo(v); setSlideOverOpen(true); }}
-                    onStatusChange={handleStatusChange}
+                    onStatusChange={requestStatusChange}
                     statusConfig={STATUS_CONFIG}
                   />
                 ))}
@@ -440,7 +470,7 @@ export default function FeedVideos() {
               onSelect={toggleSelect}
               onSelectAll={toggleSelectAll}
               onClick={(v) => { setSlideOverVideo(v); setSlideOverOpen(true); }}
-              onStatusChange={handleStatusChange}
+              onStatusChange={requestStatusChange}
               sortField={sortBy}
               sortDir={sortDir}
               onSort={handleSort}
@@ -494,9 +524,42 @@ export default function FeedVideos() {
         video={slideOverVideo}
         open={slideOverOpen}
         onClose={() => setSlideOverOpen(false)}
-        onStatusChange={handleStatusChange}
+        onStatusChange={requestStatusChange}
         statusConfig={STATUS_CONFIG}
       />
+
+      {/* Reject Dialog */}
+      <Dialog 
+        open={rejectDialog.open} 
+        onClose={() => setRejectDialog(prev => ({ ...prev, open: false }))}
+        PaperProps={{ sx: { borderRadius: 3, p: 1, minWidth: 400 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>Reject Video{rejectDialog.videoIds.length > 1 ? 's' : ''}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Please provide a reason for rejecting the content. The creator will be notified of this reason.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Rejection Reason"
+            fullWidth
+            multiline
+            rows={3}
+            variant="outlined"
+            value={rejectDialog.reason}
+            onChange={(e) => setRejectDialog(prev => ({ ...prev, reason: e.target.value }))}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRejectDialog(prev => ({ ...prev, open: false }))} color="inherit" sx={{ fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button onClick={confirmReject} variant="contained" color="error" sx={{ fontWeight: 600 }}>
+            Submit Rejection
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {toasts.map((toast, i) => (
         <Snackbar key={toast.id} open anchorOrigin={{ vertical: 'top', horizontal: 'right' }} sx={{ top: `${72 + i * 60}px !important` }}>

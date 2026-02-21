@@ -13,7 +13,9 @@ import {
   LocationOn as LocationIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
+  Star as StarIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 
 // New components
@@ -31,6 +33,7 @@ interface DashboardStats {
   totalCategories: number;
   totalLocations: number;
   totalFederations: number;
+  featuredBusinesses: number;
 }
 
 export default function Dashboard() {
@@ -38,6 +41,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { enqueueSnackbar } = useSnackbar();
+  const navigate = useNavigate();
 
   const fetchStats = async () => {
     try {
@@ -56,6 +60,7 @@ export default function Dashboard() {
         totalCategories: 12,
         totalLocations: 8,
         totalFederations: 10,
+        featuredBusinesses: 24,
       });
     } catch (error: any) {
       console.error('Error fetching dashboard stats:', error);
@@ -116,11 +121,12 @@ export default function Dashboard() {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Federations"
-            value={stats?.totalFederations || 0}
-            icon={<BusinessIcon />}
+            title="Featured Businesses"
+            value={stats?.featuredBusinesses || 0}
+            icon={<StarIcon />}
             color="primary"
-            subtitle="Registered federations"
+            subtitle="Currently featured"
+            trend={12.5}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -215,13 +221,14 @@ export default function Dashboard() {
           >
             <Grid container spacing={2}>
               {[
-                { icon: <BusinessIcon />, label: 'Add Business', color: 'primary' },
-                { icon: <EventIcon />, label: 'Create Event', color: 'success' },
-                { icon: <CategoryIcon />, label: 'Categories', color: 'warning' },
-                { icon: <LocationIcon />, label: 'Locations', color: 'info' },
+                { icon: <StarIcon />, label: 'Featured Businesses', color: 'primary', path: '/businesses' },
+                { icon: <BusinessIcon />, label: 'Add Business', color: 'info', path: '/businesses' },
+                { icon: <EventIcon />, label: 'Create Event', color: 'success', path: '/events' },
+                { icon: <CategoryIcon />, label: 'Categories', color: 'warning', path: '/business-categories' },
               ].map((action) => (
                 <Grid item xs={6} key={action.label}>
                   <Box
+                    onClick={() => navigate(action.path)}
                     sx={{
                       p: 3,
                       display: 'flex',
