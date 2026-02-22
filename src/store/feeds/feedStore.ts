@@ -26,18 +26,36 @@ interface FeedStore {
     deleteFeed: (id: string) => Promise<void>;
 }
 
+const normalizeFeed = (feed: any): FeedDto => {
+    // Normalize ID: Backend might send videoId or id
+    const id = feed.id || feed.videoId || feed.mediaId;
+    
+    return {
+        ...feed,
+        id,
+        // Ensure URLs are mapped correctly from any potential backend field
+        videoUrl: feed.videoUrl || feed.rawVideoUrl || feed.playlistUrl || feed.url || feed.mediaUrl,
+        rawVideoUrl: feed.rawVideoUrl || feed.videoUrl || feed.url || feed.mediaUrl,
+        playlistUrl: feed.playlistUrl || feed.videoUrl || feed.url || feed.mediaUrl,
+        thumbnailUrl: feed.thumbnailUrl || feed.imageUrl || feed.thumbnail_url || feed.thumbnail,
+        imageUrl: feed.imageUrl || feed.thumbnailUrl || feed.image_url || feed.image
+    };
+};
+
 const normalizeFeedList = (data: PageResponseDto<FeedDto> | FeedDto[]) => {
     if (Array.isArray(data)) {
+        const sorted = data.map(normalizeFeed);
         return {
-            feeds: data,
-            totalElements: data.length,
-            totalPages: data.length > 0 ? 1 : 0,
+            feeds: sorted,
+            totalElements: sorted.length,
+            totalPages: sorted.length > 0 ? 1 : 0,
             currentPage: 0
         };
     }
 
+    const content = data.content.map(normalizeFeed);
     return {
-        feeds: data.content,
+        feeds: content,
         totalElements: data.totalElements,
         totalPages: data.totalPages,
         currentPage: data.number
@@ -68,7 +86,7 @@ export const useFeedStore = create<FeedStore>((set) => ({
         try {
             set({ loading: true, error: null });
             const response = await feedService.getFeedById(id);
-            return response.data;
+            return normalizeFeed(response.data);
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to fetch feed' });
             throw error;
@@ -81,8 +99,9 @@ export const useFeedStore = create<FeedStore>((set) => ({
         try {
             set({ loading: true, error: null });
             const response = await feedService.createFeed(payload, creatorEmail);
-            set((state) => ({ feeds: [response.data, ...state.feeds] }));
-            return response.data;
+            const normalized = normalizeFeed(response.data);
+            set((state) => ({ feeds: [normalized, ...state.feeds] }));
+            return normalized;
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to create feed' });
             throw error;
@@ -95,10 +114,11 @@ export const useFeedStore = create<FeedStore>((set) => ({
         try {
             set({ loading: true, error: null });
             const response = await feedService.updateFeed(id, payload);
+            const normalized = normalizeFeed(response.data);
             set((state) => ({
-                feeds: state.feeds.map((feed) => (feed.id === id ? response.data : feed))
+                feeds: state.feeds.map((feed) => (feed.id === id ? normalized : feed))
             }));
-            return response.data;
+            return normalized;
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to update feed' });
             throw error;
@@ -111,10 +131,11 @@ export const useFeedStore = create<FeedStore>((set) => ({
         try {
             set({ loading: true, error: null });
             const response = await feedService.updateFeedStatus(id, payload);
+            const normalized = normalizeFeed(response.data);
             set((state) => ({
-                feeds: state.feeds.map((feed) => (feed.id === id ? response.data : feed))
+                feeds: state.feeds.map((feed) => (feed.id === id ? normalized : feed))
             }));
-            return response.data;
+            return normalized;
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to update feed status' });
             throw error;
