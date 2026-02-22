@@ -59,7 +59,7 @@ export default function FeedSlideOver({ video, open, onClose, onStatusChange, on
               }}>
                 <Box sx={{ position: 'absolute', inset: 0 }}>
                   <ReactPlayer
-                    url={videoSource}
+                    src={videoSource}
                     width="100%"
                     height="100%"
                     controls
@@ -73,7 +73,7 @@ export default function FeedSlideOver({ video, open, onClose, onStatusChange, on
                           controlsList: 'nodownload'
                         }
                       }
-                    }}
+                    } as any}
                   />
                   {!videoSource && (
                      <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.4)', color: '#fff' }}>

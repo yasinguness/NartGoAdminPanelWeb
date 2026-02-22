@@ -52,6 +52,11 @@ export interface FeedDto {
     createdAt?: string;
     updatedAt?: string;
     hashtags?: string[];
+    musicId?: string;
+    musicTitle?: string;
+    musicArtist?: string;
+    allowComments?: boolean;
+    taggedUserIds?: string[];
 }
 
 export interface FeedCreateRequest {
