@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import {
   Box, Typography, Checkbox, Paper, Chip, Menu, MenuItem,
-  Avatar, Stack, Tooltip
+  Avatar, Stack, Tooltip, Divider
 } from '@mui/material';
-import { Play, Calendar, User, ChevronDown } from 'lucide-react';
+import { Play, Calendar, User, ChevronDown, Trash2, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FeedDto, FeedStatus } from '../../types/feed/feedModel';
 
@@ -13,14 +13,15 @@ interface FeedVideoCardProps {
   onSelect: (id: string) => void;
   onClick: (video: FeedDto) => void;
   onStatusChange: (id: string, status: FeedStatus) => void;
+  onDelete: (id: string) => void;
   statusConfig: Record<FeedStatus, { label: string; color: string; bg: string; border: string }>;
 }
 
-export default function FeedVideoCard({ video, selected, onSelect, onClick, onStatusChange, statusConfig }: FeedVideoCardProps) {
+export default function FeedVideoCard({ video, selected, onSelect, onClick, onStatusChange, onDelete, statusConfig }: FeedVideoCardProps) {
   const [hovered, setHovered] = useState(false);
   const [statusAnchor, setStatusAnchor] = useState<null | HTMLElement>(null);
   
-  const cfg = statusConfig[video.status] || statusConfig[FeedStatus.DRAFT];
+  const cfg = statusConfig[video.status] || statusConfig[FeedStatus.UPLOADED_RAW];
 
   const formatDate = (d?: string) => {
     if (!d) return '-';
@@ -104,11 +105,22 @@ export default function FeedVideoCard({ video, selected, onSelect, onClick, onSt
                     {statusConfig[s].label}
                   </MenuItem>
                 ))}
+                <Divider />
+                <MenuItem onClick={() => { onDelete(video.id); setStatusAnchor(null); }} sx={{ fontSize: '0.75rem', color: 'error.main' }}>
+                  <Trash2 size={14} style={{ marginRight: 8 }} /> Sil
+                </MenuItem>
               </Menu>
             </Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Calendar size={12} /> {formatDate(video.createdAt)}
-            </Typography>
+            
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Stack direction="row" alignItems="center" spacing={0.5} sx={{ color: 'text.secondary' }}>
+                <Eye size={12} />
+                <Typography variant="caption" sx={{ fontWeight: 600 }}>{video.viewCount || 0}</Typography>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Calendar size={12} /> {formatDate(video.createdAt)}
+              </Typography>
+            </Stack>
           </Stack>
         </Box>
       </Paper>

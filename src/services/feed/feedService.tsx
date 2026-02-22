@@ -43,5 +43,10 @@ export const feedService = {
     updateFeedStatus: async (id: string, payload: FeedStatusUpdateRequest) => {
         const response = await api.put<ApiResponse<FeedDto>>(`/content/admin/feed/videos/${id}/status`, payload);
         return response.data;
+    },
+    
+    deleteFeed: async (id: string) => {
+        const response = await api.delete<ApiResponse<void>>(`/content/admin/feed/videos/${id}`);
+        return response.data;
     }
 };

@@ -1,21 +1,49 @@
 export enum FeedStatus {
-    DRAFT = 'DRAFT',
-    PENDING = 'PENDING',
+    UPLOADED_RAW = 'UPLOADED_RAW',
+    PROCESSING_METADATA = 'PROCESSING_METADATA',
+    READY_RAW = 'READY_RAW',
+    PROCESSING_STREAM = 'PROCESSING_STREAM',
+    READY_STREAM = 'READY_STREAM',
+    PROCESSING = 'PROCESSING',
+    PENDING_APPROVAL = 'PENDING_APPROVAL',
     APPROVED = 'APPROVED',
     REJECTED = 'REJECTED',
-    PUBLISHED = 'PUBLISHED',
-    ARCHIVED = 'ARCHIVED'
+    FAILED = 'FAILED',
+    REPORTED = 'REPORTED'
 }
 
 export interface FeedDto {
-    id: string;
+    id: string; // Database ID (Unified with videoId/mediaId where applicable)
+    mediaId?: string; // Media Service ID
     title: string;
     summary?: string;
+    description?: string;
     content: string;
     imageUrl?: string;
-    videoUrl?: string;
+    videoUrl?: string; // Legacy/Raw URL
+    rawVideoUrl?: string; // MP4 URL for immediate playback
+    playlistUrl?: string; // HLS URL
     thumbnailUrl?: string;
+    hlsReady?: boolean;
     status: FeedStatus;
+    
+    // Creator Info
+    creatorId?: string;
+    creatorUsername?: string;
+    creatorAvatarUrl?: string;
+    
+    // Stats
+    likeCount?: number;
+    viewCount?: number;
+    shareCount?: number;
+    commentCount?: number;
+    
+    // Video Metadata
+    durationSeconds?: number;
+    width?: number;
+    height?: number;
+    
+    // Metadata
     pinned?: boolean;
     rejectionReason?: string;
     moderatedBy?: string;
@@ -23,6 +51,7 @@ export interface FeedDto {
     publishedAt?: string;
     createdAt?: string;
     updatedAt?: string;
+    hashtags?: string[];
 }
 
 export interface FeedCreateRequest {

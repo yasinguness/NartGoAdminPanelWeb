@@ -23,6 +23,7 @@ interface FeedStore {
     createFeed: (payload: FeedCreateRequest, creatorEmail: string) => Promise<FeedDto>;
     updateFeed: (id: string, payload: FeedUpdateRequest) => Promise<FeedDto>;
     updateFeedStatus: (id: string, payload: FeedStatusUpdateRequest) => Promise<FeedDto>;
+    deleteFeed: (id: string) => Promise<void>;
 }
 
 const normalizeFeedList = (data: PageResponseDto<FeedDto> | FeedDto[]) => {
@@ -116,6 +117,22 @@ export const useFeedStore = create<FeedStore>((set) => ({
             return response.data;
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to update feed status' });
+            throw error;
+        } finally {
+            set({ loading: false });
+        }
+    },
+
+    deleteFeed: async (id) => {
+        try {
+            set({ loading: true, error: null });
+            await feedService.deleteFeed(id);
+            set((state) => ({
+                feeds: state.feeds.filter((feed) => feed.id !== id),
+                totalElements: state.totalElements - 1
+            }));
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : 'Failed to delete feed' });
             throw error;
         } finally {
             set({ loading: false });

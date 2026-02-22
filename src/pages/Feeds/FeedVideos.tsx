@@ -31,6 +31,7 @@ export default function FeedVideos() {
     loading, 
     fetchFeeds, 
     updateFeedStatus,
+    deleteFeed,
     totalElements,
     totalPages,
     currentPage
@@ -53,7 +54,8 @@ export default function FeedVideos() {
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [confirmAction, setConfirmAction] = useState<{ action: string; label: string } | null>(null);
+  // Confirmation Dialog
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; videoIds: string[] }>({ open: false, videoIds: [] });
 
   // Slide-over
   const [slideOverVideo, setSlideOverVideo] = useState<FeedDto | null>(null);
@@ -98,7 +100,7 @@ export default function FeedVideos() {
   }, []);
 
   // Status change
-  const handleStatusChange = useCallback(async (videoId: string, newStatus: FeedStatus) => {
+  const handleStatusChange = useCallback(async (videoId: string, newStatus: FeedStatus, reason?: string) => {
     try {
       const video = feeds.find(f => f.id === videoId);
       if (!video) return;
@@ -129,6 +131,23 @@ export default function FeedVideos() {
       handleStatusChange(videoId, status);
     }
   }, [handleStatusChange]);
+
+  const handleDelete = useCallback(async (videoIds: string[]) => {
+    setDeleteConfirm({ open: true, videoIds });
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    try {
+      for (const id of deleteConfirm.videoIds) {
+        await deleteFeed(id);
+      }
+      addToast(`${deleteConfirm.videoIds.length} video silindi`, 'success');
+      setSelectedIds(new Set());
+      setDeleteConfirm({ open: false, videoIds: [] });
+    } catch (error) {
+      addToast('Silme işlemi başarısız oldu', 'warning');
+    }
+  }, [deleteConfirm, deleteFeed, addToast]);
   // Selection
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -152,15 +171,18 @@ export default function FeedVideos() {
     const count = ids.length;
     if (count === 0) return;
 
+    if (action === 'delete') {
+      handleDelete(ids);
+      return;
+    }
+
     if (action === 'reject') {
       setRejectDialog({ open: true, videoIds: ids, reason: '' });
-      setConfirmAction(null);
       return;
     }
 
     const statusMap: Record<string, FeedStatus> = {
       approve: FeedStatus.APPROVED, 
-      archive: FeedStatus.ARCHIVED,
     };
     
     const newStatus = statusMap[action];
@@ -171,8 +193,7 @@ export default function FeedVideos() {
     }
     
     setSelectedIds(new Set());
-    setConfirmAction(null);
-  }, [selectedIds, handleStatusChange]);
+  }, [selectedIds, handleStatusChange, handleDelete]);
 
   const confirmReject = useCallback(async () => {
     if (!rejectDialog.reason.trim()) {
@@ -458,6 +479,7 @@ export default function FeedVideos() {
                     onSelect={toggleSelect}
                     onClick={(v) => { setSlideOverVideo(v); setSlideOverOpen(true); }}
                     onStatusChange={requestStatusChange}
+                    onDelete={(id) => handleDelete([id])}
                     statusConfig={STATUS_CONFIG}
                   />
                 ))}
@@ -471,6 +493,7 @@ export default function FeedVideos() {
               onSelectAll={toggleSelectAll}
               onClick={(v) => { setSlideOverVideo(v); setSlideOverOpen(true); }}
               onStatusChange={requestStatusChange}
+              onDelete={(id) => handleDelete([id])}
               sortField={sortBy}
               sortDir={sortDir}
               onSort={handleSort}
@@ -501,30 +524,21 @@ export default function FeedVideos() {
               <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedIds.size} selected</Typography>
               <Box sx={{ width: 1, height: 24, bgcolor: 'rgba(255,255,255,0.15)' }} />
               
-              {confirmAction ? (
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="caption">{confirmAction.label}?</Typography>
-                  <Button size="small" variant="contained" color="error" onClick={() => handleBulkAction(confirmAction.action)}>Confirm</Button>
-                  <Button size="small" onClick={() => setConfirmAction(null)} sx={{ color: '#fff' }}>Cancel</Button>
-                </Stack>
-              ) : (
-                <>
-                  <Button size="small" startIcon={<CheckCircle2 size={14} />} onClick={() => handleBulkAction('approve')} sx={{ color: '#4ade80' }}>Approve</Button>
-                  <Button size="small" startIcon={<XCircle size={14} />} onClick={() => handleBulkAction('reject')} sx={{ color: '#f87171' }}>Reject</Button>
-                  <Button size="small" startIcon={<Archive size={14} />} onClick={() => handleBulkAction('archive')} sx={{ color: '#9ca3af' }}>Archive</Button>
-                  <IconButton size="small" onClick={() => setSelectedIds(new Set())} sx={{ color: 'rgba(255,255,255,0.5)' }}><X size={16} /></IconButton>
-                </>
-              )}
-            </Paper>
-          </motion.div>
-        )}
-      </AnimatePresence>
+               <Button size="small" startIcon={<CheckCircle2 size={14} />} onClick={() => handleBulkAction('approve')} sx={{ color: '#4ade80' }}>Approve</Button>
+               <Button size="small" startIcon={<XCircle size={14} />} onClick={() => handleBulkAction('reject')} sx={{ color: '#f87171' }}>Reject</Button>
+               <Button size="small" startIcon={<Trash2 size={14} />} onClick={() => handleBulkAction('delete')} sx={{ color: '#f87171' }}>Delete</Button>
+               <IconButton size="small" onClick={() => setSelectedIds(new Set())} sx={{ color: 'rgba(255,255,255,0.5)' }}><X size={16} /></IconButton>
+             </Paper>
+           </motion.div>
+         )}
+       </AnimatePresence>
 
       <FeedSlideOver
         video={slideOverVideo}
         open={slideOverOpen}
         onClose={() => setSlideOverOpen(false)}
         onStatusChange={requestStatusChange}
+        onDelete={(id) => handleDelete([id])}
         statusConfig={STATUS_CONFIG}
       />
 
@@ -557,6 +571,28 @@ export default function FeedVideos() {
           </Button>
           <Button onClick={confirmReject} variant="contained" color="error" sx={{ fontWeight: 600 }}>
             Submit Rejection
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={deleteConfirm.open} 
+        onClose={() => setDeleteConfirm(prev => ({ ...prev, open: false }))}
+        PaperProps={{ sx: { borderRadius: 3, p: 1, minWidth: 400 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>Videoları Sil</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {deleteConfirm.videoIds.length} videoyu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteConfirm(prev => ({ ...prev, open: false }))} color="inherit" sx={{ fontWeight: 600 }}>
+            Vazgeç
+          </Button>
+          <Button onClick={confirmDelete} variant="contained" color="error" sx={{ fontWeight: 600 }}>
+            Sil
           </Button>
         </DialogActions>
       </Dialog>
