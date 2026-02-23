@@ -12,7 +12,7 @@
  * ```
  */
 
-import { Chip, ChipProps } from '@mui/material';
+import { Chip, ChipProps, SxProps, Theme } from '@mui/material';
 import {
   CheckCircle,
   Block,
@@ -51,6 +51,8 @@ interface StatusChipProps {
   showIcon?: boolean;
   /** Override color */
   color?: ChipProps['color'];
+  /** Style override */
+  sx?: SxProps<Theme>;
 }
 
 // Status to color mapping
@@ -115,6 +117,7 @@ export default function StatusChip({
   size = 'small',
   showIcon = false,
   color,
+  sx,
 }: StatusChipProps) {
   // Normalize status to lowercase for mapping
   const normalizedStatus = String(status || '').toLowerCase();
@@ -147,6 +150,7 @@ export default function StatusChip({
             ml: 0.5,
           },
         }),
+        ...sx,
       }}
     />
   );

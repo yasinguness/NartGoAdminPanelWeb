@@ -23,6 +23,7 @@ import {
     IconButton,
     Stack
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
     Notifications as NotificationsIcon,
     Send as SendIcon,
@@ -31,6 +32,7 @@ import {
     Close as CloseIcon,
     People as PeopleIcon
 } from '@mui/icons-material';
+import { motion } from 'framer-motion';
 import { useSnackbar } from 'notistack';
 
 // Types and Services
@@ -920,6 +922,58 @@ export default function EnhancedNotificationDialog({
                             </FormGrid>
                         </FormSection>
 
+                        <FormSection
+                            title="⏰ Zamanlama ve Onay"
+                            description="Bildirimin ne zaman gönderileceğini ve onay gereksinimlerini belirleyin."
+                        >
+                            <FormGrid>
+                                <TextField
+                                    fullWidth
+                                    label="Zamanlanmış Gönderim (Opsiyonel)"
+                                    type="datetime-local"
+                                    value={formData.scheduledAt ? new Date(formData.scheduledAt).toISOString().slice(0, 16) : ''}
+                                    onChange={(e) => setFormData(prev => ({ 
+                                        ...prev, 
+                                        scheduledAt: e.target.value ? new Date(e.target.value).toISOString() : undefined 
+                                    }))}
+                                    InputLabelProps={{ shrink: true }}
+                                    helperText="Gelecekteki bir tarih seçilirse bildirim o tarihte otomatik gönderilir."
+                                />
+                                <TextField
+                                    fullWidth
+                                    label="Son Geçerlilik Tarihi (TTL)"
+                                    type="datetime-local"
+                                    value={formData.expiresAt ? new Date(formData.expiresAt).toISOString().slice(0, 16) : ''}
+                                    onChange={(e) => setFormData(prev => ({ 
+                                        ...prev, 
+                                        expiresAt: e.target.value ? new Date(e.target.value).toISOString() : undefined 
+                                    }))}
+                                    InputLabelProps={{ shrink: true }}
+                                    helperText="Bu tarihten sonra bildirim kullanıcılara gösterilmeyecektir."
+                                />
+                                <Box sx={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', mt: 1 }}>
+                                    <FormControl fullWidth>
+                                        <InputLabel>Onay Gereksinimi</InputLabel>
+                                        <Select
+                                            value={formData.approvalRequired ? 'true' : 'false'}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, approvalRequired: e.target.value === 'true' }))}
+                                            label="Onay Gereksinimi"
+                                        >
+                                            <MenuItem value="false">Otomatik Gönder (Onay Gerekmez)</MenuItem>
+                                            <MenuItem value="true">Üst Yönetim Onayı Gerekli (Beklemeye Alınır)</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Box>
+                                {formData.approvalRequired && (
+                                    <Grid item xs={12}>
+                                        <Alert severity="warning" variant="outlined">
+                                            Bu bildirim, onay verildikten sonra işleme alınacaktır.
+                                        </Alert>
+                                    </Grid>
+                                )}
+                            </FormGrid>
+                        </FormSection>
+
                         {/* Template-specific fields */}
                         {selectedTemplate && (
                             <>
@@ -1038,51 +1092,166 @@ export default function EnhancedNotificationDialog({
                         </Grid>
 
                         <Grid item xs={12} md={6}>
-                            <Card variant="outlined" sx={{ height: '100%' }}>
-                                <Card sx={{ p: 2, height: '100%' }}>
-                                    <Typography variant="h6" gutterBottom sx={{ color: '#1976d2' }}>
-                                        📱 Push Bildirim
-                                    </Typography>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, color: 'text.secondary', alignSelf: 'flex-start', mb: 2 }}>
+                                    📱 Mobil Bildirim Önizlemesi
+                                </Typography>
+                                
+                                {/* Phone Mockup */}
+                                <Box sx={{
+                                    width: 280,
+                                    height: 540,
+                                    borderRadius: '40px',
+                                    border: '12px solid #1a1a1a',
+                                    position: 'relative',
+                                    bgcolor: '#000',
+                                    boxShadow: '0 30px 60px -15px rgba(0,0,0,0.3)',
+                                    overflow: 'hidden',
+                                    display: 'flex',
+                                    flexDirection: 'column'
+                                }}>
+                                    {/* Notch */}
                                     <Box sx={{
-                                        bgcolor: '#f5f5f5',
-                                        p: 2,
-                                        borderRadius: 1,
-                                        border: '1px solid #e0e0e0',
-                                        minHeight: 120
-                                    }}>
-                                        <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1, color: '#1976d2' }}>
-                                            {formData.title || 'Başlık yok'}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
-                                            {previewContent || formData.content || 'İçerik yok'}
-                                        </Typography>
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: '50%',
+                                        transform: 'translateX(-50%)',
+                                        width: '120px',
+                                        height: '25px',
+                                        bgcolor: '#1a1a1a',
+                                        borderBottomLeftRadius: '15px',
+                                        borderBottomRightRadius: '15px',
+                                        zIndex: 10
+                                    }} />
+
+                                    {/* Status Bar */}
+                                    <Box sx={{ p: '35px 20px 10px', display: 'flex', justifyContent: 'space-between', color: '#fff' }}>
+                                        <Typography variant="caption" sx={{ fontWeight: 700 }}>9:41</Typography>
+                                        <Stack direction="row" spacing={0.5} alignItems="center">
+                                            <NotificationsIcon sx={{ fontSize: 12 }} />
+                                            <Box sx={{ width: 12, height: 8, border: '1px solid #fff', borderRadius: '2px' }} />
+                                        </Stack>
                                     </Box>
-                                </Card>
-                            </Card>
+
+                                    {/* Content / Wallpaper Area */}
+                                    <Box sx={{ 
+                                        flexGrow: 1, 
+                                        position: 'relative',
+                                        background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+                                        p: 2
+                                    }}>
+                                        {/* Notification Card in Mockup */}
+                                        <motion.div
+                                            initial={{ y: -100, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            transition={{ type: 'spring', damping: 20 }}
+                                        >
+                                            <Box sx={{
+                                                bgcolor: 'rgba(255, 255, 255, 0.92)',
+                                                backdropFilter: 'blur(10px)',
+                                                borderRadius: '18px',
+                                                p: 1.5,
+                                                boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                                                width: '100%'
+                                            }}>
+                                                <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                                                    <Box sx={{ 
+                                                        width: 20, 
+                                                        height: 20, 
+                                                        bgcolor: 'primary.main', 
+                                                        borderRadius: '4px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}>
+                                                        <NotificationsIcon sx={{ fontSize: 12, color: '#fff' }} />
+                                                    </Box>
+                                                    <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.primary', flexGrow: 1 }}>
+                                                        NartGo Admin
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>
+                                                        now
+                                                    </Typography>
+                                                </Stack>
+                                                <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.primary', display: 'block', mb: 0.5 }}>
+                                                    {formData.title || 'Bildirim Başlığı'}
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.3, display: 'block', fontSize: '0.7rem' }}>
+                                                    {previewContent || formData.content || 'Bildirim içeriği burada görünecektir...'}
+                                                </Typography>
+                                            </Box>
+                                        </motion.div>
+                                    </Box>
+                                    
+                                    {/* Home Indicator */}
+                                    <Box sx={{
+                                        position: 'absolute',
+                                        bottom: 8,
+                                        left: '50%',
+                                        transform: 'translateX(-50%)',
+                                        width: '100px',
+                                        height: '4px',
+                                        bgcolor: 'rgba(255,255,255,0.5)',
+                                        borderRadius: '2px'
+                                    }} />
+                                </Box>
+                            </Box>
                         </Grid>
 
                         <Grid item xs={12} md={6}>
-                            <Card variant="outlined" sx={{ height: '100%' }}>
-                                <Card sx={{ p: 2, height: '100%' }}>
-                                    <Typography variant="h6" gutterBottom sx={{ color: '#2e7d32' }}>
-                                        📧 Email
-                                    </Typography>
-                                    <Box sx={{
-                                        bgcolor: '#fafafa',
-                                        p: 2,
-                                        borderRadius: 1,
-                                        border: '1px solid #e0e0e0',
-                                        minHeight: 120
-                                    }}>
-                                        <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1, color: '#2e7d32' }}>
-                                            Konu: {formData.title || 'Başlık yok'}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, color: 'text.secondary', mb: 2 }}>
+                                    📧 Email Önizlemesi
+                                </Typography>
+                                
+                                <Card variant="outlined" sx={{ 
+                                    borderRadius: 4, 
+                                    overflow: 'hidden',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    flexGrow: 1,
+                                    bgcolor: '#f8fafc'
+                                }}>
+                                    {/* Browser-like Toolbar */}
+                                    <Box sx={{ p: 1.5, bgcolor: '#fff', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#ff5f56' }} />
+                                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#ffbd2e' }} />
+                                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#27c93f' }} />
+                                        <Box sx={{ ml: 1, flexGrow: 1, height: 20, bgcolor: '#f1f5f9', borderRadius: 1 }} />
+                                    </Box>
+                                    
+                                    <Box sx={{ p: 3 }}>
+                                        <Typography variant="body2" sx={{ color: 'text.disabled', mb: 1 }}>
+                                            Kime: <span style={{ color: '#1e293b', fontWeight: 600 }}>kullanici@example.com</span>
                                         </Typography>
-                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                                            {previewContent || formData.content || 'İçerik yok'}
+                                        <Typography variant="body1" sx={{ fontWeight: 800, mb: 3, borderBottom: '1px solid #e2e8f0', pb: 2 }}>
+                                            Konu: {formData.title || 'Bildirim Başlığı'}
                                         </Typography>
+                                        
+                                        <Box sx={{ bgcolor: '#fff', p: 4, borderRadius: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                                            <Box sx={{ textAlign: 'center', mb: 4 }}>
+                                                <Typography variant="h5" sx={{ fontWeight: 900, color: 'primary.main', letterSpacing: '-1px' }}>NartGo</Typography>
+                                            </Box>
+                                            
+                                            <Typography variant="body1" sx={{ fontWeight: 700, mb: 2 }}>Merhaba,</Typography>
+                                            
+                                            <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.7, whiteSpace: 'pre-line', mb: 4 }}>
+                                                {previewContent || formData.content || 'Bildirim içeriği burada görünecektir...'}
+                                            </Typography>
+                                            
+                                            <Button variant="contained" disabled sx={{ borderRadius: 2, textTransform: 'none', px: 4 }}>
+                                                Detayları Gör
+                                            </Button>
+                                            
+                                            <Divider sx={{ my: 4 }} />
+                                            
+                                            <Typography variant="caption" color="text.disabled" align="center" display="block">
+                                                Bu e-posta NartGo Admin Panel tarafından otomatik olarak oluşturulmuştur.
+                                            </Typography>
+                                        </Box>
                                     </Box>
                                 </Card>
-                            </Card>
+                            </Box>
                         </Grid>
 
                         {selectedTemplate === TemplateType.EVENT_REMINDER && selectedEvent && (

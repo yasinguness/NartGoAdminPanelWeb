@@ -405,11 +405,11 @@ export default function Notifications() {
     };
 
     const quickActions = [
-        { label: 'Target Specific Users', icon: <PeopleIcon fontSize="small" />, onClick: handleOpenUserDialog },
-        { label: 'System Maintenance', icon: <WarningIcon fontSize="small" />, onClick: handleSystemMaintenanceTemplate },
-        { label: 'Event Reminder', icon: <ScheduleIcon fontSize="small" />, onClick: handleEventReminderTemplate },
-        { label: 'Admin Dashboard', icon: <DashboardIcon fontSize="small" />, onClick: handleOpenAdminDialog },
-        { label: 'Direct Email', icon: <EmailIcon fontSize="small" />, onClick: handleOpenEmailDialog },
+        { label: 'Broadcast to Segment', icon: <PeopleIcon fontSize="small" />, onClick: handleOpenUserDialog },
+        { label: 'Schedule Maintenance', icon: <WarningIcon fontSize="small" />, onClick: handleSystemMaintenanceTemplate },
+        { label: 'Event Broadcast', icon: <ScheduleIcon fontSize="small" />, onClick: handleEventReminderTemplate },
+        { label: 'Global Dashboard', icon: <DashboardIcon fontSize="small" />, onClick: handleOpenAdminDialog },
+        { label: 'Single Email', icon: <EmailIcon fontSize="small" />, onClick: handleOpenEmailDialog },
     ];
 
     if (error) {
@@ -426,8 +426,8 @@ export default function Notifications() {
     return (
         <PageContainer>
             <PageHeader
-                title="Notification Center"
-                subtitle="Manage and broadcast system-wide alerts, push notifications, and emails"
+                title="Broadcast & Notification Center"
+                subtitle="Centralized control for multi-channel communication: Push, Email, WebSockets, and Telegram"
                 breadcrumbs={[
                     { label: 'Dashboard', href: '/' },
                     { label: 'Notifications', active: true },

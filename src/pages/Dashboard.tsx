@@ -4,6 +4,8 @@ import {
   Typography,
   Box,
   Button,
+  Stack,
+  alpha
 } from '@mui/material';
 import {
   Business as BusinessIcon,
@@ -22,6 +24,16 @@ import { useSnackbar } from 'notistack';
 import { PageContainer, PageHeader, PageSection } from '../components/Page';
 import { StatCard } from '../components/Data';
 import { LoadingState, ErrorState } from '../components/Feedback';
+import { 
+  KeyboardArrowRight as ArrowRightIcon,
+  Security as SecurityIcon,
+  History as HistoryIcon
+} from '@mui/icons-material';
+
+// Security Dashboard Components
+import SecurityStatCards from './Dashboard/components/SecurityStatCards';
+import RecentLoginsList from './Dashboard/components/RecentLoginsList';
+import { LoginLog, SecurityStats, LoginStatus } from '../types/security/securityModel';
 
 interface DashboardStats {
   totalBusinesses: number;
@@ -40,6 +52,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [securityLogs, setSecurityLogs] = useState<LoginLog[]>([]);
+  const [securityStats, setSecurityStats] = useState<SecurityStats | null>(null);
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
 
@@ -62,6 +76,57 @@ export default function Dashboard() {
         totalFederations: 10,
         featuredBusinesses: 24,
       });
+
+      // Mock Security Data
+      setSecurityStats({
+        totalAttempts: 12450,
+        successCount: 12100,
+        failureCount: 350,
+        uniqueIps: 842,
+        suspiciousActivityCount: 12,
+        failureRate: 2.8,
+        timeWindows: []
+      });
+
+      setSecurityLogs([
+        {
+          id: '1',
+          username: 'admin@nartgo.com',
+          ipAddress: '192.168.1.45',
+          status: LoginStatus.SUCCESS,
+          timestamp: new Date().toISOString(),
+          location: { city: 'Istanbul', country: 'Turkey' },
+          device: { browser: 'Chrome', os: 'macOS', type: 'desktop' }
+        },
+        {
+          id: '2',
+          username: 'user_active_99',
+          ipAddress: '88.241.12.33',
+          status: LoginStatus.FAILED,
+          timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+          location: { city: 'Ankara', country: 'Turkey' },
+          device: { browser: 'Safari', os: 'iOS', type: 'mobile' },
+          failureReason: 'Invalid password'
+        },
+        {
+          id: '3',
+          username: 'moderator_x',
+          ipAddress: '77.12.33.111',
+          status: LoginStatus.SUCCESS,
+          timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+          location: { city: 'Izmir', country: 'Turkey' },
+          device: { browser: 'Firefox', os: 'Windows', type: 'desktop' }
+        },
+        {
+          id: '4',
+          username: 'unknown_entity',
+          ipAddress: '103.22.11.5',
+          status: LoginStatus.SUSPICIOUS,
+          timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+          location: { city: 'Seoul', country: 'South Korea' },
+          device: { browser: 'Chrome', os: 'Linux', type: 'desktop' }
+        }
+      ]);
     } catch (error: any) {
       console.error('Error fetching dashboard stats:', error);
       const message = error.response?.data?.message || 'Failed to fetch dashboard statistics';
@@ -161,103 +226,112 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={3}>
-        {/* Recent Activity */}
-        <Grid item xs={12} md={6}>
+      {/* Security Stat Cards */}
+      <Box sx={{ mb: 6 }}>
+        <Typography variant="h6" sx={{ fontWeight: 800, mb: 3, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <SecurityIcon color="primary" /> Security Oversight
+        </Typography>
+        <SecurityStatCards stats={securityStats} loading={loading} />
+      </Box>
+
+      <Grid container spacing={4}>
+        {/* Recent Security Logs */}
+        <Grid item xs={12} lg={8}>
           <PageSection 
-            title="Recent Activity" 
-            subtitle="Latest happenings across the platform"
+            title="Real-time Security Audit" 
+            subtitle="Live monitoring of authentication attempts across the network"
+            actions={
+              <Button size="small" endIcon={<ArrowRightIcon />} sx={{ fontWeight: 700 }}>
+                View All Logs
+              </Button>
+            }
           >
-            <Box>
-              {[1, 2, 3].map((item) => (
-                <Box
-                  key={item}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    mb: 2,
-                    p: 1.5,
-                    borderRadius: 2,
-                    transition: 'background-color 0.2s',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      backgroundColor: 'primary.light',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      mr: 2,
-                      color: 'primary.main',
-                    }}
-                  >
-                    <EventIcon fontSize="small" />
-                  </Box>
-                  <Box flex={1}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      New event created
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      2 hours ago • By Admin
-                    </Typography>
-                  </Box>
-                </Box>
-              ))}
-            </Box>
+            <RecentLoginsList logs={securityLogs} loading={loading} />
           </PageSection>
         </Grid>
 
-        {/* Quick Actions */}
-        <Grid item xs={12} md={6}>
-          <PageSection 
-            title="Quick Actions" 
-            subtitle="Frequently used tasks"
-          >
-            <Grid container spacing={2}>
-              {[
-                { icon: <StarIcon />, label: 'Featured Businesses', color: 'primary', path: '/businesses' },
-                { icon: <BusinessIcon />, label: 'Add Business', color: 'info', path: '/businesses' },
-                { icon: <EventIcon />, label: 'Create Event', color: 'success', path: '/events' },
-                { icon: <CategoryIcon />, label: 'Categories', color: 'warning', path: '/business-categories' },
-              ].map((action) => (
-                <Grid item xs={6} key={action.label}>
-                  <Box
-                    onClick={() => navigate(action.path)}
-                    sx={{
-                      p: 3,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      borderRadius: 2,
-                      border: 1,
-                      borderColor: 'divider',
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
-                        borderColor: 'primary.main',
-                        transform: 'translateY(-2px)',
-                      },
-                    }}
-                  >
-                    <Box sx={{ color: `${action.color}.main`, mb: 1 }}>
-                      {action.icon}
+        {/* Platforms & Activity */}
+        <Grid item xs={12} lg={4}>
+          <Stack spacing={4}>
+            {/* Quick Actions (Moved/Refined) */}
+            <PageSection 
+              title="System Controls" 
+              subtitle="Critical administrative actions"
+            >
+              <Grid container spacing={2}>
+                {[
+                  { icon: <StarIcon />, label: 'Featured', color: 'primary', path: '/businesses' },
+                  { icon: <BusinessIcon />, label: 'Add Biz', color: 'info', path: '/businesses' },
+                  { icon: <EventIcon />, label: 'Events', color: 'success', path: '/events' },
+                  { icon: <SecurityIcon />, label: 'Security', color: 'warning', path: '/dashboard' },
+                ].map((action) => (
+                  <Grid item xs={6} key={action.label}>
+                    <Box
+                      onClick={() => navigate(action.path)}
+                      sx={{
+                        p: 2,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        borderRadius: 3,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: alpha('#fff', 0.5),
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          backgroundColor: '#fff',
+                          borderColor: 'primary.main',
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 20px -10px rgba(0,0,0,0.1)'
+                        },
+                      }}
+                    >
+                      <Box sx={{ color: `${action.color}.main`, mb: 1 }}>
+                        {action.icon}
+                      </Box>
+                      <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {action.label}
+                      </Typography>
                     </Box>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {action.label}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </PageSection>
+                  </Grid>
+                ))}
+              </Grid>
+            </PageSection>
+
+            {/* Current Status Mini Card */}
+            <Box sx={{ 
+                p: 3, 
+                borderRadius: 4, 
+                background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                color: '#fff',
+                position: 'relative',
+                overflow: 'hidden'
+            }}>
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Platform Health</Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.8, mb: 3 }}>Diagnostic monitoring active.</Typography>
+                    
+                    <Stack spacing={1.5}>
+                        {[
+                          { label: 'Cloud API', status: 'Stable', color: '#10b981' },
+                          { label: 'Database', status: 'Online', color: '#10b981' },
+                          { label: 'Auth Service', status: 'Active', color: '#10b981' }
+                        ].map((srv) => (
+                          <Stack key={srv.label} direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.7 }}>{srv.label}</Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: srv.color, boxShadow: `0 0 10px ${srv.color}` }} />
+                                  <Typography variant="caption" sx={{ fontWeight: 800 }}>{srv.status}</Typography>
+                              </Box>
+                          </Stack>
+                        ))}
+                    </Stack>
+                </Box>
+                <HistoryIcon sx={{ position: 'absolute', right: -20, bottom: -20, fontSize: 120, opacity: 0.05 }} />
+            </Box>
+          </Stack>
         </Grid>
       </Grid>
     </PageContainer>

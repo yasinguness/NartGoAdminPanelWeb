@@ -34,6 +34,10 @@ export interface AdminBulkNotificationRequest {
     sendEmail?: boolean;
     sendTelegram?: boolean;
     sendWebSocket?: boolean;
+    
+    // Advanced options
+    scheduledAt?: string; // ISO string format for delayed sending
+    approvalRequired?: boolean; // Flag to indicate if this needs higher-level approval
 }
 
 // Helper function to create AdminBulkNotificationRequest

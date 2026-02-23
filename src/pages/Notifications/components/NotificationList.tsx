@@ -1,25 +1,24 @@
-import React from 'react';
-import {
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+    CircularProgress,
+    Stack,
+    Paper,
+    Tooltip,
     Box,
-    Grid,
     Card,
     CardContent,
-    CardActions,
     Typography,
     Button,
+    Grid,
     IconButton,
-    Fade,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
-    TableRow,
-    CircularProgress,
-    Stack,
-    Paper,
-    Tooltip,
+    TableRow
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
     Add as AddIcon,
     Edit as EditIcon,
@@ -27,10 +26,19 @@ import {
     Visibility as VisibilityIcon,
     VisibilityOff as VisibilityOffIcon,
     SearchOff as SearchOffIcon,
+    Warning as WarningIcon
 } from '@mui/icons-material';
+import { 
+    Bell, 
+    BellOff, 
+    MoreVertical, 
+    ArrowRight,
+    SearchX
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { NotificationDto, NotificationPriority } from '../../../types/notifications/notificationModel';
 import { StatusChip, EmptyState } from '../../../components/Data';
+import React from 'react';
 
 interface NotificationListProps {
     notifications: NotificationDto[];
@@ -64,13 +72,18 @@ export default function NotificationList({
         }) || [];
     }, [notifications, searchTerm, filterPriority]);
 
-    const getPriorityColor = (priority: NotificationPriority) => {
+    const getPriorityStyles = (priority: NotificationPriority) => {
         switch (priority) {
-            case NotificationPriority.URGENT: return 'error';
-            case NotificationPriority.HIGH: return 'warning';
-            case NotificationPriority.NORMAL: return 'info';
-            case NotificationPriority.LOW: return 'default';
-            default: return 'default';
+            case NotificationPriority.URGENT: 
+                return { color: 'error', gradient: 'linear-gradient(135deg, #FF4B2B 0%, #FF416C 100%)', icon: <WarningIcon /> };
+            case NotificationPriority.HIGH: 
+                return { color: 'warning', gradient: 'linear-gradient(135deg, #F2994A 0%, #F2C94C 100%)', icon: <NotificationsIcon /> };
+            case NotificationPriority.NORMAL: 
+                return { color: 'info', gradient: 'linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%)', icon: <NotificationsIcon /> };
+            case NotificationPriority.LOW: 
+                return { color: 'default', gradient: 'linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%)', icon: <NotificationsIcon /> };
+            default: 
+                return { color: 'default', gradient: 'none', icon: <NotificationsIcon /> };
         }
     };
 
@@ -78,11 +91,17 @@ export default function NotificationList({
         <Grid container spacing={3}>
             {[1, 2, 3, 4, 5, 6].map((item) => (
                 <Grid item xs={12} md={6} lg={4} key={item}>
-                    <Card sx={{ borderRadius: 2, height: '100%' }}>
+                    <Card sx={{ 
+                        borderRadius: 3, 
+                        height: '100%',
+                        border: '1px solid',
+                        borderColor: 'grey.200',
+                        overflow: 'hidden'
+                    }}>
                         <CardContent>
                             <Stack spacing={2}>
                                 <Stack direction="row" spacing={2} alignItems="center">
-                                    <CircularProgress size={20} thickness={5} />
+                                    <CircularProgress size={20} />
                                     <Box sx={{ width: '60%', height: 20, bgcolor: 'grey.100', borderRadius: 1 }} />
                                 </Stack>
                                 <Box sx={{ width: '100%', height: 40, bgcolor: 'grey.50', borderRadius: 1 }} />
@@ -98,98 +117,165 @@ export default function NotificationList({
         </Grid>
     );
 
-    const NotificationCard = ({ notification }: { notification: NotificationDto }) => (
-        <Grid item xs={12} md={6} lg={4} key={notification.id}>
-            <Fade in timeout={300}>
-                <Card 
-                    elevation={0}
-                    sx={{ 
-                        borderRadius: 3,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                            transform: 'translateY(-4px)',
-                            boxShadow: '0 12px 24px -10px rgba(0,0,0,0.1)',
-                            borderColor: 'primary.main',
-                            '& .action-buttons': { opacity: 1 }
-                        }
-                    }}
+    const NotificationCard = ({ notification, index }: { notification: NotificationDto, index: number }) => {
+        const styles = getPriorityStyles(notification.priority);
+        
+        return (
+            <Grid item xs={12} md={6} lg={4}>
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    whileHover={{ y: -6 }}
                 >
-                    <CardContent sx={{ p: 3, flexGrow: 1 }} onClick={() => onOpenDialog(notification)} style={{ cursor: 'pointer' }}>
-                        <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={2}>
-                            <Box flex={1}>
-                                <Typography variant="subtitle1" fontWeight={700} gutterBottom noWrap color="text.primary">
-                                    {notification.title}
-                                </Typography>
-                                <Typography 
-                                    variant="body2" 
-                                    color="text.secondary" 
-                                    sx={{ 
-                                        display: '-webkit-box',
-                                        WebkitLineClamp: 2,
-                                        WebkitBoxOrient: 'vertical',
-                                        overflow: 'hidden',
-                                        lineHeight: 1.6
-                                    }}
-                                >
-                                    {notification.content}
-                                </Typography>
-                            </Box>
+                    <Card 
+                        elevation={0}
+                        sx={{ 
+                            borderRadius: 4,
+                            border: '1px solid',
+                            borderColor: notification.isRead ? 'divider' : 'primary.light',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            background: notification.isRead 
+                                ? 'rgba(255, 255, 255, 0.8)' 
+                                : 'linear-gradient(to bottom right, rgba(255, 255, 255, 1), rgba(240, 247, 255, 0.8))',
+                            backdropFilter: 'blur(10px)',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                                boxShadow: '0 20px 40px -12px rgba(0,0,0,0.12)',
+                                borderColor: 'primary.main',
+                                '& .card-bg-icon': { transform: 'scale(1.2) rotate(-10deg)', opacity: 0.08 }
+                            }
+                        }}
+                    >
+                        {/* Decorative background icon */}
+                        <Box className="card-bg-icon" sx={{
+                            position: 'absolute',
+                            right: -20,
+                            top: -20,
+                            fontSize: 120,
+                            opacity: 0.03,
+                            color: 'primary.main',
+                            transition: 'all 0.4s ease',
+                            pointerEvents: 'none'
+                        }}>
+                            <NotificationsIcon fontSize="inherit" />
                         </Box>
-                        
-                        <Stack direction="row" alignItems="center" justifyContent="space-between" mt={3}>
-                            <Stack direction="row" spacing={1}>
-                                <StatusChip 
-                                    status={notification.priority} 
-                                    color={getPriorityColor(notification.priority)}
-                                    size="small"
-                                />
-                                <StatusChip 
-                                    status={notification.isRead ? 'read' : 'unread'} 
-                                    color={notification.isRead ? 'default' : 'primary'}
-                                    variant={notification.isRead ? 'outlined' : 'filled'}
-                                    size="small"
-                                />
+
+                        <CardContent sx={{ p: 3, flexGrow: 1, position: 'relative', zIndex: 1 }} onClick={() => onOpenDialog(notification)} style={{ cursor: 'pointer' }}>
+                            <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={2.5}>
+                                <Box flex={1}>
+                                    <Typography variant="subtitle1" fontWeight={800} gutterBottom noWrap color="text.primary" sx={{ letterSpacing: '-0.3px' }}>
+                                        {notification.title}
+                                    </Typography>
+                                    <Typography 
+                                        variant="body2" 
+                                        color="text.secondary" 
+                                        sx={{ 
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: 'vertical',
+                                            overflow: 'hidden',
+                                            lineHeight: 1.6,
+                                            fontWeight: 500
+                                        }}
+                                    >
+                                        {notification.content}
+                                    </Typography>
+                                </Box>
+                            </Box>
+                            
+                            <Stack direction="row" alignItems="center" justifyContent="space-between" mt={4}>
+                                <Stack direction="row" spacing={1.5}>
+                                    <Tooltip title={`Priority: ${notification.priority}`}>
+                                        <Box>
+                                             <StatusChip 
+                                                status={notification.priority} 
+                                                color={styles.color as any}
+                                                size="small"
+                                                sx={{ 
+                                                    fontWeight: 700, 
+                                                    height: 24, 
+                                                    borderRadius: '8px',
+                                                    boxShadow: !notification.isRead ? `0 4px 8px ${alpha('#000', 0.1)}` : 'none'
+                                                }}
+                                            />
+                                        </Box>
+                                    </Tooltip>
+                                    {!notification.isRead && (
+                                        <StatusChip 
+                                            status="Unread" 
+                                            color="primary"
+                                            size="small"
+                                            sx={{ fontWeight: 700, height: 24, borderRadius: '8px' }}
+                                        />
+                                    )}
+                                </Stack>
+                                <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    {format(new Date(notification.createdAt), 'MMM dd, HH:mm')}
+                                </Typography>
                             </Stack>
-                            <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 500 }}>
-                                {format(new Date(notification.createdAt), 'MMM dd, HH:mm')}
-                            </Typography>
-                        </Stack>
-                    </CardContent>
-                    
-                    <Box sx={{ borderTop: '1px solid', borderColor: 'grey.50', px: 2, py: 1.5, bgcolor: 'grey.25' }}>
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <Tooltip title="Edit Notification">
-                                <IconButton 
-                                    size="small" 
-                                    onClick={(e) => { e.stopPropagation(); onOpenDialog(notification); }}
-                                    sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main', bgcolor: 'primary.50' } }}
-                                >
-                                    <EditIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title={notification.isRead ? 'Mark as Unread' : 'Mark as Read'}>
+                        </CardContent>
+                        
+                        <Box sx={{ 
+                            borderTop: '1px solid', 
+                            borderColor: alpha('#000', 0.03), 
+                            px: 2, 
+                            py: 1.5, 
+                            bgcolor: alpha('#fff', 0.4),
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                             <Button 
+                                size="small" 
+                                endIcon={<ArrowRight size={14} />} 
+                                onClick={(e) => { e.stopPropagation(); onOpenDialog(notification); }}
+                                sx={{ 
+                                    textTransform: 'none', 
+                                    fontWeight: 600, 
+                                    color: 'primary.main',
+                                    '&:hover': { bgcolor: 'primary.50' }
+                                }}
+                            >
+                                Details
+                            </Button>
+
+                            <Stack direction="row" spacing={0.5}>
                                 <IconButton 
                                     size="small"
                                     onClick={(e) => { e.stopPropagation(); onMarkAsRead(notification.id); }}
                                     sx={{ 
-                                        color: notification.isRead ? 'text.secondary' : 'primary.main',
-                                        '&:hover': { bgcolor: notification.isRead ? 'grey.100' : 'primary.50' }
+                                        color: notification.isRead ? 'text.disabled' : 'primary.main',
+                                        transition: 'all 0.2s',
+                                        '&:hover': { 
+                                            bgcolor: notification.isRead ? 'grey.100' : 'primary.50',
+                                            transform: 'scale(1.1)'
+                                        }
                                     }}
                                 >
-                                    {notification.isRead ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+                                    {notification.isRead ? <BellOff size={18} /> : <Bell size={18} />}
                                 </IconButton>
-                            </Tooltip>
-                        </Stack>
-                    </Box>
-                </Card>
-            </Fade>
-        </Grid>
-    );
+                                <IconButton 
+                                    size="small" 
+                                    onClick={(e) => { e.stopPropagation(); onOpenDialog(notification); }}
+                                    sx={{ 
+                                        color: 'text.disabled',
+                                        '&:hover': { color: 'primary.main', bgcolor: 'primary.50' }
+                                    }}
+                                >
+                                    <MoreVertical size={18} />
+                                </IconButton>
+                            </Stack>
+                        </Box>
+                    </Card>
+                </motion.div>
+            </Grid>
+        );
+    };
 
     const NotificationTableContent = () => {
         if (loading) {
@@ -257,7 +343,7 @@ export default function NotificationList({
                 <TableCell>
                     <StatusChip 
                         status={notification.priority} 
-                        color={getPriorityColor(notification.priority)}
+                        color={getPriorityStyles(notification.priority).color as any}
                     />
                 </TableCell>
                 <TableCell>
@@ -299,10 +385,10 @@ export default function NotificationList({
                     <LoadingCards />
                 ) : filteredNotifications.length === 0 ? (
                     <EmptyState 
-                        icon={<SearchOffIcon sx={{ fontSize: 64 }} />}
-                        title={searchTerm ? "No matches found" : "No notifications found"}
+                        icon={<SearchX size={64} strokeWidth={1.5} color={alpha('#000', 0.1)} />}
+                        title={searchTerm ? "No matches found" : "Inbox is empty"}
                         description={searchTerm 
-                            ? `We couldn't find anything matching "${searchTerm}". Try adjusting your filters.`
+                            ? `We couldn't find anything matching "${searchTerm}". Try a different term.`
                             : "Broadcast alerts and system updates to your users to keep them informed."
                         }
                         action={!searchTerm && (
@@ -313,9 +399,11 @@ export default function NotificationList({
                     />
                 ) : (
                     <Grid container spacing={3}>
-                        {filteredNotifications.map((notification) => (
-                            <NotificationCard key={notification.id} notification={notification} />
-                        ))}
+                        <AnimatePresence mode="popLayout">
+                            {filteredNotifications.map((notification, index) => (
+                                <NotificationCard key={notification.id} notification={notification} index={index} />
+                            ))}
+                        </AnimatePresence>
                     </Grid>
                 )}
             </Box>
@@ -323,17 +411,27 @@ export default function NotificationList({
     }
 
     return (
-        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+        <Paper 
+            elevation={0} 
+            sx={{ 
+                border: '1px solid', 
+                borderColor: 'divider', 
+                borderRadius: 4, 
+                overflow: 'hidden',
+                background: 'rgba(255, 255, 255, 0.7)',
+                backdropFilter: 'blur(10px)'
+            }}
+        >
             <TableContainer>
                 <Table sx={{ minWidth: 800 }}>
-                    <TableHead sx={{ bgcolor: 'grey.50' }}>
+                    <TableHead sx={{ bgcolor: alpha('#f8fafc', 0.8) }}>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 700 }}>Title</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }}>Content</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }}>Priority</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }}>Created At</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Title</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Content</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Priority</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Status</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Created At</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
