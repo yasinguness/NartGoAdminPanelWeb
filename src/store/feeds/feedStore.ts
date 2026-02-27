@@ -3,6 +3,8 @@ import { PageResponseDto } from '../../types/common/pageResponse';
 import {
     FeedCreateRequest,
     FeedDto,
+    InstagramImportRequest,
+    InstagramImportResponse,
     FeedQueryParams,
     FeedStatus,
     FeedStatusUpdateRequest,
@@ -21,6 +23,7 @@ interface FeedStore {
     fetchFeeds: (params?: FeedQueryParams) => Promise<void>;
     getFeedById: (id: string) => Promise<FeedDto>;
     createFeed: (payload: FeedCreateRequest, creatorEmail: string) => Promise<FeedDto>;
+    importFromInstagram: (payload: InstagramImportRequest) => Promise<InstagramImportResponse>;
     updateFeed: (id: string, payload: FeedUpdateRequest) => Promise<FeedDto>;
     updateFeedStatus: (id: string, payload: FeedStatusUpdateRequest) => Promise<FeedDto>;
     deleteFeed: (id: string) => Promise<void>;
@@ -104,6 +107,19 @@ export const useFeedStore = create<FeedStore>((set) => ({
             return normalized;
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to create feed' });
+            throw error;
+        } finally {
+            set({ loading: false });
+        }
+    },
+
+    importFromInstagram: async (payload) => {
+        try {
+            set({ loading: true, error: null });
+            const response = await feedService.importFromInstagram(payload);
+            return response.data;
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : 'Failed to import instagram video' });
             throw error;
         } finally {
             set({ loading: false });

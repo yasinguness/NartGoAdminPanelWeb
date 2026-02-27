@@ -7,7 +7,7 @@ import {
 import {
   Search, LayoutGrid, List, ChevronDown,
   Bookmark, CheckCircle2, XCircle, Archive, Trash2, X, Keyboard,
-  Video, Filter,
+  Video, Filter, Instagram,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PageContainer, PageHeader } from '../../components/Page';
@@ -25,11 +25,20 @@ interface Toast {
   undoAction?: () => void;
 }
 
+const getApiErrorMessage = (error: unknown): string => {
+  const maybeResponseMessage = (error as any)?.response?.data?.message;
+  if (typeof maybeResponseMessage === 'string' && maybeResponseMessage.trim()) {
+    return maybeResponseMessage;
+  }
+  return 'Instagram videosu iceri aktarilamadi';
+};
+
 export default function FeedVideos() {
   const { 
     feeds, 
     loading, 
     fetchFeeds, 
+    importFromInstagram,
     updateFeedStatus,
     deleteFeed,
     totalElements,
@@ -69,6 +78,11 @@ export default function FeedVideos() {
 
   // Keyboard shortcut visibility
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [instagramDialogOpen, setInstagramDialogOpen] = useState(false);
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [instagramCreatorEmail, setInstagramCreatorEmail] = useState('');
+  const [instagramTitle, setInstagramTitle] = useState('');
+  const [instagramDescription, setInstagramDescription] = useState('');
 
   // Data fetching
   const loadData = useCallback(async (page: number = 0) => {
@@ -98,6 +112,39 @@ export default function FeedVideos() {
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const handleInstagramImport = useCallback(async () => {
+    const trimmedUrl = instagramUrl.trim();
+    const trimmedEmail = instagramCreatorEmail.trim();
+    const trimmedTitle = instagramTitle.trim();
+    const trimmedDescription = instagramDescription.trim();
+
+    if (!trimmedUrl) {
+      addToast('Instagram link zorunlu', 'warning');
+      return;
+    }
+    try {
+      const result = await importFromInstagram({
+        instagramUrl: trimmedUrl,
+        creatorEmail: trimmedEmail || undefined,
+        title: trimmedTitle || undefined,
+        description: trimmedDescription || undefined,
+        priority: 5,
+      });
+
+      const okMessage = result.message || `Instagram videosu aktarildi (${result.status})`;
+      addToast(okMessage, 'success');
+
+      setInstagramDialogOpen(false);
+      setInstagramUrl('');
+      setInstagramCreatorEmail('');
+      setInstagramTitle('');
+      setInstagramDescription('');
+      await loadData(0);
+    } catch (error) {
+      addToast(getApiErrorMessage(error), 'warning');
+    }
+  }, [instagramUrl, instagramCreatorEmail, instagramTitle, instagramDescription, importFromInstagram, addToast, loadData]);
 
   // Status change
   const handleStatusChange = useCallback(async (videoId: string, newStatus: FeedStatus, reason?: string) => {
@@ -261,6 +308,17 @@ export default function FeedVideos() {
         ]}
         actions={
           <Stack direction="row" spacing={1} alignItems="center">
+            <Button
+              variant="outlined"
+              startIcon={<Instagram size={16} />}
+              onClick={() => setInstagramDialogOpen(true)}
+              sx={{
+                textTransform: 'none', fontWeight: 600, fontSize: '0.82rem',
+                borderRadius: 2,
+              }}
+            >
+              Instagram'dan Al
+            </Button>
             <Tooltip title="Keyboard Shortcuts (?)" arrow>
               <IconButton size="small" onClick={() => setShowShortcuts((s) => !s)} sx={{ border: '1px solid', borderColor: 'divider' }}>
                 <Keyboard size={16} />
@@ -541,6 +599,60 @@ export default function FeedVideos() {
         onDelete={(id) => handleDelete([id])}
         statusConfig={STATUS_CONFIG}
       />
+
+      <Dialog
+        open={instagramDialogOpen}
+        onClose={() => setInstagramDialogOpen(false)}
+        PaperProps={{ sx: { borderRadius: 3, p: 1, minWidth: 440 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>Instagram Videosu Al</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Instagram video linkini girin. Sistem videoyu indirip NartGo&apos;ya yükleme isteğini başlatır.
+          </DialogContentText>
+          <Stack spacing={1.5}>
+            <TextField
+              autoFocus
+              fullWidth
+              label="Instagram Linki"
+              placeholder="https://www.instagram.com/reel/..."
+              value={instagramUrl}
+              onChange={(e) => setInstagramUrl(e.target.value)}
+            />
+            <TextField
+              fullWidth
+              label="Creator Email (opsiyonel)"
+              placeholder="creator@nartgo.com"
+              value={instagramCreatorEmail}
+              onChange={(e) => setInstagramCreatorEmail(e.target.value)}
+            />
+            <TextField
+              fullWidth
+              label="Video Basligi"
+              placeholder="Video basligi"
+              value={instagramTitle}
+              onChange={(e) => setInstagramTitle(e.target.value)}
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              label="Video Aciklamasi (opsiyonel)"
+              placeholder="Video aciklamasi"
+              value={instagramDescription}
+              onChange={(e) => setInstagramDescription(e.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setInstagramDialogOpen(false)} color="inherit" sx={{ fontWeight: 600 }}>
+            Vazgeç
+          </Button>
+          <Button onClick={handleInstagramImport} variant="contained" sx={{ fontWeight: 600 }}>
+            İçe Aktar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Reject Dialog */}
       <Dialog 

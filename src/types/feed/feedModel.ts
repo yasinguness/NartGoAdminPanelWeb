@@ -84,3 +84,18 @@ export interface FeedQueryParams {
     page?: number;
     size?: number;
 }
+
+export interface InstagramImportRequest {
+    instagramUrl: string;
+    creatorEmail?: string;
+    title?: string;
+    description?: string;
+    priority?: number;
+}
+
+export interface InstagramImportResponse {
+    status: string;
+    mediaId: string;
+    url: string;
+    message?: string;
+}

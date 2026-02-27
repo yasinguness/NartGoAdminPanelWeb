@@ -4,10 +4,15 @@ import { PageResponseDto } from '../../types/common/pageResponse';
 import {
     FeedCreateRequest,
     FeedDto,
+    InstagramImportRequest,
+    InstagramImportResponse,
     FeedQueryParams,
     FeedStatusUpdateRequest,
     FeedUpdateRequest
 } from '../../types/feed/feedModel';
+
+const INSTAGRAM_IMPORT_ENDPOINT =
+    import.meta.env.VITE_INSTAGRAM_IMPORT_ENDPOINT || '/media/import/instagram';
 
 export const feedService = {
     getFeeds: async (params: FeedQueryParams = {}) => {
@@ -31,6 +36,14 @@ export const feedService = {
             '/content/admin/feed/videos',
             payload,
             { params: { creatorEmail } }
+        );
+        return response.data;
+    },
+
+    importFromInstagram: async (payload: InstagramImportRequest) => {
+        const response = await api.post<ApiResponse<InstagramImportResponse>>(
+            INSTAGRAM_IMPORT_ENDPOINT,
+            payload
         );
         return response.data;
     },
