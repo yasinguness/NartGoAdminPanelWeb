@@ -186,7 +186,18 @@ export default function FeedVideos() {
   const confirmDelete = useCallback(async () => {
     try {
       for (const id of deleteConfirm.videoIds) {
-        await deleteFeed(id);
+        const video = feeds.find((f) => f.id === id);
+        const fallbackIds = [
+          video?.videoId,
+          video?.mediaId,
+          video?.videoPath,
+          video?.mediaPath,
+          video?.path,
+          video?.storagePath,
+          video?.videoUrl,
+          video?.rawVideoUrl
+        ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+        await deleteFeed(id, fallbackIds);
       }
       addToast(`${deleteConfirm.videoIds.length} video silindi`, 'success');
       setSelectedIds(new Set());
@@ -194,7 +205,7 @@ export default function FeedVideos() {
     } catch (error) {
       addToast('Silme işlemi başarısız oldu', 'warning');
     }
-  }, [deleteConfirm, deleteFeed, addToast]);
+  }, [deleteConfirm, deleteFeed, addToast, feeds]);
   // Selection
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {

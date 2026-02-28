@@ -41,6 +41,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@types/google.maps": "^3.58.1",
     "@types/lodash": "^4.17.16",
     "@types/node": "^22.13.14",
     "@types/react": "^18.2.55",

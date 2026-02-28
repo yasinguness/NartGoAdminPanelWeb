@@ -102,6 +102,19 @@ export const eventService = {
         return response.data;
     },
 
+    createEventAsAdmin: async (event: Omit<EventResponseDTO, 'id'>, organizerId: string, image?: File) => {
+        const formData = new FormData();
+        const eventPayload = { ...event, organizerId };
+        formData.append('request', new Blob([JSON.stringify(eventPayload)], { type: 'application/json' }));
+        if (image) {
+            formData.append('image', image);
+        }
+        const response = await api.post<ApiResponse<EventResponseDTO>>(`/events/admin`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    },
+
     updateEvent: async (id: string, event: Omit<EventResponseDTO, 'id'>) => {
         const response = await api.put<ApiResponse<EventResponseDTO>>(`/events/${id}`, event);
         return response.data;

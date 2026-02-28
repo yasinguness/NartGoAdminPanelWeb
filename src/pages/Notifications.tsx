@@ -404,12 +404,52 @@ export default function Notifications() {
         if (user?.id) getUserNotificationsPageable(user.id, value - 1);
     };
 
-    const quickActions = [
-        { label: 'Broadcast to Segment', icon: <PeopleIcon fontSize="small" />, onClick: handleOpenUserDialog },
-        { label: 'Schedule Maintenance', icon: <WarningIcon fontSize="small" />, onClick: handleSystemMaintenanceTemplate },
-        { label: 'Event Broadcast', icon: <ScheduleIcon fontSize="small" />, onClick: handleEventReminderTemplate },
-        { label: 'Global Dashboard', icon: <DashboardIcon fontSize="small" />, onClick: handleOpenAdminDialog },
-        { label: 'Single Email', icon: <EmailIcon fontSize="small" />, onClick: handleOpenEmailDialog },
+    const actionGroups = [
+        {
+            group: 'Broadcasts & Campaigns',
+            actions: [
+                {
+                    label: 'Segment Broadcast',
+                    description: 'Target specific user groups via Push & Email',
+                    icon: <PeopleIcon fontSize="small" color="primary" />,
+                    onClick: handleOpenUserDialog
+                },
+                {
+                    label: 'Event Campaign',
+                    description: 'Send event reminders and invitations',
+                    icon: <ScheduleIcon fontSize="small" color="info" />,
+                    onClick: handleEventReminderTemplate
+                },
+            ]
+        },
+        {
+            group: 'System Alerts',
+            actions: [
+                {
+                    label: 'Schedule Maintenance',
+                    description: 'Notify users about upcoming downtime',
+                    icon: <WarningIcon fontSize="small" color="warning" />,
+                    onClick: handleSystemMaintenanceTemplate
+                },
+                {
+                    label: 'Global Alert',
+                    description: 'Send a high-priority alert to all users',
+                    icon: <DashboardIcon fontSize="small" color="error" />,
+                    onClick: handleOpenAdminDialog
+                },
+            ]
+        },
+        {
+            group: 'Direct Communication',
+            actions: [
+                {
+                    label: 'Single Email',
+                    description: 'Send a customized email to a specific user',
+                    icon: <EmailIcon fontSize="small" color="secondary" />,
+                    onClick: handleOpenEmailDialog
+                },
+            ]
+        }
     ];
 
     if (error) {
@@ -436,8 +476,23 @@ export default function Notifications() {
                     <Stack direction="row" spacing={2}>
                         <Button
                             variant="outlined"
-                            endIcon={<KeyboardArrowDownIcon />}
+                            startIcon={<DashboardIcon sx={{ opacity: 0.7 }} />}
+                            endIcon={<KeyboardArrowDownIcon sx={{ transition: 'transform 0.2s', transform: anchorEl ? 'rotate(180deg)' : 'none' }} />}
                             onClick={(e) => setAnchorEl(e.currentTarget)}
+                            sx={{
+                                borderRadius: '8px',
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                px: 2,
+                                borderColor: 'divider',
+                                color: 'text.primary',
+                                backgroundColor: 'background.paper',
+                                '&:hover': {
+                                    borderColor: 'primary.main',
+                                    backgroundColor: 'action.hover'
+                                },
+                                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                            }}
                         >
                             Quick Actions
                         </Button>
@@ -447,13 +502,81 @@ export default function Notifications() {
                             onClose={() => setAnchorEl(null)}
                             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                            slotProps={{
+                                paper: {
+                                    elevation: 0,
+                                    sx: {
+                                        mt: 1,
+                                        width: 340,
+                                        overflow: 'visible',
+                                        filter: 'drop-shadow(0px 8px 16px rgba(0,0,0,0.1))',
+                                        borderRadius: '12px',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        '& .MuiList-root': {
+                                            p: 1.5
+                                        }
+                                    }
+                                }
+                            }}
                         >
-                            {quickActions.map((action, i) => (
-                                <MenuItem key={i} onClick={() => { action.onClick(); setAnchorEl(null); }}>
-                                    <ListItemIcon>{action.icon}</ListItemIcon>
-                                    <Typography variant="body2">{action.label}</Typography>
-                                </MenuItem>
-                            ))}
+                            {actionGroups.flatMap((group, groupIdx) => [
+                                groupIdx > 0 ? <Divider key={`div-${groupIdx}`} sx={{ my: 1.5, borderColor: 'divider' }} /> : null,
+                                <Typography
+                                    key={`header-${groupIdx}`}
+                                    variant="overline"
+                                    sx={{
+                                        px: 1.5,
+                                        py: 0.5,
+                                        color: 'text.secondary',
+                                        display: 'block',
+                                        fontWeight: 700,
+                                        lineHeight: 1.2,
+                                        letterSpacing: '0.5px'
+                                    }}
+                                >
+                                    {group.group}
+                                </Typography>,
+                                ...group.actions.map((action, i) => (
+                                    <MenuItem
+                                        key={`action-${groupIdx}-${i}`}
+                                        onClick={() => { action.onClick(); setAnchorEl(null); }}
+                                        sx={{
+                                            borderRadius: '8px',
+                                            mb: 0.5,
+                                            p: 1.5,
+                                            alignItems: 'flex-start',
+                                            '&:hover': {
+                                                backgroundColor: 'action.hover',
+                                            }
+                                        }}
+                                    >
+                                        <Box sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: '8px',
+                                            backgroundColor: 'background.default',
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            mr: 2,
+                                            flexShrink: 0
+                                        }}>
+                                            {action.icon}
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, lineHeight: 1.2, mb: 0.5 }}>
+                                                {action.label}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', lineHeight: 1.3, whiteSpace: 'normal' }}>
+                                                {action.description}
+                                            </Typography>
+                                        </Box>
+                                    </MenuItem>
+                                ))
+                            ])}
                         </Menu>
                         <Button
                             variant="contained"

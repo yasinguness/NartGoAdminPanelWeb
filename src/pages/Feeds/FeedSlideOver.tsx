@@ -85,7 +85,7 @@ export default function FeedSlideOver({ video, open, onClose, onStatusChange, on
 
               <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
                 <Avatar src={video.creatorAvatarUrl} sx={{ width: 32, height: 32 }}>
-                  {video.creatorUsername?.charAt(0).toUpperCase() || <User size={16} />}
+                  {(video.creatorUsername?.charAt(0)?.toUpperCase()) || <User size={16} />}
                 </Avatar>
                 <Box>
                   <Typography variant="subtitle2" sx={{ lineHeight: 1, fontWeight: 600 }}>{video.creatorUsername || 'Unknown User'}</Typography>
@@ -93,7 +93,7 @@ export default function FeedSlideOver({ video, open, onClose, onStatusChange, on
                 </Box>
               </Stack>
 
-              <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', mb: 1 }}>{video.title}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', mb: 1 }}>{video.title || 'Untitled video'}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>{video.description || video.summary || video.content}</Typography>
 
               {/* Stats Bar */}

@@ -14,7 +14,12 @@ export enum FeedStatus {
 
 export interface FeedDto {
     id: string; // Database ID (Unified with videoId/mediaId where applicable)
+    videoId?: string; // Content service video identifier (if provided)
     mediaId?: string; // Media Service ID
+    videoPath?: string;
+    mediaPath?: string;
+    path?: string;
+    storagePath?: string;
     title: string;
     summary?: string;
     description?: string;

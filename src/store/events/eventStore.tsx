@@ -18,13 +18,14 @@ interface EventStore {
     getPopularEvents: (searchDTO: EventSearchDTO, page?: number, size?: number) => Promise<void>;
     getHomePageEvents: (latitude?: number, longitude?: number, nearbyLimit?: number, popularLimit?: number) => Promise<void>;
     getUpcomingEvents: () => Promise<void>;
-    
+
     // Event Management Actions
     createEvent: (event: Omit<EventResponseDTO, 'id'>) => Promise<EventResponseDTO>;
+    createEventAsAdmin: (event: Omit<EventResponseDTO, 'id'>, organizerId: string, image?: File) => Promise<EventResponseDTO>;
     updateEvent: (id: string, event: Omit<EventResponseDTO, 'id'>) => Promise<EventResponseDTO>;
     deleteEvent: (userId: string, eventId: string) => Promise<void>;
     updateActiveStatus: (id: string, status: EventStatus) => Promise<void>;
-    
+
     // Category Actions
     fetchCategories: () => Promise<void>;
     createCategory: (category: EventCategoryDto) => Promise<EventCategoryDto>;
@@ -123,6 +124,22 @@ export const useEventStore = create<EventStore>((set, get) => ({
             return response.data;
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to create event' });
+            throw error;
+        } finally {
+            set({ loading: false });
+        }
+    },
+
+    createEventAsAdmin: async (event, organizerId, image) => {
+        try {
+            set({ loading: true, error: null });
+            const response = await eventService.createEventAsAdmin(event, organizerId, image);
+            set((state) => ({
+                events: [...state.events, response.data]
+            }));
+            return response.data;
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : 'Failed to create event as admin' });
             throw error;
         } finally {
             set({ loading: false });

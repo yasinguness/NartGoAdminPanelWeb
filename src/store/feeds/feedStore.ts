@@ -26,12 +26,43 @@ interface FeedStore {
     importFromInstagram: (payload: InstagramImportRequest) => Promise<InstagramImportResponse>;
     updateFeed: (id: string, payload: FeedUpdateRequest) => Promise<FeedDto>;
     updateFeedStatus: (id: string, payload: FeedStatusUpdateRequest) => Promise<FeedDto>;
-    deleteFeed: (id: string) => Promise<void>;
+    deleteFeed: (id: string, fallbackIds?: string[]) => Promise<void>;
 }
 
+const normalizeVideoIdCandidate = (value: unknown): string | undefined => {
+    if (typeof value !== 'string' || !value.trim()) {
+        return undefined;
+    }
+
+    let candidate = value.trim();
+    try {
+        candidate = decodeURIComponent(candidate);
+    } catch {
+        // Keep original value when decode fails
+    }
+
+    if (candidate.includes('/')) {
+        candidate = candidate.split('/').pop() || '';
+    }
+
+    candidate = candidate.split('?')[0].split('#')[0].replace(/\.[^./]+$/, '').trim();
+    return candidate && !candidate.includes('/') ? candidate : undefined;
+};
+
 const normalizeFeed = (feed: any): FeedDto => {
-    // Normalize ID: Backend might send videoId or id
-    const id = feed.id || feed.videoId || feed.mediaId;
+    // Derive stable id from backend variants, including path-like legacy fields
+    const id =
+        [
+            feed.videoId,
+            feed.id,
+            feed.mediaId,
+            feed.videoPath,
+            feed.mediaPath,
+            feed.path,
+            feed.storagePath
+        ]
+            .map(normalizeVideoIdCandidate)
+            .find(Boolean) || '';
     
     return {
         ...feed,
@@ -160,10 +191,10 @@ export const useFeedStore = create<FeedStore>((set) => ({
         }
     },
 
-    deleteFeed: async (id) => {
+    deleteFeed: async (id, fallbackIds = []) => {
         try {
             set({ loading: true, error: null });
-            await feedService.deleteFeed(id);
+            await feedService.deleteFeed(id, fallbackIds);
             set((state) => ({
                 feeds: state.feeds.filter((feed) => feed.id !== id),
                 totalElements: state.totalElements - 1

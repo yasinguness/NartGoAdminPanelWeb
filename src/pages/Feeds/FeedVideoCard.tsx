@@ -29,13 +29,14 @@ export default function FeedVideoCard({ video, selected, onSelect, onClick, onSt
   };
 
   // Generate a consistent gradient based on title for the thumbnail placeholder
-  const getGradient = (seed: string) => {
+  const getGradient = (seed?: string | null) => {
     const colors = [
       ['#667eea', '#764ba2'], ['#f093fb', '#f5576c'], ['#4facfe', '#00f2fe'],
       ['#43e97b', '#38f9d7'], ['#fa709a', '#fee140'], ['#a18cd1', '#fbc2eb']
     ];
+    const safeSeed = (seed || 'untitled').toString();
     let hash = 0;
-    for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+    for (let i = 0; i < safeSeed.length; i++) hash = safeSeed.charCodeAt(i) + ((hash << 5) - hash);
     const pair = colors[Math.abs(hash) % colors.length];
     return `linear-gradient(135deg, ${pair[0]} 0%, ${pair[1]} 100%)`;
   };
@@ -83,7 +84,7 @@ export default function FeedVideoCard({ video, selected, onSelect, onClick, onSt
 
         <Box sx={{ p: 1.75 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, height: 40, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-            {video.title}
+            {video.title || 'Untitled video'}
           </Typography>
 
           <Stack direction="row" alignItems="center" justifyContent="space-between">

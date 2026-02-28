@@ -11,6 +11,7 @@ export const useEvent = () => {
     error,
     getPopularEvents,
     createEvent,
+    createEventAsAdmin,
     updateEvent,
     deleteEvent,
     updateActiveStatus,
@@ -32,7 +33,7 @@ export const useEvent = () => {
   // But other components might rely on this hook auto-fetching.
   // To be safe, I will comment out the auto-fetch or make it optional, or just let it be (it's inefficient but not broken).
   // Actually, I'll remove the `useEffect` here because `Events.tsx` handles it now with specific filters.
-  
+
   /* 
   useEffect(() => {
     fetchPopularEvents();
@@ -52,6 +53,19 @@ export const useEvent = () => {
       }
     },
     [createEvent, enqueueSnackbar]
+  );
+
+  const handleCreateEventAsAdmin = useCallback(
+    async (event: Omit<EventResponseDTO, 'id'>, organizerId: string, image?: File) => {
+      try {
+        await createEventAsAdmin(event, organizerId, image);
+        enqueueSnackbar('Event created successfully on behalf of organizer', { variant: 'success' });
+      } catch (error) {
+        enqueueSnackbar('Failed to create event', { variant: 'error' });
+        throw error;
+      }
+    },
+    [createEventAsAdmin, enqueueSnackbar]
   );
 
   const handleUpdateEvent = useCallback(
@@ -102,6 +116,7 @@ export const useEvent = () => {
     error,
     getPopularEvents: fetchPopularEvents,
     createEvent: handleCreateEvent,
+    createEventAsAdmin: handleCreateEventAsAdmin,
     updateEvent: handleUpdateEvent,
     deleteEvent: handleDeleteEvent,
     updateActiveStatus: handleUpdateActiveStatus,
