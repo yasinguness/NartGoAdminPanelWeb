@@ -34,6 +34,7 @@ import {
     HomeWork,
     Feed as FeedIcon,
     Campaign as CampaignIcon,
+    EmojiEvents as EmojiEventsIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 
@@ -52,6 +53,7 @@ const menuItems = [
     { text: 'Bulletins', icon: <CampaignIcon />, path: '/bulletins' },
     { text: 'Associations', icon: <HomeWork />, path: '/associations' },
     { text: 'Federations', icon: <BusinessIcon />, path: '/federations' },
+    { text: 'Gamification', icon: <EmojiEventsIcon />, path: '/gamification' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 

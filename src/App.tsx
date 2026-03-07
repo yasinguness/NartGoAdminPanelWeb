@@ -25,6 +25,7 @@ import TicketCreationPage from './pages/Tickets/TicketCreationPage';
 import RaffleLivePage from './pages/Event/RaffleLivePage';
 import FeedVideos from './pages/Feeds/FeedVideos';
 import Bulletins from './pages/Bulletins/Bulletins';
+import GamificationSettings from './pages/Gamification/GamificationSettings';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,6 +68,7 @@ function App() {
                 <Route path="ticket-creation" element={<TicketCreationPage />} />
                 <Route path="ticket-creation/:eventId" element={<TicketCreationPage />} />
                 <Route path="associations/:associationId/:ownerId" element={<AssociationDetails />} />
+                <Route path="gamification" element={<GamificationSettings />} />
               </Route>
             </Routes>
           </BrowserRouter>
