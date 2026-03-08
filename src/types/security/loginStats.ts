@@ -216,3 +216,39 @@ export interface AuditTimelineEventDto {
   createdAt: string;
   source: string | null;
 }
+
+export interface EngagementOverviewDto {
+  asOfDate: string;
+  dailyActiveUsers: number;
+  weeklyActiveUsers: number;
+  monthlyActiveUsers: number;
+  dailyLoginCount: number;
+  weeklyLoginCount: number;
+  monthlyLoginCount: number;
+  dauWauRatio: number;
+  wauMauRatio: number;
+}
+
+export interface TopLoginUserDto {
+  userId: string;
+  userEmail: string | null;
+  displayName: string | null;
+  totalLogins: number;
+  successfulLogins: number;
+  failedLogins: number;
+  successRate: number;
+  lastLoginAt: string | null;
+}
+
+export interface WeeklyActiveStatsDto {
+  weekStartDate: string;
+  weekEndDate: string;
+  activeUsers: number;
+  totalAttempts: number;
+  successfulLogins: number;
+  failedLogins: number;
+}
+
+export interface TopWeeklyUsersQuery extends LoginStatsDateRangeQuery {
+  limit?: number;
+}

@@ -3,6 +3,11 @@ import { UserDTO, UserStatusEnum, AccountType, Language } from '../../types/user
 import { PageResponseDto } from '../../types/common/pageResponse';
 import { UserActivity } from '../../types/users/userModel';
 import { AddressDTO } from '../../types/businesses/addressModel';
+import {
+    AdminUserGamificationRewardDetailDto,
+    AdminUserGamificationRewardsPage,
+    AdminUserGamificationRewardsQuery,
+} from '../../types/gamification/adminUserGamification';
 
 interface ApiResponse<T> {
     success: boolean;
@@ -94,6 +99,23 @@ export const userService = {
     // Update user for admin panel (updates both DB and Keycloak)
     updateUserAdmin: async (userId: string, userData: UserDTO) => {
         const response = await api.put<ApiResponse<UserDTO>>(`/auth/user/${userId}`, userData);
+        return response.data;
+    },
+
+    // Admin - User gamification rewards list
+    getUserGamificationRewards: async (userId: string, params?: AdminUserGamificationRewardsQuery) => {
+        const response = await api.get<ApiResponse<AdminUserGamificationRewardsPage>>(
+            `/auth/admin/users/${userId}/gamification-rewards`,
+            { params }
+        );
+        return response.data;
+    },
+
+    // Admin - User gamification reward detail
+    getUserGamificationRewardDetail: async (userId: string, rewardId: string) => {
+        const response = await api.get<ApiResponse<AdminUserGamificationRewardDetailDto>>(
+            `/auth/admin/users/${userId}/gamification-rewards/${rewardId}`
+        );
         return response.data;
     }
 }; 

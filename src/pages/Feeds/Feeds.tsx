@@ -1,21 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+    Avatar,
     Box,
     Button,
+    Card,
+    CardContent,
+    CardHeader,
+    Chip,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
+    Grid,
+    IconButton,
     MenuItem,
     Stack,
     Switch,
+    Tab,
+    Tabs,
     TextField,
     Typography
 } from '@mui/material';
 import {
     Add as AddIcon,
     Edit as EditIcon,
-    Rule as RuleIcon
+    Rule as RuleIcon,
+    Delete as DeleteIcon,
+    Image as ImageIcon
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 
@@ -31,6 +42,8 @@ import {
     FeedUpdateRequest
 } from '../../types/feed/feedModel';
 import { useFeedStore } from '../../store/feeds/feedStore';
+import { storyService } from '../../services/feed/storyService';
+import { StoryFeedDto } from '../../types/feed/storyModel';
 
 const initialForm: FeedCreateRequest = {
     title: '',
@@ -58,6 +71,11 @@ const formatDate = (value?: string) => {
 
 export default function Feeds() {
     const { enqueueSnackbar } = useSnackbar();
+    
+    // --- Tabs ---
+    const [activeTab, setActiveTab] = useState(0);
+
+    // --- Feeds State (Tab 0) ---
     const {
         feeds,
         loading,
@@ -83,6 +101,13 @@ export default function Feeds() {
     const [statusValue, setStatusValue] = useState<FeedStatus>(FeedStatus.PENDING);
     const [rejectionReason, setRejectionReason] = useState('');
 
+    // --- Stories State (Tab 1) ---
+    const [storyGroups, setStoryGroups] = useState<StoryFeedDto[]>([]);
+    const [loadingStories, setLoadingStories] = useState(false);
+    const [storiesError, setStoriesError] = useState<string | null>(null);
+    const [deletingStoryId, setDeletingStoryId] = useState<string | null>(null);
+
+    // --- Feeds Functions ---
     const loadFeeds = async () => {
         await fetchFeeds({
             keyword: keyword || undefined,
@@ -90,10 +115,6 @@ export default function Feeds() {
             size
         });
     };
-
-    useEffect(() => {
-        void loadFeeds();
-    }, [page]);
 
     const handleSearch = async () => {
         setPage(1);
@@ -185,6 +206,46 @@ export default function Feeds() {
         }
     };
 
+    // --- Stories Functions ---
+    const loadStories = async () => {
+        setLoadingStories(true);
+        setStoriesError(null);
+        try {
+            const data = await storyService.getStoryFeed();
+            setStoryGroups(data || []);
+        } catch (err: any) {
+            setStoriesError(err?.message || 'Hikayeler yüklenemedi');
+        } finally {
+            setLoadingStories(false);
+        }
+    };
+
+    const handleDeleteStory = async (storyId: string) => {
+        if (!window.confirm('Bu story içeriğini kalıcı olarak silmek istediğinize emin misiniz?')) {
+            return;
+        }
+        
+        setDeletingStoryId(storyId);
+        try {
+            await storyService.deleteStoryAdmin(storyId);
+            enqueueSnackbar('Story başarıyla silindi', { variant: 'success' });
+            await loadStories();
+        } catch (err) {
+            enqueueSnackbar('Story silinirken bir hata oluştu', { variant: 'error' });
+        } finally {
+            setDeletingStoryId(null);
+        }
+    };
+
+    // --- Effects ---
+    useEffect(() => {
+        if (activeTab === 0) {
+            void loadFeeds();
+        } else if (activeTab === 1) {
+            void loadStories();
+        }
+    }, [activeTab, page]); // Fetch based on active tab
+
     const columns = useMemo(() => [
         {
             id: 'title',
@@ -222,77 +283,177 @@ export default function Feeds() {
         }
     ], []);
 
-    if (loading && feeds.length === 0) {
-        return <LoadingState message="Video feed listesi yükleniyor..." />;
-    }
-
-    if (error && feeds.length === 0) {
-        return (
-            <PageContainer>
-                <ErrorState title="Video feed listesi alınamadı" message={error} onRetry={loadFeeds} />
-            </PageContainer>
-        );
-    }
-
     return (
         <PageContainer>
             <PageHeader
-                title="Feed Videos"
-                subtitle="Admin video feed içeriklerini yönetin"
+                title="Feed ve Hikaye Yönetimi"
+                subtitle="Kullanıcı içeriklerini (Video Feed ve Story) görüntüleyin ve yönetin"
                 breadcrumbs={[
                     { label: 'Dashboard', href: '/dashboard' },
-                    { label: 'Feed Videos', active: true }
+                    { label: 'Feed & Stories', active: true }
                 ]}
                 actions={
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
-                        Video Ekle
-                    </Button>
+                    activeTab === 0 ? (
+                        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
+                            Video Ekle
+                        </Button>
+                    ) : (
+                        <Button variant="outlined" onClick={loadStories} disabled={loadingStories}>
+                            Yenile
+                        </Button>
+                    )
                 }
             />
 
-            <PageSection>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} mb={2}>
-                    <TextField
-                        label="Ara"
-                        value={keyword}
-                        onChange={(event) => setKeyword(event.target.value)}
-                        fullWidth
-                        placeholder="Başlık veya özet"
-                    />
-                    <Button variant="outlined" onClick={handleSearch}>
-                        Filtrele
-                    </Button>
-                </Stack>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Tabs value={activeTab} onChange={(_, nv) => setActiveTab(nv)}>
+                    <Tab label="Feed Videoları" />
+                    <Tab label="Kullanıcı Hikayeleri" />
+                </Tabs>
+            </Box>
 
-                <DataTable
-                    columns={columns}
-                    data={feeds}
-                    loading={loading}
-                    pagination={{
-                        page,
-                        pageSize: size,
-                        total: totalElements,
-                        onPageChange: setPage
-                    }}
-                    renderRowActions={(row) => (
-                        <ActionMenu>
-                            <ActionMenuItem onClick={() => handleOpenDialog(row)}>
-                                <ListItemIcon>
-                                    <EditIcon fontSize="small" />
-                                </ListItemIcon>
-                                <ListItemText>Düzenle</ListItemText>
-                            </ActionMenuItem>
-                            <ActionMenuItem onClick={() => openStatusDialog(row)}>
-                                <ListItemIcon>
-                                    <RuleIcon fontSize="small" />
-                                </ListItemIcon>
-                                <ListItemText>Status Güncelle</ListItemText>
-                            </ActionMenuItem>
-                        </ActionMenu>
+            {/* TAB 0: FEED VIDEOS */}
+            {activeTab === 0 && (
+                <PageSection>
+                    {loading && feeds.length === 0 ? (
+                        <LoadingState message="Video feed listesi yükleniyor..." />
+                    ) : error && feeds.length === 0 ? (
+                        <ErrorState title="Video feed listesi alınamadı" message={error} onRetry={loadFeeds} />
+                    ) : (
+                        <>
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} mb={2}>
+                                <TextField
+                                    label="Ara"
+                                    value={keyword}
+                                    onChange={(event) => setKeyword(event.target.value)}
+                                    fullWidth
+                                    placeholder="Başlık veya özet"
+                                />
+                                <Button variant="outlined" onClick={handleSearch}>
+                                    Filtrele
+                                </Button>
+                            </Stack>
+
+                            <DataTable
+                                columns={columns}
+                                data={feeds}
+                                loading={loading}
+                                pagination={{
+                                    page,
+                                    pageSize: size,
+                                    total: totalElements,
+                                    onPageChange: setPage
+                                }}
+                                renderRowActions={(row) => (
+                                    <ActionMenu>
+                                        <ActionMenuItem onClick={() => handleOpenDialog(row)}>
+                                            <ListItemIcon>
+                                                <EditIcon fontSize="small" />
+                                            </ListItemIcon>
+                                            <ListItemText>Düzenle</ListItemText>
+                                        </ActionMenuItem>
+                                        <ActionMenuItem onClick={() => openStatusDialog(row)}>
+                                            <ListItemIcon>
+                                                <RuleIcon fontSize="small" />
+                                            </ListItemIcon>
+                                            <ListItemText>Status Güncelle</ListItemText>
+                                        </ActionMenuItem>
+                                    </ActionMenu>
+                                )}
+                            />
+                        </>
                     )}
-                />
-            </PageSection>
+                </PageSection>
+            )}
 
+            {/* TAB 1: USER STORIES */}
+            {activeTab === 1 && (
+                <PageSection>
+                    {loadingStories ? (
+                        <LoadingState message="Kullanıcı hikayeleri yükleniyor..." />
+                    ) : storiesError ? (
+                        <ErrorState title="Hikayeler alınamadı" message={storiesError} onRetry={loadStories} />
+                    ) : storyGroups.length === 0 ? (
+                        <Box textAlign="center" py={5}>
+                            <Typography color="text.secondary">Aktif bir hikaye bulunamadı.</Typography>
+                        </Box>
+                    ) : (
+                        <Grid container spacing={3}>
+                            {storyGroups.map((group) => (
+                                <Grid item xs={12} md={6} lg={4} key={group.userId}>
+                                    <Card variant="outlined" sx={{ borderRadius: 3 }}>
+                                        <CardHeader
+                                            avatar={<Avatar src={group.avatarUrl || group.profileImageUrl}>{group.displayName?.[0] || 'U'}</Avatar>}
+                                            title={<Typography fontWeight={600}>{group.displayName || group.username || group.userEmail}</Typography>}
+                                            subheader={`${group.stories.length} Aktif Hikaye`}
+                                        />
+                                        <CardContent sx={{ pt: 0 }}>
+                                            <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 1 }}>
+                                                {group.stories.map((story) => (
+                                                    <Box
+                                                        key={story.id}
+                                                        sx={{
+                                                            position: 'relative',
+                                                            minWidth: 100,
+                                                            height: 140,
+                                                            borderRadius: 2,
+                                                            overflow: 'hidden',
+                                                            bgcolor: 'grey.900',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            border: '2px solid',
+                                                            borderColor: 'primary.main'
+                                                        }}
+                                                    >
+                                                        {(story.mediaUrl || story.url) ? (
+                                                            <Box
+                                                                component="img"
+                                                                src={story.mediaUrl || story.url}
+                                                                sx={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}
+                                                            />
+                                                        ) : (
+                                                            <ImageIcon sx={{ color: 'grey.500' }} />
+                                                        )}
+                                                        
+                                                        {/* Story Overlay Info */}
+                                                        <Box sx={{ position: 'absolute', bottom: 4, left: 4, right: 4, display: 'flex', justifyContent: 'space-between' }}>
+                                                            {story.mediaType === 'VIDEO' ? (
+                                                                <Chip size="small" label="Video" sx={{ height: 16, fontSize: '0.6rem', bgcolor: 'rgba(0,0,0,0.6)', color: '#fff' }} />
+                                                            ) : (
+                                                                <Chip size="small" label="Görsel" sx={{ height: 16, fontSize: '0.6rem', bgcolor: 'rgba(0,0,0,0.6)', color: '#fff' }} />
+                                                            )}
+                                                        </Box>
+
+                                                        {/* Admin Delete Action */}
+                                                        <IconButton
+                                                            size="small"
+                                                            color="error"
+                                                            disabled={deletingStoryId === story.id}
+                                                            onClick={() => handleDeleteStory(story.id)}
+                                                            sx={{
+                                                                position: 'absolute',
+                                                                top: 4,
+                                                                right: 4,
+                                                                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                                                                '&:hover': { bgcolor: 'error.main', color: 'white' }
+                                                            }}
+                                                        >
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Box>
+                                                ))}
+                                            </Stack>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                            ))}
+                        </Grid>
+                    )}
+                </PageSection>
+            )}
+
+            {/* Modal Components */}
             <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
                 <DialogTitle>{selectedFeed ? 'Video Düzenle' : 'Yeni Video'}</DialogTitle>
                 <DialogContent dividers>

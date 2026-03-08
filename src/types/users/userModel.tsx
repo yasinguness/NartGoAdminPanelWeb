@@ -27,6 +27,7 @@ export const LanguageDisplayNames: Record<Language, string> = {
 
 export interface UserDTO {
     id: string;
+    displayName?: string;
     firstName: string;
     lastName: string;
     email: string;

@@ -27,6 +27,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import UserLoginStatsPanel from './components/UserLoginStatsPanel';
+import UserGamificationRewardsPanel from './components/UserGamificationRewardsPanel';
 
 // Import standardized components
 import { PageContainer, PageHeader, PageSection } from '../../components/Page';
@@ -122,6 +123,11 @@ export default function UserDetails() {
     }
 
     const displayData = editing ? formData : user;
+    const displayName = (displayData.displayName || `${displayData.firstName || ''} ${displayData.lastName || ''}`.trim() || displayData.email || 'Unknown User').trim();
+    const avatarInitials = `${(displayData.firstName || '').trim().charAt(0)}${(displayData.lastName || '').trim().charAt(0)}`.trim()
+        || (displayData.displayName || '').trim().charAt(0)
+        || (displayData.email || '').trim().charAt(0)
+        || '?';
 
     const headerActions = editing ? (
         <Stack direction="row" spacing={1}>
@@ -154,8 +160,8 @@ export default function UserDetails() {
     return (
         <PageContainer>
             <PageHeader
-                title={`${displayData.firstName} ${displayData.lastName}`}
-                subtitle={`User ID: ${displayData.email}`}
+                title={displayName}
+                subtitle={`User ID: ${displayData.id}`}
                 onBack={() => navigate('/users')}
                 actions={headerActions}
                 breadcrumbs={[
@@ -180,12 +186,12 @@ export default function UserDetails() {
                                     boxShadow: (theme) => theme.shadows[2]
                                 }}
                             >
-                                {displayData.firstName.charAt(0)}{displayData.lastName.charAt(0)}
+                                {avatarInitials.toUpperCase()}
                             </Avatar>
                             
                             <Box textAlign="center">
                                 <Typography variant="h5" fontWeight={600} gutterBottom>
-                                    {displayData.firstName} {displayData.lastName}
+                                    {displayName}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
                                     {displayData.email}
@@ -213,7 +219,7 @@ export default function UserDetails() {
                             </Stack>
 
                             <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center">
-                                {displayData.role.map((role) => (
+                                {(displayData.role || []).map((role) => (
                                     <StatusChip
                                         key={role}
                                         status={role}
@@ -230,6 +236,7 @@ export default function UserDetails() {
                 <Grid item xs={12} md={8}>
                     <Stack spacing={3}>
                         <UserLoginStatsPanel userId={displayData.id} />
+                        <UserGamificationRewardsPanel userId={displayData.id} />
 
                         {/* Personal Info */}
                         <PageSection title="Personal Information">
@@ -237,21 +244,21 @@ export default function UserDetails() {
                                 <TextField
                                     fullWidth
                                     label="First Name"
-                                    value={displayData.firstName}
+                                    value={displayData.firstName || ''}
                                     onChange={(e) => editing && handleChange('firstName', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
                                     label="Last Name"
-                                    value={displayData.lastName}
+                                    value={displayData.lastName || ''}
                                     onChange={(e) => editing && handleChange('lastName', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
                                     label="Email"
-                                    value={displayData.email}
+                                    value={displayData.email || ''}
                                     onChange={(e) => editing && handleChange('email', e.target.value)}
                                     disabled={!editing}
                                 />
@@ -266,7 +273,7 @@ export default function UserDetails() {
                                     <TextField
                                         fullWidth
                                         label="Phone"
-                                        value={displayData.gsmNo}
+                                        value={displayData.gsmNo || ''}
                                         onChange={(e) => editing && handleChange('gsmNo', e.target.value)}
                                         disabled={!editing}
                                     />
@@ -311,7 +318,7 @@ export default function UserDetails() {
                                 <FormControl fullWidth>
                                     <InputLabel>Language</InputLabel>
                                     <Select
-                                        value={displayData.language}
+                                        value={displayData.language || ''}
                                         onChange={(e) => editing && handleChange('language', e.target.value)}
                                         disabled={!editing}
                                         label="Language"

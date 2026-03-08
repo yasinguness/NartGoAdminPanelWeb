@@ -24,6 +24,10 @@ import {
   SessionQualityDto,
   UserLoginStatsDto,
   UserLoginStatsQuery,
+  EngagementOverviewDto,
+  TopLoginUserDto,
+  WeeklyActiveStatsDto,
+  TopWeeklyUsersQuery,
 } from '../../types/security/loginStats';
 
 const LOGIN_STATS_BASE_PATH = '/auth/admin/login-stats';
@@ -207,6 +211,26 @@ export const adminLoginStatsService = {
     };
 
     const response = await api.get<ApiResponse<AuditTimelineEventDto[]>>(`${LOGIN_STATS_BASE_PATH}/audit/timeline`, { params });
+    return response.data.data;
+  },
+
+  getEngagementOverview: async (): Promise<EngagementOverviewDto> => {
+    const response = await api.get<ApiResponse<EngagementOverviewDto>>(`${LOGIN_STATS_BASE_PATH}/engagement/overview`);
+    return response.data.data;
+  },
+
+  getTopWeeklyUsers: async (query?: TopWeeklyUsersQuery): Promise<TopLoginUserDto[]> => {
+    const params = {
+      ...validateDateRange(query),
+      limit: validatePositiveLimit('limit', query?.limit),
+    };
+    const response = await api.get<ApiResponse<TopLoginUserDto[]>>(`${LOGIN_STATS_BASE_PATH}/engagement/top-weekly-users`, { params });
+    return response.data.data;
+  },
+
+  getWeeklyEngagement: async (query?: LoginStatsDateRangeQuery): Promise<WeeklyActiveStatsDto[]> => {
+    const params = validateDateRange(query);
+    const response = await api.get<ApiResponse<WeeklyActiveStatsDto[]>>(`${LOGIN_STATS_BASE_PATH}/engagement/weekly`, { params });
     return response.data.data;
   },
 };

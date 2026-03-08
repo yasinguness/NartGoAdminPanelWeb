@@ -127,6 +127,26 @@ export default function Users() {
     setBirthDateTo(null);
   };
 
+  const getDisplayName = (user: UserDTO) => {
+    const explicitDisplayName = (user.displayName ?? '').trim();
+    if (explicitDisplayName) {
+      return explicitDisplayName;
+    }
+    const firstName = (user.firstName ?? '').trim();
+    const lastName = (user.lastName ?? '').trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || user.email || 'Unknown User';
+  };
+
+  const getAvatarInitial = (user: UserDTO) => {
+    const firstName = (user.firstName ?? '').trim();
+    if (firstName.length > 0) {
+      return firstName[0]?.toUpperCase();
+    }
+    const email = (user.email ?? '').trim();
+    return email.length > 0 ? email[0]?.toUpperCase() : '?';
+  };
+
   const columns = [
     {
       id: 'user',
@@ -138,11 +158,11 @@ export default function Users() {
             variant="rounded"
             sx={{ width: 40, height: 40, bgcolor: 'primary.light', border: 1, borderColor: 'divider' }}
           >
-            {user.firstName[0]}
+            {getAvatarInitial(user)}
           </Avatar>
           <Box>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {`${user.firstName} ${user.lastName}`}
+              {getDisplayName(user)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               {user.phoneCode} {user.gsmNo}
@@ -212,7 +232,7 @@ export default function Users() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
             title="Admins" 
-            value={data?.content?.filter(u => u.role.some(r => r === 'ADMIN')).length ?? 0} 
+            value={data?.content?.filter(u => (u.role ?? []).some(r => r === 'ADMIN')).length ?? 0} 
             color="warning" 
           />
         </Grid>
