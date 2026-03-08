@@ -55,6 +55,38 @@ interface TabPanelProps {
     value: number;
 }
 
+const PHONE_REGEX = /^\+?[1-9]\d{1,14}$/;
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const WEBSITE_REGEX = /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\/\S*)?$/;
+
+interface ContactValidationErrors {
+    phoneNumber?: string;
+    email?: string;
+    website?: string;
+}
+
+const validateContactFields = (
+    phoneNumber?: string,
+    email?: string,
+    website?: string
+): ContactValidationErrors => {
+    const errors: ContactValidationErrors = {};
+
+    if (phoneNumber && !PHONE_REGEX.test(phoneNumber.trim())) {
+        errors.phoneNumber = 'Invalid phone format. Example: +905551112233';
+    }
+
+    if (email && !EMAIL_REGEX.test(email.trim())) {
+        errors.email = 'Invalid email format.';
+    }
+
+    if (website && !WEBSITE_REGEX.test(website.trim())) {
+        errors.website = 'Invalid website format.';
+    }
+
+    return errors;
+};
+
 function TabPanel(props: TabPanelProps) {
     const { children, value, index, ...other } = props;
     return (
@@ -127,6 +159,15 @@ export default function BusinessDetails() {
     // Actions
     const handleSave = async () => {
         if (!business) return;
+        const validationErrors = validateContactFields(
+            edited.phoneNumber ?? business.phoneNumber,
+            edited.email ?? business.email,
+            edited.website ?? business.website
+        );
+        if (Object.keys(validationErrors).length > 0) {
+            enqueueSnackbar('Please fix contact field errors before saving.', { variant: 'error' });
+            return;
+        }
         try {
             await businessStore.updateUserBusiness(
                 business.ownerId,
@@ -207,6 +248,13 @@ export default function BusinessDetails() {
         );
     }
 
+    const contactValidationErrors = validateContactFields(
+        edited.phoneNumber ?? business.phoneNumber,
+        edited.email ?? business.email,
+        edited.website ?? business.website
+    );
+    const hasContactValidationErrors = Object.keys(contactValidationErrors).length > 0;
+
     const hasChanges = Object.keys(edited).length > 0 || profileImage || coverImage || galleryImages.length > 0;
 
     return (
@@ -234,7 +282,7 @@ export default function BusinessDetails() {
                      <Button 
                         variant="contained" 
                         startIcon={<SaveIcon />}
-                        disabled={!hasChanges}
+                        disabled={!hasChanges || hasContactValidationErrors}
                         onClick={handleSave}
                         color="primary"
                     >
@@ -651,6 +699,8 @@ export default function BusinessDetails() {
                                         label="Phone Number"
                                         value={edited.phoneNumber ?? business.phoneNumber ?? ''}
                                         onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                                        error={Boolean(contactValidationErrors.phoneNumber)}
+                                        helperText={contactValidationErrors.phoneNumber}
                                         InputProps={{
                                             startAdornment: <InputAdornment position="start"><PhoneIcon color="action" /></InputAdornment>,
                                         }}
@@ -660,8 +710,11 @@ export default function BusinessDetails() {
                                     <TextField
                                         fullWidth
                                         label="Email Address"
+                                        type="email"
                                         value={edited.email ?? business.email ?? ''}
                                         onChange={(e) => handleInputChange('email', e.target.value)}
+                                        error={Boolean(contactValidationErrors.email)}
+                                        helperText={contactValidationErrors.email}
                                         InputProps={{
                                             startAdornment: <InputAdornment position="start"><EmailIcon color="action" /></InputAdornment>,
                                         }}
@@ -673,6 +726,8 @@ export default function BusinessDetails() {
                                         label="Website URL"
                                         value={edited.website ?? business.website ?? ''}
                                         onChange={(e) => handleInputChange('website', e.target.value)}
+                                        error={Boolean(contactValidationErrors.website)}
+                                        helperText={contactValidationErrors.website}
                                         InputProps={{
                                             startAdornment: <InputAdornment position="start"><WebIcon color="action" /></InputAdornment>,
                                         }}

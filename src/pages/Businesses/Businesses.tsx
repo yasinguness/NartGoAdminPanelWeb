@@ -29,7 +29,8 @@ import {
     Tabs,
     Tab,
     ListItemIcon,
-    ListItemText
+    ListItemText,
+    Paper
 } from '@mui/material';
 import {
     Refresh as RefreshIcon,
@@ -52,6 +53,7 @@ import { BusinessDto, BusinessStatus } from '../../types/businesses/businessMode
 import { useBusinessCategory } from '../../hooks/useBusinessCategory';
 import debounce from 'lodash/debounce';
 import { ImageUploader } from '../../components/ImageUploader';
+import { businessService, GoogleMapsImportResponse } from '../../services/business/businessService';
 
 // Standardized Components
 import { PageContainer, PageHeader, PageSection } from '../../components/Page';
@@ -64,6 +66,38 @@ interface TabPanelProps {
     index: number;
     value: number;
 }
+
+const PHONE_REGEX = /^\+?[1-9]\d{1,14}$/;
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const WEBSITE_REGEX = /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\/\S*)?$/;
+
+interface ContactValidationErrors {
+    phoneNumber?: string;
+    email?: string;
+    website?: string;
+}
+
+const validateContactFields = (
+    phoneNumber?: string,
+    email?: string,
+    website?: string
+): ContactValidationErrors => {
+    const errors: ContactValidationErrors = {};
+
+    if (phoneNumber && !PHONE_REGEX.test(phoneNumber.trim())) {
+        errors.phoneNumber = 'Telefon formatı geçersiz. Örn: +905551112233';
+    }
+
+    if (email && !EMAIL_REGEX.test(email.trim())) {
+        errors.email = 'Email formatı geçersiz.';
+    }
+
+    if (website && !WEBSITE_REGEX.test(website.trim())) {
+        errors.website = 'Website formatı geçersiz.';
+    }
+
+    return errors;
+};
 
 function TabPanel(props: TabPanelProps) {
     const { children, value, index, ...other } = props;
@@ -104,6 +138,11 @@ export default function Businesses() {
     const [businessToHardDelete, setBusinessToHardDelete] = useState<string | null>(null);
     const [durationInDays, setDurationInDays] = useState<number>(30);
     const [featuredRadiusInKm, setFeaturedRadiusInKm] = useState<number>(10);
+    const [openGoogleImportDialog, setOpenGoogleImportDialog] = useState(false);
+    const [googleMapsUrl, setGoogleMapsUrl] = useState('');
+    const [googleImportLoading, setGoogleImportLoading] = useState(false);
+    const [googleImportResult, setGoogleImportResult] = useState<GoogleMapsImportResponse | null>(null);
+    const [googleImportError, setGoogleImportError] = useState<string | null>(null);
 
     // UI States
     const [page, setPage] = useState(1);
@@ -202,6 +241,84 @@ export default function Businesses() {
         setTabValue(newValue);
     };
 
+    const handleOpenGoogleImportDialog = () => {
+        setGoogleImportError(null);
+        setOpenGoogleImportDialog(true);
+    };
+
+    const handleCloseGoogleImportDialog = () => {
+        setOpenGoogleImportDialog(false);
+        setGoogleMapsUrl('');
+        setGoogleImportError(null);
+        setGoogleImportResult(null);
+        setGoogleImportLoading(false);
+    };
+
+    const handleImportFromGoogleMaps = async () => {
+        if (!googleMapsUrl.trim()) {
+            setGoogleImportError('Google Maps linki zorunlu.');
+            return;
+        }
+
+        try {
+            setGoogleImportLoading(true);
+            setGoogleImportError(null);
+            const response = await businessService.importGoogleMapsBusiness({
+                mapsUrl: googleMapsUrl.trim()
+            });
+            setGoogleImportResult(response.data);
+            enqueueSnackbar('Google Maps verisi başarıyla alındı', { variant: 'success' });
+        } catch (error: any) {
+            const message =
+                error?.response?.data?.message ||
+                error?.message ||
+                'Google Maps import işlemi başarısız oldu.';
+            setGoogleImportError(message);
+            enqueueSnackbar(message, { variant: 'error' });
+        } finally {
+            setGoogleImportLoading(false);
+        }
+    };
+
+    const handleApplyGoogleImportToBusiness = () => {
+        if (!googleImportResult) {
+            return;
+        }
+
+        setEditedBusiness((prev) => {
+            if (!prev) {
+                return prev;
+            }
+
+            const mergedAddress = prev.address
+                ? {
+                    ...prev.address,
+                    description: googleImportResult.formattedAddress || prev.address.description,
+                    latitude: googleImportResult.latitude ?? prev.address.latitude,
+                    longitude: googleImportResult.longitude ?? prev.address.longitude
+                }
+                : prev.address;
+
+            const openingHoursText = (googleImportResult.openingHours || []).join('\n');
+            const importedDescription = openingHoursText
+                ? `Google Maps opening hours:\n${openingHoursText}`
+                : undefined;
+
+            return {
+                ...prev,
+                name: googleImportResult.name || prev.name,
+                phoneNumber: googleImportResult.phone || prev.phoneNumber,
+                website: googleImportResult.website || prev.website,
+                address: mergedAddress,
+                shortDescription: googleImportResult.formattedAddress || prev.shortDescription,
+                description: prev.description || importedDescription
+            };
+        });
+
+        enqueueSnackbar('Import edilen bilgiler forma aktarıldı', { variant: 'success' });
+        handleCloseGoogleImportDialog();
+    };
+
     const handleInputChange = (field: keyof BusinessDto, value: any) => {
         setEditedBusiness(prev => ({
             ...prev,
@@ -221,6 +338,15 @@ export default function Businesses() {
     // Action Logic
     const handleUpdateBusiness = async () => {
         if (!selectedBusiness || !editedBusiness) return;
+        const validationErrors = validateContactFields(
+            editedBusiness.phoneNumber,
+            editedBusiness.email,
+            editedBusiness.website
+        );
+        if (Object.keys(validationErrors).length > 0) {
+            enqueueSnackbar('Lütfen iletişim alanlarındaki hataları düzeltin.', { variant: 'error' });
+            return;
+        }
         try {
             await businessStore.updateUserBusiness(
                 selectedBusiness.ownerId,
@@ -237,6 +363,17 @@ export default function Businesses() {
             enqueueSnackbar('Failed to update business', { variant: 'error' });
         }
     };
+
+    const contactValidationErrors = useMemo(
+        () =>
+            validateContactFields(
+                editedBusiness?.phoneNumber,
+                editedBusiness?.email,
+                editedBusiness?.website
+            ),
+        [editedBusiness?.phoneNumber, editedBusiness?.email, editedBusiness?.website]
+    );
+    const hasContactValidationErrors = Object.keys(contactValidationErrors).length > 0;
 
     const handleHardDeleteBusiness = useCallback(async (businessId: string) => {
         setBusinessToHardDelete(businessId);
@@ -660,23 +797,38 @@ export default function Businesses() {
 
                                     <TabPanel value={tabValue} index={1}>
                                         <Stack spacing={2}>
+                                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+                                                <Button variant="outlined" onClick={handleOpenGoogleImportDialog}>
+                                                    Google Maps'ten İçe Aktar
+                                                </Button>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Bağlantıdan isim, telefon, adres ve website alanları doldurulur.
+                                                </Typography>
+                                            </Stack>
                                             <TextField
                                                 fullWidth
                                                 label="Phone"
                                                 value={editedBusiness?.phoneNumber || ''}
                                                 onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                                                error={Boolean(contactValidationErrors.phoneNumber)}
+                                                helperText={contactValidationErrors.phoneNumber}
                                             />
                                             <TextField
                                                 fullWidth
                                                 label="Email"
+                                                type="email"
                                                 value={editedBusiness?.email || ''}
                                                 onChange={(e) => handleInputChange('email', e.target.value)}
+                                                error={Boolean(contactValidationErrors.email)}
+                                                helperText={contactValidationErrors.email}
                                             />
                                             <TextField
                                                 fullWidth
                                                 label="Website"
                                                 value={editedBusiness?.website || ''}
                                                 onChange={(e) => handleInputChange('website', e.target.value)}
+                                                error={Boolean(contactValidationErrors.website)}
+                                                helperText={contactValidationErrors.website}
                                             />
                                         </Stack>
                                     </TabPanel>
@@ -820,13 +972,98 @@ export default function Businesses() {
                     {dialogType === 'edit' ? (
                         <>
                             <Button onClick={handleCloseDialog}>Cancel</Button>
-                            <Button onClick={handleUpdateBusiness} variant="contained" color="primary">
+                            <Button
+                                onClick={handleUpdateBusiness}
+                                variant="contained"
+                                color="primary"
+                                disabled={hasContactValidationErrors}
+                            >
                                 Save Changes
                             </Button>
                         </>
                     ) : (
                         <Button onClick={handleCloseDialog}>Close</Button>
                     )}
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={openGoogleImportDialog}
+                onClose={handleCloseGoogleImportDialog}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>Google Maps'ten İşletme Bilgisi Al</DialogTitle>
+                <DialogContent sx={{ mt: 1 }}>
+                    <Stack spacing={2}>
+                        <TextField
+                            autoFocus
+                            fullWidth
+                            label="Google Maps Linki"
+                            placeholder="https://maps.google.com/... veya https://share.google/..."
+                            value={googleMapsUrl}
+                            onChange={(e) => setGoogleMapsUrl(e.target.value)}
+                            disabled={googleImportLoading}
+                        />
+
+                        {googleImportError && <Alert severity="error">{googleImportError}</Alert>}
+
+                        {googleImportResult && (
+                            <Paper variant="outlined" sx={{ p: 2 }}>
+                                <Stack spacing={1}>
+                                    <Typography variant="subtitle2" fontWeight={700}>
+                                        {googleImportResult.name || '-'}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {googleImportResult.formattedAddress || 'Adres bulunamadı'}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        Telefon: {googleImportResult.phone || '-'}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        Website: {googleImportResult.website || '-'}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        Place ID: {googleImportResult.placeId || '-'}
+                                    </Typography>
+                                    {typeof googleImportResult.latitude === 'number' && typeof googleImportResult.longitude === 'number' && (
+                                        <Typography variant="body2">
+                                            Konum: {googleImportResult.latitude}, {googleImportResult.longitude}
+                                        </Typography>
+                                    )}
+                                    {googleImportResult.openingHours && googleImportResult.openingHours.length > 0 && (
+                                        <Box>
+                                            <Typography variant="body2" fontWeight={600}>Çalışma Saatleri</Typography>
+                                            {googleImportResult.openingHours.map((hour) => (
+                                                <Typography key={hour} variant="caption" display="block" color="text.secondary">
+                                                    {hour}
+                                                </Typography>
+                                            ))}
+                                        </Box>
+                                    )}
+                                </Stack>
+                            </Paper>
+                        )}
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseGoogleImportDialog} disabled={googleImportLoading}>
+                        Kapat
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        onClick={handleImportFromGoogleMaps}
+                        disabled={googleImportLoading}
+                    >
+                        {googleImportLoading ? 'Alınıyor...' : 'Bilgileri Çek'}
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleApplyGoogleImportToBusiness}
+                        disabled={!googleImportResult || googleImportLoading}
+                    >
+                        Forma Uygula
+                    </Button>
                 </DialogActions>
             </Dialog>
 

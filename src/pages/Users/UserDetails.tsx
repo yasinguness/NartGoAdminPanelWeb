@@ -26,10 +26,11 @@ import { BusinessType } from '../../types/enums/businessType';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import UserLoginStatsPanel from './components/UserLoginStatsPanel';
 
 // Import standardized components
 import { PageContainer, PageHeader, PageSection } from '../../components/Page';
-import { FormSection, FormGrid } from '../../components/Form';
+import { FormGrid } from '../../components/Form';
 import { StatusChip } from '../../components/Data';
 import { LoadingState, ErrorState } from '../../components/Feedback';
 
@@ -228,6 +229,8 @@ export default function UserDetails() {
                 {/* Detailed Information */}
                 <Grid item xs={12} md={8}>
                     <Stack spacing={3}>
+                        <UserLoginStatsPanel userId={displayData.id} />
+
                         {/* Personal Info */}
                         <PageSection title="Personal Information">
                             <FormGrid>

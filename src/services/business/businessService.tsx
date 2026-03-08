@@ -11,6 +11,24 @@ interface ApiResponse<T> {
   statusMessage: string;
 }
 
+export interface GoogleMapsImportRequest {
+    mapsUrl: string;
+}
+
+export interface GoogleMapsImportResponse {
+    placeId: string;
+    name: string;
+    formattedAddress?: string;
+    phone?: string;
+    openingHours?: string[];
+    website?: string;
+    latitude?: number;
+    longitude?: number;
+    rating?: number;
+    userRatingsTotal?: number;
+    mapsUrl?: string;
+}
+
 export interface GetAllBusinessesParams {
     keyword?: string;
     status?: BusinessStatus;
@@ -29,6 +47,14 @@ export interface GetAllBusinessesParams {
 }
 
 export const businessService = {
+    importGoogleMapsBusiness: async (payload: GoogleMapsImportRequest) => {
+        const response = await api.post<ApiResponse<GoogleMapsImportResponse>>(
+            '/businesses/import/google-maps',
+            payload
+        );
+        return response.data;
+    },
+
     // Get single business by id
     getBusinessById: async (businessId: string) => {
         const response = await api.get<ApiResponse<BusinessDto>>(`/businesses/${businessId}`)

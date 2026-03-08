@@ -1,5 +1,3 @@
-import { PageResponseDto } from '../common/pageResponse';
-
 export interface GamificationActionAdminDto {
   reason: string;
   xp: number;
@@ -7,18 +5,17 @@ export interface GamificationActionAdminDto {
   description: string;
   icon: string;
   category: string;
-  enabled: boolean;
-  dailyCap: boolean;
+  dailyCap?: boolean;
 }
 
-export interface GamificationRulesDto {
-  dailySocialCapMaxXp: number;
-  dailySocialCapResetTime: string;
-  maxXpPerAction: number;
-  referralMaxPerIpPerDay: number;
+export interface GamificationDailySocialCapDto {
+  maxXp: number;
+  affectedCategories: string[];
+  resetTime: string;
 }
 
-export interface MonthlyRewardRankDto {
+export interface MonthlyRewardItemDto {
+  rank: number;
   title: string;
   description: string;
   icon: string;
@@ -26,51 +23,14 @@ export interface MonthlyRewardRankDto {
 }
 
 export interface GamificationMonthlyRewardsDto {
-  rank1: MonthlyRewardRankDto;
-  rank2: MonthlyRewardRankDto;
-  rank3: MonthlyRewardRankDto;
-}
-
-export interface GamificationTogglesDto {
-  gamificationEnabled: boolean;
-  referralEnabled: boolean;
-  streakEnabled: boolean;
-  businessReportEnabled: boolean;
+  month?: string;
+  daysRemaining?: number;
+  rewards: MonthlyRewardItemDto[];
 }
 
 export interface GamificationConfigDto {
   actions: GamificationActionAdminDto[];
-  rules: GamificationRulesDto;
+  dailySocialCap: GamificationDailySocialCapDto;
+  maxXpPerAction: number;
   monthlyRewards: GamificationMonthlyRewardsDto;
-  toggles: GamificationTogglesDto;
 }
-
-export interface GamificationActionUpdateRequest {
-  xp: number;
-  label: string;
-  description: string;
-  icon: string;
-  category: string;
-  enabled: boolean;
-  dailyCap: boolean;
-}
-
-export interface GamificationAuditItemDto {
-  id: string;
-  actorUserId: string;
-  actorEmail: string;
-  action: string;
-  target: string;
-  beforeJson: string;
-  afterJson: string;
-  createdAt: string;
-}
-
-export interface GamificationAuditQuery {
-  from?: string;
-  to?: string;
-  page?: number;
-  size?: number;
-}
-
-export type GamificationAuditPage = PageResponseDto<GamificationAuditItemDto>;
