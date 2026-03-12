@@ -117,5 +117,13 @@ export const userService = {
             `/auth/admin/users/${userId}/gamification-rewards/${rewardId}`
         );
         return response.data;
-    }
+    },
+
+    // Admin - Revert a user gamification reward
+    deleteUserGamificationReward: async (userId: string, rewardId: string) => {
+        const response = await api.delete<ApiResponse<void>>(
+            `/auth/admin/users/${userId}/gamification-rewards/${rewardId}`
+        );
+        return response.data;
+    },
 }; 

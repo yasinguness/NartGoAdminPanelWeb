@@ -1,4 +1,4 @@
-import { ReactNode, SyntheticEvent, useEffect, useMemo, useState } from 'react';
+import { ReactNode, SyntheticEvent, useEffect, useMemo, useState, cloneElement, isValidElement } from 'react';
 import {
   Alert,
   Avatar,
@@ -79,7 +79,7 @@ import {
   FailureReasonStatsDto,
   LoginStatsOverviewDto,
   RecentLoginLogDto,
-  RecentUserSessionDto,
+  RecentLoggedInUserDto,
   RiskOverviewDto,
   RiskTopIpDto,
   RiskTopUserDto,
@@ -91,11 +91,11 @@ import {
 
 // Modern Color Palette
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
-const GRADIENT_PRIMARY = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';
-const GRADIENT_SUCCESS = 'linear-gradient(135deg, #064e3b 0%, #10b981 100%)';
-const GRADIENT_ERROR = 'linear-gradient(135deg, #7f1d1d 0%, #ef4444 100%)';
-const GRADIENT_WARNING = 'linear-gradient(135deg, #78350f 0%, #f59e0b 100%)';
-const GRADIENT_PURPLE = 'linear-gradient(135deg, #4c1d95 0%, #8b5cf6 100%)';
+const GRADIENT_PRIMARY = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';
+const GRADIENT_SUCCESS = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+const GRADIENT_ERROR = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+const GRADIENT_WARNING = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+const GRADIENT_INFO = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
 
 type RangePreset = '7d' | '30d' | '90d';
 type TabKey = 'overview' | 'security' | 'sessions' | 'audit' | 'engagement';
@@ -148,26 +148,74 @@ const getStatusConfig = (status?: string | null) => {
   if (normalized === 'SUCCESS') return { color: 'success' as const, icon: <CheckCircleIcon fontSize="small" /> };
   if (normalized === 'FAILED' || normalized === 'FAILURE') return { color: 'error' as const, icon: <ErrorOutlineIcon fontSize="small" /> };
   if (normalized === 'SUSPICIOUS' || normalized === 'BLOCKED') return { color: 'warning' as const, icon: <WarningIcon fontSize="small" /> };
-  return { color: 'default' as const, icon: <InfoIcon fontSize="small" /> };
+  return { color: 'info' as const, icon: <InfoIcon fontSize="small" /> };
 };
 
 // Reusable Premium Stats Card
-const PremiumStatCard = ({ title, value, subtitle, gradient, icon }: any) => (
-  <Card sx={{ height: '100%', borderRadius: 4, border: 'none', boxShadow: '0 4px 20px 0 rgba(0,0,0,0.05)', position: 'relative', overflow: 'hidden' }}>
-    <Box sx={{ position: 'absolute', top: 0, right: 0, p: 2, opacity: 0.2 }}>{icon}</Box>
-    <CardContent sx={{ p: 3 }}>
-      <Typography variant="subtitle2" color="text.secondary" fontWeight={600} gutterBottom sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
-        {title}
-      </Typography>
-      <Typography variant="h3" fontWeight={800} sx={{ mb: 1, background: gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-        {value}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" fontWeight={500}>
-        {subtitle}
-      </Typography>
-    </CardContent>
-  </Card>
-);
+const PremiumStatCard = ({ title, value, subtitle, gradient, icon }: any) => {
+  const theme = useTheme();
+  return (
+    <Card
+      sx={{
+        height: '100%',
+        borderRadius: 5,
+        border: '1px solid',
+        borderColor: alpha(theme.palette.divider, 0.08),
+        background: alpha(theme.palette.background.paper, 0.7),
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 10px 30px -10px rgba(0,0,0,0.04)',
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: '0 20px 40px -15px rgba(0,0,0,0.1)',
+        }
+      }}
+    >
+      <Box
+        sx={{
+          position: 'absolute',
+          top: -10,
+          right: -10,
+          p: 2,
+          opacity: 0.05,
+          transform: 'scale(1.5)',
+          background: gradient,
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+        }}
+      >
+        {icon}
+      </Box>
+      <CardContent sx={{ p: 3 }}>
+        <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+          <Box
+            sx={{
+              display: 'flex',
+              p: 1.5,
+              borderRadius: 3,
+              background: gradient,
+              color: 'white',
+              boxShadow: '0 8px 16px -4px rgba(0,0,0,0.1)'
+            }}
+          >
+            {icon && isValidElement(icon) && cloneElement(icon as any, { sx: { fontSize: 24 } })}
+          </Box>
+          <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 1.2 }}>
+            {title}
+          </Typography>
+        </Stack>
+        <Typography variant="h3" fontWeight={800} sx={{ mb: 0.5, letterSpacing: -1 }}>
+          {value}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" fontWeight={500} sx={{ opacity: 0.8 }}>
+          {subtitle}
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+};
 
 export default function Dashboard() {
   const theme = useTheme();
@@ -181,17 +229,19 @@ export default function Dashboard() {
 
   // Pagination & Limits
   const [recentUsersPage, setRecentUsersPage] = useState(1);
-  const recentUsersPageSize = 5;
+  const recentUsersPageSize = 10;
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Data States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [overview, setOverview] = useState<LoginStatsOverviewDto | null>(null);
   const [dailyTrend, setDailyTrend] = useState<DailyLoginStatsDto[]>([]);
   const [failureReasons, setFailureReasons] = useState<FailureReasonStatsDto[]>([]);
   const [recentLogs, setRecentLogs] = useState<RecentLoginLogDto[]>([]);
-  const [recentUsers, setRecentUsers] = useState<RecentUserSessionDto[]>([]);
+  const [recentUsers, setRecentUsers] = useState<RecentLoggedInUserDto[]>([]);
+  const [recentUsersTotal, setRecentUsersTotal] = useState(0);
   const [sessionQuality, setSessionQuality] = useState<SessionQualityDto | null>(null);
   const [riskOverview, setRiskOverview] = useState<RiskOverviewDto | null>(null);
   const [riskTopUsers, setRiskTopUsers] = useState<RiskTopUserDto[]>([]);
@@ -214,6 +264,25 @@ export default function Dashboard() {
     return true;
   };
 
+  const fetchRecentUsers = async (page: number) => {
+    try {
+      const response = await adminLoginStatsService.getRecentUsers({
+        startDate,
+        endDate,
+        page: page - 1, // backend 0-indexed ise
+        size: recentUsersPageSize,
+        search: searchTerm || undefined
+      });
+
+      setRecentUsers(response.content);
+      setRecentUsersTotal(response.totalElements);
+      return response;
+    } catch (err) {
+      console.error('Recent users fetch error:', err);
+      return null;
+    }
+  };
+
   const fetchAllAnalytics = async () => {
     if (!validateDateRange()) return;
     setLoading(true);
@@ -227,7 +296,7 @@ export default function Dashboard() {
         adminLoginStatsService.getDailyTrend(query),
         adminLoginStatsService.getFailureReasons({ ...query, limit: 10 }),
         adminLoginStatsService.getRecentLogs({ ...query, limit: 15 }),
-        adminLoginStatsService.getRecentUsers({ ...query, limit: 30 }),
+        fetchRecentUsers(1),
         adminLoginStatsService.getSessionQuality(query),
         adminLoginStatsService.getRiskOverview(query),
         adminLoginStatsService.getRiskTopUsers({ ...query, limit: 10 }),
@@ -240,21 +309,25 @@ export default function Dashboard() {
         adminLoginStatsService.getWeeklyEngagement(query),
       ]);
 
-      if (results[0].status === 'fulfilled') setOverview(results[0].value);
-      if (results[1].status === 'fulfilled') setDailyTrend(results[1].value);
-      if (results[2].status === 'fulfilled') setFailureReasons(results[2].value);
-      if (results[3].status === 'fulfilled') setRecentLogs(results[3].value);
-      if (results[4].status === 'fulfilled') setRecentUsers(results[4].value);
-      if (results[5].status === 'fulfilled') setSessionQuality(results[5].value);
-      if (results[6].status === 'fulfilled') setRiskOverview(results[6].value);
-      if (results[7].status === 'fulfilled') setRiskTopUsers(results[7].value);
-      if (results[8].status === 'fulfilled') setRiskTopIps(results[8].value);
-      if (results[9].status === 'fulfilled') setAnomalySpikes(results[9].value);
-      if (results[10].status === 'fulfilled') setActiveAlerts(results[10].value);
-      if (results[11].status === 'fulfilled') setAuditTimeline(results[11].value);
-      if (results[12].status === 'fulfilled') setEngagementOverview(results[12].value);
-      if (results[13].status === 'fulfilled') setTopWeeklyUsers(results[13].value);
-      if (results[14].status === 'fulfilled') setWeeklyEngagement(results[14].value);
+      if (results[0].status === 'fulfilled' && results[0].value) setOverview(results[0].value);
+      if (results[1].status === 'fulfilled' && results[1].value) setDailyTrend(results[1].value);
+      if (results[2].status === 'fulfilled' && results[2].value) setFailureReasons(results[2].value as any);
+      if (results[3].status === 'fulfilled' && results[3].value) setRecentLogs(results[3].value as any);
+      if (results[4].status === 'fulfilled' && results[4].value) {
+        const res = results[4].value as any;
+        setRecentUsers(res.content || []);
+        setRecentUsersTotal(res.totalElements || 0);
+      }
+      if (results[5].status === 'fulfilled' && results[5].value) setSessionQuality(results[5].value);
+      if (results[6].status === 'fulfilled' && results[6].value) setRiskOverview(results[6].value);
+      if (results[7].status === 'fulfilled' && results[7].value) setRiskTopUsers(results[7].value);
+      if (results[8].status === 'fulfilled' && results[8].value) setRiskTopIps(results[8].value);
+      if (results[9].status === 'fulfilled' && results[9].value) setAnomalySpikes(results[9].value);
+      if (results[10].status === 'fulfilled' && results[10].value) setActiveAlerts(results[10].value);
+      if (results[11].status === 'fulfilled' && results[11].value) setAuditTimeline(results[11].value);
+      if (results[12].status === 'fulfilled' && results[12].value) setEngagementOverview(results[12].value);
+      if (results[13].status === 'fulfilled' && results[13].value) setTopWeeklyUsers(results[13].value);
+      if (results[14].status === 'fulfilled' && results[14].value) setWeeklyEngagement(results[14].value);
 
     } catch (err) {
       setError('Veriler yüklenirken bir hata oluştu.');
@@ -267,6 +340,12 @@ export default function Dashboard() {
     void fetchAllAnalytics();
   }, []);
 
+  useEffect(() => {
+    if (recentUsersPage > 1) {
+      void fetchRecentUsers(recentUsersPage);
+    }
+  }, [recentUsersPage]);
+
   const handlePresetChange = (preset: RangePreset) => {
     const range = getDateRangeForPreset(preset);
     setSelectedPreset(preset);
@@ -275,9 +354,9 @@ export default function Dashboard() {
   };
 
   const paginatedRecentUsers = useMemo(() => {
-    const start = (recentUsersPage - 1) * recentUsersPageSize;
-    return recentUsers.slice(start, start + recentUsersPageSize);
-  }, [recentUsers, recentUsersPage]);
+    // Server-side pagination aktif olduğu için artik slice yapmıyoruz
+    return recentUsers;
+  }, [recentUsers]);
 
   const failurePieData = useMemo(() => {
     return failureReasons.slice(0, 5).map(r => ({ name: r.reason, value: r.count }));
@@ -286,34 +365,49 @@ export default function Dashboard() {
   return (
     <PageContainer>
       {/* Header Section */}
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ mb: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 3 }}>
         <Box>
-          <Typography variant="h4" fontWeight={800} color="text.primary" gutterBottom>
-            Güvenlik ve Oturum Analizi
+          <Typography variant="h3" fontWeight={900} color="text.primary" sx={{ mb: 1, letterSpacing: -1.5 }}>
+            Analiz Paneli
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Kullanıcı oturumları, etkileşim, güvenlik riskleri ve anomali tespiti gösterge paneli.
+          <Typography variant="body1" color="text.secondary" fontWeight={500} sx={{ opacity: 0.8 }}>
+            Sistem güvenliği ve kullanıcı etkileşimlerini gerçek zamanlı izleyin.
           </Typography>
         </Box>
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={1.5}>
           <Button
             variant="outlined"
             color="inherit"
             startIcon={<FilterIcon />}
             onClick={() => setShowFilters(!showFilters)}
-            sx={{ borderRadius: 2 }}
+            sx={{
+              borderRadius: 3,
+              px: 3,
+              py: 1.5,
+              bgcolor: alpha(theme.palette.action.selected, 0.05),
+              '&:hover': { bgcolor: alpha(theme.palette.action.selected, 0.1) }
+            }}
           >
-            Filtreler
+            Filtrele
           </Button>
           <Button
             variant="contained"
-            color="primary"
+            disableElevation
             startIcon={<RefreshIcon />}
             onClick={fetchAllAnalytics}
             disabled={loading}
-            sx={{ borderRadius: 2, boxShadow: '0 4px 14px 0 rgba(59, 130, 246, 0.39)' }}
+            sx={{
+              borderRadius: 3,
+              px: 3,
+              py: 1.5,
+              background: GRADIENT_PRIMARY,
+              boxShadow: '0 8px 16px -4px rgba(99, 102, 241, 0.3)',
+              '&:hover': {
+                boxShadow: '0 12px 20px -4px rgba(99, 102, 241, 0.4)',
+              }
+            }}
           >
-            Tazele
+            Veriyi Tazele
           </Button>
         </Stack>
       </Box>
@@ -348,15 +442,41 @@ export default function Dashboard() {
       {error && <Alert severity="error" sx={{ mb: 4, borderRadius: 2 }}>{error}</Alert>}
 
       {/* Main Tabs Navigation */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} variant="scrollable" scrollButtons="auto" 
-          sx={{ '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '1rem', minHeight: 60 } }}>
-          <Tab value="overview" label="Genel Bakış" icon={<DashboardIcon />} iconPosition="start" />
-          <Tab value="engagement" label="Kullanıcı Etkileşimi" icon={<PeopleIcon />} iconPosition="start" />
-          <Tab value="security" label="Risk & Güvenlik" icon={<SecurityIcon />} iconPosition="start" />
-          <Tab value="sessions" label="Oturum Logları" icon={<HistoryIcon />} iconPosition="start" />
-          <Tab value="audit" label="Sistem Denetimi" icon={<TimelineIcon />} iconPosition="start" />
+      <Box sx={{ mb: 4 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            minHeight: 48,
+            '& .MuiTabs-indicator': {
+              height: 3,
+              borderRadius: '3px 3px 0 0',
+              background: GRADIENT_PRIMARY
+            },
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: '0.95rem',
+              minHeight: 48,
+              color: 'text.secondary',
+              opacity: 0.7,
+              mr: 2,
+              '&.Mui-selected': {
+                color: 'primary.main',
+                opacity: 1,
+              }
+            }
+          }}
+        >
+          <Tab value="overview" label="Genel Bakış" />
+          <Tab value="engagement" label="Kullanıcı Etkileşimi" />
+          <Tab value="security" label="Risk & Güvenlik" />
+          <Tab value="sessions" label="Oturum Logları" />
+          <Tab value="audit" label="Sistem Denetimi" />
         </Tabs>
+        <Divider sx={{ mt: -0.1, opacity: 0.5 }} />
       </Box>
 
       {/* ==================== OVERVIEW TAB ==================== */}
@@ -400,69 +520,112 @@ export default function Dashboard() {
           </Grid>
         </Grid>
 
-        <Grid container spacing={4}>
-          <Grid item xs={12} lg={8}>
-            <Card sx={{ height: '100%', borderRadius: 4, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-              <CardHeader title="Giriş Trendleri" titleTypographyProps={{ fontWeight: 700 }} subheader="Son 30 gündeki başarılı ve başarısız giriş denemeleri" />
-              <CardContent sx={{ height: 400 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dailyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorError" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.palette.divider} />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickMargin={10} minTickGap={30} />
-                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }} />
-                    <Legend iconType="circle" wrapperStyle={{ paddingTop: 20 }} />
-                    <Area type="monotone" dataKey="successfulLogins" name="Başarılı" stroke="#10b981" fillOpacity={1} fill="url(#colorSuccess)" strokeWidth={3} />
-                    <Area type="monotone" dataKey="failedLogins" name="Başarısız" stroke="#ef4444" fillOpacity={1} fill="url(#colorError)" strokeWidth={3} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} lg={4}>
-            <Card sx={{ height: '100%', borderRadius: 4, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-              <CardHeader title="Başarısızlık Nedenleri" titleTypographyProps={{ fontWeight: 700 }} />
-              <CardContent>
-                {failurePieData.length > 0 ? (
-                  <Box sx={{ height: 250, mb: 3 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={failurePieData} innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
-                          {failurePieData.map((_, i) => <Cell key={`cell-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip contentStyle={{ borderRadius: 8 }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </Box>
-                ) : (
-                  <Alert severity="info" sx={{ mb: 3 }}>Veri bulunamadı.</Alert>
-                )}
-                
-                <Stack spacing={2}>
-                  {failureReasons.slice(0, 4).map((r, i) => (
-                    <Box key={r.reason}>
-                      <Stack direction="row" justifyContent="space-between" mb={0.5}>
-                        <Typography variant="body2" fontWeight={600} display="flex" alignItems="center" gap={1}>
-                          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                          {r.reason}
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600}>{r.count} ({r.ratio.toFixed(1)}%)</Typography>
-                      </Stack>
-                      <LinearProgress variant="determinate" value={r.ratio} sx={{ height: 6, borderRadius: 3, '& .MuiLinearProgress-bar': { bgcolor: CHART_COLORS[i % CHART_COLORS.length] } }} />
-                    </Box>
-                  ))}
-                </Stack>
-              </CardContent>
+        <Grid container spacing={3}>
+          {/* Main User List Table - Now with Pagination & Search */}
+          <Grid item xs={12}>
+            <Card sx={{ borderRadius: 5, border: '1px solid', borderColor: alpha(theme.palette.divider, 0.1), boxShadow: 'none', background: alpha(theme.palette.background.paper, 0.5) }}>
+              <CardHeader
+                title="Son Giriş Yapan Kullanıcılar"
+                titleTypographyProps={{ fontWeight: 800, variant: 'h6' }}
+                subheader="Platformu en son kullanan kullanıcıların detaylı listesi"
+                sx={{ p: 3 }}
+                action={
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <TextField
+                      size="small"
+                      placeholder="Kullanıcı ara (E-posta veya isim)..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && fetchRecentUsers(1)}
+                      sx={{ width: 280, '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                    />
+                    <IconButton onClick={() => fetchRecentUsers(1)} disabled={loading} size="small" color="primary">
+                      <RefreshIcon />
+                    </IconButton>
+                  </Stack>
+                }
+              />
+              <TableContainer>
+                <Table sx={{ minWidth: 600 }}>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: alpha(theme.palette.action.hover, 0.3) }}>
+                      <TableCell sx={{ fontWeight: 700, py: 2 }}>Kullanıcı Bilgisi</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>E-posta</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Son Etkinlik</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Son Başarılı Giriş</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, pr: 3 }}>İşlem</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {recentUsers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
+                          <PeopleIcon sx={{ fontSize: 48, opacity: 0.1, mb: 2, display: 'block', mx: 'auto' }} />
+                          <Typography color="text.secondary" fontWeight={500}>Kullanıcı kaydı bulunamadı.</Typography>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedRecentUsers.map((user) => (
+                        <TableRow key={user.userId} hover sx={{ '& td': { py: 2 } }}>
+                          <TableCell>
+                            <Stack direction="row" spacing={2} alignItems="center">
+                              <Avatar
+                                sx={{
+                                  width: 40,
+                                  height: 40,
+                                  background: GRADIENT_PRIMARY,
+                                  color: 'white',
+                                  fontWeight: 700,
+                                  fontSize: 14
+                                }}
+                              >
+                                {user.displayName?.[0] || user.userEmail?.[0]?.toUpperCase() || 'U'}
+                              </Avatar>
+                              <Typography variant="body2" fontWeight={700}>
+                                {user.displayName || 'İsimsiz Kullanıcı'}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                              {user.userEmail}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {formatDateTime(user.lastSessionAt)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <CheckCircleIcon color="success" sx={{ fontSize: 16 }} />
+                              <Typography variant="caption" fontWeight={700} color="success.main">
+                                {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'N/A'}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right" sx={{ pr: 3 }}>
+                            <Button size="small" color="primary">Detay</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', borderTop: '1px solid', borderColor: alpha(theme.palette.divider, 0.05) }}>
+                <Pagination
+                  count={Math.ceil(recentUsersTotal / recentUsersPageSize)}
+                  page={recentUsersPage}
+                  onChange={(_, value) => setRecentUsersPage(value)}
+                  color="primary"
+                  size="medium"
+                  sx={{
+                    '& .MuiPaginationItem-root': { fontWeight: 700, borderRadius: 2 }
+                  }}
+                />
+              </Box>
             </Card>
           </Grid>
         </Grid>
@@ -494,7 +657,7 @@ export default function Dashboard() {
               title="Aylık Aktif Kullanıcı (MAU)"
               value={engagementOverview?.monthlyActiveUsers?.toLocaleString() || '0'}
               subtitle="Son 30 gün içindeki tekil kullanıcı"
-              gradient={GRADIENT_PURPLE}
+              gradient="linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)"
               icon={<DashboardIcon sx={{ fontSize: 60, color: '#8b5cf6' }} />}
             />
           </Grid>
@@ -509,53 +672,73 @@ export default function Dashboard() {
           </Grid>
         </Grid>
 
-        <Grid container spacing={4}>
-          <Grid item xs={12} lg={7}>
-            <Card sx={{ height: '100%', borderRadius: 4, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-              <CardHeader title="Haftalık Aktif Kullanıcı Trendi" titleTypographyProps={{ fontWeight: 700 }} />
-              <CardContent sx={{ height: 400 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyEngagement} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.palette.divider} />
-                    <XAxis dataKey="weekStartDate" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: alpha(theme.palette.primary.main, 0.1) }} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }} />
-                    <Legend iconType="circle" wrapperStyle={{ paddingTop: 20 }} />
-                    <Bar dataKey="activeUsers" name="Aktif Kullanıcı" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="successfulLogins" name="Başarılı Logins" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} lg={5}>
-            <Card sx={{ height: '100%', borderRadius: 4, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-              <CardHeader title="Haftanın En Aktifleri" subheader="Filtre aralığındaki lider tablosu" titleTypographyProps={{ fontWeight: 700 }} />
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Card sx={{ borderRadius: 5, border: '1px solid', borderColor: alpha(theme.palette.divider, 0.1), boxShadow: 'none', background: alpha(theme.palette.background.paper, 0.5) }}>
+              <CardHeader
+                title="Haftanın En Aktif Kullanıcıları"
+                subheader="Belirtilen zaman aralığında en çok işlem gerçekleştirenler"
+                titleTypographyProps={{ fontWeight: 800, variant: 'h6' }}
+                sx={{ p: 3 }}
+              />
               <TableContainer>
-                <Table sx={{ minWidth: 400 }}>
+                <Table sx={{ minWidth: 600 }}>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: 'action.hover' }}>
-                      <TableCell sx={{ fontWeight: 600 }}>Kullanıcı</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Logins</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Başarı</TableCell>
+                    <TableRow sx={{ bgcolor: alpha(theme.palette.action.hover, 0.3) }}>
+                      <TableCell sx={{ fontWeight: 700, pl: 3 }}>Sıralama & Kullanıcı</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>E-posta</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} align="center">Toplam Giriş</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} align="center">Başarı Oranı</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} align="right">Son Görülme</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {topWeeklyUsers.length === 0 ? (
-                      <TableRow><TableCell colSpan={3} align="center" sx={{ py: 3 }}>Aktif kullanıcı bulunamadı.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6 }}>Aktif kullanıcı verisi bulunamadı.</TableCell></TableRow>
                     ) : (
-                      topWeeklyUsers.slice(0, 10).map((u, i) => (
-                        <TableRow key={u.userId} hover>
-                          <TableCell sx={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            {i < 3 ? <TrophyIcon sx={{ color: i === 0 ? '#f59e0b' : i === 1 ? '#9ca3af' : '#b45309' }} /> : <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>{u.userEmail?.[0]?.toUpperCase() || 'U'}</Avatar>}
-                            {u.displayName || u.userEmail || u.userId.slice(0, 8)}
+                      topWeeklyUsers.slice(0, 15).map((u, i) => (
+                        <TableRow key={u.userId} hover sx={{ '& td': { py: 2 } }}>
+                          <TableCell sx={{ pl: 3 }}>
+                            <Stack direction="row" spacing={2} alignItems="center">
+                              {i < 3 ? (
+                                <Box sx={{ position: 'relative' }}>
+                                  <TrophyIcon sx={{ color: i === 0 ? '#f59e0b' : i === 1 ? '#9ca3af' : '#b45309', fontSize: 24 }} />
+                                  <Typography variant="caption" sx={{ position: 'absolute', top: 12, left: 8, color: 'white', fontWeight: 900, fontSize: 10 }}>{i + 1}</Typography>
+                                </Box>
+                              ) : (
+                                <Typography variant="body2" fontWeight={800} color="text.secondary" sx={{ width: 24, textAlign: 'center' }}>{i + 1}</Typography>
+                              )}
+                              <Avatar sx={{ width: 32, height: 32, fontSize: 14, background: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
+                                {u.userEmail?.[0]?.toUpperCase() || 'U'}
+                              </Avatar>
+                              <Typography variant="body2" fontWeight={700}>
+                                {u.displayName || u.userEmail?.split('@')[0] || 'Kullanıcı'}
+                              </Typography>
+                            </Stack>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" fontWeight={700}>{u.totalLogins}</Typography>
+                            <Typography variant="body2" color="text.secondary">{u.userEmail}</Typography>
                           </TableCell>
-                          <TableCell>
-                            <Chip label={`${(u.successRate * 100).toFixed(0)}%`} size="small" color={u.successRate > 0.8 ? 'success' : 'warning'} variant="outlined" />
+                          <TableCell align="center">
+                            <Chip label={u.totalLogins} size="small" sx={{ fontWeight: 700 }} />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Box sx={{ width: '100%', maxWidth: 100, display: 'inline-block' }}>
+                              <Stack direction="row" justifyContent="space-between" mb={0.5}>
+                                <Typography variant="caption" fontWeight={700}>{(u.successRate * 100).toFixed(0)}%</Typography>
+                              </Stack>
+                              <LinearProgress
+                                variant="determinate"
+                                value={u.successRate * 100}
+                                color={u.successRate > 0.8 ? 'success' : 'warning'}
+                                sx={{ height: 4, borderRadius: 2 }}
+                              />
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right" sx={{ pr: 3 }}>
+                            <Typography variant="caption" fontWeight={600} color="text.secondary">
+                              {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : 'N/A'}
+                            </Typography>
                           </TableCell>
                         </TableRow>
                       ))

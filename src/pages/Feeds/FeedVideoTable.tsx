@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box, Typography, Checkbox, Chip, Menu, MenuItem,
-  Avatar, Stack, Table, TableHead, TableBody,
-  TableRow, TableCell, TableSortLabel, Paper, Divider
+  Stack, Table, TableHead, TableBody,
+  TableRow, TableCell, TableSortLabel, Paper, Divider,
+  Tooltip
 } from '@mui/material';
-import { Play, Calendar, User, Clock, Trash2, Eye } from 'lucide-react';
+import { Play, Trash2, Eye } from 'lucide-react';
+import ReactPlayer from 'react-player';
 import { FeedDto, FeedStatus } from '../../types/feed/feedModel';
 
 interface Props {
@@ -53,6 +55,7 @@ export default function FeedVideoTable({
           {videos.map((video) => {
             const cfg = statusConfig[video.status] || statusConfig[FeedStatus.UPLOADED_RAW];
             const isSelected = selectedIds.has(video.id);
+            const videoSource = video.hlsReady ? video.playlistUrl : video.rawVideoUrl || video.videoUrl;
 
             return (
               <TableRow key={video.id} hover onClick={() => onClick(video)} sx={{ cursor: 'pointer', bgcolor: isSelected ? 'rgba(22, 70, 28, 0.03)' : 'transparent' }}>
@@ -61,9 +64,31 @@ export default function FeedVideoTable({
                 </TableCell>
                 <TableCell>
                   <Stack direction="row" alignItems="center" spacing={1.5}>
-                    <Box sx={{ width: 48, height: 28, borderRadius: 1, bgcolor: '#eee', flexShrink: 0, backgroundImage: `url(${video.thumbnailUrl})`, backgroundSize: 'cover', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {!video.thumbnailUrl && <Play size={12} />}
-                    </Box>
+                    <Tooltip 
+                      placement="right"
+                      title={
+                        videoSource ? (
+                          <Box sx={{ width: 160, height: 280, bgcolor: '#000', borderRadius: 1.5, overflow: 'hidden' }}>
+                            <ReactPlayer
+                              {...({
+                                url: videoSource,
+                                playing: true,
+                                muted: true,
+                                loop: true,
+                                width: "100%",
+                                height: "100%",
+                                config: { file: { attributes: { style: { objectFit: 'cover', width: '100%', height: '100%' } } } }
+                              } as any)}
+                            />
+                          </Box>
+                        ) : null
+                      }
+                      slotProps={{ tooltip: { sx: { p: 0.5, bgcolor: '#000', borderRadius: 2, boxShadow: '0 10px 40px rgba(0,0,0,0.4)' } } }}
+                    >
+                      <Box sx={{ width: 48, height: 28, borderRadius: 1, bgcolor: '#eee', flexShrink: 0, backgroundImage: `url(${video.thumbnailUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        {!video.thumbnailUrl && <Play size={12} />}
+                      </Box>
+                    </Tooltip>
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', lineHeight: 1.2 }}>{video.title}</Typography>
                       <Typography variant="caption" color="text.secondary">@{video.creatorUsername || 'anonymous'}</Typography>
@@ -108,3 +133,4 @@ export default function FeedVideoTable({
     </Paper>
   );
 }
+

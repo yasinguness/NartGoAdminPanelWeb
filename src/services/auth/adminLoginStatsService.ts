@@ -16,7 +16,7 @@ import {
   LoginStatsOverviewDto,
   RecentLoginLogDto,
   RecentLoginStatsQuery,
-  RecentUserSessionDto,
+  RecentLoggedInUserDto,
   RiskListQuery,
   RiskOverviewDto,
   RiskTopIpDto,
@@ -29,6 +29,7 @@ import {
   WeeklyActiveStatsDto,
   TopWeeklyUsersQuery,
 } from '../../types/security/loginStats';
+import { PageResponseDto } from '../../types/common/pageResponse';
 
 const LOGIN_STATS_BASE_PATH = '/auth/admin/login-stats';
 const MAX_RANGE_DAYS = 365;
@@ -66,6 +67,18 @@ const validateDateRange = (query?: LoginStatsDateRangeQuery): LoginStatsDateRang
   }
 
   return { startDate, endDate };
+};
+
+const validateNonNegative = (name: string, value?: number): number | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be an integer greater than or equal to 0.`);
+  }
+
+  return value;
 };
 
 const validatePositiveLimit = (name: string, value?: number): number | undefined => {
@@ -127,13 +140,17 @@ export const adminLoginStatsService = {
     return response.data.data;
   },
 
-  getRecentUsers: async (query?: RecentLoginStatsQuery): Promise<RecentUserSessionDto[]> => {
+  getRecentUsers: async (query?: RecentLoginStatsQuery): Promise<PageResponseDto<RecentLoggedInUserDto>> => {
     const params = {
       ...validateDateRange(query),
       limit: validatePositiveLimit('limit', query?.limit),
+      page: validateNonNegative('page', query?.page),
+      size: validatePositiveLimit('size', query?.size),
+      sort: query?.sort,
+      search: query?.search,
     };
 
-    const response = await api.get<ApiResponse<RecentUserSessionDto[]>>(`${LOGIN_STATS_BASE_PATH}/recent-users`, { params });
+    const response = await api.get<ApiResponse<PageResponseDto<RecentLoggedInUserDto>>>(`${LOGIN_STATS_BASE_PATH}/recent-users`, { params });
     return response.data.data;
   },
 

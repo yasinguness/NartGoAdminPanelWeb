@@ -59,21 +59,23 @@ export default function FeedSlideOver({ video, open, onClose, onStatusChange, on
               }}>
                 <Box sx={{ position: 'absolute', inset: 0 }}>
                   <ReactPlayer
-                    src={videoSource}
-                    width="100%"
-                    height="100%"
-                    controls
-                    playing={false}
-                    light={!videoSource ? video.imageUrl || video.thumbnailUrl : false}
-                    playIcon={<Play size={32} fill="#fff" />}
-                    config={{
-                      file: {
-                        forceHLS: video.hlsReady,
-                        attributes: {
-                          controlsList: 'nodownload'
+                    {...({
+                      url: videoSource,
+                      width: "100%",
+                      height: "100%",
+                      controls: true,
+                      playing: false,
+                      light: !videoSource ? video.imageUrl || video.thumbnailUrl : false,
+                      playIcon: <Play size={32} fill="#fff" />,
+                      config: {
+                        file: {
+                          forceHLS: video.hlsReady,
+                          attributes: {
+                            controlsList: 'nodownload'
+                          }
                         }
                       }
-                    } as any}
+                    } as any)}
                   />
                   {!videoSource && (
                      <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.4)', color: '#fff' }}>

@@ -35,6 +35,7 @@ import {
     Feed as FeedIcon,
     Campaign as CampaignIcon,
     EmojiEvents as EmojiEventsIcon,
+    FactCheck as FactCheckIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 
@@ -43,6 +44,7 @@ const drawerWidth = 280;
 const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Businesses', icon: <BusinessIcon />, path: '/businesses' },
+    { text: 'Business Claims', icon: <FactCheckIcon />, path: '/business-claims' },
     { text: 'Business Categories', icon: <CategoryIcon />, path: '/business-categories' },
     { text: 'Events', icon: <EventIcon />, path: '/events' },
     { text: 'Event Categories', icon: <EventCategoryIcon />, path: '/event-categories' },

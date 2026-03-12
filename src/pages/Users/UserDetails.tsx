@@ -67,6 +67,14 @@ export default function UserDetails() {
         }
     };
 
+    const refreshUserGamificationContext = async () => {
+        if (!id) {
+            return;
+        }
+
+        await fetchUser();
+    };
+
     const handleEdit = () => {
         setFormData({ ...user! });
         setEditing(true);
@@ -236,7 +244,10 @@ export default function UserDetails() {
                 <Grid item xs={12} md={8}>
                     <Stack spacing={3}>
                         <UserLoginStatsPanel userId={displayData.id} />
-                        <UserGamificationRewardsPanel userId={displayData.id} />
+                        <UserGamificationRewardsPanel
+                            userId={displayData.id}
+                            onRewardsChanged={refreshUserGamificationContext}
+                        />
 
                         {/* Personal Info */}
                         <PageSection title="Personal Information">

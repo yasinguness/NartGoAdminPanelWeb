@@ -1,3 +1,5 @@
+import { PageResponseDto } from '../common/pageResponse';
+
 export interface LoginStatsDateRangeQuery {
   startDate?: string;
   endDate?: string;
@@ -13,6 +15,10 @@ export interface UserLoginStatsQuery extends LoginStatsDateRangeQuery {
 
 export interface RecentLoginStatsQuery extends LoginStatsDateRangeQuery {
   limit?: number;
+  page?: number;
+  size?: number;
+  sort?: string;
+  search?: string;
 }
 
 export interface RiskListQuery extends LoginStatsDateRangeQuery {
@@ -96,7 +102,7 @@ export interface RecentLoginLogDto {
   createdAt?: string | null;
 }
 
-export interface RecentUserSessionDto {
+export interface RecentLoggedInUserDto {
   userId: string;
   userEmail: string;
   displayName?: string | null;

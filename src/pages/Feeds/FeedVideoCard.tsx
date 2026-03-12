@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import ReactPlayer from 'react-player';
 import {
   Box, Typography, Checkbox, Paper, Chip, Menu, MenuItem,
-  Avatar, Stack, Tooltip, Divider
+  Stack, Divider
 } from '@mui/material';
-import { Play, Calendar, User, ChevronDown, Trash2, Eye } from 'lucide-react';
+import { Play, Calendar, ChevronDown, Trash2, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FeedDto, FeedStatus } from '../../types/feed/feedModel';
 
@@ -27,6 +28,10 @@ export default function FeedVideoCard({ video, selected, onSelect, onClick, onSt
     if (!d) return '-';
     return new Date(d).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' });
   };
+
+  const videoSource = useMemo(() => {
+    return video.hlsReady ? video.playlistUrl : video.rawVideoUrl || video.videoUrl;
+  }, [video.hlsReady, video.playlistUrl, video.rawVideoUrl, video.videoUrl]);
 
   // Generate a consistent gradient based on title for the thumbnail placeholder
   const getGradient = (seed?: string | null) => {
@@ -70,14 +75,42 @@ export default function FeedVideoCard({ video, selected, onSelect, onClick, onSt
             background: video.thumbnailUrl ? `url(${video.thumbnailUrl})` : getGradient(video.title),
             backgroundSize: 'cover',
             backgroundPosition: 'center',
+            bgcolor: '#000',
+            overflow: 'hidden'
           }}
         >
-          <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.2)', opacity: hovered ? 1 : 0, transition: 'opacity 0.25s' }}>
+          {/* Video Preview on Hover */}
+          {hovered && videoSource && (
+             <Box sx={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+               <ReactPlayer
+                 {...({
+                   url: videoSource,
+                   playing: true,
+                   muted: true,
+                   loop: true,
+                   playsinline: true,
+                   width: '100%',
+                   height: '100%',
+                   config: {
+                     file: {
+                       forceHLS: video.hlsReady && videoSource.includes('m3u8'),
+                       attributes: {
+                         style: { objectFit: 'cover', width: '100%', height: '100%' }
+                       }
+                     }
+                   }
+                 } as any)}
+               />
+             </Box>
+          )}
+
+          <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.2)', opacity: hovered ? (videoSource ? 0 : 1) : 0, transition: 'opacity 0.25s', zIndex: 2 }}>
             <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.2)' }}>
               <Play size={20} fill="currentColor" />
             </Box>
           </Box>
-          <Box sx={{ position: 'absolute', top: 4, left: 4, opacity: hovered || selected ? 1 : 0 }}>
+
+          <Box sx={{ position: 'absolute', top: 4, left: 4, opacity: hovered || selected ? 1 : 0, zIndex: 10 }}>
             <Checkbox size="small" checked={selected} onClick={(e) => { e.stopPropagation(); onSelect(video.id); }} sx={{ color: '#fff', '&.Mui-checked': { color: '#fff' } }} />
           </Box>
         </Box>
@@ -128,3 +161,4 @@ export default function FeedVideoCard({ video, selected, onSelect, onClick, onSt
     </motion.div>
   );
 }
+

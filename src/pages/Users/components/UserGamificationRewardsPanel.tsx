@@ -16,10 +16,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Refresh as RefreshIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Refresh as RefreshIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { PageSection } from '../../../components/Page';
 import { DataTable, DataTableColumn } from '../../../components/Data';
+import ConfirmDialog from '../../../components/Actions/ConfirmDialog';
 import { userService } from '../../../services/user/userService';
 import {
   AdminUserGamificationRewardDetailDto,
@@ -29,7 +30,30 @@ import {
 
 interface UserGamificationRewardsPanelProps {
   userId: string;
+  onRewardsChanged?: () => Promise<void> | void;
 }
+
+const extractErrorMessage = (error: any, fallback: string): string => {
+  const payload = error?.response?.data;
+
+  if (typeof payload?.message === 'string' && payload.message.trim()) {
+    return payload.message;
+  }
+
+  if (typeof payload?.statusMessage === 'string' && payload.statusMessage.trim()) {
+    return payload.statusMessage;
+  }
+
+  if (Array.isArray(payload?.errors) && payload.errors.length > 0) {
+    return payload.errors.filter(Boolean).join(', ');
+  }
+
+  if (typeof error?.message === 'string' && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+};
 
 const formatDateTime = (value?: string | null): string => {
   if (!value) {
@@ -60,7 +84,7 @@ const formatMetadata = (metadata?: string | null): string => {
   }
 };
 
-export default function UserGamificationRewardsPanel({ userId }: UserGamificationRewardsPanelProps) {
+export default function UserGamificationRewardsPanel({ userId, onRewardsChanged }: UserGamificationRewardsPanelProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [rewardsPage, setRewardsPage] = useState<AdminUserGamificationRewardsPage | null>(null);
   const [loading, setLoading] = useState(false);
@@ -75,6 +99,9 @@ export default function UserGamificationRewardsPanel({ userId }: UserGamificatio
   const [detailLoading, setDetailLoading] = useState(false);
   const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
   const [selectedRewardDetail, setSelectedRewardDetail] = useState<AdminUserGamificationRewardDetailDto | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteReward, setPendingDeleteReward] = useState<AdminUserGamificationRewardItemDto | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchRewards = useCallback(async () => {
     if (!userId) {
@@ -92,7 +119,7 @@ export default function UserGamificationRewardsPanel({ userId }: UserGamificatio
       });
       setRewardsPage(response.data);
     } catch (fetchError: any) {
-      const message = fetchError?.response?.data?.message || fetchError?.message || 'Failed to fetch gamification rewards.';
+      const message = extractErrorMessage(fetchError, 'Failed to fetch gamification rewards.');
       setError(message);
     } finally {
       setLoading(false);
@@ -113,13 +140,57 @@ export default function UserGamificationRewardsPanel({ userId }: UserGamificatio
       const response = await userService.getUserGamificationRewardDetail(userId, rewardId);
       setSelectedRewardDetail(response.data);
     } catch (fetchError: any) {
-      const message = fetchError?.response?.data?.message || fetchError?.message || 'Failed to fetch reward detail.';
+      const message = extractErrorMessage(fetchError, 'Failed to fetch reward detail.');
       enqueueSnackbar(message, { variant: 'error' });
       setDetailOpen(false);
     } finally {
       setDetailLoading(false);
     }
   }, [enqueueSnackbar, userId]);
+
+  const openDeleteConfirm = useCallback((reward: AdminUserGamificationRewardItemDto) => {
+    setPendingDeleteReward(reward);
+    setConfirmOpen(true);
+  }, []);
+
+  const closeDeleteConfirm = useCallback(() => {
+    if (deleteLoading) {
+      return;
+    }
+
+    setConfirmOpen(false);
+    setPendingDeleteReward(null);
+  }, [deleteLoading]);
+
+  const handleDeleteReward = useCallback(async () => {
+    if (!pendingDeleteReward) {
+      return;
+    }
+
+    try {
+      setDeleteLoading(true);
+      await userService.deleteUserGamificationReward(userId, pendingDeleteReward.rewardId);
+
+      if (selectedRewardId === pendingDeleteReward.rewardId) {
+        setDetailOpen(false);
+        setSelectedRewardId(null);
+        setSelectedRewardDetail(null);
+      }
+
+      await fetchRewards();
+      await onRewardsChanged?.();
+
+      enqueueSnackbar('Reward kaydi silindi. Kullanici puani geri alindi.', { variant: 'success' });
+      setConfirmOpen(false);
+      setPendingDeleteReward(null);
+    } catch (deleteError: any) {
+      const message = extractErrorMessage(deleteError, 'Reward kaydi silinemedi.');
+      enqueueSnackbar(message, { variant: 'error' });
+      setError(message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [enqueueSnackbar, fetchRewards, onRewardsChanged, pendingDeleteReward, selectedRewardId, userId]);
 
   const columns: DataTableColumn<AdminUserGamificationRewardItemDto>[] = useMemo(() => ([
     {
@@ -142,10 +213,23 @@ export default function UserGamificationRewardsPanel({ userId }: UserGamificatio
       render: (row) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.reason || '-'}</Typography>,
     },
     {
+      id: 'businessName',
+      label: 'Business Name',
+      minWidth: 150,
+      render: (row) => <Typography variant="body2">{row.businessName || '-'}</Typography>,
+    },
+    {
       id: 'createdAt',
       label: 'Created At',
       minWidth: 180,
       render: (row) => formatDateTime(row.createdAt),
+    },
+    {
+      id: 'referenceId',
+      label: 'Reference ID',
+      minWidth: 180,
+      hideOnMobile: true,
+      render: (row) => <Typography variant="caption">{row.referenceId || '-'}</Typography>,
     },
     {
       id: 'rewardId',
@@ -220,13 +304,23 @@ export default function UserGamificationRewardsPanel({ userId }: UserGamificatio
             description: 'Bu kullanıcı için henüz gamification ödülü yok.',
           }}
           renderRowActions={(row) => (
-            <Button
-              size="small"
-              startIcon={<VisibilityIcon />}
-              onClick={() => void openRewardDetail(row.rewardId)}
-            >
-              Detail
-            </Button>
+            <Stack direction="row" spacing={1} className="row-actions">
+              <Button
+                size="small"
+                startIcon={<VisibilityIcon />}
+                onClick={() => void openRewardDetail(row.rewardId)}
+              >
+                Detail
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={() => openDeleteConfirm(row)}
+              >
+                Sil
+              </Button>
+            </Stack>
           )}
         />
       </PageSection>
@@ -264,6 +358,10 @@ export default function UserGamificationRewardsPanel({ userId }: UserGamificatio
                 <Typography variant="body2">{selectedRewardDetail.reason || '-'}</Typography>
               </Box>
               <Box>
+                <Typography variant="caption" color="text.secondary">Business Name</Typography>
+                <Typography variant="body2">{selectedRewardDetail.businessName || '-'}</Typography>
+              </Box>
+              <Box>
                 <Typography variant="caption" color="text.secondary">Reference ID</Typography>
                 <Typography variant="body2">{selectedRewardDetail.referenceId || '-'}</Typography>
               </Box>
@@ -298,9 +396,33 @@ export default function UserGamificationRewardsPanel({ userId }: UserGamificatio
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDetailOpen(false)}>Close</Button>
+          <Button onClick={() => setDetailOpen(false)}>Kapat</Button>
+          <Button
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={() => {
+              const reward = rewardsPage?.content.find((r) => r.rewardId === (selectedRewardDetail?.rewardId || selectedRewardId));
+              if (reward) {
+                openDeleteConfirm(reward);
+              }
+            }}
+          >
+            Sil
+          </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={closeDeleteConfirm}
+        onConfirm={() => void handleDeleteReward()}
+        title="Reward Kaydini Sil"
+        message="Bu kayıt silinirse kullanıcının kazandığı puan geri alınır. Uygunsa devam et."
+        confirmText="Sil ve Puani Geri Al"
+        cancelText="Vazgec"
+        severity="warning"
+        loading={deleteLoading}
+      />
     </>
   );
 }

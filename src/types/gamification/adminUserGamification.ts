@@ -7,6 +7,7 @@ export interface AdminUserGamificationRewardItemDto {
   referenceId?: string | null;
   idempotencyKey?: string | null;
   metadata?: string | null;
+  businessName?: string | null;
   createdAt: string;
 }
 
@@ -19,6 +20,7 @@ export interface AdminUserGamificationRewardDetailDto {
   reason: string;
   referenceId?: string | null;
   idempotencyKey?: string | null;
+  businessName: string;
   metadata?: string | null;
   createdAt: string;
 }

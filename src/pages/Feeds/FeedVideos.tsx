@@ -311,7 +311,7 @@ export default function FeedVideos() {
   return (
     <PageContainer>
       <PageHeader
-        title="Feed Videos"
+        title="Feed Videos v2.0"
         subtitle="Video feed içeriklerini yönetin"
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
