@@ -27,6 +27,15 @@ import {
   AdminUserGamificationRewardItemDto,
   AdminUserGamificationRewardsPage,
 } from '../../../types/gamification/adminUserGamification';
+import { 
+  Storefront as BusinessIcon,
+  Info as InfoIcon,
+  Link as LinkIcon,
+  TrendingUp as PointsIcon,
+  Event as EventIcon,
+  Description as SummaryIcon,
+} from '@mui/icons-material';
+import { Divider, Grid } from '@mui/material';
 
 interface UserGamificationRewardsPanelProps {
   userId: string;
@@ -196,47 +205,97 @@ export default function UserGamificationRewardsPanel({ userId, onRewardsChanged 
     {
       id: 'points',
       label: 'Points',
-      width: 110,
+      width: 120,
       render: (row) => (
-        <Chip
-          label={row.points}
-          size="small"
-          color={row.points > 0 ? 'success' : row.points < 0 ? 'error' : 'default'}
-          variant={row.points === 0 ? 'outlined' : 'filled'}
-        />
+        <Stack direction="row" spacing={1} alignItems="center">
+          <PointsIcon sx={{ fontSize: 18, color: row.points > 0 ? 'success.main' : 'error.main' }} />
+          <Chip
+            label={`${row.points > 0 ? '+' : ''}${row.points}`}
+            size="small"
+            color={row.points > 0 ? 'success' : row.points < 0 ? 'error' : 'default'}
+            variant={row.points === 0 ? 'outlined' : 'filled'}
+            sx={{ fontWeight: 700, minWidth: 45 }}
+          />
+        </Stack>
       ),
     },
     {
-      id: 'reason',
-      label: 'Reason',
-      minWidth: 150,
-      render: (row) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.reason || '-'}</Typography>,
-    },
-    {
-      id: 'businessName',
-      label: 'Business Name',
-      minWidth: 150,
-      render: (row) => <Typography variant="body2">{row.businessName || '-'}</Typography>,
+      id: 'action',
+      label: 'Action & Context',
+      minWidth: 350,
+      render: (row) => (
+        <Stack spacing={0.5} py={1}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+              {row.actionLabel || row.reason || '-'}
+            </Typography>
+            {row.category && (
+              <Chip 
+                label={row.category} 
+                size="small" 
+                variant="outlined"
+                sx={{ 
+                  height: 18, 
+                  fontSize: '10px', 
+                  textTransform: 'uppercase',
+                  borderColor: row.category === 'PENALTY' ? 'error.light' : row.category === 'CONTRIBUTION' ? 'success.light' : 'divider',
+                  color: row.category === 'PENALTY' ? 'error.main' : row.category === 'CONTRIBUTION' ? 'success.main' : 'text.secondary'
+                }} 
+              />
+            )}
+          </Stack>
+          
+          {row.descriptionSummary && (
+            <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+              "{row.descriptionSummary}"
+            </Typography>
+          )}
+
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ gap: 1, mt: 0.5 }}>
+            {row.businessName && (
+              <Chip 
+                label={row.businessName} 
+                size="small" 
+                variant="outlined" 
+                icon={<BusinessIcon sx={{ fontSize: '14px !important' }} />}
+                sx={{ height: 20, bgcolor: 'rgba(25, 118, 210, 0.04)' }}
+              />
+            )}
+            {row.referenceName && (
+              <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'primary.main' }}>
+                <LinkIcon sx={{ fontSize: 12 }} />
+                {row.referenceName}
+              </Typography>
+            )}
+          </Stack>
+        </Stack>
+      ),
     },
     {
       id: 'createdAt',
-      label: 'Created At',
-      minWidth: 180,
-      render: (row) => formatDateTime(row.createdAt),
+      label: 'Time',
+      width: 180,
+      render: (row) => (
+        <Typography variant="caption" display="block">
+          {formatDateTime(row.createdAt)}
+        </Typography>
+      ),
     },
     {
-      id: 'referenceId',
-      label: 'Reference ID',
-      minWidth: 180,
+      id: 'ids',
+      label: 'Tracing Keys',
+      width: 150,
       hideOnMobile: true,
-      render: (row) => <Typography variant="caption">{row.referenceId || '-'}</Typography>,
-    },
-    {
-      id: 'rewardId',
-      label: 'Reward ID',
-      minWidth: 200,
-      hideOnMobile: true,
-      render: (row) => <Typography variant="caption">{row.rewardId}</Typography>,
+      render: (row) => (
+        <Stack spacing={0.25}>
+          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '10px' }}>
+            REF: {row.referenceId?.slice(0, 8) || '-'}
+          </Typography>
+          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '10px' }}>
+            ID: {row.rewardId.slice(0, 8)}
+          </Typography>
+        </Stack>
+      ),
     },
   ]), []);
 
@@ -338,61 +397,111 @@ export default function UserGamificationRewardsPanel({ userId, onRewardsChanged 
           ) : !selectedRewardDetail ? (
             <Typography variant="body2" color="text.secondary">Reward detail not found.</Typography>
           ) : (
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Reward ID</Typography>
-                <Typography variant="body2">{selectedRewardDetail.rewardId || selectedRewardId}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">User</Typography>
-                <Typography variant="body2">
-                  {(selectedRewardDetail.userDisplayName || selectedRewardDetail.userEmail || selectedRewardDetail.userId) || '-'}
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <PointsIcon fontSize="small" /> Puan ve Aksiyon
+                    </Typography>
+                    <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                      <Chip 
+                        label={`${selectedRewardDetail.points > 0 ? '+' : ''}${selectedRewardDetail.points} XP`}
+                        color={selectedRewardDetail.points >= 0 ? 'success' : 'error'}
+                        sx={{ fontWeight: 'bold' }}
+                      />
+                      <Typography variant="body1" fontWeight={600}>
+                        {selectedRewardDetail.actionLabel || selectedRewardDetail.reason}
+                      </Typography>
+                    </Stack>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <SummaryIcon fontSize="small" /> Özet
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5, bgcolor: 'action.hover', p: 1.5, borderRadius: 1 }}>
+                      {selectedRewardDetail.descriptionSummary || 'Aksiyon için bir özet açıklaması bulunmuyor.'}
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <BusinessIcon fontSize="small" /> İlgili İşletme / Etki
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {selectedRewardDetail.businessName || '-'}
+                    </Typography>
+                    {selectedRewardDetail.businessId && (
+                      <Typography variant="caption" color="text.secondary">ID: {selectedRewardDetail.businessId}</Typography>
+                    )}
+                  </Box>
+                </Stack>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <EventIcon fontSize="small" /> Tarih ve Kullanıcı
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {formatDateTime(selectedRewardDetail.createdAt)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {(selectedRewardDetail.userDisplayName || selectedRewardDetail.userEmail || selectedRewardDetail.userId) || '-'}
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <LinkIcon fontSize="small" /> Referanslar
+                    </Typography>
+                    <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                      <Box display="flex" justifyContent="space-between">
+                        <Typography variant="caption">Referans:</Typography>
+                        <Typography variant="caption" fontWeight={600}>{selectedRewardDetail.referenceName || selectedRewardDetail.referenceId || '-'}</Typography>
+                      </Box>
+                      <Box display="flex" justifyContent="space-between">
+                        <Typography variant="caption">Tür:</Typography>
+                        <Typography variant="caption" fontWeight={600}>{selectedRewardDetail.referenceType || '-'}</Typography>
+                      </Box>
+                    </Stack>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="overline" color="text.secondary">Tranzaksiyon Kimliği</Typography>
+                    <Typography variant="body2" sx={{ fontSize: 11, color: 'text.secondary', wordBreak: 'break-all' }}>
+                      {selectedRewardDetail.rewardId}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Divider sx={{ mb: 1 }} />
+                <Typography variant="overline" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <InfoIcon fontSize="small" /> Teknik Metadata
                 </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Points</Typography>
-                <Typography variant="body2">{selectedRewardDetail.points ?? 0}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Reason</Typography>
-                <Typography variant="body2">{selectedRewardDetail.reason || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Business Name</Typography>
-                <Typography variant="body2">{selectedRewardDetail.businessName || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Reference ID</Typography>
-                <Typography variant="body2">{selectedRewardDetail.referenceId || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Idempotency Key</Typography>
-                <Typography variant="body2">{selectedRewardDetail.idempotencyKey || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Created At</Typography>
-                <Typography variant="body2">{formatDateTime(selectedRewardDetail.createdAt)}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Metadata</Typography>
                 <Box
                   component="pre"
                   sx={{
-                    mt: 0.5,
-                    mb: 0,
-                    p: 1.5,
-                    borderRadius: 1,
+                    mt: 1,
+                    p: 2,
+                    borderRadius: 1.5,
                     fontSize: 12,
                     overflowX: 'auto',
-                    bgcolor: 'grey.100',
+                    bgcolor: '#1e1e1e',
+                    color: '#e0e0e0',
                     border: '1px solid',
                     borderColor: 'divider',
+                    maxHeight: 200
                   }}
                 >
                   {formatMetadata(selectedRewardDetail.metadata)}
                 </Box>
-              </Box>
-            </Stack>
+              </Grid>
+            </Grid>
           )}
         </DialogContent>
         <DialogActions>
