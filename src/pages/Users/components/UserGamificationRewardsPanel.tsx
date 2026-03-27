@@ -111,6 +111,9 @@ export default function UserGamificationRewardsPanel({ userId, onRewardsChanged 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteReward, setPendingDeleteReward] = useState<AdminUserGamificationRewardItemDto | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
 
   const fetchRewards = useCallback(async () => {
     if (!userId) {
@@ -200,6 +203,34 @@ export default function UserGamificationRewardsPanel({ userId, onRewardsChanged 
       setDeleteLoading(false);
     }
   }, [enqueueSnackbar, fetchRewards, onRewardsChanged, pendingDeleteReward, selectedRewardId, userId]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.length === 0) return;
+
+    try {
+      setBulkDeleteLoading(true);
+      
+      // Perform deletions sequentially or in parallel
+      // We'll do them in parallel for better performance since they are independent
+      const deletePromises = selectedIds.map(id => 
+        userService.deleteUserGamificationReward(userId, String(id))
+      );
+      
+      await Promise.all(deletePromises);
+
+      await fetchRewards();
+      await onRewardsChanged?.();
+      
+      enqueueSnackbar(`${selectedIds.length} adet ödül kaydı silindi.`, { variant: 'success' });
+      setBulkConfirmOpen(false);
+      setSelectedIds([]);
+    } catch (bulkError: any) {
+      const message = extractErrorMessage(bulkError, 'Bazı ödül kayıtları silinemedi.');
+      enqueueSnackbar(message, { variant: 'error' });
+    } finally {
+      setBulkDeleteLoading(false);
+    }
+  }, [selectedIds, userId, fetchRewards, onRewardsChanged, enqueueSnackbar]);
 
   const columns: DataTableColumn<AdminUserGamificationRewardItemDto>[] = useMemo(() => ([
     {
@@ -339,6 +370,17 @@ export default function UserGamificationRewardsPanel({ userId, onRewardsChanged 
             >
               Apply
             </Button>
+            {selectedIds.length > 0 && (
+              <Button
+                size="small"
+                variant="contained"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={() => setBulkConfirmOpen(true)}
+              >
+                Seçilenleri Sil ({selectedIds.length})
+              </Button>
+            )}
             <Button size="small" variant="outlined" startIcon={<RefreshIcon />} onClick={() => void fetchRewards()}>
               Refresh
             </Button>
@@ -351,6 +393,10 @@ export default function UserGamificationRewardsPanel({ userId, onRewardsChanged 
           columns={columns}
           data={rewardsPage?.content || []}
           loading={loading}
+          selectable
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          getRowKey={(row) => row.rewardId}
           onRowClick={(row) => void openRewardDetail(row.rewardId)}
           pagination={{
             page,
@@ -531,6 +577,18 @@ export default function UserGamificationRewardsPanel({ userId, onRewardsChanged 
         cancelText="Vazgec"
         severity="warning"
         loading={deleteLoading}
+      />
+
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        onClose={() => !bulkDeleteLoading && setBulkConfirmOpen(false)}
+        onConfirm={() => void handleBulkDelete()}
+        title="Toplu Ödül Sil"
+        message={`Seçilen ${selectedIds.length} adet ödül kaydı silinecektir. Bu işlem geri alınamaz ve kullanıcı puanları düşülecektir. Devam etmek istiyor musunuz?`}
+        confirmText="Seçilenleri Sil"
+        cancelText="Vazgeç"
+        severity="error"
+        loading={bulkDeleteLoading}
       />
     </>
   );

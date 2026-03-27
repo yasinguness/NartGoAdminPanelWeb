@@ -44,7 +44,8 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
-import { MoreVert as MoreVertIcon } from '@mui/icons-material';
+import { MoreVert as MoreVertIcon, CheckBox as CheckBoxIcon, CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon } from '@mui/icons-material';
+import { Checkbox } from '@mui/material';
 import EmptyState from './EmptyState';
 
 // Column definition
@@ -112,6 +113,12 @@ interface DataTableProps<T> {
   minWidth?: number;
   /** Sticky header */
   stickyHeader?: boolean;
+  /** Enable row selection */
+  selectable?: boolean;
+  /** Selected row IDs */
+  selectedIds?: (string | number)[];
+  /** Selection change handler */
+  onSelectionChange?: (ids: (string | number)[]) => void;
 }
 
 export default function DataTable<T extends Record<string, any>>({
@@ -127,6 +134,9 @@ export default function DataTable<T extends Record<string, any>>({
   sx,
   minWidth = 650,
   stickyHeader = false,
+  selectable = false,
+  selectedIds = [],
+  onSelectionChange,
 }: DataTableProps<T>) {
   const theme = useTheme();
 
@@ -172,6 +182,33 @@ export default function DataTable<T extends Record<string, any>>({
     pagination?.onPageChange(page);
   };
 
+  // Selection handlers
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!onSelectionChange) return;
+    if (event.target.checked) {
+      const allIds = data.map((row, index) => getKey(row, index));
+      onSelectionChange(allIds);
+    } else {
+      onSelectionChange([]);
+    }
+  };
+
+  const handleSelectRow = (row: T, index: number) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!onSelectionChange) return;
+    const id = getKey(row, index);
+    const newSelected = event.target.checked
+      ? [...selectedIds, id]
+      : selectedIds.filter((item) => item !== id);
+    onSelectionChange(newSelected);
+  };
+
+  const isSelected = (row: T, index: number) => {
+    return selectedIds.includes(getKey(row, index));
+  };
+
+  const allSelected = data.length > 0 && selectedIds.length === data.length;
+  const someSelected = selectedIds.length > 0 && selectedIds.length < data.length;
+
   // Loading skeleton
   if (loading) {
     return (
@@ -180,6 +217,11 @@ export default function DataTable<T extends Record<string, any>>({
           <Table sx={{ minWidth }} stickyHeader={stickyHeader}>
             <TableHead>
               <TableRow>
+                {selectable && (
+                  <TableCell padding="checkbox" sx={{ width: 48 }}>
+                    <Checkbox disabled />
+                  </TableCell>
+                )}
                 {columns.map((column) => (
                   <TableCell
                     key={column.id}
@@ -199,6 +241,11 @@ export default function DataTable<T extends Record<string, any>>({
             <TableBody>
               {Array.from({ length: skeletonRows }).map((_, index) => (
                 <TableRow key={index}>
+                  {selectable && (
+                    <TableCell padding="checkbox">
+                      <Skeleton variant="circular" width={24} height={24} />
+                    </TableCell>
+                  )}
                   {columns.map((column) => (
                     <TableCell key={column.id}>
                       <Skeleton variant="text" width="80%" />
@@ -226,6 +273,11 @@ export default function DataTable<T extends Record<string, any>>({
           <Table sx={{ minWidth }} stickyHeader={stickyHeader}>
             <TableHead>
               <TableRow>
+                {selectable && (
+                  <TableCell padding="checkbox" sx={{ width: 48 }}>
+                    <Checkbox disabled />
+                  </TableCell>
+                )}
                 {columns.map((column) => (
                   <TableCell
                     key={column.id}
@@ -261,6 +313,17 @@ export default function DataTable<T extends Record<string, any>>({
         <Table sx={{ minWidth }} stickyHeader={stickyHeader}>
           <TableHead>
             <TableRow>
+              {selectable && (
+                <TableCell padding="checkbox" sx={{ width: 48 }}>
+                  <Checkbox
+                    indeterminate={someSelected}
+                    checked={allSelected}
+                    onChange={handleSelectAll}
+                    color="primary"
+                    size="small"
+                  />
+                </TableCell>
+              )}
               {columns.map((column) => (
                 <TableCell
                   key={column.id}
@@ -292,6 +355,7 @@ export default function DataTable<T extends Record<string, any>>({
               <TableRow
                 key={getKey(row, index)}
                 hover
+                selected={isSelected(row, index)}
                 onClick={onRowClick ? handleRowClick(row) : undefined}
                 sx={{
                   cursor: onRowClick ? 'pointer' : 'default',
@@ -299,8 +363,24 @@ export default function DataTable<T extends Record<string, any>>({
                   '&:hover': onRowClick ? {
                     bgcolor: alpha(theme.palette.primary.main, 0.02),
                   } : {},
+                  '&.Mui-selected': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.04),
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.primary.main, 0.06),
+                    },
+                  },
                 }}
               >
+                {selectable && (
+                  <TableCell padding="checkbox" className="row-actions">
+                    <Checkbox
+                      checked={isSelected(row, index)}
+                      onChange={handleSelectRow(row, index)}
+                      color="primary"
+                      size="small"
+                    />
+                  </TableCell>
+                )}
                 {columns.map((column) => (
                   <TableCell
                     key={column.id}
