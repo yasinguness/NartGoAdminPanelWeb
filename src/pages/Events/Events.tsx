@@ -44,6 +44,7 @@ import {
   Search as SearchIcon,
   Place as PlaceIcon,
   MyLocation as MyLocationIcon,
+  AdminPanelSettings as AdminPanelSettingsIcon,
 } from '@mui/icons-material';
 import { useEvent } from '../../hooks/useEvent';
 import { format } from 'date-fns';
@@ -496,6 +497,10 @@ export default function Events() {
               <MenuItem onClick={() => navigate(`/ticket-creation/${row.id}`)}>
                 <ListItemIcon><TicketIcon fontSize="small" /></ListItemIcon>
                 <ListItemText>Manage Tickets</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => navigate(`/event-operations/${row.id}`)}>
+                <ListItemIcon><AdminPanelSettingsIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>Admin Operations</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => handleOpenDialog(row)}>
                 <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>

@@ -27,6 +27,17 @@ import RaffleLivePage from './pages/Event/RaffleLivePage';
 import FeedVideos from './pages/Feeds/FeedVideos';
 import Bulletins from './pages/Bulletins/Bulletins';
 import GamificationSettings from './pages/Gamification/GamificationSettings';
+import SubMerchants from './pages/SubMerchants/SubMerchants';
+import SubMerchantForm from './pages/SubMerchants/SubMerchantForm';
+import SubMerchantDetails from './pages/SubMerchants/SubMerchantDetails';
+import EventOperations from './pages/AdminOperations/EventOperations';
+import SalesCommandCenter from './pages/SalesCommandCenter/SalesCommandCenter';
+import VenueInventoryManager from './pages/VenueInventoryManager/VenueInventoryManager';
+import BoxOffice from './pages/BoxOffice/BoxOffice';
+import SettlementFinance from './pages/SettlementFinance/SettlementFinance';
+import GateOpsLiveBoard from './pages/GateOpsLiveBoard/GateOpsLiveBoard';
+import CustomerSupportConsole from './pages/CustomerSupport/CustomerSupportConsole';
+import CampaignPromoEngine from './pages/CampaignPromoEngine/CampaignPromoEngine';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,6 +72,15 @@ function App() {
                 <Route path="business-claims" element={<BusinessClaims />} />
                 <Route path="business-categories" element={<BusinessCategories />} />
                 <Route path="events" element={<Events />} />
+                <Route path="event-operations" element={<EventOperations />} />
+                <Route path="event-operations/:eventId" element={<EventOperations />} />
+                <Route path="sales-command" element={<SalesCommandCenter />} />
+                <Route path="venue-inventory" element={<VenueInventoryManager />} />
+                <Route path="box-office" element={<BoxOffice />} />
+                <Route path="settlement-finance" element={<SettlementFinance />} />
+                <Route path="gate-ops" element={<GateOpsLiveBoard />} />
+                <Route path="customer-support" element={<CustomerSupportConsole />} />
+                <Route path="campaign-engine" element={<CampaignPromoEngine />} />
                 <Route path="federations" element={<Federations />} />
                 <Route path="associations" element={<Associations />} />
                 <Route path="federations/:id" element={<FederationDetails />} />
@@ -71,6 +91,9 @@ function App() {
                 <Route path="ticket-creation/:eventId" element={<TicketCreationPage />} />
                 <Route path="associations/:associationId/:ownerId" element={<AssociationDetails />} />
                 <Route path="gamification" element={<GamificationSettings />} />
+                <Route path="sub-merchants" element={<SubMerchants />} />
+                <Route path="sub-merchants/new" element={<SubMerchantForm />} />
+                <Route path="sub-merchants/:id" element={<SubMerchantDetails />} />
               </Route>
             </Routes>
           </BrowserRouter>
