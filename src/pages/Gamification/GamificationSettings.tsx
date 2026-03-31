@@ -31,6 +31,9 @@ import {
   LooksTwo as RankTwoIcon,
   Looks3 as RankThreeIcon,
   Category as CategoryIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { AxiosError } from 'axios';
@@ -43,11 +46,13 @@ import {
   GamificationDailySocialCapDto,
   GamificationMonthlyRewardsDto,
   MonthlyRewardItemDto,
+  GamificationConfigRecordDto,
 } from '../../types/gamification/gamificationAdmin';
 import { gamificationAdminService } from '../../services/gamification/gamificationAdminService';
 
 const colorRegex = /^[A-Fa-f0-9]{6}$/;
 const resetTimeRegex = /^([01]\d|2[0-3]):[0-5]\d UTC$/;
+
 
 const getErrorMessage = (error: unknown): string => {
   const axiosError = error as AxiosError<{ message?: string }>;
@@ -89,28 +94,55 @@ export default function GamificationSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [allConfigs, setAllConfigs] = useState<GamificationConfigRecordDto[]>([]);
+  const [selectedConfigKey, setSelectedConfigKey] = useState<string>('DEFAULT');
   const [config, setConfig] = useState<GamificationConfigDto | null>(null);
   const [editingAction, setEditingAction] = useState<GamificationActionAdminDto | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newConfigKey, setNewConfigKey] = useState('');
 
-  const loadConfig = useCallback(async () => {
+  const loadConfigData = useCallback(async (key: string) => {
+    try {
+      setLoading(true);
+      const data = await gamificationAdminService.getConfigByKey(key);
+      setConfig(data.config);
+      setSelectedConfigKey(data.configKey);
+    } catch (e) {
+      enqueueSnackbar('Konfigürasyon yüklenemedi: ' + getErrorMessage(e), { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [enqueueSnackbar]);
+
+  const loadAll = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await gamificationAdminService.getConfig();
-      setConfig(data);
+      const records = await gamificationAdminService.getConfigs();
+      setAllConfigs(records);
+      
+      const current = records.find(r => r.configKey === selectedConfigKey) || records.find(r => r.configKey === 'DEFAULT') || records[0];
+      if (current) {
+        setSelectedConfigKey(current.configKey);
+        setConfig(current.config);
+      }
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedConfigKey]);
 
   useEffect(() => {
-    loadConfig();
-  }, [loadConfig]);
+    loadAll();
+  }, []);
+
+  const handleConfigChange = (key: string) => {
+    loadConfigData(key);
+  };
 
   const handleSaveAll = async () => {
-    if (!config) return;
+    if (!config || !selectedConfigKey) return;
 
     if (config.maxXpPerAction < 0 || config.maxXpPerAction > 500) {
       enqueueSnackbar('Tek işlemde kazanılabilecek maksimum puan 0 ile 500 arasında olmalıdır.', { variant: 'error' });
@@ -137,17 +169,61 @@ export default function GamificationSettings() {
       return;
     }
 
+
     try {
       setSaving(true);
-      await gamificationAdminService.updateConfig(config);
-      await loadConfig();
-      enqueueSnackbar('Oyunlaştırma ayarları başarıyla kaydedildi!', { variant: 'success' });
+      await gamificationAdminService.updateConfigByKey(selectedConfigKey, config);
+      enqueueSnackbar(`${selectedConfigKey} ayarları başarıyla kaydedildi!`, { variant: 'success' });
+      loadAll();
     } catch (e) {
       enqueueSnackbar(getErrorMessage(e), { variant: 'error' });
     } finally {
       setSaving(false);
     }
   };
+
+  const handleCreateConfig = async () => {
+    if (!newConfigKey.trim() || !config) return;
+    
+    try {
+      setSaving(true);
+      const key = newConfigKey.trim().toUpperCase();
+      await gamificationAdminService.createConfig({
+        configKey: key,
+        config: config
+      });
+      enqueueSnackbar('Yeni konfigürasyon oluşturuldu: ' + key, { variant: 'success' });
+      setIsCreateDialogOpen(false);
+      setNewConfigKey('');
+      setSelectedConfigKey(key);
+      loadAll();
+    } catch (e) {
+      enqueueSnackbar(getErrorMessage(e), { variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteConfig = async (key: string) => {
+    if (key === 'DEFAULT') return;
+    
+    if (!window.confirm(`${key} konfigürasyonunu silmek istediğinize emin misiniz?`)) return;
+
+    try {
+      setSaving(true);
+      await gamificationAdminService.deleteConfig(key);
+      enqueueSnackbar('Konfigürasyon silindi: ' + key, { variant: 'success' });
+      if (selectedConfigKey === key) {
+        setSelectedConfigKey('DEFAULT');
+      }
+      loadAll();
+    } catch (e) {
+      enqueueSnackbar(getErrorMessage(e), { variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   const handleEditActionSave = () => {
     if (!config || !editingAction) return;
@@ -257,21 +333,59 @@ export default function GamificationSettings() {
     <PageContainer>
       <PageHeader
         title="Oyunlaştırma Ayarları"
-        subtitle="Uygulama içi kullanıcı aksiyonları, kazanılan xp puanları, limitleme kuralları ve rütbe ödüllerini yönetin."
+        subtitle={`Uygulama içi kullanıcı aksiyonları ve ödül periyotlarını "${selectedConfigKey}" üzerinden yönetin.`}
         breadcrumbs={[
           { label: 'Gösterge Paneli', href: '/dashboard' },
           { label: 'Oyunlaştırma', active: true },
         ]}
         actions={
-          <Stack direction="row" spacing={2}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <TextField
+              select
+              size="small"
+              label="Aktif Konfigürasyon"
+              value={selectedConfigKey}
+              onChange={(e) => handleConfigChange(e.target.value)}
+              SelectProps={{ native: true }}
+              sx={{ minWidth: 200, bgcolor: 'background.paper' }}
+            >
+              {allConfigs.map((r) => (
+                <option key={r.configKey} value={r.configKey}>
+                  {r.configKey}
+                </option>
+              ))}
+            </TextField>
+
+            <Button
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={() => setIsCreateDialogOpen(true)}
+              sx={{ bgcolor: 'background.paper' }}
+            >
+              Yeni Ekle
+            </Button>
+
+            {selectedConfigKey !== 'DEFAULT' && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={() => handleDeleteConfig(selectedConfigKey)}
+                sx={{ bgcolor: 'background.paper' }}
+              >
+                Sil
+              </Button>
+            )}
+
             <Button 
               variant="outlined" 
               startIcon={<RefreshIcon />} 
-              onClick={() => loadConfig()}
+              onClick={loadAll}
               sx={{ bgcolor: 'background.paper' }}
             >
               Yenile
             </Button>
+
             <Button 
               variant="contained" 
               startIcon={<SaveIcon />} 
@@ -283,6 +397,7 @@ export default function GamificationSettings() {
           </Stack>
         }
       />
+
 
       <PageSection 
         title="Puan Kazandıran Aksiyonlar" 
@@ -412,9 +527,118 @@ export default function GamificationSettings() {
         title="Aylık Liderlik Tablosu Ödülleri" 
         subtitle="Aylık periyotlardaki liderlik sıralamasında dereceye giren ilk 3 kullanıcıya verilecek ödülleri belirleyin."
       >
-        <Alert severity="info" sx={{ mb: 3 }} icon={<TrophyIcon />}>
-          <strong>Geçerli Ay Dönemi:</strong> {config.monthlyRewards.month || 'Belirsiz'} &nbsp;&bull;&nbsp; <strong>Kalan Süre:</strong> {config.monthlyRewards.daysRemaining || 0} gün kaldı
-        </Alert>
+        <Card variant="outlined" sx={{ mb: 3 }}>
+          <CardContent sx={{ p: 4 }}>
+            <Grid container spacing={4}>
+              <Grid item xs={12} md={6}>
+                <Stack spacing={3}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <TrophyIcon color="primary" />
+                    <Typography variant="h6">Dönem Bilgileri</Typography>
+                  </Box>
+                  <TextField
+                    label="Peryot Başlığı"
+                    placeholder="Örn: 14 Günlük Dönem"
+                    fullWidth
+                    value={config.monthlyRewards.month}
+                    onChange={(e) => setConfig((prev) => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        monthlyRewards: { ...prev.monthlyRewards, month: e.target.value },
+                      };
+                    })}
+                  />
+                  <TextField
+                    label="Kampanya Başlığı"
+                    placeholder="Örn: 14 Günlük Ödüller"
+                    fullWidth
+                    value={config.monthlyRewards.title}
+                    onChange={(e) => setConfig((prev) => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        monthlyRewards: { ...prev.monthlyRewards, title: e.target.value },
+                      };
+                    })}
+                  />
+                  <TextField
+                    label="Kampanya Açıklaması"
+                    placeholder="Kullanıcılara gösterilecek genel kampanya açıklaması"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={config.monthlyRewards.description}
+                    onChange={(e) => setConfig((prev) => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        monthlyRewards: { ...prev.monthlyRewards, description: e.target.value },
+                      };
+                    })}
+                  />
+                </Stack>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Stack spacing={3}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <TimeIcon color="primary" />
+                    <Typography variant="h6">Zamanlama ve Sıfırlama</Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <TextField
+                        type="number"
+                        label="Dönem Süresi (Gün)"
+                        helperText="Toplam periyot süresi"
+                        fullWidth
+                        value={config.monthlyRewards.periodDays}
+                        onChange={(e) => setConfig((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            monthlyRewards: { ...prev.monthlyRewards, periodDays: Number(e.target.value) || 0 },
+                          };
+                        })}
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <TextField
+                        type="number"
+                        label="Sıfırlama Periyodu (Gün)"
+                        helperText="Kaç günde bir sıfırlanacak?"
+                        fullWidth
+                        value={config.monthlyRewards.resetEveryDays}
+                        onChange={(e) => setConfig((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            monthlyRewards: { ...prev.monthlyRewards, resetEveryDays: Number(e.target.value) || 0 },
+                          };
+                        })}
+                      />
+                    </Grid>
+                  </Grid>
+                  <TextField
+                    label="Sıfırlanma Tarihi (Gözlem)"
+                    value={config.monthlyRewards.resetAt || ''}
+                    disabled
+                    fullWidth
+                    helperText="Backend tarafından hesaplanan bir sonraki sıfırlanma zamanı"
+                  />
+                  <Alert severity="info" sx={{ mt: 1 }}>
+                    <strong>Kalan Süre:</strong> {config.monthlyRewards.daysRemaining || 0} gün kaldı
+                  </Alert>
+                </Stack>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
+        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <StarIcon color="warning" fontSize="small" /> Derece Bazlı Ödül Tanımları
+        </Typography>
 
         <Grid container spacing={3}>
           {sortedRewards.map((reward) => (
@@ -494,6 +718,7 @@ export default function GamificationSettings() {
           ))}
         </Grid>
       </PageSection>
+
 
       <Dialog open={Boolean(editingAction)} onClose={() => setEditingAction(null)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ fontWeight: 'bold' }}>Aksiyon Puanlamasını Düzenle</DialogTitle>
@@ -592,6 +817,33 @@ export default function GamificationSettings() {
           </Button>
         </DialogActions>
       </Dialog>
+      <Dialog open={isCreateDialogOpen} onClose={() => setIsCreateDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>Yeni Konfigürasyon Oluştur</DialogTitle>
+        <DialogContent dividers>
+          <Box py={2}>
+            <TextField
+              label="Konfigürasyon Anahtarı"
+              placeholder="Örn: RAMAZAN_PAKETI"
+              fullWidth
+              value={newConfigKey}
+              onChange={(e) => setNewConfigKey(e.target.value.toUpperCase().trim())}
+              helperText="Bosluk bırakmayın. Mevcut ayarlarınız yeni kayda kopyalanacaktır."
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setIsCreateDialogOpen(false)}>İptal</Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateConfig}
+            disabled={!newConfigKey.trim() || saving}
+            startIcon={<SaveIcon />}
+          >
+            Oluştur ve Düzenle
+          </Button>
+        </DialogActions>
+      </Dialog>
     </PageContainer>
   );
 }
+

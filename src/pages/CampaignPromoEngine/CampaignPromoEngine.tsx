@@ -4,7 +4,6 @@ import {
   Box,
   Typography,
   Paper,
-  Grid,
   Stack,
   Button,
   TextField,
@@ -33,6 +32,7 @@ import {
   Settings as SettingIcon,
   Delete as DeleteIcon,
 } from '@mui/icons-material';
+import { useSnackbar } from 'notistack';
 
 // --- Domain Models from Specification ---
 export type CampaignStatus = 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'PAUSED' | 'EXPIRED' | 'ARCHIVED';
@@ -72,10 +72,13 @@ const COLORS = {
 
 // --- Component ---
 export default function CampaignPromoEngine() {
+  const { enqueueSnackbar } = useSnackbar();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ACTIVE');
   const [selectedCamp, setSelectedCamp] = useState<any | null>(null);
+  const [evaluationLoading, setEvaluationLoading] = useState(false);
+  const [evaluationResult, setEvaluationResult] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchCampaigns = async () => {
@@ -85,14 +88,17 @@ export default function CampaignPromoEngine() {
         if (data && data.length > 0) {
           setCampaigns(data);
           setSelectedCamp(data[0]);
+          setEvaluationResult(null);
         } else {
           setCampaigns(mockCampaigns);
           setSelectedCamp(mockCampaigns[0]);
+          setEvaluationResult(null);
         }
       } catch (err) {
         console.error("Failed to fetch campaigns, using mock", err);
         setCampaigns(mockCampaigns);
         setSelectedCamp(mockCampaigns[0]);
+        setEvaluationResult(null);
       } finally {
         setLoading(false);
       }
@@ -106,6 +112,10 @@ export default function CampaignPromoEngine() {
   const [previewMethod, setPreviewMethod] = useState('CREDIT_CARD');
   const [previewUserFlagged, setPreviewUserFlagged] = useState(false);
 
+  useEffect(() => {
+    setEvaluationResult(null);
+  }, [selectedCamp, previewBasket, previewCode, previewMethod, previewUserFlagged]);
+
   if (loading && campaigns.length === 0) {
       return (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', bgcolor: '#f1f5f9' }}>
@@ -115,6 +125,30 @@ export default function CampaignPromoEngine() {
   }
 
   if (!selectedCamp) return null;
+
+  const handleEvaluate = async () => {
+    if (!selectedCamp?.id) {
+      return;
+    }
+
+    try {
+      setEvaluationLoading(true);
+      const result = await campaignService.evaluateEligibility(selectedCamp.id, {
+        amount: previewBasket,
+        promoCode: previewCode,
+        paymentMethod: previewMethod,
+        userFlagged: previewUserFlagged,
+      });
+      setEvaluationResult(result);
+      enqueueSnackbar('Campaign evaluation completed', { variant: 'success' });
+    } catch (error) {
+      console.error('Campaign evaluation failed, falling back to local simulation', error);
+      setEvaluationResult(null);
+      enqueueSnackbar('Backend evaluation unavailable, showing local simulation', { variant: 'warning' });
+    } finally {
+      setEvaluationLoading(false);
+    }
+  };
 
   // Simulation Logic (Calculated locally but could be a service call)
   let isEligible = false;
@@ -132,6 +166,37 @@ export default function CampaignPromoEngine() {
       if (rejections.length === 0) { isEligible = true; benefitAmount = previewBasket * 0.20; }
   } else {
       rejections.push('Simülasyon motoru kural setini tanımıyor veya backend bekliyor.');
+  }
+
+  if (evaluationResult) {
+      isEligible = Boolean(
+          evaluationResult.isEligible ??
+          evaluationResult.eligible ??
+          evaluationResult.isValid ??
+          evaluationResult.success
+      );
+
+      const rejectionSource = evaluationResult.rejections
+          ?? evaluationResult.reasons
+          ?? evaluationResult.rejectionReasons
+          ?? evaluationResult.messages;
+
+      if (Array.isArray(rejectionSource)) {
+          rejections = rejectionSource.map((item) => String(item));
+      } else if (!isEligible && typeof rejectionSource === 'string') {
+          rejections = [rejectionSource];
+      } else if (!isEligible) {
+          rejections = ['Backend evaluation rejected the request.'];
+      } else {
+          rejections = [];
+      }
+
+      benefitAmount = Number(
+          evaluationResult.benefitAmount
+          ?? evaluationResult.discountAmount
+          ?? evaluationResult.appliedDiscount
+          ?? 0
+      );
   }
 
   return (
@@ -294,12 +359,22 @@ export default function CampaignPromoEngine() {
                        value={previewMethod} onChange={e => setPreviewMethod(e.target.value)}
                     >
                         <MenuItem value="CREDIT_CARD">Standart Kredi Kartı</MenuItem>
+                        <MenuItem value="GARANTI_CC">Garanti BBVA Kredi Kartı</MenuItem>
                         <MenuItem value="GARANTI_PAY">Garanti Pay</MenuItem>
                     </TextField>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, border: `1px solid ${COLORS.border}`, borderRadius: 1 }}>
                         <Typography variant="body2" fontWeight={600}>Kullanıcı Fraud Flag?</Typography>
                         <Switch size="small" color="error" checked={previewUserFlagged} onChange={e => setPreviewUserFlagged(e.target.checked)} />
                     </Box>
+                    <Button
+                        variant="contained"
+                        disableElevation
+                        onClick={() => void handleEvaluate()}
+                        disabled={evaluationLoading}
+                        sx={{ fontWeight: 800, bgcolor: COLORS.primary }}
+                    >
+                        {evaluationLoading ? 'Değerlendiriliyor...' : 'Canlı Evaluate'}
+                    </Button>
                 </Stack>
 
                 <Divider sx={{ mb: 3 }} />

@@ -24,7 +24,12 @@ export interface MonthlyRewardItemDto {
 
 export interface GamificationMonthlyRewardsDto {
   month?: string;
+  title?: string;
+  description?: string;
   daysRemaining?: number;
+  periodDays?: number;
+  resetEveryDays?: number;
+  resetAt?: string;
   rewards: MonthlyRewardItemDto[];
 }
 
@@ -34,3 +39,14 @@ export interface GamificationConfigDto {
   maxXpPerAction: number;
   monthlyRewards: GamificationMonthlyRewardsDto;
 }
+
+export interface GamificationConfigCreateRequest {
+  configKey: string;
+  config: GamificationConfigDto;
+}
+
+export interface GamificationConfigRecordDto {
+  configKey: string;
+  config: GamificationConfigDto;
+}
+

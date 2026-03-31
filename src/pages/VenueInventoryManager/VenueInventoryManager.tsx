@@ -159,8 +159,6 @@ export default function VenueInventoryManager() {
     }
   });
 
-  });
-
   if (loading && data.length === 0) {
       return (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', bgcolor: '#f8fafc' }}>
