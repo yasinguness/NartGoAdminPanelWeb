@@ -142,6 +142,9 @@ export default function Layout() {
     const navigate = useNavigate();
     const location = useLocation();
     const { logout } = useAuth();
+    
+    // Check if we are in Zen mode (for SeatMap Designer)
+    const isZenMode = location.pathname.includes('seat-map') && new URLSearchParams(location.search).get('zen') === 'true';
 
     // Initialize expanded sections
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
@@ -348,11 +351,12 @@ export default function Layout() {
             <AppBar
                 position="fixed"
                 sx={{
-                    width: { sm: `calc(100% - ${drawerWidth}px)` },
-                    ml: { sm: `${drawerWidth}px` },
+                    width: isZenMode ? '100%' : { sm: `calc(100% - ${drawerWidth}px)` },
+                    ml: isZenMode ? 0 : { sm: `${drawerWidth}px` },
                     background: theme.palette.background.paper,
                     boxShadow: 'none',
                     borderBottom: `1px solid ${theme.palette.divider}`,
+                    ...(isZenMode && { display: 'none' }) // Hide header completely in Zen mode for extra height
                 }}
             >
                 <Toolbar>
@@ -385,8 +389,11 @@ export default function Layout() {
                 </Toolbar>
             </AppBar>
             <Box
-                component="nav"
-                sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+                sx={{ 
+                    width: isZenMode ? 0 : { sm: drawerWidth }, 
+                    flexShrink: { sm: 0 },
+                    ...(isZenMode && { display: 'none' }) 
+                }}
                 aria-label="Ana navigasyon"
             >
                 <Drawer
@@ -424,10 +431,12 @@ export default function Layout() {
                 component="main"
                 sx={{
                     flexGrow: 1,
-                    p: 3,
-                    width: { sm: `calc(100% - ${drawerWidth}px)` },
-                    mt: '64px',
-                    maxWidth: '1600px',
+                    p: location.pathname.includes('seat-map') ? 0 : 3,
+                    width: isZenMode ? '100vw' : { sm: `calc(100% - ${drawerWidth}px)` },
+                    height: isZenMode ? '100vh' : 'calc(100vh - 64px)',
+                    mt: isZenMode ? 0 : '64px',
+                    maxWidth: location.pathname.includes('seat-map') ? 'none' : '1600px',
+                    overflow: 'hidden', 
                 }}
             >
                 <Outlet />

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -13,6 +14,7 @@ import {
   Divider,
   TextField,
   alpha,
+  useTheme,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -26,6 +28,11 @@ import {
   Block as BlockIcon,
   ShoppingCart as CartIcon,
   ConfirmationNumber as TicketIcon,
+  Fullscreen as FullscreenIcon,
+  FullscreenExit as FullscreenExitIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  CenterFocusStrong as FitIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 
@@ -77,24 +84,26 @@ const getDefaultCat = (rowIndex: number, totalRows: number): string => {
   return 'balkon';
 };
 
-// ─── Styles ───
-const colors = {
-  bg: '#0e1117',
-  surface: '#161b27',
-  surface2: '#1e2436',
-  surface3: '#252d42',
-  border: '#2a3350',
-  border2: '#35405e',
-  text: '#e8edf8',
-  text2: '#8b95b0',
-  text3: '#4a5270',
-  green: '#10b981',
-  greenDim: 'rgba(16,185,129,0.12)',
-};
-
 // ─── Component ───
 const SeatMapDesigner: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
+  const theme = useTheme();
+
+  const colors = useMemo(() => ({
+    bg: theme.palette.background.default,
+    surface: theme.palette.background.paper,
+    surface2: alpha(theme.palette.primary.main, 0.04),
+    surface3: alpha(theme.palette.primary.main, 0.08),
+    border: theme.palette.divider,
+    border2: alpha(theme.palette.divider, 0.5),
+    text: theme.palette.text.primary,
+    text2: theme.palette.text.secondary,
+    text3: theme.palette.text.disabled,
+    green: theme.palette.primary.main,
+    greenDark: theme.palette.primary.dark,
+    greenDim: alpha(theme.palette.primary.main, 0.12),
+    contrast: theme.palette.primary.contrastText,
+  }), [theme]);
 
   // State
   const [mode, setMode] = useState<'edit' | 'preview'>('edit');
@@ -115,6 +124,39 @@ const SeatMapDesigner: React.FC = () => {
   } | null>(null);
 
   const venueRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sidebars and Zen Mode
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isZenMode = searchParams.get('zen') === 'true';
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+
+  const toggleZenMode = () => {
+    const next = isZenMode ? 'false' : 'true';
+    setSearchParams({ zen: next });
+  };
+
+  const handleFitToScreen = useCallback(() => {
+    if (!venueRef.current || !containerRef.current) return;
+    const vWidth = venueRef.current.offsetWidth + 100;
+    const vHeight = venueRef.current.offsetHeight + 100;
+    const cWidth = containerRef.current.offsetWidth;
+    const cHeight = containerRef.current.offsetHeight;
+    
+    const scale = Math.min(cWidth / vWidth, cHeight / vHeight, 1.2);
+    setZoomLevel(Math.max(0.4, Math.round(scale * 10) / 10));
+  }, []);
+
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   // Generate taken seats on preview mode switch
   const generateTakenSeats = useCallback(() => {
@@ -266,7 +308,7 @@ const SeatMapDesigner: React.FC = () => {
         border = 'none';
       } else if (isSelected) {
         bgColor = colors.green;
-        boxShadow = `0 0 0 2px rgba(16,185,129,0.6), 0 0 12px rgba(16,185,129,0.4)`;
+        boxShadow = `0 0 0 2px ${alpha(colors.green, 0.6)}, 0 0 12px ${alpha(colors.green, 0.4)}`;
         border = 'none';
       }
     }
@@ -365,9 +407,15 @@ const SeatMapDesigner: React.FC = () => {
     );
   };
 
-  // ─── MAIN RENDER ───
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', background: colors.bg, mx: -3, mt: -3, mb: -3 }}>
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: '100%', 
+      width: '100%',
+      background: colors.bg,
+      overflow: 'hidden'
+    }}>
       {/* TOP NAV */}
       <Box sx={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -409,7 +457,34 @@ const SeatMapDesigner: React.FC = () => {
           ))}
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {/* Actions */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Tooltip title={isZenMode ? "Zen Modundan Çık" : "Zen Modu (Tam Pencere)"}>
+            <IconButton
+              size="small"
+              onClick={toggleZenMode}
+              sx={{
+                width: 36, height: 36, borderRadius: 2, background: colors.surface2, border: `1px solid ${colors.border}`,
+                color: isZenMode ? colors.green : colors.text2, '&:hover': { background: colors.surface3, color: colors.text },
+              }}
+            >
+              {isZenMode ? <FullscreenExitIcon /> : <FullscreenIcon />}
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Gerçek Tam Ekran (F11)">
+            <IconButton
+              size="small"
+              onClick={toggleFullScreen}
+              sx={{
+                width: 36, height: 36, borderRadius: 2, background: colors.surface2, border: `1px solid ${colors.border}`,
+                color: colors.text2, '&:hover': { background: colors.surface3, color: colors.text },
+              }}
+            >
+              <FullscreenIcon />
+            </IconButton>
+          </Tooltip>
+
           <Button
             size="small"
             startIcon={<SaveIcon sx={{ fontSize: '14px !important' }} />}
@@ -428,8 +503,8 @@ const SeatMapDesigner: React.FC = () => {
             onClick={() => enqueueSnackbar('Oturma düzeni kaydedildi ve bilet oluşturucuya aktarıldı', { variant: 'success' })}
             sx={{
               px: 2, py: 1, borderRadius: 2, fontSize: 13, fontWeight: 600, textTransform: 'none',
-              color: '#0a1a12', background: colors.green,
-              '&:hover': { background: '#0ea271' },
+              color: colors.contrast, background: colors.green,
+              '&:hover': { background: colors.greenDark },
             }}
           >
             Onayla & Devam
@@ -443,123 +518,149 @@ const SeatMapDesigner: React.FC = () => {
         {/* ── LEFT PANEL ── */}
         {mode === 'edit' && (
           <Box sx={{
-            width: 240, flexShrink: 0, background: colors.surface,
-            borderRight: `1px solid ${colors.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            width: isLeftPanelOpen ? 280 : 0, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+            flexShrink: 0, background: colors.surface, position: 'relative',
+            borderRight: isLeftPanelOpen ? `1px solid ${colors.border}` : 'none', 
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            boxShadow: isLeftPanelOpen ? '4px 0 24px rgba(0,0,0,0.1)' : 'none',
+            zIndex: 10,
           }}>
-            {/* Templates */}
-            <Box sx={{ p: 2, borderBottom: `1px solid ${colors.border}` }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1, mb: 1.25 }}>
-                Şablon Seç
-              </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.75 }}>
-                {Object.entries(TEMPLATES).map(([key, t]) => (
+            {/* Toggle Handle */}
+            <Tooltip title={isLeftPanelOpen ? "Kaydır" : "Göster"} placement="right">
+              <IconButton
+                onClick={() => setIsLeftPanelOpen(!isLeftPanelOpen)}
+                sx={{
+                  position: 'absolute', right: isLeftPanelOpen ? 4 : -32, top: '50%', transform: 'translateY(-50%)',
+                  zIndex: 100, width: 28, height: 28, borderRadius: 1.5, 
+                  background: colors.surface, border: `1px solid ${colors.border}`,
+                  color: isLeftPanelOpen ? colors.text3 : colors.green, p: 0,
+                  transition: 'all 0.3s',
+                  '&:hover': { background: colors.surface2, color: colors.text2, transform: 'translateY(-50%) scale(1.1)' }
+                }}
+              >
+                {isLeftPanelOpen ? <ChevronLeftIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+
+            <Box sx={{ width: 280, height: '100%', display: 'flex', flexDirection: 'column', visibility: isLeftPanelOpen ? 'visible' : 'hidden', opacity: isLeftPanelOpen ? 1 : 0, transition: 'opacity 0.2s' }}>
+              {/* Templates */}
+              <Box sx={{ p: 3, borderBottom: `1px solid ${colors.border}` }}>
+                <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1, mb: 1.25 }}>
+                  Şablon Seç
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.75 }}>
+                  {Object.entries(TEMPLATES).map(([key, t]) => (
+                    <Box
+                      key={key}
+                      onClick={() => handleTemplateLoad(key)}
+                      sx={{
+                        background: template === key ? colors.greenDim : colors.surface2,
+                        border: `1.5px solid ${template === key ? colors.green : colors.border}`,
+                        borderRadius: 2, p: '10px 8px', cursor: 'pointer', textAlign: 'center',
+                        transition: 'all 0.15s',
+                        '&:hover': { borderColor: colors.border2, background: colors.surface3 },
+                      }}
+                    >
+                      <Typography sx={{ fontSize: 20, mb: 0.5 }}>{t.icon}</Typography>
+                      <Typography sx={{
+                        fontSize: 11, fontWeight: 600,
+                        color: template === key ? colors.green : colors.text2,
+                      }}>
+                        {t.label}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+
+              {/* Category tools */}
+              <Box sx={{ p: 3, borderBottom: `1px solid ${colors.border}` }}>
+                <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1, mb: 2 }}>
+                  Kategori Fırçası
+                </Typography>
+                {Object.entries(CATEGORIES).map(([key, cat]) => (
                   <Box
                     key={key}
-                    onClick={() => handleTemplateLoad(key)}
+                    onClick={() => setCurrentTool(key)}
                     sx={{
-                      background: template === key ? colors.greenDim : colors.surface2,
-                      border: `1.5px solid ${template === key ? colors.green : colors.border}`,
-                      borderRadius: 2, p: '10px 8px', cursor: 'pointer', textAlign: 'center',
-                      transition: 'all 0.15s',
-                      '&:hover': { borderColor: colors.border2, background: colors.surface3 },
+                      display: 'flex', alignItems: 'center', gap: 1.5,
+                      p: '12px 16px', borderRadius: 2, cursor: 'pointer', mb: 1,
+                      border: `1.5px solid ${currentTool === key ? cat.color : 'transparent'}`,
+                      background: currentTool === key ? colors.surface2 : 'transparent',
+                      color: cat.color, transition: 'all 0.15s',
+                      '&:hover': { background: colors.surface3 },
                     }}
                   >
-                    <Typography sx={{ fontSize: 20, mb: 0.5 }}>{t.icon}</Typography>
-                    <Typography sx={{
-                      fontSize: 11, fontWeight: 600,
-                      color: template === key ? colors.green : colors.text2,
-                    }}>
-                      {t.label}
+                    <Box sx={{ width: 14, height: 14, borderRadius: 1, background: cat.color, flexShrink: 0 }} />
+                    <Typography sx={{ fontSize: 14, fontWeight: 600, flex: 1 }}>{cat.name}</Typography>
+                    <Typography sx={{ fontSize: 12, fontFamily: '"JetBrains Mono", monospace', color: colors.text3 }}>
+                      ₺{cat.price}
                     </Typography>
                   </Box>
                 ))}
-              </Box>
-            </Box>
-
-            {/* Category tools */}
-            <Box sx={{ p: 2, borderBottom: `1px solid ${colors.border}` }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1, mb: 1.25 }}>
-                Kategori Fırçası
-              </Typography>
-              {Object.entries(CATEGORIES).map(([key, cat]) => (
+                {/* Disabled tool */}
                 <Box
-                  key={key}
-                  onClick={() => setCurrentTool(key)}
+                  onClick={() => setCurrentTool('disabled')}
                   sx={{
-                    display: 'flex', alignItems: 'center', gap: 1.25,
-                    p: '9px 12px', borderRadius: 2, cursor: 'pointer', mb: 0.5,
-                    border: `1.5px solid ${currentTool === key ? cat.color : 'transparent'}`,
-                    background: currentTool === key ? colors.surface2 : 'transparent',
-                    color: cat.color, transition: 'all 0.15s',
-                    '&:hover': { background: colors.surface3 },
+                    display: 'flex', alignItems: 'center', gap: 1.5,
+                    p: '12px 16px', borderRadius: 2, cursor: 'pointer',
+                    border: `1.5px solid ${currentTool === 'disabled' ? colors.text3 : 'transparent'}`,
+                    background: currentTool === 'disabled' ? colors.surface2 : 'transparent',
+                    color: currentTool === 'disabled' ? colors.text : colors.text3,
+                    transition: 'all 0.15s',
+                    '&:hover': { background: colors.surface3, color: colors.text2 },
                   }}
                 >
-                  <Box sx={{ width: 14, height: 14, borderRadius: 1, background: cat.color, flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{cat.name}</Typography>
-                  <Typography sx={{ fontSize: 11.5, fontFamily: '"JetBrains Mono", monospace', color: colors.text3 }}>
-                    ₺{cat.price}
-                  </Typography>
+                  <BlockIcon sx={{ fontSize: 14 }} />
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Koltuk Kapat</Typography>
                 </Box>
-              ))}
-              {/* Disabled tool */}
-              <Box
-                onClick={() => setCurrentTool('disabled')}
-                sx={{
-                  display: 'flex', alignItems: 'center', gap: 1.25,
-                  p: '9px 12px', borderRadius: 2, cursor: 'pointer',
-                  border: `1.5px solid ${currentTool === 'disabled' ? colors.text3 : 'transparent'}`,
-                  background: currentTool === 'disabled' ? colors.surface2 : 'transparent',
-                  color: currentTool === 'disabled' ? colors.text : colors.text3,
-                  transition: 'all 0.15s',
-                  '&:hover': { background: colors.surface3, color: colors.text2 },
-                }}
-              >
-                <BlockIcon sx={{ fontSize: 14 }} />
-                <Typography sx={{ fontSize: 13, fontWeight: 600 }}>Koltuk Kapat</Typography>
               </Box>
-            </Box>
 
-            {/* Mini stats */}
-            <Box sx={{ p: 2, flex: 1, overflowY: 'auto' }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1, mb: 1.25 }}>
-                İstatistikler
-              </Typography>
-              <Stack spacing={0.75}>
-                {Object.entries(stats.counts).map(([key, count]) => {
-                  const cat = CATEGORIES[key];
-                  if (!cat) return null;
-                  const pct = stats.total ? (count / stats.total) * 100 : 0;
-                  return (
-                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 10, height: 10, borderRadius: '3px', background: cat.color, flexShrink: 0 }} />
-                      <Typography sx={{ fontSize: 12, color: colors.text2, width: 72 }}>{cat.name}</Typography>
-                      <Box sx={{ flex: 1, height: 4, background: colors.surface3, borderRadius: 1, overflow: 'hidden' }}>
-                        <Box sx={{ height: '100%', width: `${pct}%`, background: cat.color, borderRadius: 1, transition: 'width 0.3s' }} />
+              {/* Mini stats */}
+              <Box sx={{ p: 3, flex: 1, overflowY: 'auto' }}>
+                <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1, mb: 2 }}>
+                  İstatistikler
+                </Typography>
+                <Stack spacing={0.75}>
+                  {Object.entries(stats.counts).map(([key, count]) => {
+                    const cat = CATEGORIES[key];
+                    if (!cat) return null;
+                    const pct = stats.total ? (count / stats.total) * 100 : 0;
+                    return (
+                      <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 10, height: 10, borderRadius: '3px', background: cat.color, flexShrink: 0 }} />
+                        <Typography sx={{ fontSize: 12, color: colors.text2, width: 72 }}>{cat.name}</Typography>
+                        <Box sx={{ flex: 1, height: 4, background: colors.surface3, borderRadius: 1, overflow: 'hidden' }}>
+                          <Box sx={{ height: '100%', width: `${pct}%`, background: cat.color, borderRadius: 1, transition: 'width 0.3s' }} />
+                        </Box>
+                        <Typography sx={{ fontSize: 12, fontFamily: '"JetBrains Mono", monospace', color: colors.text2, width: 30, textAlign: 'right' }}>
+                          {count}
+                        </Typography>
                       </Box>
-                      <Typography sx={{ fontSize: 12, fontFamily: '"JetBrains Mono", monospace', color: colors.text2, width: 30, textAlign: 'right' }}>
-                        {count}
-                      </Typography>
-                    </Box>
-                  );
-                })}
-              </Stack>
+                    );
+                  })}
+                </Stack>
+              </Box>
             </Box>
           </Box>
         )}
 
         {/* ── CANVAS ── */}
-        <Box sx={{
+        <Box 
+          ref={containerRef}
+          sx={{
           flex: 1, position: 'relative', overflow: 'hidden', background: colors.bg,
           backgroundImage: `
-            radial-gradient(circle at 50% 0%, rgba(16,185,129,0.04) 0%, transparent 60%),
-            linear-gradient(rgba(42,51,80,0.3) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(42,51,80,0.3) 1px, transparent 1px)
+            radial-gradient(circle at 50% 0%, ${alpha(colors.green, 0.04)} 0%, transparent 60%),
+            linear-gradient(${colors.border2} 2px, transparent 2px),
+            linear-gradient(90deg, ${colors.border2} 2px, transparent 2px)
           `,
-          backgroundSize: '100% 100%, 24px 24px, 24px 24px',
+          backgroundSize: '100% 100%, 32px 32px, 32px 32px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
           <Box sx={{
             position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
-            justifyContent: 'flex-start', p: 5, overflow: 'auto',
+            justifyContent: 'center', p: 5, overflow: 'auto',
           }}>
             <Box
               ref={venueRef}
@@ -594,16 +695,16 @@ const SeatMapDesigner: React.FC = () => {
                   ))}
                 </Box>
                 <Box sx={{
-                  background: 'linear-gradient(180deg, #2a3a5c 0%, #1a2540 100%)',
-                  border: '1px solid #3a4d70', borderRadius: '12px 12px 0 0',
-                  py: 1.75, px: 5, fontSize: 13, fontWeight: 700, color: '#8ba0cc',
-                  letterSpacing: 2, textTransform: 'uppercase', width: '60%', textAlign: 'center',
-                  boxShadow: '0 4px 20px rgba(59,130,246,0.1)', position: 'relative',
+                  background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+                  border: `1px solid ${theme.palette.divider}`, borderRadius: 3,
+                  py: 2.5, px: 8, fontSize: 15, fontWeight: 800, color: theme.palette.primary.main,
+                  letterSpacing: 4, textTransform: 'uppercase', width: 'fit-content', minWidth: 400, textAlign: 'center',
+                  boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.15)}`, position: 'relative',
                   '&::after': {
-                    content: '""', position: 'absolute', bottom: -12, left: '50%',
-                    transform: 'translateX(-50%)', width: '80%', height: 12,
-                    background: 'linear-gradient(180deg, rgba(26,37,64,0.8), transparent)',
-                    borderRadius: '0 0 50% 50%',
+                    content: '""', position: 'absolute', bottom: -16, left: '50%',
+                    transform: 'translateX(-50%)', width: '90%', height: 16,
+                    background: `linear-gradient(180deg, ${alpha(theme.palette.divider, 0.4)}, transparent)`,
+                    borderRadius: '0 0 100px 100px',
                   },
                 }}>
                   🎤 &nbsp; S A H N E &nbsp; 🎤
@@ -623,12 +724,13 @@ const SeatMapDesigner: React.FC = () => {
             display: 'flex', flexDirection: 'column', gap: 0.5, zIndex: 10,
           }}>
             {[
-              { icon: <AddIcon />, action: () => setZoomLevel(z => Math.min(2, z + 0.1)) },
-              { icon: <RemoveIcon />, action: () => setZoomLevel(z => Math.max(0.4, z - 0.1)) },
-              { icon: <ResetIcon />, action: () => setZoomLevel(1) },
+              { icon: <AddIcon />, label: 'Yakınlaştır', action: () => setZoomLevel(z => Math.min(2, z + 0.1)) },
+              { icon: <RemoveIcon />, label: 'Uzaklaştır', action: () => setZoomLevel(z => Math.max(0.4, z - 0.1)) },
+              { icon: <FitIcon />, label: 'Sığdır', action: handleFitToScreen },
+              { icon: <ResetIcon />, label: 'Sıfırla', action: () => setZoomLevel(1) },
             ].map((btn, i) => (
               <React.Fragment key={i}>
-                {i === 1 && (
+                {i === 2 && (
                   <Box sx={{
                     background: colors.surface2, border: `1px solid ${colors.border}`,
                     borderRadius: 1.5, py: 0.5, px: 1, fontSize: 11,
@@ -637,16 +739,18 @@ const SeatMapDesigner: React.FC = () => {
                     {Math.round(zoomLevel * 100)}%
                   </Box>
                 )}
-                <IconButton
-                  onClick={btn.action}
-                  sx={{
-                    width: 36, height: 36, borderRadius: 2,
-                    background: colors.surface2, border: `1px solid ${colors.border}`,
-                    color: colors.text2, '&:hover': { background: colors.surface3, color: colors.text },
-                  }}
-                >
-                  {btn.icon}
-                </IconButton>
+                <Tooltip title={btn.label} placement="left">
+                  <IconButton
+                    onClick={btn.action}
+                    sx={{
+                      width: 36, height: 36, borderRadius: 2,
+                      background: colors.surface2, border: `1px solid ${colors.border}`,
+                      color: colors.text2, '&:hover': { background: colors.surface3, color: colors.text },
+                    }}
+                  >
+                    {btn.icon}
+                  </IconButton>
+                </Tooltip>
               </React.Fragment>
             ))}
           </Box>
@@ -655,14 +759,36 @@ const SeatMapDesigner: React.FC = () => {
         {/* ── RIGHT PANEL (EDIT) ── */}
         {mode === 'edit' && (
           <Box sx={{
-            width: 260, flexShrink: 0, background: colors.surface,
-            borderLeft: `1px solid ${colors.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            width: isRightPanelOpen ? 320 : 0, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+            flexShrink: 0, background: colors.surface, position: 'relative',
+            borderLeft: isRightPanelOpen ? `1px solid ${colors.border}` : 'none', 
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            boxShadow: isRightPanelOpen ? '-4px 0 24px rgba(0,0,0,0.1)' : 'none',
+            zIndex: 10,
           }}>
-            {/* Settings */}
-            <Box sx={{ p: 2, borderBottom: `1px solid ${colors.border}` }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1, mb: 1.25 }}>
-                Salon Ayarları
-              </Typography>
+            {/* Toggle Handle */}
+            <Tooltip title={isRightPanelOpen ? "Kaydır" : "Ayarları Göster"} placement="left">
+              <IconButton
+                onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+                sx={{
+                  position: 'absolute', left: isRightPanelOpen ? 4 : -32, top: '50%', transform: 'translateY(-50%)',
+                  zIndex: 100, width: 28, height: 28, borderRadius: 1.5, 
+                  background: colors.surface, border: `1px solid ${colors.border}`,
+                  color: isRightPanelOpen ? colors.text3 : colors.green, p: 0,
+                  transition: 'all 0.3s',
+                  '&:hover': { background: colors.surface2, color: colors.text2, transform: 'translateY(-50%) scale(1.1)' }
+                }}
+              >
+                {isRightPanelOpen ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+
+            <Box sx={{ width: 320, height: '100%', display: 'flex', flexDirection: 'column', visibility: isRightPanelOpen ? 'visible' : 'hidden', opacity: isRightPanelOpen ? 1 : 0, transition: 'opacity 0.2s' }}>
+              {/* Settings */}
+              <Box sx={{ p: 3, borderBottom: `1px solid ${colors.border}` }}>
+                <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1, mb: 2 }}>
+                  Salon Ayarları
+                </Typography>
               {[
                 { label: 'Sıra Sayısı', value: rowCount, onChange: (v: number) => { setRowCount(v); setSeatData({}); }, min: 1, max: 30 },
                 { label: 'Koltuk / Sıra', value: seatsPerRow, onChange: (v: number) => { setSeatsPerRow(v); setSeatData({}); }, min: 1, max: 40 },
@@ -692,7 +818,7 @@ const SeatMapDesigner: React.FC = () => {
             </Box>
 
             {/* Category stats */}
-            <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+            <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
               {Object.entries(stats.counts).map(([key, count]) => {
                 const cat = CATEGORIES[key];
                 if (!cat) return null;
@@ -741,6 +867,7 @@ const SeatMapDesigner: React.FC = () => {
                   <strong>%100</strong>
                 </Box>
               </Box>
+              </Box>
             </Box>
           </Box>
         )}
@@ -748,14 +875,36 @@ const SeatMapDesigner: React.FC = () => {
         {/* ── RIGHT PANEL (PREVIEW) ── */}
         {mode === 'preview' && (
           <Box sx={{
-            width: 260, flexShrink: 0, background: colors.surface,
-            borderLeft: `1px solid ${colors.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            width: isRightPanelOpen ? 320 : 0, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+            flexShrink: 0, background: colors.surface, position: 'relative',
+            borderLeft: isRightPanelOpen ? `1px solid ${colors.border}` : 'none', 
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            boxShadow: isRightPanelOpen ? '-4px 0 24px rgba(0,0,0,0.1)' : 'none',
+            zIndex: 10,
           }}>
-            {/* Legend */}
-            <Box sx={{ p: 2, borderBottom: `1px solid ${colors.border}` }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1, mb: 1.25 }}>
-                Bilet Kategorileri
-              </Typography>
+            {/* Toggle Handle */}
+            <Tooltip title={isRightPanelOpen ? "Kaydır" : "Özeti Göster"} placement="left">
+              <IconButton
+                onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+                sx={{
+                  position: 'absolute', left: isRightPanelOpen ? 4 : -32, top: '50%', transform: 'translateY(-50%)',
+                  zIndex: 100, width: 28, height: 28, borderRadius: 1.5, 
+                  background: colors.surface, border: `1px solid ${colors.border}`,
+                  color: isRightPanelOpen ? colors.text3 : colors.green, p: 0,
+                  transition: 'all 0.3s',
+                  '&:hover': { background: colors.surface2, color: colors.text2, transform: 'translateY(-50%) scale(1.1)' }
+                }}
+              >
+                {isRightPanelOpen ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+
+            <Box sx={{ width: 320, height: '100%', display: 'flex', flexDirection: 'column', visibility: isRightPanelOpen ? 'visible' : 'hidden', opacity: isRightPanelOpen ? 1 : 0, transition: 'opacity 0.2s' }}>
+              {/* Legend */}
+              <Box sx={{ p: 3, borderBottom: `1px solid ${colors.border}` }}>
+                <Typography sx={{ fontSize: 10, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1, mb: 2 }}>
+                  Bilet Kategorileri
+                </Typography>
               <Stack spacing={0.75}>
                 {Object.entries(CATEGORIES).map(([key, cat]) => (
                   <Box key={key} sx={{
@@ -786,7 +935,7 @@ const SeatMapDesigner: React.FC = () => {
             </Box>
 
             {/* Selected seats */}
-            <Box sx={{ flex: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Box sx={{ flex: 1, overflowY: 'auto', p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Typography sx={{ fontSize: 11, fontWeight: 700, color: colors.text3, textTransform: 'uppercase', letterSpacing: 1 }}>
                 Seçilen Koltuklar
               </Typography>
@@ -869,8 +1018,8 @@ const SeatMapDesigner: React.FC = () => {
                 sx={{
                   py: 1.625, borderRadius: 2.5, fontSize: 15, fontWeight: 800, textTransform: 'none',
                   background: selectedSeats.length > 0 ? colors.green : colors.surface3,
-                  color: selectedSeats.length > 0 ? '#0a1a12' : colors.text3,
-                  '&:hover': { background: '#0ea271', transform: 'translateY(-1px)', boxShadow: `0 4px 16px rgba(16,185,129,0.3)` },
+                  color: selectedSeats.length > 0 ? colors.contrast : colors.text3,
+                  '&:hover': { background: colors.greenDark, transform: 'translateY(-1px)', boxShadow: `0 4px 16px ${alpha(colors.green, 0.3)}` },
                   '&:disabled': { background: colors.surface3, color: colors.text3 },
                 }}
               >
@@ -880,6 +1029,7 @@ const SeatMapDesigner: React.FC = () => {
               <Typography sx={{ fontSize: 11.5, color: colors.text3, textAlign: 'center' }}>
                 Maksimum <strong style={{ color: colors.text2 }}>6</strong> koltuk seçilebilir
               </Typography>
+              </Box>
             </Box>
           </Box>
         )}
@@ -992,8 +1142,8 @@ const SeatMapDesigner: React.FC = () => {
             }}
             sx={{
               px: 2, py: 1, borderRadius: 2, fontSize: 13, fontWeight: 600, textTransform: 'none',
-              color: '#0a1a12', background: colors.green,
-              '&:hover': { background: '#0ea271' },
+              color: colors.contrast, background: colors.green,
+              '&:hover': { background: colors.greenDark },
             }}
           >
             Ödemeye Geç

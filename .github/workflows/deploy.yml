@@ -1,0 +1,30 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npx vite build
+
+      - name: Deploy
+        run: |
+          rm -rf /var/www/admin/*
+          cp -r dist/* /var/www/admin/
+          echo "Deployed successfully!"
