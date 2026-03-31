@@ -47,6 +47,7 @@ import {
     ExpandLess as ExpandLessIcon,
     ConfirmationNumber as TicketIcon,
     Campaign as CampaignIcon,
+    EventSeat as EventSeatIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 
@@ -79,6 +80,7 @@ const menuSections: MenuSection[] = [
             { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
             { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories' },
             { text: 'Bilet Oluşturucu', icon: <TicketIcon />, path: '/ticket-creation' },
+            { text: 'Oturma Düzeni', icon: <EventSeatIcon />, path: '/seat-map' },
         ],
     },
     {

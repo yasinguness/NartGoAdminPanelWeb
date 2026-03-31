@@ -38,6 +38,7 @@ import SettlementFinance from './pages/SettlementFinance/SettlementFinance';
 import GateOpsLiveBoard from './pages/GateOpsLiveBoard/GateOpsLiveBoard';
 import CustomerSupportConsole from './pages/CustomerSupport/CustomerSupportConsole';
 import CampaignPromoEngine from './pages/CampaignPromoEngine/CampaignPromoEngine';
+import SeatMapDesigner from './pages/SeatMap/SeatMapDesigner';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,6 +89,7 @@ function App() {
                 <Route path="event/raffle-live" element={<RaffleLivePage />} />
                 <Route path="ticket-creation" element={<TicketCreationPage />} />
                 <Route path="ticket-creation/:eventId" element={<TicketCreationPage />} />
+                <Route path="seat-map" element={<SeatMapDesigner />} />
                 <Route path="associations/:associationId/:ownerId" element={<AssociationDetails />} />
                 <Route path="gamification" element={<GamificationSettings />} />
                 <Route path="sub-merchants" element={<SubMerchants />} />
