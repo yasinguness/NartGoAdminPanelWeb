@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NartGo — Bilet Oluşturucu</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f8fa;
+  --white: #ffffff;
+  --surface: #f0f2f5;
+  --border: #e4e7ed;
+  --border2: #d0d5e0;
+  --text: #111827;
+  --text2: #6b7280;
+  --text3: #9ca3af;
+  --green: #1e6b3c;
+  --green-light: #22c55e;
+  --green-bg: #f0fdf4;
+  --green-border: #bbf7d0;
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --red-border: #fecaca;
+  --orange: #ea580c;
+  --orange-bg: #fff7ed;
+  --orange-border: #fed7aa;
+  --blue: #2563eb;
+  --blue-bg: #eff6ff;
+  --blue-border: #bfdbfe;
+  --yellow: #d97706;
+  --yellow-bg: #fffbeb;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  --shadow-lg: 0 20px 40px rgba(0,0,0,0.12);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 220px; min-height: 100vh;
+  background: var(--white); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 10;
+}
+.logo {
+  padding: 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.logo-mark {
+  width: 32px; height: 32px; background: var(--green);
+  border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; color: white; font-size: 14px; font-weight: 800;
+}
+.logo-text { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+.logo-text span { color: var(--green); }
+.nav-scroll { flex: 1; overflow-y: auto; padding: 12px 0; }
+.nav-label {
+  font-size: 10px; font-weight: 700; color: var(--text3);
+  letter-spacing: 1px; text-transform: uppercase; padding: 10px 16px 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 16px; font-size: 13.5px; font-weight: 500;
+  color: var(--text2); cursor: pointer; transition: all 0.12s; position: relative;
+}
+.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.active {
+  background: var(--green-bg); color: var(--green); font-weight: 600;
+}
+.nav-item.active::before {
+  content: ''; position: absolute; left: 0; top: 4px; bottom: 4px;
+  width: 3px; background: var(--green); border-radius: 0 2px 2px 0;
+}
+.nav-icon { font-size: 15px; width: 18px; text-align: center; }
+
+/* MAIN */
+.main { margin-left: 220px; flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* WIZARD HEADER */
+.wizard-header {
+  background: var(--white); border-bottom: 1px solid var(--border);
+  padding: 20px 32px; position: sticky; top: 0; z-index: 5;
+}
+.breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--text3); margin-bottom: 16px;
+}
+.breadcrumb span { cursor: pointer; }
+.breadcrumb span:hover { color: var(--green); }
+.breadcrumb-sep { color: var(--border2); }
+.breadcrumb-current { color: var(--text2); font-weight: 500; }
+
+.wizard-top {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+}
+.wizard-title { font-size: 20px; font-weight: 800; }
+.wizard-subtitle { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+/* STEPS */
+.steps-track {
+  display: flex; align-items: center; gap: 0; max-width: 700px;
+}
+.step-wrap {
+  display: flex; align-items: center; flex: 1;
+}
+.step-wrap:last-child { flex: 0; }
+.step-connector {
+  flex: 1; height: 2px; background: var(--border); margin: 0 6px; transition: background 0.3s;
+}
+.step-connector.done { background: var(--green); }
+.step-btn {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; white-space: nowrap;
+}
+.step-circle {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+  border: 2px solid var(--border); background: var(--white); color: var(--text3);
+  transition: all 0.2s;
+}
+.step-btn.active .step-circle { border-color: var(--green); background: var(--green); color: white; }
+.step-btn.done .step-circle { border-color: var(--green); background: var(--green-bg); color: var(--green); }
+.step-label { font-size: 12.5px; font-weight: 600; color: var(--text3); }
+.step-btn.active .step-label { color: var(--green); }
+.step-btn.done .step-label { color: var(--text2); }
+
+/* STEP PANELS */
+.step-panel { display: none; padding: 28px 32px 100px; animation: fadeUp 0.2s ease; }
+.step-panel.active { display: block; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* WIZARD FOOTER */
+.wizard-footer {
+  position: fixed; bottom: 0; right: 0; width: calc(100% - 220px);
+  background: var(--white); border-top: 1px solid var(--border);
+  padding: 14px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.06); z-index: 5;
+}
+.footer-left { display: flex; align-items: center; gap: 12px; }
+.footer-progress { font-size: 13px; color: var(--text3); }
+.footer-save { font-size: 12.5px; color: var(--green); cursor: pointer; }
+
+/* BUTTONS */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  font-family: 'Outfit', sans-serif; font-size: 13.5px; font-weight: 600;
+  cursor: pointer; border: none; transition: all 0.15s;
+}
+.btn-primary { background: var(--green); color: white; }
+.btn-primary:hover { background: #1a5c34; }
+.btn-ghost { background: var(--white); color: var(--text2); border: 1.5px solid var(--border); }
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+.btn-sm { padding: 6px 12px; font-size: 12.5px; }
+.btn-danger { background: var(--red-bg); color: var(--red); border: 1.5px solid var(--red-border); }
+
+/* FORMS */
+.section-block { margin-bottom: 32px; }
+.section-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.section-sub { font-size: 13px; color: var(--text2); margin-bottom: 18px; }
+.divider { height: 1px; background: var(--border); margin: 28px 0; }
+.form-group { margin-bottom: 18px; }
+.form-label {
+  display: block; font-size: 13px; font-weight: 600;
+  margin-bottom: 6px;
+}
+.form-label .req { color: var(--red); margin-left: 2px; }
+.form-label .opt { color: var(--text3); font-weight: 400; font-size: 12px; margin-left: 4px; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 10px 14px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  font-family: 'Outfit', sans-serif; font-size: 14px;
+  color: var(--text); background: var(--white); transition: border-color 0.15s; outline: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--green); box-shadow: 0 0 0 3px rgba(30,107,60,0.08);
+}
+.form-hint { font-size: 12px; color: var(--text3); margin-top: 4px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+/* PREFIX INPUT */
+.input-prefix-wrap {
+  display: flex; align-items: center;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; background: var(--white); transition: border-color 0.15s;
+}
+.input-prefix-wrap:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(30,107,60,0.08); }
+.input-prefix {
+  padding: 10px 12px; background: var(--bg);
+  border-right: 1.5px solid var(--border); color: var(--text2);
+  font-size: 13.5px; font-weight: 600; white-space: nowrap;
+}
+.input-prefix-field {
+  flex: 1; padding: 10px 14px; border: none; outline: none;
+  font-family: 'Outfit', sans-serif; font-size: 14px; background: transparent;
+}
+
+/* CARD */
+.card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+}
+.card-title { font-size: 14px; font-weight: 700; }
+.card-sub { font-size: 12px; color: var(--text3); margin-top: 1px; }
+
+/* TICKET TYPE CARDS */
+.ticket-type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.ticket-type-card {
+  border: 2px solid var(--border); border-radius: var(--radius);
+  padding: 16px; cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.ticket-type-card:hover { border-color: var(--green-border); background: var(--green-bg); }
+.ticket-type-card.selected { border-color: var(--green); background: var(--green-bg); }
+.ticket-type-icon { font-size: 28px; margin-bottom: 8px; }
+.ticket-type-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.ticket-type-desc { font-size: 12px; color: var(--text3); }
+
+/* TICKET TIER BUILDER */
+.tier-list { display: flex; flex-direction: column; gap: 0; }
+.tier-item {
+  display: grid; grid-template-columns: 28px 1fr auto auto auto auto;
+  gap: 12px; align-items: center;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.tier-item:last-child { border-bottom: none; }
+.tier-item:hover { background: var(--bg); }
+.tier-drag { color: var(--text3); cursor: grab; font-size: 16px; user-select: none; }
+.tier-color {
+  width: 10px; height: 10px; border-radius: 50%;
+  flex-shrink: 0; margin-right: -4px;
+}
+.tier-name-input {
+  border: none; outline: none; background: transparent;
+  font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600;
+  color: var(--text); width: 100%;
+}
+.tier-name-input:focus { color: var(--green); }
+.tier-price-wrap {
+  display: flex; align-items: center;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  overflow: hidden; width: 130px;
+}
+.tier-currency {
+  padding: 6px 10px; background: var(--bg); font-size: 13px;
+  font-weight: 600; color: var(--text2); border-right: 1.5px solid var(--border);
+}
+.tier-price-input {
+  flex: 1; padding: 6px 10px; border: none; outline: none;
+  font-family: 'JetBrains Mono', monospace; font-size: 14px;
+  font-weight: 600; background: transparent; width: 70px;
+}
+.tier-quota-input {
+  width: 80px; padding: 7px 10px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace; font-size: 14px;
+  text-align: center; outline: none; background: var(--white);
+}
+.tier-quota-input:focus { border-color: var(--green); }
+.tier-remove {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text3); font-size: 14px;
+  background: transparent; border: none; transition: all 0.1s;
+}
+.tier-remove:hover { background: var(--red-bg); color: var(--red); }
+.add-tier-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 20px; font-size: 13.5px; font-weight: 600;
+  color: var(--green); cursor: pointer; border-top: 1px solid var(--border);
+  transition: background 0.1s; background: transparent; width: 100%; border-bottom: none;
+  border-left: none; border-right: none; font-family: 'Outfit', sans-serif;
+}
+.add-tier-btn:hover { background: var(--green-bg); }
+
+/* TOGGLES */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 20px; border-bottom: 1px solid var(--border);
+}
+.toggle-row:last-child { border-bottom: none; }
+.toggle-name { font-size: 13.5px; font-weight: 500; }
+.toggle-desc { font-size: 12px; color: var(--text3); }
+.toggle {
+  width: 42px; height: 24px; border-radius: 12px;
+  background: var(--border); cursor: pointer; position: relative;
+  transition: background 0.2s; flex-shrink: 0;
+}
+.toggle.on { background: var(--green); }
+.toggle::after {
+  content: ''; position: absolute; left: 3px; top: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s;
+}
+.toggle.on::after { transform: translateX(18px); }
+
+/* BADGE */
+.badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+}
+.badge.green { background: var(--green-bg); color: var(--green); }
+.badge.orange { background: var(--orange-bg); color: var(--orange); }
+.badge.gray { background: var(--surface); color: var(--text2); }
+.badge.blue { background: var(--blue-bg); color: var(--blue); }
+
+/* PREVIEW CARD */
+.preview-ticket {
+  border: 2px dashed var(--border); border-radius: 14px;
+  overflow: hidden; background: var(--white);
+  box-shadow: var(--shadow-md);
+}
+.preview-ticket-header {
+  background: var(--green); color: white;
+  padding: 20px 24px;
+}
+.preview-ticket-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+.preview-ticket-sub { font-size: 13px; opacity: 0.8; display: flex; gap: 16px; }
+.preview-ticket-body { padding: 20px 24px; }
+.preview-tiers { display: flex; flex-direction: column; gap: 10px; }
+.preview-tier {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg);
+}
+.preview-tier-left {}
+.preview-tier-name { font-size: 15px; font-weight: 700; }
+.preview-tier-quota { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.preview-tier-price {
+  font-size: 22px; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace; color: var(--green);
+}
+.preview-tier-price.free { color: var(--text3); }
+
+/* SUMMARY TABLE */
+.summary-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-label { color: var(--text2); }
+.summary-value { font-weight: 600; }
+
+/* GRID */
+.grid-2 { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; }
+
+/* RADIO CARD */
+.radio-cards { display: flex; flex-direction: column; gap: 8px; }
+.radio-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px; border: 2px solid var(--border);
+  border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s;
+}
+.radio-card:hover { border-color: var(--green-border); background: var(--green-bg); }
+.radio-card.selected { border-color: var(--green); background: var(--green-bg); }
+.radio-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--border2); flex-shrink: 0;
+  margin-top: 1px; transition: all 0.12s;
+  display: flex; align-items: center; justify-content: center;
+}
+.radio-card.selected .radio-dot { border-color: var(--green); background: var(--green); }
+.radio-card.selected .radio-dot::after {
+  content: ''; width: 6px; height: 6px;
+  border-radius: 50%; background: white;
+}
+.radio-content {}
+.radio-name { font-size: 14px; font-weight: 600; }
+.radio-desc { font-size: 12.5px; color: var(--text3); margin-top: 2px; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 80px; left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: #1a1a2e; color: white;
+  padding: 12px 20px; border-radius: 10px; font-size: 13.5px; font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index: 999;
+  transition: transform 0.3s ease; display: flex; align-items: center; gap: 8px;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* SUCCESS STATE */
+.success-screen {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 60px 32px; text-align: center;
+}
+.success-icon {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: var(--green-bg); border: 3px solid var(--green-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; margin-bottom: 20px; animation: popIn 0.4s ease;
+}
+@keyframes popIn {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.success-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
+.success-sub { font-size: 15px; color: var(--text2); max-width: 400px; line-height: 1.5; margin-bottom: 28px; }
+.success-actions { display: flex; gap: 12px; }
+
+/* MONO */
+.mono { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">N</div>
+    <div class="logo-text">Nart<span>Go</span></div>
+  </div>
+  <div class="nav-scroll">
+    <div class="nav-label">Genel</div>
+    <div class="nav-item"><span class="nav-icon">⊞</span> Kontrol Paneli</div>
+    <div class="nav-label">Etkinlik Yönetimi</div>
+    <div class="nav-item"><span class="nav-icon">📅</span> Etkinlikler</div>
+    <div class="nav-item active"><span class="nav-icon">🎫</span> Bilet Oluşturucu</div>
+    <div class="nav-item"><span class="nav-icon">🏷️</span> Kategoriler</div>
+    <div class="nav-label">İşletme Yönetimi</div>
+    <div class="nav-item"><span class="nav-icon">🏢</span> İşletmeler</div>
+    <div class="nav-item"><span class="nav-icon">📋</span> Claim İstekleri</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- WIZARD HEADER -->
+  <div class="wizard-header">
+    <div class="breadcrumb">
+      <span>Etkinlikler</span>
+      <span class="breadcrumb-sep">›</span>
+      <span class="breadcrumb-current">Yeni Etkinlik & Bilet Oluştur</span>
+    </div>
+
+    <div class="wizard-top">
+      <div>
+        <div class="wizard-title" id="step-title">Adım 1 — Etkinlik Bilgileri</div>
+        <div class="wizard-subtitle" id="step-sub">Temel bilgileri, tarih ve kapasite bilgilerini girin</div>
+      </div>
+      <div style="font-size:12.5px;color:var(--text3)">Taslak olarak kaydedildi ✓</div>
+    </div>
+
+    <div class="steps-track">
+      <div class="step-wrap">
+        <div class="step-btn active" id="step-btn-1" onclick="goStep(1)">
+          <div class="step-circle" id="sc1">1</div>
+          <div class="step-label">Etkinlik Bilgileri</div>
+        </div>
+        <div class="step-connector" id="conn1"></div>
+      </div>
+      <div class="step-wrap">
+        <div class="step-btn" id="step-btn-2" onclick="goStep(2)">
+          <div class="step-circle" id="sc2">2</div>
+          <div class="step-label">Bilet & Fiyatlandırma</div>
+        </div>
+        <div class="step-connector" id="conn2"></div>
+      </div>
+      <div class="step-wrap">
+        <div class="step-btn" id="step-btn-3" onclick="goStep(3)">
+          <div class="step-circle" id="sc3">3</div>
+          <div class="step-label">Önizleme & Yayınla</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STEP 1: ETKİNLİK BİLGİLERİ ===== -->
+  <div class="step-panel active" id="panel-1">
+
+    <div class="section-block">
+      <div class="section-title">Temel Bilgiler</div>
+      <div class="section-sub">Etkinliğinizin adı, açıklaması ve kategorisini belirleyin.</div>
+
+      <div class="form-group">
+        <label class="form-label">Etkinlik Adı <span class="req">*</span></label>
+        <input class="form-input" type="text" id="ev-name" placeholder="Örn: Ankara Caz Festivali 2026" oninput="updatePreview()">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Kategori <span class="req">*</span></label>
+          <select class="form-select" id="ev-cat">
+            <option value="">Seçin...</option>
+            <option>Düğün & Nişan</option>
+            <option>Festival & Şenlikler</option>
+            <option>Spor & Aktif Yaşam</option>
+            <option>Eğitim & Gelişim</option>
+            <option>Teknoloji & Bilişim</option>
+            <option>Üniversite & Topluluk</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Konum <span class="req">*</span></label>
+          <input class="form-input" type="text" id="ev-loc" placeholder="Şehir veya mekan adı" oninput="updatePreview()">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Açıklama <span class="opt">(opsiyonel)</span></label>
+        <textarea class="form-textarea" rows="3" placeholder="Etkinlik hakkında kısa bir açıklama..."></textarea>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-block">
+      <div class="section-title">Tarih & Saat</div>
+      <div class="section-sub">Etkinliğinizin ne zaman başlayıp biteceğini girin.</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Başlangıç <span class="req">*</span></label>
+          <input class="form-input" type="datetime-local" id="ev-start" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bitiş <span class="req">*</span></label>
+          <input class="form-input" type="datetime-local" id="ev-end">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Kapı Açılış Saati <span class="opt">(opsiyonel)</span></label>
+        <input class="form-input" type="time" placeholder="Örn: 19:00">
+        <div class="form-hint">Giris kontrolü için kullanılır. Belirtilmezse başlangıç saati kullanılır.</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-block">
+      <div class="section-title">Kapasite & Mekan Tipi</div>
+      <div class="section-sub">Maksimum katılımcı sayısını ve mekan düzenini belirleyin.</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Toplam Kapasite <span class="req">*</span></label>
+          <input class="form-input" type="number" id="ev-cap" placeholder="Örn: 500" min="1" oninput="updatePreview()">
+          <div class="form-hint">Tüm bilet tipleri dahil maksimum kişi sayısı</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mekan Tipi</label>
+          <select class="form-select">
+            <option>Kapalı Salon</option>
+            <option>Açık Alan</option>
+            <option>Tiyatro / Sahne</option>
+            <option>Stadyum / Arena</option>
+            <option>Online / Hibrit</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-block">
+      <div class="section-title">Görünürlük</div>
+      <div class="section-sub">Etkinliğin platforma nasıl yayınlanacağını seçin.</div>
+
+      <div class="radio-cards">
+        <div class="radio-card selected" onclick="selectRadio(this, 'vis')">
+          <div class="radio-dot"></div>
+          <div class="radio-content">
+            <div class="radio-name">🌐 Herkese Açık</div>
+            <div class="radio-desc">Tüm kullanıcılar etkinliği arayıp bulabilir ve kayıt olabilir</div>
+          </div>
+        </div>
+        <div class="radio-card" onclick="selectRadio(this, 'vis')">
+          <div class="radio-dot"></div>
+          <div class="radio-content">
+            <div class="radio-name">🔗 Sadece Link ile</div>
+            <div class="radio-desc">Listede görünmez, sadece linke sahip olanlar erişebilir</div>
+          </div>
+        </div>
+        <div class="radio-card" onclick="selectRadio(this, 'vis')">
+          <div class="radio-dot"></div>
+          <div class="radio-content">
+            <div class="radio-name">🔒 Taslak</div>
+            <div class="radio-desc">Henüz yayınlanmaz, sadece adminler görebilir</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== STEP 2: BİLET & FİYATLANDIRMA ===== -->
+  <div class="step-panel" id="panel-2">
+
+    <div class="section-block">
+      <div class="section-title">Bilet Tipi</div>
+      <div class="section-sub">Bu etkinlik için kullanmak istediğiniz bilet modelini seçin.</div>
+
+      <div class="ticket-type-grid">
+        <div class="ticket-type-card selected" onclick="selectTicketType(this, 'paid')">
+          <div class="ticket-type-icon">🎟</div>
+          <div class="ticket-type-name">Ücretli Bilet</div>
+          <div class="ticket-type-desc">Fiyat belirlenen katmanlı bilet yapısı</div>
+        </div>
+        <div class="ticket-type-card" onclick="selectTicketType(this, 'free')">
+          <div class="ticket-type-icon">🎁</div>
+          <div class="ticket-type-name">Ücretsiz Giriş</div>
+          <div class="ticket-type-desc">Kayıt gerektiren bedava etkinlik</div>
+        </div>
+        <div class="ticket-type-card" onclick="selectTicketType(this, 'invite')">
+          <div class="ticket-type-icon">🔒</div>
+          <div class="ticket-type-name">Davetiye</div>
+          <div class="ticket-type-desc">Sadece davet kodu ile giriş</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- PAID TIER SECTION -->
+    <div id="section-paid">
+      <div class="section-block">
+        <div class="section-title">Bilet Kategorileri</div>
+        <div class="section-sub">Her kategori için isim, fiyat ve kontenjan belirleyin. Sürükleyerek sıralayabilirsiniz.</div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div style="padding:10px 20px;background:var(--bg);border-bottom:1px solid var(--border);display:grid;grid-template-columns:28px 1fr 130px 80px 32px;gap:12px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">
+            <div></div>
+            <div>Bilet Adı</div>
+            <div>Fiyat</div>
+            <div>Kontenjan</div>
+            <div></div>
+          </div>
+          <div class="tier-list" id="tier-list">
+            <div class="tier-item">
+              <div class="tier-drag">⠿</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="tier-color" style="background:#22c55e"></div>
+                <input class="tier-name-input" type="text" value="Standart Giriş" placeholder="Bilet adı...">
+              </div>
+              <div class="tier-price-wrap">
+                <div class="tier-currency">₺</div>
+                <input class="tier-price-input" type="number" value="150" min="0">
+              </div>
+              <input class="tier-quota-input" type="number" value="100" min="1">
+              <button class="tier-remove" onclick="removeTier(this)" title="Kaldır">✕</button>
+            </div>
+            <div class="tier-item">
+              <div class="tier-drag">⠿</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="tier-color" style="background:#f59e0b"></div>
+                <input class="tier-name-input" type="text" value="VIP" placeholder="Bilet adı...">
+              </div>
+              <div class="tier-price-wrap">
+                <div class="tier-currency">₺</div>
+                <input class="tier-price-input" type="number" value="400" min="0">
+              </div>
+              <input class="tier-quota-input" type="number" value="30" min="1">
+              <button class="tier-remove" onclick="removeTier(this)" title="Kaldır">✕</button>
+            </div>
+          </div>
+          <button class="add-tier-btn" onclick="addTier()">+ Yeni Kategori Ekle</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-block">
+        <div class="section-title">Para Birimi & Ödeme</div>
+        <div class="section-sub">Satış para birimi ve ödeme yöntemlerini belirleyin.</div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Para Birimi <span class="req">*</span></label>
+            <select class="form-select">
+              <option>₺ Türk Lirası (TRY)</option>
+              <option>$ Amerikan Doları (USD)</option>
+              <option>€ Euro (EUR)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Komisyon Oranı</label>
+            <div class="input-prefix-wrap">
+              <div class="input-prefix">%</div>
+              <input class="input-prefix-field" type="number" value="5" min="0" max="30">
+            </div>
+            <div class="form-hint">Platform komisyonu (bilet fiyatına eklenir)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-block">
+        <div class="section-title">Satış Takvimi</div>
+        <div class="section-sub">Bilet satışlarının ne zaman başlayıp biteceğini belirleyin.</div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Satış Başlangıcı <span class="req">*</span></label>
+            <input class="form-input" type="datetime-local">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Satış Bitişi <span class="opt">(opsiyonel)</span></label>
+            <input class="form-input" type="datetime-local">
+            <div class="form-hint">Boş bırakılırsa etkinlik başlangıcında otomatik kapanır</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Kişi Başı Min. Bilet</label>
+            <input class="form-input" type="number" value="1" min="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kişi Başı Max. Bilet</label>
+            <input class="form-input" type="number" value="10" min="1">
+            <div class="form-hint">Tek siparişte alınabilecek maksimum bilet sayısı</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-block">
+        <div class="section-title">Ek Ayarlar</div>
+      </div>
+      <div class="card">
+        <div class="toggle-row">
+          <div><div class="toggle-name">İade politikası aktif</div><div class="toggle-desc">Etkinlikten X gün önce iade kabul edilir</div></div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-name">Bekleme listesi</div><div class="toggle-desc">Kapasite dolduğunda bekleme listesi oluştur</div></div>
+          <div class="toggle" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-name">İsim transferine izin ver</div><div class="toggle-desc">Alıcı biletti başkasına devredebilir</div></div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-name">Fatura oluştur</div><div class="toggle-desc">Her satışta otomatik e-fatura gönder</div></div>
+          <div class="toggle" onclick="this.classList.toggle('on')"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FREE SECTION (hidden by default) -->
+    <div id="section-free" style="display:none">
+      <div class="section-block">
+        <div class="section-title">Kayıt Formu</div>
+        <div class="section-sub">Ücretsiz etkinliklerde katılımcıdan hangi bilgiler alınacak?</div>
+        <div class="card">
+          <div class="toggle-row">
+            <div><div class="toggle-name">Ad Soyad</div><div class="toggle-desc">Zorunlu alan</div></div>
+            <div class="toggle on" style="opacity:0.5;pointer-events:none"></div>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-name">E-posta</div><div class="toggle-desc">Bilet ve bildirim için gerekli</div></div>
+            <div class="toggle on" style="opacity:0.5;pointer-events:none"></div>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-name">Telefon Numarası</div><div class="toggle-desc">Opsiyonel</div></div>
+            <div class="toggle" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-name">Kurum / Okul</div><div class="toggle-desc">Kurumsal etkinlikler için</div></div>
+            <div class="toggle" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:16px">
+          <label class="form-label">Kişi Başı Max. Kayıt</label>
+          <input class="form-input" type="number" value="2" min="1" style="max-width:200px">
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== STEP 3: ÖNİZLEME & YAYINLA ===== -->
+  <div class="step-panel" id="panel-3">
+
+    <div class="grid-2">
+
+      <!-- SOL: ÖZET + KONTROL LİSTESİ -->
+      <div>
+        <div class="section-block">
+          <div class="section-title">Etkinlik Özeti</div>
+          <div class="section-sub">Yayınlamadan önce bilgileri gözden geçirin.</div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">
+            <div class="card-title">Genel Bilgiler</div>
+            <button class="btn btn-ghost btn-sm" onclick="goStep(1)">✏️ Düzenle</button>
+          </div>
+          <div style="padding:0 0 4px">
+            <div class="summary-row" style="padding:11px 20px">
+              <span class="summary-label">Etkinlik Adı</span>
+              <span class="summary-value" id="prev-name">Ragon Bal İstanbul'da!</span>
+            </div>
+            <div class="summary-row" style="padding:11px 20px">
+              <span class="summary-label">Tarih</span>
+              <span class="summary-value">7 Mayıs 2026, 20:00</span>
+            </div>
+            <div class="summary-row" style="padding:11px 20px">
+              <span class="summary-label">Konum</span>
+              <span class="summary-value" id="prev-loc">İstanbul</span>
+            </div>
+            <div class="summary-row" style="padding:11px 20px">
+              <span class="summary-label">Toplam Kapasite</span>
+              <span class="summary-value" id="prev-cap">130 kişi</span>
+            </div>
+            <div class="summary-row" style="padding:11px 20px">
+              <span class="summary-label">Görünürlük</span>
+              <span class="summary-value">🌐 Herkese Açık</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">
+            <div class="card-title">Bilet Kategorileri</div>
+            <button class="btn btn-ghost btn-sm" onclick="goStep(2)">✏️ Düzenle</button>
+          </div>
+          <div style="padding:0 0 4px">
+            <div class="summary-row" style="padding:11px 20px">
+              <div><div style="font-weight:600">Standart Giriş</div><div style="font-size:12px;color:var(--text3)">100 kontenjan</div></div>
+              <span class="summary-value" style="color:var(--green)">₺150</span>
+            </div>
+            <div class="summary-row" style="padding:11px 20px">
+              <div><div style="font-weight:600">VIP</div><div style="font-size:12px;color:var(--text3)">30 kontenjan</div></div>
+              <span class="summary-value" style="color:var(--green)">₺400</span>
+            </div>
+            <div style="padding:12px 20px;display:flex;justify-content:space-between;background:var(--bg);font-size:13px;font-weight:600">
+              <span>Tahmini Maks. Gelir</span>
+              <span style="color:var(--green)">₺27.000</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- KONTROL LİSTESİ -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Yayın Öncesi Kontrol</div></div>
+          <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px;font-size:13.5px">
+              <span style="color:var(--green);font-size:16px">✅</span> Etkinlik adı ve tarihi dolduruldu
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;font-size:13.5px">
+              <span style="color:var(--green);font-size:16px">✅</span> En az 1 bilet kategorisi tanımlandı
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;font-size:13.5px">
+              <span style="color:var(--green);font-size:16px">✅</span> Satış başlangıç tarihi belirlendi
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--text3)">
+              <span style="color:var(--orange);font-size:16px">⚠️</span> Etkinlik görseli eklenmedi <span style="font-size:12px;color:var(--text3)">(opsiyonel)</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--text3)">
+              <span style="color:var(--orange);font-size:16px">⚠️</span> Açıklama eklenmedi <span style="font-size:12px;color:var(--text3)">(opsiyonel)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SAĞ: CANLI ÖNİZLEME -->
+      <div>
+        <div style="position:sticky;top:100px">
+          <div class="section-block">
+            <div class="section-title">Canlı Önizleme</div>
+            <div class="section-sub">Kullanıcıların göreceği bilet kartı</div>
+          </div>
+
+          <div class="preview-ticket">
+            <div class="preview-ticket-header">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:0.7;margin-bottom:8px">🎫 ETKİNLİK BİLETİ</div>
+              <div class="preview-ticket-title" id="prev-name-2">Ragon Bal İstanbul'da!</div>
+              <div class="preview-ticket-sub">
+                <span>📅 7 Mayıs 2026</span>
+                <span id="prev-loc-2">📍 İstanbul</span>
+              </div>
+            </div>
+            <div class="preview-ticket-body">
+              <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Bilet Seçenekleri</div>
+              <div class="preview-tiers">
+                <div class="preview-tier">
+                  <div class="preview-tier-left">
+                    <div class="preview-tier-name">Standart Giriş</div>
+                    <div class="preview-tier-quota">100 kontenjan kaldı</div>
+                  </div>
+                  <div class="preview-tier-price">₺150</div>
+                </div>
+                <div class="preview-tier">
+                  <div class="preview-tier-left">
+                    <div class="preview-tier-name">VIP</div>
+                    <div class="preview-tier-quota">30 kontenjan kaldı</div>
+                  </div>
+                  <div class="preview-tier-price">₺400</div>
+                </div>
+              </div>
+
+              <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px">
+                Bilet Satın Al
+              </button>
+
+              <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:12px;color:var(--text3)">
+                <span>Toplam kapasite: <strong style="color:var(--text2)">130</strong></span>
+                <span>Satış bitiş: <strong style="color:var(--text2)">7 May 19:00</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;padding:12px 14px;background:var(--yellow-bg);border:1px solid #fde68a;border-radius:8px;font-size:12.5px;color:#78350f">
+            💡 Gerçek görünüm platforma ve cihaza göre değişebilir. Bu bir önizlemedir.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SUCCESS SCREEN -->
+  <div class="step-panel" id="panel-success">
+    <div class="success-screen">
+      <div class="success-icon">🎉</div>
+      <div class="success-title">Etkinlik Yayınlandı!</div>
+      <div class="success-sub">
+        <strong>Ragon Bal İstanbul'da!</strong> başarıyla oluşturuldu ve satışa açıldı.
+        Katılımcılar artık bilet satın alabilir.
+      </div>
+      <div class="success-actions">
+        <button class="btn btn-ghost" onclick="goStep(1);resetForm()">+ Yeni Etkinlik Oluştur</button>
+        <button class="btn btn-primary">Etkinlik Detayına Git →</button>
+      </div>
+      <div style="margin-top:28px;padding:16px 20px;background:var(--bg);border:1px solid var(--border);border-radius:10px;max-width:400px;width:100%">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Etkinlik Linki</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="mono" style="flex:1;background:var(--white);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text2)">nartgo.com/e/ragon-bal-istanbul</div>
+          <button class="btn btn-ghost btn-sm" onclick="showToast('📋 Link kopyalandı!')">Kopyala</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WIZARD FOOTER -->
+  <div class="wizard-footer" id="wizard-footer">
+    <div class="footer-left">
+      <button class="btn btn-ghost" id="btn-back" onclick="prevStep()" style="display:none">← Geri</button>
+      <span class="footer-progress" id="footer-progress">Adım 1 / 3</span>
+      <span class="footer-save">Taslak kaydedildi ✓</span>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" onclick="showToast('💾 Taslak olarak kaydedildi')">Taslak Kaydet</button>
+      <button class="btn btn-primary" id="btn-next" onclick="nextStep()">Devam Et →</button>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+let currentStep = 1;
+const totalSteps = 3;
+
+const stepTitles = [
+  'Adım 1 — Etkinlik Bilgileri',
+  'Adım 2 — Bilet & Fiyatlandırma',
+  'Adım 3 — Önizleme & Yayınla'
+];
+const stepSubs = [
+  'Temel bilgileri, tarih ve kapasite bilgilerini girin',
+  'Bilet tiplerini, fiyatları ve satış takvimini belirleyin',
+  'Her şeyi kontrol edin ve etkinliğinizi yayınlayın'
+];
+
+function goStep(n) {
+  if (n > currentStep) return; // only go forward via nextStep
+  currentStep = n;
+  renderStep();
+}
+
+function nextStep() {
+  if (currentStep < totalSteps) {
+    currentStep++;
+    renderStep();
+  } else {
+    // Publish
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-success').classList.add('active');
+    document.getElementById('wizard-footer').style.display = 'none';
+    // Mark all steps done
+    for (let i = 1; i <= 3; i++) {
+      document.getElementById('step-btn-' + i).className = 'step-btn done';
+      document.getElementById('sc' + i).textContent = '✓';
+    }
+  }
+}
+
+function prevStep() {
+  if (currentStep > 1) { currentStep--; renderStep(); }
+}
+
+function renderStep() {
+  // Panels
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + currentStep).classList.add('active');
+
+  // Step buttons
+  for (let i = 1; i <= 3; i++) {
+    const btn = document.getElementById('step-btn-' + i);
+    const circle = document.getElementById('sc' + i);
+    btn.className = 'step-btn' + (i === currentStep ? ' active' : i < currentStep ? ' done' : '');
+    circle.textContent = i < currentStep ? '✓' : String(i);
+  }
+
+  // Connectors
+  for (let i = 1; i <= 2; i++) {
+    document.getElementById('conn' + i).className = 'step-connector' + (i < currentStep ? ' done' : '');
+  }
+
+  // Header
+  document.getElementById('step-title').textContent = stepTitles[currentStep - 1];
+  document.getElementById('step-sub').textContent = stepSubs[currentStep - 1];
+
+  // Footer
+  document.getElementById('btn-back').style.display = currentStep > 1 ? 'flex' : 'none';
+  document.getElementById('footer-progress').textContent = `Adım ${currentStep} / ${totalSteps}`;
+  document.getElementById('btn-next').textContent = currentStep === totalSteps ? '🚀 Yayınla' : 'Devam Et →';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function selectTicketType(card, type) {
+  card.closest('.ticket-type-grid').querySelectorAll('.ticket-type-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  document.getElementById('section-paid').style.display = type === 'paid' ? 'block' : 'none';
+  document.getElementById('section-free').style.display = type === 'free' ? 'block' : 'none';
+}
+
+function selectRadio(card, group) {
+  card.closest('.radio-cards').querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+}
+
+let tierColors = ['#22c55e','#f59e0b','#3b82f6','#a855f7','#ef4444','#ec4899'];
+let tierCount = 2;
+function addTier() {
+  tierCount++;
+  const list = document.getElementById('tier-list');
+  const color = tierColors[(tierCount - 1) % tierColors.length];
+  const div = document.createElement('div');
+  div.className = 'tier-item';
+  div.innerHTML = `
+    <div class="tier-drag">⠿</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="tier-color" style="background:${color}"></div>
+      <input class="tier-name-input" type="text" value="Yeni Kategori" placeholder="Bilet adı...">
+    </div>
+    <div class="tier-price-wrap">
+      <div class="tier-currency">₺</div>
+      <input class="tier-price-input" type="number" value="0" min="0">
+    </div>
+    <input class="tier-quota-input" type="number" value="50" min="1">
+    <button class="tier-remove" onclick="removeTier(this)" title="Kaldır">✕</button>
+  `;
+  list.appendChild(div);
+}
+
+function removeTier(btn) {
+  const list = document.getElementById('tier-list');
+  if (list.children.length <= 1) { showToast('⚠ En az 1 bilet kategorisi olmalı'); return; }
+  btn.closest('.tier-item').remove();
+}
+
+function updatePreview() {
+  const name = document.getElementById('ev-name').value || 'Etkinlik Adı';
+  const loc = document.getElementById('ev-loc').value || 'Konum';
+  if (document.getElementById('prev-name')) document.getElementById('prev-name').textContent = name;
+  if (document.getElementById('prev-name-2')) document.getElementById('prev-name-2').textContent = name;
+  if (document.getElementById('prev-loc')) document.getElementById('prev-loc').textContent = loc;
+  if (document.getElementById('prev-loc-2')) document.getElementById('prev-loc-2').textContent = '📍 ' + loc;
+  const cap = document.getElementById('ev-cap').value;
+  if (cap && document.getElementById('prev-cap')) document.getElementById('prev-cap').textContent = cap + ' kişi';
+}
+
+function resetForm() {
+  currentStep = 1;
+  document.getElementById('wizard-footer').style.display = 'flex';
+  renderStep();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' && e.ctrlKey) nextStep();
+  if (e.key === 'ArrowLeft' && e.ctrlKey) prevStep();
+});
+</script>
+
+</body>
+</html>

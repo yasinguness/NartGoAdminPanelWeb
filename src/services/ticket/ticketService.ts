@@ -19,27 +19,27 @@ interface ApiResponse<T> {
 export const ticketService = {
   // Bilet Türü İşlemleri
   createTicketType: async (request: CreateTicketTypeRequest) => {
-    const response = await api.post<ApiResponse<TicketTypeResponse>>('/events/ticket-types', request);
+    const response = await api.post<ApiResponse<TicketTypeResponse>>('/tickets/admin/ticket-types', request);
     return response.data;
   },
 
   getTicketType: async (id: string) => {
-    const response = await api.get<ApiResponse<TicketTypeResponse>>(`/events/ticket-types/${id}`);
+    const response = await api.get<ApiResponse<TicketTypeResponse>>(`/tickets/admin/ticket-types/${id}`);
     return response.data;
   },
 
   getEventTicketTypes: async (eventId: string) => {
-    const response = await api.get<ApiResponse<TicketTypeResponse[]>>(`/events/events/${eventId}/ticket-types`);
+    const response = await api.get<ApiResponse<TicketTypeResponse[]>>(`/tickets/admin/events/${eventId}/ticket-types`);
     return response.data;
   },
 
   updateTicketType: async (id: string, request: CreateTicketTypeRequest) => {
-    const response = await api.put<ApiResponse<TicketTypeResponse>>(`/events/ticket-types/${id}`, request);
+    const response = await api.put<ApiResponse<TicketTypeResponse>>(`/tickets/admin/ticket-types/${id}`, request);
     return response.data;
   },
 
   deleteTicketType: async (id: string) => {
-    const response = await api.delete<ApiResponse<void>>(`/events/ticket-types/${id}`);
+    const response = await api.delete<ApiResponse<void>>(`/tickets/admin/ticket-types/${id}`);
     return response.data;
   },
 

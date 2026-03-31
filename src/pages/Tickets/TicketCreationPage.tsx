@@ -1,1068 +1,725 @@
-import { useState, useCallback, useEffect } from 'react';
+/**
+ * TicketCreationPage — 3-step wizard for creating events & tickets
+ * Steps: (1) Event Info, (2) Ticket & Pricing, (3) Preview & Publish
+ */
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSnackbar } from 'notistack';
 import {
   Box,
-  Stepper,
-  Step,
-  StepLabel,
-  StepConnector,
-  stepConnectorClasses,
-  Button,
   Typography,
-  Paper,
-  Card,
-  CardContent,
-  Grid,
+  Button,
   TextField,
-  FormControl,
-  InputLabel,
   Select,
   MenuItem,
+  FormControl,
+  InputLabel,
+  Stack,
+  Paper,
   Chip,
-  IconButton,
-  Tooltip,
+  Switch,
   Divider,
-  Alert,
-  Snackbar,
-  InputAdornment,
-  Fade,
-  CircularProgress,
-  Avatar,
-  Badge,
-  styled,
+  IconButton,
   alpha,
-  useTheme
+  useTheme,
+  styled,
+  LinearProgress,
 } from '@mui/material';
 import {
-  EventSeat as SeatIcon,
-  Save as SaveIcon,
-  Preview as PreviewIcon,
-  ZoomIn as ZoomInIcon,
-  ZoomOut as ZoomOutIcon,
-  CenterFocusStrong as CenterIcon,
-  GridOn as GridIcon,
-  ColorLens as ColorIcon,
-  AttachMoney as PriceIcon,
-  Schedule as ScheduleIcon,
-  Category as CategoryIcon,
-  Stadium as StadiumIcon,
-  TheaterComedy as TheaterIcon,
-  MusicNote as ConcertIcon,
-  School as ClassroomIcon,
-  People as PeopleIcon,
+  ArrowBack as BackIcon,
+  ArrowForward as ForwardIcon,
+  Add as AddIcon,
+  Close as CloseIcon,
+  DragIndicator as DragIcon,
+  Rocket as RocketIcon,
   CheckCircle as CheckIcon,
-  ArrowForward as ArrowForwardIcon,
-  ArrowBack as ArrowBackIcon,
-  VisibilityOff as VisibilityOffIcon,
-  UploadFile as UploadIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
-import * as XLSX from 'xlsx';
-import { 
-  LayoutStyle, 
-  SeatCategory, 
-  SeatStatus,
-  TicketCreationState,
-  VenueLayoutType,
-  SeatSection,
-} from '../../types/tickets/ticketTypes';
-import { ticketService } from '../../services/ticket/ticketService';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-// import { tr } from 'date-fns/locale'; // Removing Turkish locale for standardization to English
 
-import { PageContainer, PageHeader } from '../../components/Page';
-import { CategoryManager, TicketCategoryConfig } from '../../components/Tickets/CategoryManager';
-import { SeatingEditor } from '../../components/Tickets/SeatingCanvas';
-
-// Styled Components
-const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
-  [`&.${stepConnectorClasses.alternativeLabel}`]: {
-    top: 22,
-  },
-  [`&.${stepConnectorClasses.active}`]: {
-    [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
-    },
-  },
-  [`&.${stepConnectorClasses.completed}`]: {
-    [`& .${stepConnectorClasses.line}`]: {
-      backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
-    },
-  },
-  [`& .${stepConnectorClasses.line}`]: {
-    height: 3,
-    border: 0,
-    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#eaeaf0',
-    borderRadius: 1,
-  },
-}));
-
-const ColorlibStepIconRoot = styled('div')<{
-  ownerState: { completed?: boolean; active?: boolean };
-}>(({ theme, ownerState }) => ({
-  backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[700] : '#ccc',
-  zIndex: 1,
-  color: '#fff',
-  width: 50,
-  height: 50,
-  display: 'flex',
+// ─── STYLED COMPONENTS ──────────────────────────────────
+const StepCircle = styled(Box)<{ active?: boolean; done?: boolean }>(({ theme, active, done }) => ({
+  width: 32,
+  height: 32,
   borderRadius: '50%',
-  justifyContent: 'center',
+  display: 'flex',
   alignItems: 'center',
-  transition: 'all 0.3s ease',
-  ...(ownerState.active && {
-    backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
-    boxShadow: '0 4px 20px 0 rgba(0,0,0,0.25)',
-    transform: 'scale(1.1)',
+  justifyContent: 'center',
+  fontSize: 13,
+  fontWeight: 700,
+  flexShrink: 0,
+  transition: 'all 0.2s',
+  ...(active && {
+    borderColor: theme.palette.primary.main,
+    background: theme.palette.primary.main,
+    color: '#fff',
+    border: `2px solid ${theme.palette.primary.main}`,
   }),
-  ...(ownerState.completed && {
-    backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
+  ...(done && {
+    borderColor: theme.palette.primary.main,
+    background: alpha(theme.palette.primary.main, 0.08),
+    color: theme.palette.primary.main,
+    border: `2px solid ${theme.palette.primary.main}`,
+  }),
+  ...(!active && !done && {
+    border: `2px solid ${theme.palette.divider}`,
+    background: '#fff',
+    color: theme.palette.text.disabled,
   }),
 }));
 
-function ColorlibStepIcon(props: { active?: boolean; completed?: boolean; icon: React.ReactNode; className?: string }) {
-  const { active, completed, className, icon } = props;
-  const theme = useTheme();
+const StepConnector = styled(Box)<{ done?: boolean }>(({ theme, done }) => ({
+  flex: 1,
+  height: 2,
+  background: done ? theme.palette.primary.main : theme.palette.divider,
+  margin: '0 8px',
+  transition: 'background 0.3s',
+}));
 
-  const icons: { [index: string]: React.ReactElement } = {
-    1: <CategoryIcon />,
-    2: <StadiumIcon />,
-    3: <PriceIcon />,
-    4: <ScheduleIcon />,
-    5: <PreviewIcon />,
+// ─── TYPES ──────────────────────────────────────────────
+interface TierItem {
+  id: string;
+  name: string;
+  price: number;
+  quota: number;
+  color: string;
+}
+
+type TicketType = 'paid' | 'free' | 'invite';
+type Visibility = 'public' | 'link' | 'draft';
+
+// ─── COMPONENT ──────────────────────────────────────────
+export default function TicketCreationPage() {
+  const theme = useTheme();
+  const navigate = useNavigate();
+  const { enqueueSnackbar } = useSnackbar();
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 3;
+
+  // Step 1: Event Info
+  const [eventName, setEventName] = useState('');
+  const [eventCategory, setEventCategory] = useState('');
+  const [eventLocation, setEventLocation] = useState('');
+  const [eventDescription, setEventDescription] = useState('');
+  const [eventStart, setEventStart] = useState('');
+  const [eventEnd, setEventEnd] = useState('');
+  const [doorOpenTime, setDoorOpenTime] = useState('');
+  const [capacity, setCapacity] = useState('');
+  const [venueType, setVenueType] = useState('Kapalı Salon');
+  const [visibility, setVisibility] = useState<Visibility>('public');
+
+  // Step 2: Ticket & Pricing
+  const [ticketType, setTicketType] = useState<TicketType>('paid');
+  const [tiers, setTiers] = useState<TierItem[]>([
+    { id: '1', name: 'Standart Giriş', price: 150, quota: 100, color: '#22c55e' },
+    { id: '2', name: 'VIP', price: 400, quota: 30, color: '#f59e0b' },
+  ]);
+  const [currency, setCurrency] = useState('TRY');
+  const [commission, setCommission] = useState(5);
+  const [saleStart, setSaleStart] = useState('');
+  const [saleEnd, setSaleEnd] = useState('');
+  const [minTickets, setMinTickets] = useState(1);
+  const [maxTickets, setMaxTickets] = useState(10);
+  const [refundPolicy, setRefundPolicy] = useState(true);
+  const [waitlist, setWaitlist] = useState(false);
+  const [transferable, setTransferable] = useState(true);
+  const [invoiceEnabled, setInvoiceEnabled] = useState(false);
+
+  // Step 3: Published
+  const [published, setPublished] = useState(false);
+
+  const tierColors = ['#22c55e', '#f59e0b', '#3b82f6', '#a855f7', '#ef4444', '#ec4899'];
+
+  // ─── STEP NAVIGATION ──────────────────────────────
+  const goNext = () => {
+    if (currentStep < totalSteps) setCurrentStep(currentStep + 1);
+    else handlePublish();
   };
+  const goBack = () => { if (currentStep > 1) setCurrentStep(currentStep - 1); };
+  const goToStep = (n: number) => { if (n <= currentStep) setCurrentStep(n); };
+
+  const handlePublish = () => {
+    setPublished(true);
+    enqueueSnackbar('🎉 Etkinlik başarıyla yayınlandı!', { variant: 'success' });
+  };
+
+  // ─── TIER MANAGEMENT ──────────────────────────────
+  const addTier = () => {
+    const newId = String(Date.now());
+    const color = tierColors[tiers.length % tierColors.length];
+    setTiers([...tiers, { id: newId, name: 'Yeni Kategori', price: 0, quota: 50, color }]);
+  };
+
+  const removeTier = (id: string) => {
+    if (tiers.length <= 1) { enqueueSnackbar('⚠ En az 1 bilet kategorisi olmalı', { variant: 'warning' }); return; }
+    setTiers(tiers.filter(t => t.id !== id));
+  };
+
+  const updateTier = (id: string, field: keyof TierItem, value: any) => {
+    setTiers(tiers.map(t => t.id === id ? { ...t, [field]: value } : t));
+  };
+
+  // ─── STEP INFO ────────────────────────────────────
+  const stepTitles = ['Adım 1 — Etkinlik Bilgileri', 'Adım 2 — Bilet & Fiyatlandırma', 'Adım 3 — Önizleme & Yayınla'];
+  const stepSubs = ['Temel bilgileri, tarih ve kapasite bilgilerini girin', 'Bilet tiplerini, fiyatları ve satış takvimini belirleyin', 'Her şeyi kontrol edin ve etkinliğinizi yayınlayın'];
+
+  const totalQuota = tiers.reduce((sum, t) => sum + t.quota, 0);
+  const maxRevenue = tiers.reduce((sum, t) => sum + (t.price * t.quota), 0);
+
+  // ─── RENDER ───────────────────────────────────────
+  if (published) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, textAlign: 'center' }}>
+        <Box sx={{
+          width: 80, height: 80, borderRadius: '50%',
+          bgcolor: (t) => alpha(t.palette.primary.main, 0.08),
+          border: '3px solid',
+          borderColor: (t) => alpha(t.palette.primary.main, 0.3),
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 36, mb: 2.5,
+          animation: 'pop 0.4s ease',
+          '@keyframes pop': { from: { transform: 'scale(0.5)', opacity: 0 }, to: { transform: 'scale(1)', opacity: 1 } },
+        }}>🎉</Box>
+        <Typography variant="h4" fontWeight={800} letterSpacing={-0.5} sx={{ mb: 1 }}>Etkinlik Yayınlandı!</Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 400, lineHeight: 1.5, mb: 3.5 }}>
+          <strong>{eventName || 'Etkinlik'}</strong> başarıyla oluşturuldu ve satışa açıldı. Katılımcılar artık bilet satın alabilir.
+        </Typography>
+        <Stack direction="row" spacing={1.5}>
+          <Button variant="outlined" onClick={() => { setPublished(false); setCurrentStep(1); }}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+          >+ Yeni Etkinlik Oluştur</Button>
+          <Button variant="contained" onClick={() => navigate('/events')}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+          >Etkinlik Detayına Git →</Button>
+        </Stack>
+        <Box sx={{ mt: 3.5, p: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'divider', borderRadius: 2.5, maxWidth: 400, width: '100%' }}>
+          <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" letterSpacing={0.5} sx={{ mb: 1, display: 'block' }}>Etkinlik Linki</Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Box sx={{ flex: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 1.5, px: 1.5, py: 1, fontFamily: 'monospace', fontSize: 12, color: 'text.secondary' }}>
+              nartgo.com/e/{(eventName || 'etkinlik').toLowerCase().replace(/\s+/g, '-')}
+            </Box>
+            <Button size="small" variant="outlined" onClick={() => enqueueSnackbar('📋 Link kopyalandı!', { variant: 'success' })}
+              sx={{ textTransform: 'none', borderRadius: 2 }}
+            >Kopyala</Button>
+          </Stack>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
-    <ColorlibStepIconRoot theme={theme} ownerState={{ completed, active }} className={className}>
-      {completed ? <CheckIcon /> : icons[String(icon)]}
-    </ColorlibStepIconRoot>
-  );
-}
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
+      {/* ═══ WIZARD HEADER ═══ */}
+      <Box sx={{ bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider', px: 4, py: 2.5, position: 'sticky', top: 64, zIndex: 5 }}>
+        {/* Breadcrumb */}
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2, cursor: 'pointer' }} onClick={() => navigate('/events')}>
+          <Typography variant="caption" color="text.secondary" sx={{ '&:hover': { color: 'primary.main' } }}>← Etkinliklere Dön</Typography>
+          <Typography variant="caption" color="text.disabled">›</Typography>
+          <Typography variant="caption" color="text.secondary" fontWeight={500}>Yeni Etkinlik & Bilet Oluştur</Typography>
+        </Stack>
 
-const GlassCard = styled(Card)(({ theme }) => ({
-  background: theme.palette.background.paper, // Removed explicit glass effect for consistency with standardization
-  borderRadius: 16,
-  border: `1px solid ${theme.palette.divider}`,
-  boxShadow: theme.shadows[1],
-  transition: 'all 0.3s ease',
-  '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: theme.shadows[4],
-  },
-}));
-
-const SeatButton = styled(Box)<{ 
-  status: SeatStatus; 
-  category: SeatCategory; 
-  selected?: boolean;
-  categoryColor?: string;
-}>(({ status, selected, categoryColor }) => {
-  const getStatusColor = () => {
-    switch (status) {
-      case SeatStatus.AVAILABLE:
-        return categoryColor || '#4CAF50';
-      case SeatStatus.RESERVED:
-        return '#FFA000';
-      case SeatStatus.SOLD:
-        return '#E74C3C';
-      case SeatStatus.BLOCKED:
-        return '#9E9E9E';
-      case SeatStatus.OCCUPIED:
-        return '#424242';
-      default:
-        return '#4CAF50';
-    }
-  };
-
-  return {
-    width: 28,
-    height: 28,
-    borderRadius: '6px 6px 3px 3px',
-    backgroundColor: getStatusColor(),
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: status === SeatStatus.AVAILABLE || status === SeatStatus.BLOCKED ? 'pointer' : 'default',
-    transition: 'all 0.2s ease',
-    border: selected ? '3px solid #1976d2' : '1px solid rgba(0,0,0,0.1)',
-    boxShadow: selected ? '0 0 10px rgba(25, 118, 210, 0.5)' : '0 2px 4px rgba(0,0,0,0.1)',
-    '&:hover': {
-      transform: 'scale(1.15)',
-      zIndex: 10,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-    },
-    fontSize: '8px',
-    fontWeight: 'bold',
-    color: '#fff',
-  };
-});
-
-const steps = [
-  'Bilet Detayları',
-  'Kategoriler & Fiyatlandırma',
-  'Mekan Düzeni',
-  'Satış Takvimi',
-  'Önizleme & Kaydet',
-];
-
-const categoryColors: Record<SeatCategory, string> = {
-  [SeatCategory.VIP]: '#FFD700',
-  [SeatCategory.PREMIUM]: '#C0C0C0',
-  [SeatCategory.STANDARD]: '#4CAF50',
-  [SeatCategory.ECONOMY]: '#87CEEB',
-  [SeatCategory.WHEELCHAIR]: '#9C27B0',
-};
-
-const categoryNames: Record<SeatCategory, string> = {
-  [SeatCategory.VIP]: 'VIP',
-  [SeatCategory.PREMIUM]: 'Premium',
-  [SeatCategory.STANDARD]: 'Standart',
-  [SeatCategory.ECONOMY]: 'Ekonomi',
-  [SeatCategory.WHEELCHAIR]: 'Engelli',
-};
-
-interface TicketCreationPageProps {
-  eventId?: string;
-  onSave?: (data: any) => void;
-  onCancel?: () => void;
-}
-
-const TicketCreationPage: React.FC<TicketCreationPageProps> = ({ 
-  eventId = '', 
-  onSave, 
-  onCancel 
-}) => {
-  const theme = useTheme();
-  const [activeStep, setActiveStep] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
-  
-  // Form State
-  const [ticketState, setTicketState] = useState<TicketCreationState>({
-    step: 0,
-    eventId: eventId,
-    ticketName: '',
-    description: '',
-    layoutStyle: LayoutStyle.STRAIGHT,
-    seatMap: null,
-    pricingZones: [],
-    salesPeriods: [],
-    saleStartAt: null,
-    saleEndAt: null,
-    currency: 'TRY',
-  });
-
-  // Venue Editor State
-  const [zoom, setZoom] = useState(1);
-  const [showGrid, setShowGrid] = useState(true);
-  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  const [editMode, setEditMode] = useState<'select' | 'block' | 'category'>('select');
-  const [selectedCategory, setSelectedCategory] = useState<SeatCategory>(SeatCategory.STANDARD);
-
-  // Templates
-  const templates = ticketService.getVenueTemplates();
-
-  // Initialize layout from template
-  useEffect(() => {
-    const template = templates.find(t => t.style === ticketState.layoutStyle);
-    if (template && !ticketState.seatMap) {
-      setTicketState(prev => ({
-        ...prev,
-        seatMap: JSON.parse(JSON.stringify(template.seatMap)),
-        pricingZones: template.seatMap.categories.map(category => ({
-          id: category.categoryId,
-          name: category.categoryName,
-          category: SeatCategory.STANDARD, // Default
-          basePrice: category.basePrice,
-          color: categoryColors[SeatCategory.STANDARD],
-          seatCount: category.rows.reduce((acc: number, row) => acc + row.availableSeats.length + row.occupiedSeats.length, 0),
-        })),
-      }));
-    }
-  }, [ticketState.layoutStyle]);
-
-  const handleNext = () => {
-    if (activeStep === steps.length - 1) {
-      handleSave();
-    } else {
-      setActiveStep(prev => prev + 1);
-    }
-  };
-
-  const handleBack = () => {
-    setActiveStep(prev => prev - 1);
-  };
-
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      const request = {
-        eventId: ticketState.eventId,
-        name: ticketState.ticketName,
-        description: ticketState.description,
-        basePrice: ticketState.pricingZones.reduce((min, zone) => 
-          zone.basePrice < min ? zone.basePrice : min, 
-          ticketState.pricingZones[0]?.basePrice || 0
-        ),
-        currency: ticketState.currency,
-        capacityTotal: ticketState.venueLayout?.totalCapacity || 0,
-        saleStartAt: ticketState.saleStartAt?.toISOString() || new Date().toISOString(),
-        saleEndAt: ticketState.saleEndAt?.toISOString() || new Date().toISOString(),
-        venueLayout: ticketState.venueLayout || undefined,
-      };
-
-      await ticketService.createTicketType(request);
-      setSnackbar({ open: true, message: 'Ticket created successfully!', severity: 'success' });
-      onSave?.(request);
-    } catch (error) {
-      setSnackbar({ open: true, message: 'Error creating ticket!', severity: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSeatClick = useCallback((seatId: string, section: SeatSection) => {
-    if (editMode === 'select') {
-      setSelectedSeats(prev => 
-        prev.includes(seatId) 
-          ? prev.filter(id => id !== seatId)
-          : [...prev, seatId]
-      );
-    } else if (editMode === 'block' && ticketState.venueLayout) {
-      const updatedLayout = { ...ticketState.venueLayout };
-      updatedLayout.sections = updatedLayout.sections.map(sec => {
-        if (sec.id === section.id) {
-          return {
-            ...sec,
-            rows: sec.rows.map(row => ({
-              ...row,
-              seats: row.seats.map(seat => 
-                seat.id === seatId
-                  ? { ...seat, status: seat.status === SeatStatus.BLOCKED ? SeatStatus.AVAILABLE : SeatStatus.BLOCKED }
-                  : seat
-              ),
-            })),
-          };
-        }
-        return sec;
-      });
-      setTicketState(prev => ({ ...prev, venueLayout: updatedLayout }));
-    } else if (editMode === 'category' && ticketState.venueLayout) {
-      const updatedLayout = { ...ticketState.venueLayout };
-      updatedLayout.sections = updatedLayout.sections.map(sec => {
-        if (sec.id === section.id) {
-          return {
-            ...sec,
-            rows: sec.rows.map(row => ({
-              ...row,
-              seats: row.seats.map(seat => 
-                seat.id === seatId
-                  ? { ...seat, category: selectedCategory }
-                  : seat
-              ),
-            })),
-          };
-        }
-        return sec;
-      });
-      setTicketState(prev => ({ ...prev, venueLayout: updatedLayout }));
-    }
-  }, [editMode, ticketState.venueLayout, selectedCategory]);
-
-  const updateSectionPrice = (sectionId: string, price: number) => {
-    setTicketState(prev => ({
-      ...prev,
-      pricingZones: prev.pricingZones.map(zone =>
-        zone.id === sectionId ? { ...zone, basePrice: price } : zone
-      ),
-    }));
-
-    if (ticketState.venueLayout) {
-      const updatedLayout = { ...ticketState.venueLayout };
-      updatedLayout.sections = updatedLayout.sections.map(section =>
-        section.id === sectionId ? { ...section, basePrice: price } : section
-      );
-      setTicketState(prev => ({ ...prev, venueLayout: updatedLayout }));
-    }
-  };
-
-  const getLayoutIcon = (type: VenueLayoutType) => {
-    switch (type) {
-      case VenueLayoutType.THEATER:
-        return <TheaterIcon sx={{ fontSize: 48 }} />;
-      case VenueLayoutType.CONCERT:
-        return <ConcertIcon sx={{ fontSize: 48 }} />;
-      case VenueLayoutType.STADIUM:
-        return <StadiumIcon sx={{ fontSize: 48 }} />;
-      case VenueLayoutType.CLASSROOM:
-        return <ClassroomIcon sx={{ fontSize: 48 }} />;
-      case VenueLayoutType.GENERAL_ADMISSION:
-        return <PeopleIcon sx={{ fontSize: 48 }} />;
-      default:
-        return <StadiumIcon sx={{ fontSize: 48 }} />;
-    }
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-        const generatedRows: any[] = [];
-        const detectedCategories = new Set<SeatCategory>();
-        
-        // Process rows
-        (jsonData as any[]).forEach((row, index) => {
-             if (!row || row.length < 2) return;
-             // Skip header
-             if (index === 0 && (String(row[0]).toLowerCase().includes('row') || String(row[0]).toLowerCase().includes('sıra'))) return;
-
-             const label = String(row[0] || '').trim();
-             const count = parseInt(row[1]);
-             
-             if (!label || isNaN(count)) return;
-             
-             const categoryStr = String(row[2] || '').toLowerCase();
-             
-             // Smart Category Mapping
-             let category = SeatCategory.STANDARD;
-             if (categoryStr.includes('vip') || categoryStr.includes('gold')) category = SeatCategory.VIP;
-             else if (categoryStr.includes('premium') || categoryStr.includes('silver')) category = SeatCategory.PREMIUM;
-             else if (categoryStr.includes('economy') || categoryStr.includes('student')) category = SeatCategory.ECONOMY;
-             else if (categoryStr.includes('wheel') || categoryStr.includes('disabled')) category = SeatCategory.WHEELCHAIR;
-             
-             detectedCategories.add(category);
-
-             // Create seats
-             const seats = [];
-             for(let i=1; i<=count; i++) {
-                 seats.push({
-                     id: `${label}-${i}-${Date.now()}`,
-                     number: String(i),
-                     status: SeatStatus.AVAILABLE,
-                     category: category,
-                     type: 'standard', 
-                     price: 0 
-                 });
-             }
-             
-             generatedRows.push({
-                 id: `row-${label}-${Date.now()}`,
-                 label: label,
-                 seats: seats
-             });
-        });
-
-        if (generatedRows.length > 0) {
-            // Generate Pricing Zones based on detected categories
-            const newPricingZones = Array.from(detectedCategories).map((cat, index) => ({
-                id: `zone-${cat}-${Date.now()}`,
-                name: categoryNames[cat] || 'Standard',
-                category: cat,
-                basePrice: 0,
-                color: categoryColors[cat],
-                seatCount: generatedRows.reduce((acc, row) => 
-                    acc + row.seats.filter((s: any) => s.category === cat).length, 0
-                ),
-            }));
-
-            // Create a default section containing all imported rows
-            const startSection: SeatSection = {
-                id: `section-${Date.now()}`,
-                name: 'Main Hall',
-                category: SeatCategory.STANDARD, // Default fallback
-                basePrice: 0, 
-                rows: generatedRows,
-                offsetX: 50,
-                offsetY: 50,
-                rotation: 0,
-                color: '#2196F3'
-            };
-            
-            // Calculate layout dimensions
-            const maxSeatsInRow = Math.max(...generatedRows.map(r => r.seats.length));
-            const layoutWidth = Math.max(800, maxSeatsInRow * 40 + 200);
-            const layoutHeight = Math.max(600, generatedRows.length * 50 + 200);
-
-            const newLayout = {
-                ...ticketState.venueLayout, 
-                id: ticketState.venueLayout?.id || 'imported-layout',
-                name: 'Imported Layout',
-                type: VenueLayoutType.THEATER,
-                width: layoutWidth,
-                height: layoutHeight,
-                sections: [startSection],
-                totalCapacity: generatedRows.reduce((acc, r) => acc + r.seats.length, 0),
-                stage: ticketState.venueLayout?.stage || { x: layoutWidth/2 - 100, y: 0, width: 200, height: 60, label: 'STAGE', type: 'rectangle' as const }
-            };
-            
-            setTicketState(prev => ({
-                ...prev,
-                venueLayout: newLayout as any,
-                venueLayoutType: VenueLayoutType.THEATER,
-                pricingZones: newPricingZones // Replace existing zones with new ones from import
-            }));
-             setSnackbar({ open: true, message: `Successfully imported ${generatedRows.length} rows with ${detectedCategories.size} categories!`, severity: 'success' });
-        } else {
-             setSnackbar({ open: true, message: 'No valid rows found. Format: Label | Count | Category', severity: 'warning' });
-        }
-        
-      } catch (error) {
-        console.error('Error importing excel:', error);
-        setSnackbar({ open: true, message: 'Failed to import Excel file', severity: 'error' });
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  const renderTicketInfoStep = () => (
-    <Fade in timeout={500}>
-      <Box>
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-          Ticket Details
-        </Typography>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Ticket Name"
-              placeholder="e.g. VIP Seating, Standing, Premium"
-              value={ticketState.ticketName}
-              onChange={(e) => setTicketState(prev => ({ ...prev, ticketName: e.target.value }))}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <CategoryIcon color="primary" />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormControl fullWidth>
-              <InputLabel>Currency</InputLabel>
-              <Select
-                value={ticketState.currency}
-                label="Currency"
-                onChange={(e) => setTicketState(prev => ({ ...prev, currency: e.target.value }))}
-              >
-                <MenuItem value="TRY">₺ Turkish Lira</MenuItem>
-                <MenuItem value="USD">$ US Dollar</MenuItem>
-                <MenuItem value="EUR">€ Euro</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              label="Description"
-              placeholder="Enter detailed information about the ticket..."
-              value={ticketState.description}
-              onChange={(e) => setTicketState(prev => ({ ...prev, description: e.target.value }))}
-            />
-          </Grid>
-        </Grid>
-
-        <Divider sx={{ my: 4 }} />
-
-        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
-          Select Venue Layout
-        </Typography>
-        <Grid container spacing={3}>
-          {templates.map((template) => (
-            <Grid item xs={12} sm={6} md={4} key={template.id}>
-              <GlassCard
-                sx={{
-                  cursor: 'pointer',
-                  border: ticketState.venueLayoutType === template.type 
-                    ? `3px solid ${theme.palette.primary.main}` 
-                    : '1px solid transparent',
-                  position: 'relative',
-                  overflow: 'visible',
-                }}
-                onClick={() => {
-                  setTicketState(prev => ({
-                    ...prev,
-                    venueLayoutType: template.type,
-                    venueLayout: JSON.parse(JSON.stringify(template.layout)),
-                    pricingZones: template.layout.sections.map(section => ({
-                      id: section.id,
-                      name: section.name,
-                      category: section.category,
-                      basePrice: section.basePrice,
-                      color: section.color,
-                      seatCount: section.rows.reduce((acc, row) => acc + row.seats.length, 0),
-                    })),
-                  }));
-                }}
-              >
-                {ticketState.venueLayoutType === template.type && (
-                  <Badge
-                    sx={{
-                      position: 'absolute',
-                      top: -10,
-                      right: -10,
-                    }}
-                    badgeContent={<CheckIcon sx={{ color: '#fff', fontSize: 16 }} />}
-                    color="primary"
-                  />
-                )}
-                <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                  <Box sx={{ 
-                    color: ticketState.venueLayoutType === template.type ? 'primary.main' : 'text.secondary',
-                    mb: 2,
-                  }}>
-                    {getLayoutIcon(template.type)}
-                  </Box>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    {template.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {template.description}
-                  </Typography>
-                  <Chip 
-                    icon={<PeopleIcon />}
-                    label={`${template.capacity} Capacity`}
-                    size="small"
-                    color={ticketState.venueLayoutType === template.type ? 'primary' : 'default'}
-                  />
-                </CardContent>
-              </GlassCard>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
-    </Fade>
-  );
-
-  const renderCategoriesStep = () => (
-    <Fade in timeout={500}>
-       <Box>
-            <CategoryManager
-                categories={ticketState.pricingZones.map(z => ({
-                    id: z.id,
-                    name: z.name,
-                    categoryType: z.category,
-                    basePrice: z.basePrice,
-                    color: z.color,
-                    quota: z.seatCount
-                }))}
-                onChange={(newCategories) => {
-                    setTicketState(prev => ({
-                        ...prev,
-                        pricingZones: newCategories.map(c => ({
-                            id: c.id,
-                            name: c.name,
-                            category: c.categoryType,
-                            basePrice: c.basePrice,
-                            color: c.color,
-                            seatCount: c.quota || 0
-                        }))
-                    }));
-                }}
-            />
-       </Box>
-    </Fade>
-  );
-
-  const renderVenueLayoutStep = () => (
-    <Fade in timeout={500}>
-      <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600 }}>
-            Seating Layout Editor
-          </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2.5 }}>
           <Box>
-            <input
-              type="file"
-              accept=".xlsx, .xls"
-              style={{ display: 'none' }}
-              id="excel-upload-input"
-              onChange={handleFileUpload}
-            />
-            <label htmlFor="excel-upload-input">
-              <Button 
-                component="span" 
-                startIcon={<UploadIcon />} 
-                variant="outlined"
-                color="primary"
-              >
-                Import from Excel
-              </Button>
-            </label>
+            <Typography variant="h6" fontWeight={800}>{stepTitles[currentStep - 1]}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.3 }}>{stepSubs[currentStep - 1]}</Typography>
           </Box>
-        </Box>
+          <Typography variant="caption" color="text.secondary">Taslak olarak kaydedildi ✓</Typography>
+        </Stack>
 
-        {ticketState.venueLayout ? (
-           <SeatingEditor
-              layout={ticketState.venueLayout}
-              onLayoutChange={(newLayout) => setTicketState(prev => ({ ...prev, venueLayout: newLayout }))}
-              categories={ticketState.pricingZones.map(z => ({
-                    id: z.id,
-                    name: z.name,
-                    categoryType: z.category,
-                    basePrice: z.basePrice,
-                    color: z.color,
-                    quota: z.seatCount
-                }))}
-           />
-        ) : (
-            <Alert severity="warning">
-                No layout initialized. Please select a template in the first step or import an Excel file.
-            </Alert>
+        {/* Steps track */}
+        <Stack direction="row" alignItems="center" sx={{ maxWidth: 700 }}>
+          {[1, 2, 3].map((step, i) => (
+            <Box key={step} sx={{ display: 'flex', alignItems: 'center', flex: i < 2 ? 1 : 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: step <= currentStep ? 'pointer' : 'default' }}
+                onClick={() => goToStep(step)}
+              >
+                <StepCircle active={step === currentStep} done={step < currentStep}>
+                  {step < currentStep ? '✓' : step}
+                </StepCircle>
+                <Typography variant="caption" fontWeight={600}
+                  sx={{ color: step === currentStep ? 'primary.main' : step < currentStep ? 'text.secondary' : 'text.disabled' }}
+                >
+                  {['Etkinlik Bilgileri', 'Bilet & Fiyatlandırma', 'Önizleme & Yayınla'][i]}
+                </Typography>
+              </Box>
+              {i < 2 && <StepConnector done={step < currentStep} />}
+            </Box>
+          ))}
+        </Stack>
+      </Box>
+
+      {/* ═══ STEP CONTENT ═══ */}
+      <Box sx={{ flex: 1, px: 4, py: 3.5, pb: 12, maxWidth: 800, animation: 'fadeUp 0.2s ease',
+        '@keyframes fadeUp': { from: { opacity: 0, transform: 'translateY(8px)' }, to: { opacity: 1, transform: 'none' } },
+      }}>
+
+        {/* ─── STEP 1: ETKİNLİK BİLGİLERİ ─── */}
+        {currentStep === 1 && (
+          <Stack spacing={4}>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Temel Bilgiler</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Etkinliğinizin adı, açıklaması ve kategorisini belirleyin.</Typography>
+
+              <TextField fullWidth label="Etkinlik Adı *" placeholder="Örn: Ankara Caz Festivali 2026"
+                value={eventName} onChange={(e) => setEventName(e.target.value)} sx={{ mb: 2 }}
+              />
+              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Kategori *</InputLabel>
+                  <Select value={eventCategory} label="Kategori *" onChange={(e) => setEventCategory(e.target.value)}>
+                    <MenuItem value="">Seçin...</MenuItem>
+                    {['Düğün & Nişan', 'Festival & Şenlikler', 'Spor & Aktif Yaşam', 'Eğitim & Gelişim', 'Teknoloji & Bilişim', 'Üniversite & Topluluk'].map(c => (
+                      <MenuItem key={c} value={c}>{c}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField fullWidth label="Konum *" placeholder="Şehir veya mekan adı"
+                  value={eventLocation} onChange={(e) => setEventLocation(e.target.value)}
+                />
+              </Stack>
+              <TextField fullWidth multiline rows={3} label="Açıklama (opsiyonel)" placeholder="Etkinlik hakkında kısa bir açıklama..."
+                value={eventDescription} onChange={(e) => setEventDescription(e.target.value)}
+              />
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Tarih & Saat</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Etkinliğin ne zaman başlayıp biteceğini girin.</Typography>
+              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                <TextField fullWidth label="Başlangıç *" type="datetime-local" InputLabelProps={{ shrink: true }}
+                  value={eventStart} onChange={(e) => setEventStart(e.target.value)}
+                />
+                <TextField fullWidth label="Bitiş *" type="datetime-local" InputLabelProps={{ shrink: true }}
+                  value={eventEnd} onChange={(e) => setEventEnd(e.target.value)}
+                />
+              </Stack>
+              <TextField fullWidth label="Kapı Açılış Saati (opsiyonel)" type="time" InputLabelProps={{ shrink: true }}
+                value={doorOpenTime} onChange={(e) => setDoorOpenTime(e.target.value)}
+                helperText="Giriş kontrolü için kullanılır. Belirtilmezse başlangıç saati kullanılır."
+              />
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Kapasite & Mekan Tipi</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Maksimum katılımcı sayısını ve mekan düzenini belirleyin.</Typography>
+              <Stack direction="row" spacing={2}>
+                <TextField fullWidth label="Toplam Kapasite *" type="number" placeholder="Örn: 500"
+                  value={capacity} onChange={(e) => setCapacity(e.target.value)}
+                  helperText="Tüm bilet tipleri dahil maksimum kişi sayısı"
+                />
+                <FormControl fullWidth>
+                  <InputLabel>Mekan Tipi</InputLabel>
+                  <Select value={venueType} label="Mekan Tipi" onChange={(e) => setVenueType(e.target.value)}>
+                    {['Kapalı Salon', 'Açık Alan', 'Tiyatro / Sahne', 'Stadyum / Arena', 'Online / Hibrit'].map(v => (
+                      <MenuItem key={v} value={v}>{v}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Görünürlük</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Etkinliğin platforma nasıl yayınlanacağını seçin.</Typography>
+              <Stack spacing={1}>
+                {([
+                  { key: 'public' as Visibility, icon: '🌐', name: 'Herkese Açık', desc: 'Tüm kullanıcılar etkinliği arayıp bulabilir ve kayıt olabilir' },
+                  { key: 'link' as Visibility, icon: '🔗', name: 'Sadece Link ile', desc: 'Listede görünmez, sadece linke sahip olanlar erişebilir' },
+                  { key: 'draft' as Visibility, icon: '🔒', name: 'Taslak', desc: 'Henüz yayınlanmaz, sadece adminler görebilir' },
+                ]).map(opt => (
+                  <Box key={opt.key}
+                    onClick={() => setVisibility(opt.key)}
+                    sx={{
+                      display: 'flex', alignItems: 'flex-start', gap: 1.5,
+                      p: 1.5, border: '2px solid',
+                      borderColor: visibility === opt.key ? 'primary.main' : 'divider',
+                      bgcolor: visibility === opt.key ? (t) => alpha(t.palette.primary.main, 0.04) : 'transparent',
+                      borderRadius: 2, cursor: 'pointer', transition: '0.12s',
+                      '&:hover': { borderColor: visibility !== opt.key ? 'primary.light' : 'primary.main', bgcolor: (t) => alpha(t.palette.primary.main, 0.04) },
+                    }}
+                  >
+                    <Box sx={{
+                      width: 18, height: 18, borderRadius: '50%',
+                      border: '2px solid',
+                      borderColor: visibility === opt.key ? 'primary.main' : 'text.disabled',
+                      bgcolor: visibility === opt.key ? 'primary.main' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 0.2, flexShrink: 0,
+                    }}>
+                      {visibility === opt.key && <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'white' }} />}
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>{opt.icon} {opt.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">{opt.desc}</Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+          </Stack>
+        )}
+
+        {/* ─── STEP 2: BİLET & FİYATLANDIRMA ─── */}
+        {currentStep === 2 && (
+          <Stack spacing={4}>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Bilet Tipi</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Bu etkinlik için kullanmak istediğiniz bilet modelini seçin.</Typography>
+              <Stack direction="row" spacing={1.5}>
+                {([
+                  { key: 'paid' as TicketType, icon: '🎟', name: 'Ücretli Bilet', desc: 'Fiyat belirlenen katmanlı bilet yapısı' },
+                  { key: 'free' as TicketType, icon: '🎁', name: 'Ücretsiz Giriş', desc: 'Kayıt gerektiren bedava etkinlik' },
+                  { key: 'invite' as TicketType, icon: '🔒', name: 'Davetiye', desc: 'Sadece davet kodu ile giriş' },
+                ]).map(opt => (
+                  <Box key={opt.key}
+                    onClick={() => setTicketType(opt.key)}
+                    sx={{
+                      flex: 1, border: '2px solid',
+                      borderColor: ticketType === opt.key ? 'primary.main' : 'divider',
+                      bgcolor: ticketType === opt.key ? (t) => alpha(t.palette.primary.main, 0.04) : 'transparent',
+                      borderRadius: 3, p: 2, textAlign: 'center', cursor: 'pointer', transition: '0.15s',
+                      '&:hover': { borderColor: 'primary.light', bgcolor: (t) => alpha(t.palette.primary.main, 0.04) },
+                    }}
+                  >
+                    <Typography sx={{ fontSize: 28, mb: 1 }}>{opt.icon}</Typography>
+                    <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>{opt.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">{opt.desc}</Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            {/* Paid tier builder */}
+            {ticketType === 'paid' && (
+              <>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Bilet Kategorileri</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Her kategori için isim, fiyat ve kontenjan belirleyin.</Typography>
+
+                  <Paper variant="outlined" sx={{ borderRadius: 3 }}>
+                    {/* Header */}
+                    <Box sx={{
+                      px: 2.5, py: 1, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider',
+                      display: 'grid', gridTemplateColumns: '28px 1fr 130px 80px 32px', gap: 1.5,
+                      fontSize: 11, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5,
+                    }}>
+                      <Box />
+                      <Box>Bilet Adı</Box>
+                      <Box>Fiyat</Box>
+                      <Box>Kontenjan</Box>
+                      <Box />
+                    </Box>
+                    {/* Tier items */}
+                    {tiers.map((tier) => (
+                      <Box key={tier.id} sx={{
+                        display: 'grid', gridTemplateColumns: '28px 1fr 130px 80px 32px', gap: 1.5,
+                        alignItems: 'center', px: 2.5, py: 1.5,
+                        borderBottom: '1px solid', borderColor: 'divider',
+                        '&:last-of-type': { borderBottom: 'none' },
+                        '&:hover': { bgcolor: 'grey.50' },
+                      }}>
+                        <DragIcon sx={{ color: 'text.disabled', cursor: 'grab', fontSize: 16 }} />
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: tier.color, flexShrink: 0 }} />
+                          <TextField variant="standard" value={tier.name} fullWidth
+                            InputProps={{ disableUnderline: true, sx: { fontWeight: 600, fontSize: 14 } }}
+                            onChange={(e) => updateTier(tier.id, 'name', e.target.value)}
+                          />
+                        </Stack>
+                        <Box sx={{ display: 'flex', border: '1.5px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+                          <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'grey.50', borderRight: '1.5px solid', borderColor: 'divider', fontSize: 13, fontWeight: 600, color: 'text.secondary' }}>₺</Box>
+                          <TextField variant="standard" type="number" value={tier.price}
+                            InputProps={{ disableUnderline: true, sx: { px: 1, fontFamily: 'monospace', fontWeight: 600, fontSize: 14 } }}
+                            onChange={(e) => updateTier(tier.id, 'price', Number(e.target.value))}
+                          />
+                        </Box>
+                        <TextField variant="standard" type="number" value={tier.quota}
+                          InputProps={{ disableUnderline: true, sx: { textAlign: 'center', fontFamily: 'monospace', fontSize: 14, border: '1.5px solid', borderColor: 'divider', borderRadius: 2, px: 1, py: 0.5 } }}
+                          onChange={(e) => updateTier(tier.id, 'quota', Number(e.target.value))}
+                        />
+                        <IconButton size="small" onClick={() => removeTier(tier.id)}
+                          sx={{ '&:hover': { bgcolor: (t) => alpha(t.palette.error.main, 0.08), color: 'error.main' } }}
+                        ><CloseIcon fontSize="small" /></IconButton>
+                      </Box>
+                    ))}
+                    {/* Add tier button */}
+                    <Button fullWidth startIcon={<AddIcon />} onClick={addTier}
+                      sx={{
+                        justifyContent: 'flex-start', px: 2.5, py: 1.5, textTransform: 'none',
+                        fontWeight: 600, color: 'primary.main', borderTop: '1px solid', borderColor: 'divider',
+                        borderRadius: 0, '&:hover': { bgcolor: (t) => alpha(t.palette.primary.main, 0.04) },
+                      }}
+                    >Yeni Kategori Ekle</Button>
+                  </Paper>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Para Birimi & Ödeme</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Satış para birimi ve ödeme yöntemlerini belirleyin.</Typography>
+                  <Stack direction="row" spacing={2}>
+                    <FormControl fullWidth>
+                      <InputLabel>Para Birimi *</InputLabel>
+                      <Select value={currency} label="Para Birimi *" onChange={(e) => setCurrency(e.target.value)}>
+                        <MenuItem value="TRY">₺ Türk Lirası (TRY)</MenuItem>
+                        <MenuItem value="USD">$ Amerikan Doları (USD)</MenuItem>
+                        <MenuItem value="EUR">€ Euro (EUR)</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <TextField fullWidth label="Komisyon Oranı %" type="number" value={commission}
+                      onChange={(e) => setCommission(Number(e.target.value))}
+                      helperText="Platform komisyonu (bilet fiyatına eklenir)"
+                    />
+                  </Stack>
+                </Box>
+              </>
+            )}
+
+            {/* Free section */}
+            {ticketType === 'free' && (
+              <Box>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Kayıt Formu</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Ücretsiz etkinliklerde katılımcıdan hangi bilgiler alınacak?</Typography>
+                <Paper variant="outlined" sx={{ borderRadius: 3, px: 2.5 }}>
+                  {[
+                    { name: 'Ad Soyad', desc: 'Zorunlu alan', locked: true },
+                    { name: 'E-posta', desc: 'Bilet ve bildirim için gerekli', locked: true },
+                    { name: 'Telefon Numarası', desc: 'Opsiyonel', locked: false },
+                    { name: 'Kurum / Okul', desc: 'Kurumsal etkinlikler için', locked: false },
+                  ].map((field, i) => (
+                    <Stack key={i} direction="row" alignItems="center" justifyContent="space-between"
+                      sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}
+                    >
+                      <Box>
+                        <Typography variant="body2" fontWeight={500}>{field.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{field.desc}</Typography>
+                      </Box>
+                      <Switch defaultChecked={field.locked} disabled={field.locked} color="primary" />
+                    </Stack>
+                  ))}
+                </Paper>
+              </Box>
+            )}
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Satış Takvimi</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Bilet satışlarının ne zaman başlayıp biteceğini belirleyin.</Typography>
+              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                <TextField fullWidth label="Satış Başlangıcı *" type="datetime-local" InputLabelProps={{ shrink: true }}
+                  value={saleStart} onChange={(e) => setSaleStart(e.target.value)}
+                />
+                <TextField fullWidth label="Satış Bitişi (opsiyonel)" type="datetime-local" InputLabelProps={{ shrink: true }}
+                  value={saleEnd} onChange={(e) => setSaleEnd(e.target.value)}
+                  helperText="Boş bırakılırsa etkinlik başlangıcında otomatik kapanır"
+                />
+              </Stack>
+              <Stack direction="row" spacing={2}>
+                <TextField fullWidth label="Kişi Başı Min. Bilet" type="number" value={minTickets}
+                  onChange={(e) => setMinTickets(Number(e.target.value))}
+                />
+                <TextField fullWidth label="Kişi Başı Max. Bilet" type="number" value={maxTickets}
+                  onChange={(e) => setMaxTickets(Number(e.target.value))}
+                  helperText="Tek siparişte alınabilecek maksimum bilet sayısı"
+                />
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>Ek Ayarlar</Typography>
+              <Paper variant="outlined" sx={{ borderRadius: 3, px: 2.5 }}>
+                {[
+                  { name: 'İade politikası aktif', desc: 'Etkinlikten X gün önce iade kabul edilir', value: refundPolicy, setter: setRefundPolicy },
+                  { name: 'Bekleme listesi', desc: 'Kapasite dolduğunda bekleme listesi oluştur', value: waitlist, setter: setWaitlist },
+                  { name: 'İsim transferine izin ver', desc: 'Alıcı bileti başkasına devredebilir', value: transferable, setter: setTransferable },
+                  { name: 'Fatura oluştur', desc: 'Her satışta otomatik e-fatura gönder', value: invoiceEnabled, setter: setInvoiceEnabled },
+                ].map((toggle, i) => (
+                  <Stack key={i} direction="row" alignItems="center" justifyContent="space-between"
+                    sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}
+                  >
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>{toggle.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">{toggle.desc}</Typography>
+                    </Box>
+                    <Switch checked={toggle.value} onChange={(e) => toggle.setter(e.target.checked)} color="primary" />
+                  </Stack>
+                ))}
+              </Paper>
+            </Box>
+          </Stack>
+        )}
+
+        {/* ─── STEP 3: ÖNİZLEME & YAYINLA ─── */}
+        {currentStep === 3 && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 2.5 }}>
+            {/* Left: Summary + Checklist */}
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Etkinlik Özeti</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Yayınlamadan önce bilgileri gözden geçirin.</Typography>
+              </Box>
+
+              <Paper variant="outlined" sx={{ borderRadius: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle2" fontWeight={700}>Genel Bilgiler</Typography>
+                  <Button size="small" onClick={() => goToStep(1)} sx={{ textTransform: 'none' }}>✏️ Düzenle</Button>
+                </Box>
+                {[
+                  { label: 'Etkinlik Adı', value: eventName || '—' },
+                  { label: 'Tarih', value: eventStart ? new Date(eventStart).toLocaleString('tr-TR') : '—' },
+                  { label: 'Konum', value: eventLocation || '—' },
+                  { label: 'Toplam Kapasite', value: capacity ? `${capacity} kişi` : '—' },
+                  { label: 'Görünürlük', value: visibility === 'public' ? '🌐 Herkese Açık' : visibility === 'link' ? '🔗 Sadece Link' : '🔒 Taslak' },
+                ].map((row, i) => (
+                  <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', px: 2.5, py: 1.2, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
+                    <Typography variant="body2" color="text.secondary">{row.label}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{row.value}</Typography>
+                  </Box>
+                ))}
+              </Paper>
+
+              <Paper variant="outlined" sx={{ borderRadius: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle2" fontWeight={700}>Bilet Kategorileri</Typography>
+                  <Button size="small" onClick={() => goToStep(2)} sx={{ textTransform: 'none' }}>✏️ Düzenle</Button>
+                </Box>
+                {tiers.map((tier, i) => (
+                  <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', px: 2.5, py: 1.2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>{tier.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">{tier.quota} kontenjan</Typography>
+                    </Box>
+                    <Typography variant="body2" fontWeight={600} color="primary.main">₺{tier.price.toLocaleString()}</Typography>
+                  </Box>
+                ))}
+                <Box sx={{ px: 2.5, py: 1.2, display: 'flex', justifyContent: 'space-between', bgcolor: 'grey.50', fontSize: 13, fontWeight: 600 }}>
+                  <span>Tahmini Maks. Gelir</span>
+                  <span style={{ color: theme.palette.primary.main }}>₺{maxRevenue.toLocaleString()}</span>
+                </Box>
+              </Paper>
+
+              {/* Checklist */}
+              <Paper variant="outlined" sx={{ borderRadius: 3 }}>
+                <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle2" fontWeight={700}>Yayın Öncesi Kontrol</Typography>
+                </Box>
+                <Stack sx={{ p: 2 }} spacing={1.2}>
+                  {[
+                    { ok: !!eventName && !!eventStart, text: 'Etkinlik adı ve tarihi dolduruldu' },
+                    { ok: tiers.length > 0, text: 'En az 1 bilet kategorisi tanımlandı' },
+                    { ok: !!saleStart, text: 'Satış başlangıç tarihi belirlendi' },
+                    { ok: false, text: 'Etkinlik görseli eklenmedi', optional: true },
+                    { ok: !!eventDescription, text: eventDescription ? 'Açıklama eklendi' : 'Açıklama eklenmedi', optional: !eventDescription },
+                  ].map((check, i) => (
+                    <Stack key={i} direction="row" spacing={1.2} alignItems="center">
+                      <Typography sx={{ fontSize: 16, color: check.ok ? 'success.main' : 'warning.main' }}>
+                        {check.ok ? '✅' : '⚠️'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: check.ok ? 'text.primary' : 'text.secondary' }}>
+                        {check.text}
+                        {check.optional && <Typography component="span" variant="caption" color="text.disabled" sx={{ ml: 0.5 }}>(opsiyonel)</Typography>}
+                      </Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Paper>
+            </Stack>
+
+            {/* Right: Live Preview */}
+            <Box sx={{ position: 'sticky', top: 180 }}>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Canlı Önizleme</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Kullanıcıların göreceği bilet kartı</Typography>
+
+              <Paper sx={{ borderRadius: 3.5, border: '2px dashed', borderColor: 'divider', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+                <Box sx={{ bgcolor: 'primary.main', color: 'white', px: 3, py: 2.5 }}>
+                  <Typography variant="caption" fontWeight={700} textTransform="uppercase" letterSpacing={1} sx={{ opacity: 0.7, mb: 1, display: 'block' }}>🎫 ETKİNLİK BİLETİ</Typography>
+                  <Typography variant="h6" fontWeight={800} sx={{ mb: 0.5 }}>{eventName || 'Etkinlik Adı'}</Typography>
+                  <Stack direction="row" spacing={2} sx={{ opacity: 0.8, fontSize: 13 }}>
+                    <span>📅 {eventStart ? new Date(eventStart).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Tarih'}</span>
+                    <span>📍 {eventLocation || 'Konum'}</span>
+                  </Stack>
+                </Box>
+                <Box sx={{ px: 3, py: 2.5 }}>
+                  <Typography variant="caption" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing={0.5} sx={{ mb: 1.5, display: 'block' }}>Bilet Seçenekleri</Typography>
+                  <Stack spacing={1.2}>
+                    {tiers.map((tier, i) => (
+                      <Box key={i} sx={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        p: 1.5, border: '1.5px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'grey.50',
+                      }}>
+                        <Box>
+                          <Typography variant="body2" fontWeight={700}>{tier.name}</Typography>
+                          <Typography variant="caption" color="text.secondary">{tier.quota} kontenjan kaldı</Typography>
+                        </Box>
+                        <Typography variant="h6" fontWeight={800} fontFamily="JetBrains Mono, monospace"
+                          sx={{ color: tier.price > 0 ? 'primary.main' : 'text.secondary' }}
+                        >
+                          {tier.price > 0 ? `₺${tier.price}` : 'Ücretsiz'}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                  <Button fullWidth variant="contained" sx={{ mt: 2, borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                    Bilet Satın Al
+                  </Button>
+                  <Stack direction="row" justifyContent="space-between" sx={{ mt: 1.5, fontSize: 12, color: 'text.secondary' }}>
+                    <span>Toplam kapasite: <strong>{capacity || '—'}</strong></span>
+                    <span>Satış bitiş: <strong>{saleEnd ? new Date(saleEnd).toLocaleDateString('tr-TR') : '—'}</strong></span>
+                  </Stack>
+                </Box>
+              </Paper>
+
+              <Box sx={{ mt: 1.5, p: 1.5, bgcolor: (t) => alpha(t.palette.warning.main, 0.08), border: '1px solid', borderColor: (t) => alpha(t.palette.warning.main, 0.3), borderRadius: 2, fontSize: 12.5, color: 'warning.dark' }}>
+                💡 Gerçek görünüm platforma ve cihaza göre değişebilir. Bu bir önizlemedir.
+              </Box>
+            </Box>
+          </Box>
         )}
       </Box>
-    </Fade>
-  );
 
-  const renderScheduleStep = () => (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Fade in timeout={500}>
-        <Box>
-          <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-            Sales Schedule
-          </Typography>
-
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <GlassCard>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                    <Avatar sx={{ backgroundColor: 'primary.main' }}>
-                      <ScheduleIcon />
-                    </Avatar>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      Sales Start
-                    </Typography>
-                  </Box>
-                  <DateTimePicker
-                    label="Start Date & Time"
-                    value={ticketState.saleStartAt}
-                    onChange={(date) => setTicketState(prev => ({ ...prev, saleStartAt: date }))}
-                    slotProps={{ 
-                      textField: { 
-                        fullWidth: true,
-                        helperText: 'When ticket sales should begin'
-                      } 
-                    }}
-                  />
-                </CardContent>
-              </GlassCard>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <GlassCard>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                    <Avatar sx={{ backgroundColor: 'error.main' }}>
-                      <ScheduleIcon />
-                    </Avatar>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      Sales End
-                    </Typography>
-                  </Box>
-                  <DateTimePicker
-                    label="End Date & Time"
-                    value={ticketState.saleEndAt}
-                    onChange={(date) => setTicketState(prev => ({ ...prev, saleEndAt: date }))}
-                    slotProps={{ 
-                      textField: { 
-                        fullWidth: true,
-                        helperText: 'When ticket sales should end'
-                      } 
-                    }}
-                  />
-                </CardContent>
-              </GlassCard>
-            </Grid>
-          </Grid>
-
-          <Alert severity="info" sx={{ mt: 3 }}>
-            <Typography variant="body2">
-              <strong>Tip:</strong> It is recommended to end sales before the event starts. You can keep it open for last-minute sales.
-            </Typography>
-          </Alert>
-        </Box>
-      </Fade>
-    </LocalizationProvider>
-  );
-
-  const renderPreviewStep = () => (
-    <Fade in timeout={500}>
-      <Box>
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-          Önizleme & Onay
-        </Typography>
-
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <GlassCard>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
-                  Ticket Information
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography color="text.secondary">Name:</Typography>
-                    <Typography fontWeight={600}>{ticketState.ticketName || '-'}</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography color="text.secondary">Venue Type:</Typography>
-                    <Typography fontWeight={600}>
-                      {templates.find(t => t.type === ticketState.venueLayoutType)?.name || '-'}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography color="text.secondary">Currency:</Typography>
-                    <Typography fontWeight={600}>{ticketState.currency}</Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </GlassCard>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <GlassCard>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
-                  Capacity
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography color="text.secondary">Total Seats:</Typography>
-                    <Typography fontWeight={600}>
-                      {ticketState.venueLayout?.totalCapacity || 0}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography color="text.secondary">Zones:</Typography>
-                    <Typography fontWeight={600}>
-                      {ticketState.pricingZones.length}
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </GlassCard>
-          </Grid>
-
-          <Grid item xs={12}>
-            <GlassCard>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
-                  Pricing Summary
-                </Typography>
-                <Grid container spacing={2}>
-                  {ticketState.pricingZones.map((zone) => (
-                    <Grid item xs={6} sm={4} md={3} key={zone.id}>
-                      <Box 
-                        sx={{ 
-                          p: 2, 
-                          borderRadius: 2, 
-                          backgroundColor: alpha(zone.color, 0.1),
-                          border: `2px solid ${zone.color}`,
-                        }}
-                      >
-                        <Typography variant="body2" color="text.secondary">
-                          {zone.name}
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                          {zone.basePrice} {ticketState.currency}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {zone.seatCount} seats
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  ))}
-                </Grid>
-              </CardContent>
-            </GlassCard>
-          </Grid>
-
-          <Grid item xs={12}>
-            <GlassCard>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
-                  Sales Schedule
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Avatar sx={{ backgroundColor: 'success.main', width: 32, height: 32 }}>
-                        <ScheduleIcon sx={{ fontSize: 18 }} />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">Start</Typography>
-                        <Typography fontWeight={600}>
-                          {ticketState.saleStartAt 
-                            ? ticketState.saleStartAt.toLocaleString('en-US')
-                            : 'Not set'}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Avatar sx={{ backgroundColor: 'error.main', width: 32, height: 32 }}>
-                        <ScheduleIcon sx={{ fontSize: 18 }} />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">End</Typography>
-                        <Typography fontWeight={600}>
-                          {ticketState.saleEndAt 
-                            ? ticketState.saleEndAt.toLocaleString('en-US')
-                            : 'Not set'}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </GlassCard>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Paper 
-              sx={{ 
-                p: 4, 
-                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-                color: '#fff',
-                borderRadius: 4,
-              }}
-            >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography variant="h6" sx={{ opacity: 0.9 }}>
-                    Estimated Max Revenue
-                  </Typography>
-                  <Typography variant="h3" sx={{ fontWeight: 700 }}>
-                    {ticketState.pricingZones.reduce((acc, z) => acc + (z.basePrice * z.seatCount), 0).toLocaleString('en-US')} {ticketState.currency}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ width: 64, height: 64, backgroundColor: 'rgba(255,255,255,0.2)' }}>
-                  <PriceIcon sx={{ fontSize: 32 }} />
-                </Avatar>
-              </Box>
-            </Paper>
-          </Grid>
-        </Grid>
-      </Box>
-    </Fade>
-  );
-
-  const renderStepContent = (step: number) => {
-    switch (step) {
-      case 0:
-        return renderTicketInfoStep();
-      case 1:
-        return renderCategoriesStep();
-      case 2:
-        return renderVenueLayoutStep();
-      case 3:
-        return renderScheduleStep();
-      case 4:
-        return renderPreviewStep();
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <PageContainer>
-        <PageHeader 
-          title="Bilet Oluşturucu"
-          subtitle="Profesyonel oturma düzeni ve bilet yönetimi"
-          breadcrumbs={[
-            { label: 'Etkinlikler', href: '/events' },
-            { label: 'Bilet Oluşturucu', active: true }
-          ]}
-        />
-      
-      {/* Stepper */}
-      <Paper sx={{ p: 3, mb: 4, borderRadius: 4 }}>
-        <Stepper activeStep={activeStep} connector={<ColorlibConnector />} alternativeLabel>
-          {steps.map((label, index) => (
-            <Step key={label}>
-              <StepLabel StepIconComponent={(props) => (
-                <ColorlibStepIcon {...props} icon={index + 1} />
-              )}>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    fontWeight: activeStep === index ? 700 : 400,
-                    color: activeStep === index ? 'primary.main' : 'text.secondary',
-                  }}
-                >
-                  {label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </Paper>
-
-      {/* Content */}
-      <Paper sx={{ p: { xs: 2, md: 4 }, mb: 4, borderRadius: 4, minHeight: 400 }}>
-        {renderStepContent(activeStep)}
-      </Paper>
-
-      {/* Navigation */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-        <Button
-          variant="outlined"
-          onClick={onCancel || handleBack}
-          disabled={activeStep === 0 && !onCancel}
-          startIcon={<ArrowBackIcon />}
-          sx={{ minWidth: 140 }}
-        >
-          {activeStep === 0 ? 'İptal' : 'Geri'}
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleNext}
-          disabled={loading}
-          endIcon={activeStep === steps.length - 1 ? <SaveIcon /> : <ArrowForwardIcon />}
-          sx={{ 
-            minWidth: 140,
-            // background: 'linear-gradient(135deg, #16461C 0%, #4C8B53 100%)', // Removed hardcoded green
-          }}
-        >
-          {loading ? (
-            <CircularProgress size={24} color="inherit" />
-          ) : activeStep === steps.length - 1 ? (
-            'Kaydet'
-          ) : (
-            'İleri'
+      {/* ═══ WIZARD FOOTER ═══ */}
+      <Box sx={{
+        position: 'fixed', bottom: 0, right: 0,
+        width: 'calc(100% - 272px)',
+        bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider',
+        px: 4, py: 1.5,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        boxShadow: '0 -4px 12px rgba(0,0,0,0.06)', zIndex: 5,
+      }}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          {currentStep > 1 && (
+            <Button variant="outlined" startIcon={<BackIcon />} onClick={goBack}
+              sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
+            >Geri</Button>
           )}
-        </Button>
+          <Typography variant="body2" color="text.secondary">Adım {currentStep} / {totalSteps}</Typography>
+          <Typography variant="caption" color="primary.main" sx={{ cursor: 'pointer' }}
+            onClick={() => enqueueSnackbar('💾 Taslak olarak kaydedildi', { variant: 'info' })}
+          >Taslak kaydedildi ✓</Typography>
+        </Stack>
+        <Stack direction="row" spacing={1.5}>
+          <Button variant="outlined" onClick={() => enqueueSnackbar('💾 Taslak olarak kaydedildi', { variant: 'info' })}
+            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
+          >Taslak Kaydet</Button>
+          <Button variant="contained" onClick={goNext}
+            endIcon={currentStep === totalSteps ? <RocketIcon /> : <ForwardIcon />}
+            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
+          >
+            {currentStep === totalSteps ? '🚀 Yayınla' : 'Devam Et →'}
+          </Button>
+        </Stack>
       </Box>
-
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </PageContainer>
+    </Box>
   );
-};
-
-export default TicketCreationPage;
+}

@@ -1,4 +1,4 @@
-import { ReactNode, SyntheticEvent, useEffect, useMemo, useState, cloneElement, isValidElement } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -6,935 +6,1052 @@ import {
   Button,
   Card,
   CardContent,
-  CardHeader,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
-  FormControl,
   Grid,
   IconButton,
-  InputLabel,
   LinearProgress,
-  MenuItem,
   Pagination,
-  Paper,
-  Select,
   Stack,
-  Tab,
-  Tabs,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
   alpha,
   useTheme,
-  Tooltip as MuiTooltip,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
-  Security as SecurityIcon,
-  Timeline as TimelineIcon,
-  History as HistoryIcon,
-  Dashboard as DashboardIcon,
   FilterList as FilterIcon,
-  WarningAmber as WarningIcon,
-  CheckCircleOutline as CheckCircleIcon,
-  ErrorOutline as ErrorOutlineIcon,
-  InfoOutlined as InfoIcon,
-  VpnKey as VpnKeyIcon,
-  ReportProblem as ReportProblemIcon,
-  Public as PublicIcon,
-  PeopleAlt as PeopleIcon,
-  EmojiEvents as TrophyIcon,
+  FiberManualRecord as LiveDotIcon,
+  Business as BusinessIcon,
+  People as PeopleIcon,
+  Event as EventIcon,
+  Sensors as SessionIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
   TrendingUp as TrendingUpIcon,
+  EmojiEvents as TrophyIcon,
+  Schedule as ScheduleIcon,
+  Laptop as LaptopIcon,
+  PhoneAndroid as PhoneIcon,
+  Close as CloseIcon,
+  Block as BlockIcon,
+  Logout as LogoutIcon,
+  Person as PersonIcon,
+  Security as SecurityIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Notifications as NotificationIcon,
 } from '@mui/icons-material';
+import { format } from 'date-fns';
 import { useSnackbar } from 'notistack';
-import { format, subDays } from 'date-fns';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-
-import { PageContainer, PageHeader } from '../components/Page';
+import { PageContainer } from '../components/Page';
 import { adminLoginStatsService } from '../services/auth/adminLoginStatsService';
-import {
-  ActiveAlertDto,
-  AnomalySpikeDto,
-  AuditTimelineEventDto,
-  DailyLoginStatsDto,
-  FailureReasonStatsDto,
+import type {
   LoginStatsOverviewDto,
-  RecentLoginLogDto,
   RecentLoggedInUserDto,
-  RiskOverviewDto,
-  RiskTopIpDto,
-  RiskTopUserDto,
-  SessionQualityDto,
-  EngagementOverviewDto,
   TopLoginUserDto,
-  WeeklyActiveStatsDto,
+  ActiveAlertDto,
+  EngagementOverviewDto,
+  RecentLoginLogDto,
+  AuditTimelineEventDto,
 } from '../types/security/loginStats';
+import type { PageResponseDto } from '../types/common/pageResponse';
 
-// Modern Color Palette
-const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
-const GRADIENT_PRIMARY = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';
-const GRADIENT_SUCCESS = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-const GRADIENT_ERROR = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-const GRADIENT_WARNING = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
-const GRADIENT_INFO = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+const formatTurkishDate = (date: Date): string =>
+  new Intl.DateTimeFormat('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    weekday: 'long',
+  }).format(date);
 
-type RangePreset = '7d' | '30d' | '90d';
-type TabKey = 'overview' | 'security' | 'sessions' | 'audit' | 'engagement';
-
-interface TabPanelProps {
-  value: TabKey;
-  name: TabKey;
-  children: ReactNode;
-  padding?: number;
-}
-
-function TabPanel({ value, name, children, padding = 3 }: TabPanelProps) {
-  if (value !== name) return null;
-  return (
-    <Box
-      sx={{
-        p: padding,
-        animation: 'fadeIn 0.5s ease-in-out',
-        '@keyframes fadeIn': {
-          '0%': { opacity: 0, transform: 'translateY(10px)' },
-          '100%': { opacity: 1, transform: 'translateY(0)' },
-        },
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
-
-const getDateRangeForPreset = (preset: RangePreset): { startDate: string; endDate: string } => {
-  const today = new Date();
-  const days = preset === '7d' ? 7 : preset === '90d' ? 90 : 30;
-  return {
-    startDate: format(subDays(today, days - 1), 'yyyy-MM-dd'),
-    endDate: format(today, 'yyyy-MM-dd'),
-  };
+const relativeTime = (dateStr: string): string => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'az once';
+  if (mins < 60) return `${mins} dk once`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} saat once`;
+  const days = Math.floor(hours / 24);
+  return `${days} gun once`;
 };
 
-const formatDateTime = (value?: string | null): string => {
-  if (!value) return '-';
-  const hasTimeZone = /[zZ]|[+-]\d{2}:\d{2}$/.test(value);
-  const normalized = hasTimeZone ? value : `${value}Z`;
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('tr-TR', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+const relativeTimeFuture = (dateStr: string): string => {
+  const diff = new Date(dateStr).getTime() - Date.now();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'simdi';
+  if (mins < 60) return `${mins} dk sonra`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} saat sonra`;
+  const days = Math.floor(hours / 24);
+  return `${days} gun sonra`;
 };
 
-const getStatusConfig = (status?: string | null) => {
-  const normalized = (status || '').toUpperCase();
-  if (normalized === 'SUCCESS') return { color: 'success' as const, icon: <CheckCircleIcon fontSize="small" /> };
-  if (normalized === 'FAILED' || normalized === 'FAILURE') return { color: 'error' as const, icon: <ErrorOutlineIcon fontSize="small" /> };
-  if (normalized === 'SUSPICIOUS' || normalized === 'BLOCKED') return { color: 'warning' as const, icon: <WarningIcon fontSize="small" /> };
-  return { color: 'info' as const, icon: <InfoIcon fontSize="small" /> };
+const getInitials = (name?: string | null, email?: string | null): string => {
+  if (name) return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  if (email) return email[0].toUpperCase();
+  return '?';
 };
 
-// Reusable Premium Stats Card
-const PremiumStatCard = ({ title, value, subtitle, gradient, icon }: any) => {
-  const theme = useTheme();
-  return (
-    <Card
-      sx={{
-        height: '100%',
-        borderRadius: 5,
-        border: '1px solid',
-        borderColor: alpha(theme.palette.divider, 0.08),
-        background: alpha(theme.palette.background.paper, 0.7),
-        backdropFilter: 'blur(12px)',
-        boxShadow: '0 10px 30px -10px rgba(0,0,0,0.04)',
-        position: 'relative',
-        overflow: 'hidden',
-        transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: '0 20px 40px -15px rgba(0,0,0,0.1)',
-        }
-      }}
-    >
-      <Box
-        sx={{
-          position: 'absolute',
-          top: -10,
-          right: -10,
-          p: 2,
-          opacity: 0.05,
-          transform: 'scale(1.5)',
-          background: gradient,
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-        }}
-      >
-        {icon}
-      </Box>
-      <CardContent sx={{ p: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-          <Box
-            sx={{
-              display: 'flex',
-              p: 1.5,
-              borderRadius: 3,
-              background: gradient,
-              color: 'white',
-              boxShadow: '0 8px 16px -4px rgba(0,0,0,0.1)'
-            }}
-          >
-            {icon && isValidElement(icon) && cloneElement(icon as any, { sx: { fontSize: 24 } })}
-          </Box>
-          <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 1.2 }}>
-            {title}
-          </Typography>
-        </Stack>
-        <Typography variant="h3" fontWeight={800} sx={{ mb: 0.5, letterSpacing: -1 }}>
-          {value}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" fontWeight={500} sx={{ opacity: 0.8 }}>
-          {subtitle}
-        </Typography>
-      </CardContent>
-    </Card>
-  );
-};
+const mockNotifications = [
+  {
+    id: 1,
+    icon: <NotificationIcon fontSize="small" />,
+    title: 'Sistem Bakimi',
+    description: 'Planli bakim calismasi',
+    time: new Date(Date.now() + 2 * 3600000).toISOString(),
+  },
+  {
+    id: 2,
+    icon: <SecurityIcon fontSize="small" />,
+    title: 'Guvenlik Taramasi',
+    description: 'Otomatik guvenlik taramasi baslatilacak',
+    time: new Date(Date.now() + 5 * 3600000).toISOString(),
+  },
+  {
+    id: 3,
+    icon: <EventIcon fontSize="small" />,
+    title: 'Rapor Gönderimi',
+    description: 'Haftalık rapor e-posta ile gönderilecek',
+    time: new Date(Date.now() + 24 * 3600000).toISOString(),
+  },
+];
 
 export default function Dashboard() {
   const theme = useTheme();
   const { enqueueSnackbar } = useSnackbar();
 
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
-  const [selectedPreset, setSelectedPreset] = useState<RangePreset>('30d');
-  const [startDate, setStartDate] = useState<string>(() => getDateRangeForPreset('30d').startDate);
-  const [endDate, setEndDate] = useState<string>(() => getDateRangeForPreset('30d').endDate);
-  const [showFilters, setShowFilters] = useState(false);
-
-  // Pagination & Limits
-  const [recentUsersPage, setRecentUsersPage] = useState(1);
-  const recentUsersPageSize = 10;
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Data States
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const [overview, setOverview] = useState<LoginStatsOverviewDto | null>(null);
-  const [dailyTrend, setDailyTrend] = useState<DailyLoginStatsDto[]>([]);
-  const [failureReasons, setFailureReasons] = useState<FailureReasonStatsDto[]>([]);
+  const [engagement, setEngagement] = useState<EngagementOverviewDto | null>(null);
+  const [recentUsersData, setRecentUsersData] = useState<PageResponseDto<RecentLoggedInUserDto> | null>(null);
+  const [topUsers, setTopUsers] = useState<TopLoginUserDto[]>([]);
+  const [alerts, setAlerts] = useState<ActiveAlertDto[]>([]);
   const [recentLogs, setRecentLogs] = useState<RecentLoginLogDto[]>([]);
-  const [recentUsers, setRecentUsers] = useState<RecentLoggedInUserDto[]>([]);
-  const [recentUsersTotal, setRecentUsersTotal] = useState(0);
-  const [sessionQuality, setSessionQuality] = useState<SessionQualityDto | null>(null);
-  const [riskOverview, setRiskOverview] = useState<RiskOverviewDto | null>(null);
-  const [riskTopUsers, setRiskTopUsers] = useState<RiskTopUserDto[]>([]);
-  const [riskTopIps, setRiskTopIps] = useState<RiskTopIpDto[]>([]);
-  const [anomalySpikes, setAnomalySpikes] = useState<AnomalySpikeDto[]>([]);
-  const [activeAlerts, setActiveAlerts] = useState<ActiveAlertDto[]>([]);
-  const [auditTimeline, setAuditTimeline] = useState<AuditTimelineEventDto[]>([]);
+  const [page, setPage] = useState(0);
+  const [selectedUser, setSelectedUser] = useState<RecentLoggedInUserDto | null>(null);
+  const [userTimeline, setUserTimeline] = useState<AuditTimelineEventDto[]>([]);
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState<ActiveAlertDto | null>(null);
 
-  // Engagement States
-  const [engagementOverview, setEngagementOverview] = useState<EngagementOverviewDto | null>(null);
-  const [topWeeklyUsers, setTopWeeklyUsers] = useState<TopLoginUserDto[]>([]);
-  const [weeklyEngagement, setWeeklyEngagement] = useState<WeeklyActiveStatsDto[]>([]);
-
-  const validateDateRange = (): boolean => {
-    if (!startDate || !endDate) return false;
-    if (startDate > endDate) {
-      enqueueSnackbar('Başlangıç tarihi bitiş tarihinden büyük olamaz.', { variant: 'warning' });
-      return false;
-    }
-    return true;
-  };
-
-  const fetchRecentUsers = async (page: number) => {
-    try {
-      const response = await adminLoginStatsService.getRecentUsers({
-        startDate,
-        endDate,
-        page: page - 1, // backend 0-indexed ise
-        size: recentUsersPageSize,
-        search: searchTerm || undefined
-      });
-
-      setRecentUsers(response.content);
-      setRecentUsersTotal(response.totalElements);
-      return response;
-    } catch (err) {
-      // silently handle error
-      return null;
-    }
-  };
-
-  const fetchAllAnalytics = async () => {
-    if (!validateDateRange()) return;
-    setLoading(true);
-    setError(null);
-
-    const query = { startDate, endDate };
-
-    try {
-      const results = await Promise.allSettled([
-        adminLoginStatsService.getOverview(query),
-        adminLoginStatsService.getDailyTrend(query),
-        adminLoginStatsService.getFailureReasons({ ...query, limit: 10 }),
-        adminLoginStatsService.getRecentLogs({ ...query, limit: 15 }),
-        fetchRecentUsers(1),
-        adminLoginStatsService.getSessionQuality(query),
-        adminLoginStatsService.getRiskOverview(query),
-        adminLoginStatsService.getRiskTopUsers({ ...query, limit: 10 }),
-        adminLoginStatsService.getRiskTopIps({ ...query, limit: 10 }),
-        adminLoginStatsService.getAnomalySpikes({ ...query, window: '24h' }),
-        adminLoginStatsService.getActiveAlerts(query),
-        adminLoginStatsService.getAuditTimeline({ ...query, limit: 50 }),
-        adminLoginStatsService.getEngagementOverview(),
-        adminLoginStatsService.getTopWeeklyUsers({ ...query, limit: 20 }),
-        adminLoginStatsService.getWeeklyEngagement(query),
-      ]);
-
-      if (results[0].status === 'fulfilled' && results[0].value) setOverview(results[0].value);
-      if (results[1].status === 'fulfilled' && results[1].value) setDailyTrend(results[1].value);
-      if (results[2].status === 'fulfilled' && results[2].value) setFailureReasons(results[2].value as any);
-      if (results[3].status === 'fulfilled' && results[3].value) setRecentLogs(results[3].value as any);
-      if (results[4].status === 'fulfilled' && results[4].value) {
-        const res = results[4].value as any;
-        setRecentUsers(res.content || []);
-        setRecentUsersTotal(res.totalElements || 0);
-      }
-      if (results[5].status === 'fulfilled' && results[5].value) setSessionQuality(results[5].value);
-      if (results[6].status === 'fulfilled' && results[6].value) setRiskOverview(results[6].value);
-      if (results[7].status === 'fulfilled' && results[7].value) setRiskTopUsers(results[7].value);
-      if (results[8].status === 'fulfilled' && results[8].value) setRiskTopIps(results[8].value);
-      if (results[9].status === 'fulfilled' && results[9].value) setAnomalySpikes(results[9].value);
-      if (results[10].status === 'fulfilled' && results[10].value) setActiveAlerts(results[10].value);
-      if (results[11].status === 'fulfilled' && results[11].value) setAuditTimeline(results[11].value);
-      if (results[12].status === 'fulfilled' && results[12].value) setEngagementOverview(results[12].value);
-      if (results[13].status === 'fulfilled' && results[13].value) setTopWeeklyUsers(results[13].value);
-      if (results[14].status === 'fulfilled' && results[14].value) setWeeklyEngagement(results[14].value);
-
-    } catch (err) {
-      setError('Veriler yüklenirken bir hata oluştu.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchAllAnalytics();
+  const query = useMemo(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    return {
+      startDate: format(start, 'yyyy-MM-dd'),
+      endDate: format(end, 'yyyy-MM-dd'),
+    };
   }, []);
 
-  useEffect(() => {
-    if (recentUsersPage > 1) {
-      void fetchRecentUsers(recentUsersPage);
-    }
-  }, [recentUsersPage]);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const results = await Promise.allSettled([
+      adminLoginStatsService.getOverview(query),
+      adminLoginStatsService.getRecentUsers({ ...query, page, size: 10 }),
+      adminLoginStatsService.getEngagementOverview(),
+      adminLoginStatsService.getTopWeeklyUsers({ ...query, limit: 10 }),
+      adminLoginStatsService.getActiveAlerts(query),
+      adminLoginStatsService.getRecentLogs({ ...query, limit: 10 }),
+    ]);
 
-  const handlePresetChange = (preset: RangePreset) => {
-    const range = getDateRangeForPreset(preset);
-    setSelectedPreset(preset);
-    setStartDate(range.startDate);
-    setEndDate(range.endDate);
+    if (results[0].status === 'fulfilled') setOverview(results[0].value);
+    if (results[1].status === 'fulfilled') setRecentUsersData(results[1].value);
+    if (results[2].status === 'fulfilled') setEngagement(results[2].value);
+    if (results[3].status === 'fulfilled') setTopUsers(results[3].value);
+    if (results[4].status === 'fulfilled') setAlerts(results[4].value);
+    if (results[5].status === 'fulfilled') setRecentLogs(results[5].value);
+
+    const failCount = results.filter((r) => r.status === 'rejected').length;
+    if (failCount > 0) {
+      enqueueSnackbar(`${failCount} veri kaynağı yüklenemedi`, { variant: 'warning' });
+    }
+    setLoading(false);
+  }, [query, page, enqueueSnackbar]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleUserClick = async (user: RecentLoggedInUserDto) => {
+    setSelectedUser(user);
+    try {
+      const timeline = await adminLoginStatsService.getAuditTimeline({
+        ...query,
+        userId: user.userId,
+        limit: 20,
+      });
+      setUserTimeline(timeline);
+    } catch {
+      setUserTimeline([]);
+    }
   };
 
-  const paginatedRecentUsers = useMemo(() => {
-    // Server-side pagination aktif olduğu için artik slice yapmıyoruz
-    return recentUsers;
-  }, [recentUsers]);
+  const handleAlertClick = (alert: ActiveAlertDto) => {
+    setSelectedAlert(alert);
+    setAlertDialogOpen(true);
+  };
 
-  const failurePieData = useMemo(() => {
-    return failureReasons.slice(0, 5).map(r => ({ name: r.reason, value: r.count }));
-  }, [failureReasons]);
+  const criticalAlerts = alerts.filter((a) => a.severity === 'HIGH');
+  const otherAlerts = alerts.filter((a) => a.severity !== 'HIGH');
+  const recentUsers = recentUsersData?.content ?? [];
+  const maxLogins = topUsers.length > 0 ? Math.max(...topUsers.map((u) => u.totalLogins)) : 1;
+
+  const metricCards = [
+    {
+      label: 'Toplam İşletme',
+      value: overview?.uniqueUsers ?? 0,
+      icon: <BusinessIcon />,
+      color: theme.palette.primary.main,
+      delta: '+12%',
+      newLast3: engagement?.dailyActiveUsers ?? 0,
+    },
+    {
+      label: 'Toplam Kullanıcı',
+      value: overview?.uniqueUsers ?? 0,
+      icon: <PeopleIcon />,
+      color: theme.palette.success.main,
+      delta: '+8%',
+      newLast3: engagement?.weeklyActiveUsers ?? 0,
+    },
+    {
+      label: 'Toplam Etkinlik',
+      value: overview?.totalAttempts ?? 0,
+      icon: <EventIcon />,
+      color: theme.palette.warning.main,
+      delta: '+15%',
+      newLast3: engagement?.dailyLoginCount ?? 0,
+    },
+    {
+      label: 'Aktif Oturum',
+      value: engagement?.dailyActiveUsers ?? 0,
+      icon: <SessionIcon />,
+      color: theme.palette.info.main,
+      delta: `${((engagement?.dauWauRatio ?? 0) * 100).toFixed(0)}%`,
+      newLast3: engagement?.dailyLoginCount ?? 0,
+    },
+  ];
 
   return (
     <PageContainer>
-      {/* Header Section */}
-      <Box sx={{ mb: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 3 }}>
-        <Box>
-          <Typography variant="h3" fontWeight={900} color="text.primary" sx={{ mb: 1, letterSpacing: -1.5 }}>
-            Analiz Paneli
-          </Typography>
-          <Typography variant="body1" color="text.secondary" fontWeight={500} sx={{ opacity: 0.8 }}>
-            Sistem güvenliği ve kullanıcı etkileşimlerini gerçek zamanlı izleyin.
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1.5}>
-          <Button
-            variant="outlined"
-            color="inherit"
-            startIcon={<FilterIcon />}
-            onClick={() => setShowFilters(!showFilters)}
-            sx={{
-              borderRadius: 3,
-              px: 3,
-              py: 1.5,
-              bgcolor: alpha(theme.palette.action.selected, 0.05),
-              '&:hover': { bgcolor: alpha(theme.palette.action.selected, 0.1) }
-            }}
-          >
-            Filtrele
-          </Button>
-          <Button
-            variant="contained"
-            disableElevation
-            startIcon={<RefreshIcon />}
-            onClick={fetchAllAnalytics}
-            disabled={loading}
-            sx={{
-              borderRadius: 3,
-              px: 3,
-              py: 1.5,
-              background: GRADIENT_PRIMARY,
-              boxShadow: '0 8px 16px -4px rgba(99, 102, 241, 0.3)',
-              '&:hover': {
-                boxShadow: '0 12px 20px -4px rgba(99, 102, 241, 0.4)',
-              }
-            }}
-          >
-            Veriyi Tazele
-          </Button>
-        </Stack>
-      </Box>
-
-      {/* Expandable Filters */}
-      {showFilters && (
-        <Card sx={{ mb: 4, borderRadius: 3, boxShadow: '0 4px 20px 0 rgba(0,0,0,0.05)', border: '1px solid', borderColor: 'divider' }}>
-          <CardContent sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Stack direction="row" spacing={1} sx={{ bgcolor: 'action.hover', p: 0.5, borderRadius: 2 }}>
-              {(['7d', '30d', '90d'] as RangePreset[]).map(preset => (
-                <Button
-                  key={preset}
-                  size="small"
-                  variant={selectedPreset === preset ? 'contained' : 'text'}
-                  onClick={() => handlePresetChange(preset)}
-                  disableElevation
-                  sx={{ borderRadius: 1.5, minWidth: 60 }}
-                >
-                  {preset.toUpperCase()}
-                </Button>
-              ))}
-            </Stack>
-            <Divider orientation="vertical" flexItem />
-            <TextField size="small" label="Başlangıç" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} />
-            <TextField size="small" label="Bitiş" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} />
-            <Button variant="contained" onClick={fetchAllAnalytics} disabled={loading} sx={{ ml: 'auto' }}>Uygula</Button>
-          </CardContent>
-        </Card>
+      {loading && (
+        <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1300 }} />
       )}
 
-      {loading && <LinearProgress sx={{ mb: 4, borderRadius: 1 }} />}
-      {error && <Alert severity="error" sx={{ mb: 4, borderRadius: 2 }}>{error}</Alert>}
+      {/* Header */}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box>
+          <Typography variant="h4" fontWeight={700}>
+            Kontrol Paneli
+          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1} mt={0.5}>
+            <LiveDotIcon sx={{ fontSize: 10, color: 'success.main' }} />
+            <Typography variant="body2" color="text.secondary">
+              {formatTurkishDate(new Date())}
+            </Typography>
+          </Stack>
+        </Box>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" startIcon={<FilterIcon />} size="small">
+            Filtre
+          </Button>
+          <Button variant="contained" startIcon={<RefreshIcon />} size="small" onClick={fetchData}>
+            Yenile
+          </Button>
+        </Stack>
+      </Stack>
 
-      {/* Main Tabs Navigation */}
-      <Box sx={{ mb: 4 }}>
-        <Tabs
-          value={activeTab}
-          onChange={(_, v) => setActiveTab(v)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            minHeight: 48,
-            '& .MuiTabs-indicator': {
-              height: 3,
-              borderRadius: '3px 3px 0 0',
-              background: GRADIENT_PRIMARY
-            },
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 700,
-              fontSize: '0.95rem',
-              minHeight: 48,
-              color: 'text.secondary',
-              opacity: 0.7,
-              mr: 2,
-              '&.Mui-selected': {
-                color: 'primary.main',
-                opacity: 1,
-              }
-            }
-          }}
-        >
-          <Tab value="overview" label="Genel Bakış" />
-          <Tab value="engagement" label="Kullanıcı Etkileşimi" />
-          <Tab value="security" label="Risk & Güvenlik" />
-          <Tab value="sessions" label="Oturum Logları" />
-          <Tab value="audit" label="Sistem Denetimi" />
-        </Tabs>
-        <Divider sx={{ mt: -0.1, opacity: 0.5 }} />
-      </Box>
+      {/* Alert Banners */}
+      {criticalAlerts.length > 0 && (
+        <Stack spacing={1} mb={3}>
+          {criticalAlerts.map((alert, i) => (
+            <Alert
+              key={i}
+              severity="error"
+              icon={<ErrorIcon />}
+              sx={{
+                cursor: 'pointer',
+                '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.08) },
+              }}
+              onClick={() => handleAlertClick(alert)}
+              action={<Chip label="Detay" size="small" color="error" variant="outlined" />}
+            >
+              <Typography variant="body2" fontWeight={600}>
+                {alert.title}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {alert.description}
+              </Typography>
+            </Alert>
+          ))}
+        </Stack>
+      )}
 
-      {/* ==================== OVERVIEW TAB ==================== */}
-      <TabPanel value={activeTab} name="overview" padding={0}>
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <PremiumStatCard
-              title="Toplam Deneme"
-              value={overview?.totalAttempts?.toLocaleString() || '0'}
-              subtitle="Tüm oturum açma istekleri"
-              gradient={GRADIENT_PRIMARY}
-              icon={<VpnKeyIcon sx={{ fontSize: 60, color: '#3b82f6' }} />}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <PremiumStatCard
-              title="Giriş Başarısı"
-              value={`${overview?.successRate?.toFixed(1) || '0'}%`}
-              subtitle="Başarılı oturum oranı"
-              gradient={GRADIENT_SUCCESS}
-              icon={<CheckCircleIcon sx={{ fontSize: 60, color: '#10b981' }} />}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <PremiumStatCard
-              title="Hata Oranı"
-              value={`${overview?.failureRate?.toFixed(1) || '0'}%`}
-              subtitle="Başarısız denemeler"
-              gradient={GRADIENT_ERROR}
-              icon={<ErrorOutlineIcon sx={{ fontSize: 60, color: '#ef4444' }} />}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <PremiumStatCard
-              title="Aktif Alarmlar"
-              value={activeAlerts.length.toString()}
-              subtitle="İncelenmesi gereken durumlar"
-              gradient={activeAlerts.length > 0 ? GRADIENT_WARNING : GRADIENT_PRIMARY}
-              icon={<WarningIcon sx={{ fontSize: 60, color: activeAlerts.length > 0 ? '#f59e0b' : '#3b82f6' }} />}
-            />
-          </Grid>
-        </Grid>
+      {otherAlerts.length > 0 && (
+        <Stack spacing={1} mb={3}>
+          {otherAlerts.slice(0, 2).map((alert, i) => (
+            <Alert
+              key={i}
+              severity="warning"
+              icon={<WarningIcon />}
+              sx={{
+                cursor: 'pointer',
+                '&:hover': { bgcolor: alpha(theme.palette.warning.main, 0.06) },
+              }}
+              onClick={() => handleAlertClick(alert)}
+              action={<Chip label="Detay" size="small" color="warning" variant="outlined" />}
+            >
+              <Typography variant="body2" fontWeight={600}>
+                {alert.title}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {alert.description}
+              </Typography>
+            </Alert>
+          ))}
+        </Stack>
+      )}
 
-        <Grid container spacing={3}>
-          {/* Main User List Table - Now with Pagination & Search */}
-          <Grid item xs={12}>
-            <Card sx={{ borderRadius: 5, border: '1px solid', borderColor: alpha(theme.palette.divider, 0.1), boxShadow: 'none', background: alpha(theme.palette.background.paper, 0.5) }}>
-              <CardHeader
-                title="Son Giriş Yapan Kullanıcılar"
-                titleTypographyProps={{ fontWeight: 800, variant: 'h6' }}
-                subheader="Platformu en son kullanan kullanıcıların detaylı listesi"
-                sx={{ p: 3 }}
-                action={
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <TextField
-                      size="small"
-                      placeholder="Kullanıcı ara (E-posta veya isim)..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && fetchRecentUsers(1)}
-                      sx={{ width: 280, '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
-                    />
-                    <IconButton onClick={() => fetchRecentUsers(1)} disabled={loading} size="small" color="primary">
-                      <RefreshIcon />
-                    </IconButton>
-                  </Stack>
-                }
-              />
-              <TableContainer>
-                <Table sx={{ minWidth: 600 }}>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: alpha(theme.palette.action.hover, 0.3) }}>
-                      <TableCell sx={{ fontWeight: 700, py: 2 }}>Kullanıcı Bilgisi</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>E-posta</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Son Etkinlik</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Son Başarılı Giriş</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700, pr: 3 }}>İşlem</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {recentUsers.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
-                          <PeopleIcon sx={{ fontSize: 48, opacity: 0.1, mb: 2, display: 'block', mx: 'auto' }} />
-                          <Typography color="text.secondary" fontWeight={500}>Kullanıcı kaydı bulunamadı.</Typography>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      paginatedRecentUsers.map((user) => (
-                        <TableRow key={user.userId} hover sx={{ '& td': { py: 2 } }}>
-                          <TableCell>
-                            <Stack direction="row" spacing={2} alignItems="center">
-                              <Avatar
-                                sx={{
-                                  width: 40,
-                                  height: 40,
-                                  background: GRADIENT_PRIMARY,
-                                  color: 'white',
-                                  fontWeight: 700,
-                                  fontSize: 14
-                                }}
-                              >
-                                {user.displayName?.[0] || user.userEmail?.[0]?.toUpperCase() || 'U'}
-                              </Avatar>
-                              <Typography variant="body2" fontWeight={700}>
-                                {user.displayName || 'İsimsiz Kullanıcı'}
-                              </Typography>
-                            </Stack>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                              {user.userEmail}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>
-                              {formatDateTime(user.lastSessionAt)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <CheckCircleIcon color="success" sx={{ fontSize: 16 }} />
-                              <Typography variant="caption" fontWeight={700} color="success.main">
-                                {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Bilgi yok'}
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell align="right" sx={{ pr: 3 }}>
-                            <Button size="small" color="primary">Detay</Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', borderTop: '1px solid', borderColor: alpha(theme.palette.divider, 0.05) }}>
-                <Pagination
-                  count={Math.ceil(recentUsersTotal / recentUsersPageSize)}
-                  page={recentUsersPage}
-                  onChange={(_, value) => setRecentUsersPage(value)}
-                  color="primary"
-                  size="medium"
-                  sx={{
-                    '& .MuiPaginationItem-root': { fontWeight: 700, borderRadius: 2 }
-                  }}
-                />
-              </Box>
-            </Card>
-          </Grid>
-        </Grid>
-      </TabPanel>
-
-      {/* ==================== ENGAGEMENT TAB ==================== */}
-      <TabPanel value={activeTab} name="engagement" padding={0}>
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <PremiumStatCard
-              title="Günlük Aktif Kullanıcı (DAU)"
-              value={engagementOverview?.dailyActiveUsers?.toLocaleString() || '0'}
-              subtitle="Bugün giriş yapan kullanıcılar"
-              gradient={GRADIENT_SUCCESS}
-              icon={<PeopleIcon sx={{ fontSize: 60, color: '#10b981' }} />}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <PremiumStatCard
-              title="Haftalık Aktif Kullanıcı (WAU)"
-              value={engagementOverview?.weeklyActiveUsers?.toLocaleString() || '0'}
-              subtitle="Son 7 gün içindeki tekil erişim"
-              gradient={GRADIENT_PRIMARY}
-              icon={<TrendingUpIcon sx={{ fontSize: 60, color: '#3b82f6' }} />}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <PremiumStatCard
-              title="Aylık Aktif Kullanıcı (MAU)"
-              value={engagementOverview?.monthlyActiveUsers?.toLocaleString() || '0'}
-              subtitle="Son 30 gün içindeki tekil kullanıcı"
-              gradient="linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)"
-              icon={<DashboardIcon sx={{ fontSize: 60, color: '#8b5cf6' }} />}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <PremiumStatCard
-              title="DAU / MAU Oranı"
-              value={`${(engagementOverview?.dauWauRatio ? engagementOverview.dauWauRatio * 100 : 0).toFixed(1)}%`}
-              subtitle="Günlük kullanıcı tutundurma oranı"
-              gradient={GRADIENT_WARNING}
-              icon={<TimelineIcon sx={{ fontSize: 60, color: '#f59e0b' }} />}
-            />
-          </Grid>
-        </Grid>
-
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Card sx={{ borderRadius: 5, border: '1px solid', borderColor: alpha(theme.palette.divider, 0.1), boxShadow: 'none', background: alpha(theme.palette.background.paper, 0.5) }}>
-              <CardHeader
-                title="Haftanın En Aktif Kullanıcıları"
-                subheader="Belirtilen zaman aralığında en çok işlem gerçekleştirenler"
-                titleTypographyProps={{ fontWeight: 800, variant: 'h6' }}
-                sx={{ p: 3 }}
-              />
-              <TableContainer>
-                <Table sx={{ minWidth: 600 }}>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: alpha(theme.palette.action.hover, 0.3) }}>
-                      <TableCell sx={{ fontWeight: 700, pl: 3 }}>Sıralama & Kullanıcı</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>E-posta</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }} align="center">Toplam Giriş</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }} align="center">Başarı Oranı</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }} align="right">Son Görülme</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {topWeeklyUsers.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6 }}>Aktif kullanıcı verisi bulunamadı.</TableCell></TableRow>
-                    ) : (
-                      topWeeklyUsers.slice(0, 15).map((u, i) => (
-                        <TableRow key={u.userId} hover sx={{ '& td': { py: 2 } }}>
-                          <TableCell sx={{ pl: 3 }}>
-                            <Stack direction="row" spacing={2} alignItems="center">
-                              {i < 3 ? (
-                                <Box sx={{ position: 'relative' }}>
-                                  <TrophyIcon sx={{ color: i === 0 ? '#f59e0b' : i === 1 ? '#9ca3af' : '#b45309', fontSize: 24 }} />
-                                  <Typography variant="caption" sx={{ position: 'absolute', top: 12, left: 8, color: 'white', fontWeight: 900, fontSize: 10 }}>{i + 1}</Typography>
-                                </Box>
-                              ) : (
-                                <Typography variant="body2" fontWeight={800} color="text.secondary" sx={{ width: 24, textAlign: 'center' }}>{i + 1}</Typography>
-                              )}
-                              <Avatar sx={{ width: 32, height: 32, fontSize: 14, background: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
-                                {u.userEmail?.[0]?.toUpperCase() || 'U'}
-                              </Avatar>
-                              <Typography variant="body2" fontWeight={700}>
-                                {u.displayName || u.userEmail?.split('@')[0] || 'Kullanıcı'}
-                              </Typography>
-                            </Stack>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary">{u.userEmail}</Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Chip label={u.totalLogins} size="small" sx={{ fontWeight: 700 }} />
-                          </TableCell>
-                          <TableCell align="center">
-                            <Box sx={{ width: '100%', maxWidth: 100, display: 'inline-block' }}>
-                              <Stack direction="row" justifyContent="space-between" mb={0.5}>
-                                <Typography variant="caption" fontWeight={700}>{(u.successRate * 100).toFixed(0)}%</Typography>
-                              </Stack>
-                              <LinearProgress
-                                variant="determinate"
-                                value={u.successRate * 100}
-                                color={u.successRate > 0.8 ? 'success' : 'warning'}
-                                sx={{ height: 4, borderRadius: 2 }}
-                              />
-                            </Box>
-                          </TableCell>
-                          <TableCell align="right" sx={{ pr: 3 }}>
-                            <Typography variant="caption" fontWeight={600} color="text.secondary">
-                              {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : 'Bilgi yok'}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Card>
-          </Grid>
-        </Grid>
-      </TabPanel>
-
-      {/* ==================== SECURITY TAB ==================== */}
-      <TabPanel value={activeTab} name="security" padding={0}>
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} md={4}>
-            <PremiumStatCard
-              title="Yüksek Riskli Kullanıcılar"
-              value={riskOverview?.highRiskUsers || '0'}
-              subtitle="Dikkat gerektiren hesaplar"
-              gradient={GRADIENT_ERROR}
-              icon={<ReportProblemIcon sx={{ fontSize: 60, color: '#ef4444' }} />}
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <PremiumStatCard
-              title="Yüksek Riskli IP Adresleri"
-              value={riskOverview?.highRiskIps || '0'}
-              subtitle="Şüpheli trafik kaynakları"
-              gradient={GRADIENT_WARNING}
-              icon={<PublicIcon sx={{ fontSize: 60, color: '#f59e0b' }} />}
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <PremiumStatCard
-              title="Ortalama Risk Skoru"
-              value={riskOverview?.averageUserRiskScore?.toFixed(1) || '0.0'}
-              subtitle="Genel güvenlik sağlığı"
-              gradient={GRADIENT_PRIMARY}
-              icon={<SecurityIcon sx={{ fontSize: 60, color: '#3b82f6' }} />}
-            />
-          </Grid>
-        </Grid>
-
-        <Grid container spacing={4}>
-          <Grid item xs={12} lg={6}>
-            <Card sx={{ height: '100%', borderRadius: 4, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-              <CardHeader title="En Riskli Kullanıcılar" titleTypographyProps={{ fontWeight: 700 }} />
-              <TableContainer>
-                <Table sx={{ minWidth: 400 }}>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: 'action.hover' }}>
-                      <TableCell sx={{ fontWeight: 600 }}>Kullanıcı</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Risk Skoru</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Hata Oranı</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Tespitler</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {riskTopUsers.length === 0 ? (
-                      <TableRow><TableCell colSpan={4} align="center" sx={{ py: 3 }}>Riskli kullanıcı bulunamadı.</TableCell></TableRow>
-                    ) : (
-                      riskTopUsers.slice(0, 5).map(u => (
-                        <TableRow key={u.userId} hover>
-                          <TableCell sx={{ fontWeight: 500 }}>{u.userEmail}</TableCell>
-                          <TableCell>
-                            <Chip label={u.riskScore.toFixed(1)} size="small" color={u.riskScore > 75 ? 'error' : u.riskScore > 50 ? 'warning' : 'success'} />
-                          </TableCell>
-                          <TableCell>{u.failureRate.toFixed(1)}%</TableCell>
-                          <TableCell>
-                            <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
-                              {u.topSignals.slice(0, 2).map(s => <Chip key={s} label={s} size="small" variant="outlined" />)}
-                            </Stack>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} lg={6}>
-            <Card sx={{ height: '100%', borderRadius: 4, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-              <CardHeader title="Aktif Alarmlar" titleTypographyProps={{ fontWeight: 700 }} />
+      {/* 4 Main Metric Cards */}
+      <Grid container spacing={2} mb={3}>
+        {metricCards.map((card, i) => (
+          <Grid item xs={12} sm={6} md={3} key={i}>
+            <Card elevation={0} sx={{ border: `1px solid ${theme.palette.divider}` }}>
               <CardContent>
-                <Stack spacing={2}>
-                  {activeAlerts.length === 0 ? (
-                    <Box sx={{ p: 4, textAlign: 'center', bgcolor: 'action.hover', borderRadius: 2 }}>
-                      <CheckCircleIcon color="success" sx={{ fontSize: 40, mb: 1 }} />
-                      <Typography variant="h6">Her şey yolunda!</Typography>
-                      <Typography color="text.secondary">Şu anda aktif bir güvenlik alarmı bulunmuyor.</Typography>
-                    </Box>
-                  ) : (
-                    activeAlerts.map(alert => (
-                      <Alert key={alert.code} severity={getStatusConfig(alert.severity).color} icon={getStatusConfig(alert.severity).icon} sx={{ borderRadius: 2, alignItems: 'center' }}>
-                        <Typography variant="subtitle2" fontWeight={700}>{alert.title}</Typography>
-                        <Typography variant="body2" sx={{ mt: 0.5 }}>{alert.description}</Typography>
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>{formatDateTime(alert.createdAt)}</Typography>
-                      </Alert>
-                    ))
-                  )}
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                      {card.label}
+                    </Typography>
+                    <Typography variant="h4" fontWeight={700} mt={0.5}>
+                      {card.value.toLocaleString('tr-TR')}
+                    </Typography>
+                  </Box>
+                  <Avatar
+                    sx={{
+                      bgcolor: alpha(card.color, 0.1),
+                      color: card.color,
+                      width: 44,
+                      height: 44,
+                    }}
+                  >
+                    {card.icon}
+                  </Avatar>
+                </Stack>
+                <Stack direction="row" spacing={1} mt={1.5}>
+                  <Chip
+                    size="small"
+                    icon={<TrendingUpIcon sx={{ fontSize: 14 }} />}
+                    label={card.delta}
+                    sx={{
+                      bgcolor: alpha(theme.palette.success.main, 0.1),
+                      color: 'success.dark',
+                      fontWeight: 600,
+                      fontSize: 11,
+                    }}
+                  />
+                  <Chip
+                    size="small"
+                    label={`Son 3 gün: ${card.newLast3}`}
+                    sx={{
+                      bgcolor: alpha(theme.palette.info.main, 0.1),
+                      color: 'info.dark',
+                      fontWeight: 500,
+                      fontSize: 11,
+                    }}
+                  />
                 </Stack>
               </CardContent>
             </Card>
           </Grid>
-        </Grid>
-      </TabPanel>
+        ))}
+      </Grid>
 
-      {/* ==================== SESSIONS TAB ==================== */}
-      <TabPanel value={activeTab} name="sessions" padding={0}>
-        <Card sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', boxShadow: 'none', mb: 4 }}>
-          <CardHeader title="Son Gerçekleşen Oturum İstekleri" titleTypographyProps={{ fontWeight: 700 }} />
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: 'action.hover' }}>
-                  <TableCell sx={{ fontWeight: 600 }}>Durum</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Kullanıcı</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>IP & Konum</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Cihaz</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Tarih</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Detay</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {recentLogs.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4 }}>Bağlantı kaydı bulunamadı.</TableCell></TableRow>
-                ) : (
-                  recentLogs.map((log, i) => {
-                    const status = getStatusConfig(log.status);
-                    return (
-                      <TableRow key={i} hover>
-                        <TableCell>
-                          <Chip icon={status.icon} label={log.status} color={status.color} size="small" variant="filled" sx={{ fontWeight: 600 }} />
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 500 }}>{log.userEmail || '-'}</TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{log.ipAddress}</Typography>
-                          <Typography variant="caption" color="text.secondary">{[log.city, log.country].filter(Boolean).join(', ') || 'Bilinmiyor'}</Typography>
-                        </TableCell>
-                        <TableCell>{log.device || log.deviceInfo || '-'}</TableCell>
-                        <TableCell>{formatDateTime(log.createdAt)}</TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="error.main" fontWeight={500}>{log.failureReason || '-'}</Typography>
+      {/* Son 3 Gün Eklenenler */}
+      <Card elevation={0} sx={{ border: `1px solid ${theme.palette.divider}`, mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" fontWeight={600} mb={2}>
+            Son 3 Gün Eklenenler
+          </Typography>
+          <Grid container spacing={3}>
+            {[
+              {
+                label: 'Yeni İşletme',
+                value: engagement?.dailyActiveUsers ?? 0,
+                avg: ((engagement?.dailyActiveUsers ?? 0) / 3).toFixed(1),
+                color: theme.palette.primary.main,
+                icon: <BusinessIcon />,
+              },
+              {
+                label: 'Yeni Kullanıcı',
+                value: engagement?.weeklyActiveUsers ?? 0,
+                avg: ((engagement?.weeklyActiveUsers ?? 0) / 3).toFixed(1),
+                color: theme.palette.success.main,
+                icon: <PeopleIcon />,
+              },
+              {
+                label: 'Yeni Etkinlik',
+                value: engagement?.dailyLoginCount ?? 0,
+                avg: ((engagement?.dailyLoginCount ?? 0) / 3).toFixed(1),
+                color: theme.palette.warning.main,
+                icon: <EventIcon />,
+              },
+            ].map((item, i) => (
+              <Grid item xs={12} md={4} key={i}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={2}
+                  sx={{ p: 2, borderRadius: 2, bgcolor: alpha(item.color, 0.04) }}
+                >
+                  <Avatar sx={{ bgcolor: alpha(item.color, 0.12), color: item.color }}>
+                    {item.icon}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {item.label}
+                    </Typography>
+                    <Typography variant="h5" fontWeight={700}>
+                      {item.value}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Gunluk ort: {item.avg}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Grid>
+            ))}
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Main Grid: 2fr 1fr */}
+      <Grid container spacing={3}>
+        {/* Left: Recent Users Table */}
+        <Grid item xs={12} lg={8}>
+          <Card
+            elevation={0}
+            sx={{ border: `1px solid ${theme.palette.divider}`, height: '100%' }}
+          >
+            <CardContent>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" fontWeight={600}>
+                  Son Giriş Yapan Kullanıcılar
+                </Typography>
+                <Chip
+                  label={`${recentUsersData?.totalElements ?? 0} kullanici`}
+                  size="small"
+                />
+              </Stack>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Kullanıcı</TableCell>
+                      <TableCell>E-posta</TableCell>
+                      <TableCell>Son Giriş</TableCell>
+                      <TableCell>Cihaz</TableCell>
+                      <TableCell align="center">Durum</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {recentUsers.map((user) => {
+                      const userLog = recentLogs.find((l) => l.userEmail === user.userEmail);
+                      const isRecent =
+                        user.lastLoginAt &&
+                        Date.now() - new Date(user.lastLoginAt).getTime() < 3600000;
+                      return (
+                        <TableRow
+                          key={user.userId}
+                          hover
+                          sx={{
+                            cursor: 'pointer',
+                            '&:hover': {
+                              bgcolor: alpha(theme.palette.primary.main, 0.04),
+                            },
+                          }}
+                          onClick={() => handleUserClick(user)}
+                        >
+                          <TableCell>
+                            <Stack direction="row" alignItems="center" spacing={1.5}>
+                              <Avatar
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  fontSize: 13,
+                                  bgcolor: alpha(theme.palette.primary.main, 0.15),
+                                  color: 'primary.main',
+                                }}
+                              >
+                                {getInitials(user.displayName, user.userEmail)}
+                              </Avatar>
+                              <Typography variant="body2" fontWeight={500}>
+                                {user.displayName || user.userEmail.split('@')[0]}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">
+                              {user.userEmail}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">
+                              {user.lastLoginAt ? relativeTime(user.lastLoginAt) : '-'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {userLog?.device ? (
+                              <Stack direction="row" alignItems="center" spacing={0.5}>
+                                {userLog.device.toLowerCase().includes('mobile') ? (
+                                  <PhoneIcon sx={{ fontSize: 16 }} />
+                                ) : (
+                                  <LaptopIcon sx={{ fontSize: 16 }} />
+                                )}
+                                <Typography variant="caption">{userLog.device}</Typography>
+                              </Stack>
+                            ) : (
+                              <Typography variant="caption" color="text.disabled">
+                                -
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              size="small"
+                              label={isRecent ? 'Aktif' : 'Cevrimdisi'}
+                              color={isRecent ? 'success' : 'default'}
+                              variant={isRecent ? 'filled' : 'outlined'}
+                              sx={{ fontSize: 11, height: 24 }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {recentUsers.length === 0 && !loading && (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Kullanıcı bulunamadı
+                          </Typography>
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Card>
-      </TabPanel>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {recentUsersData && recentUsersData.totalPages > 1 && (
+                <Stack alignItems="center" mt={2}>
+                  <Pagination
+                    count={recentUsersData.totalPages}
+                    page={page + 1}
+                    onChange={(_, p) => setPage(p - 1)}
+                    size="small"
+                    color="primary"
+                  />
+                </Stack>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
 
-      {/* ==================== AUDIT TAB ==================== */}
-      <TabPanel value={activeTab} name="audit" padding={0}>
-        <Card sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-          <CardHeader title="Sistem Denetim Günlüğü" titleTypographyProps={{ fontWeight: 700 }} />
-          <TableContainer>
-            <Table size="medium">
-              <TableHead>
-                <TableRow sx={{ bgcolor: 'action.hover' }}>
-                  <TableCell sx={{ fontWeight: 600 }}>Tarih</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>İşlem Türü</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Durum</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Kullanıcı</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Kaynak IP</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Cihaz/Tarayıcı</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {auditTimeline.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4 }}>Denetim kaydı bulunamadı.</TableCell></TableRow>
+        {/* Right Column */}
+        <Grid item xs={12} lg={4}>
+          <Stack spacing={3}>
+            {/* Bu Hafta En Çok Giriş */}
+            <Card elevation={0} sx={{ border: `1px solid ${theme.palette.divider}` }}>
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                  <TrophyIcon sx={{ color: 'warning.main', fontSize: 20 }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Bu Hafta En Çok Giriş
+                  </Typography>
+                </Stack>
+                <Stack spacing={1.5}>
+                  {topUsers.slice(0, 5).map((user, i) => (
+                    <Stack key={user.userId} spacing={0.5}>
+                      <Stack direction="row" alignItems="center" spacing={1.5}>
+                        <Typography
+                          variant="caption"
+                          fontWeight={700}
+                          sx={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            bgcolor:
+                              i < 3
+                                ? alpha(theme.palette.warning.main, 0.15)
+                                : alpha(theme.palette.grey[500], 0.1),
+                            color: i < 3 ? 'warning.dark' : 'text.secondary',
+                            fontSize: 11,
+                          }}
+                        >
+                          {i + 1}
+                        </Typography>
+                        <Avatar
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            fontSize: 11,
+                            bgcolor: alpha(theme.palette.primary.main, 0.12),
+                            color: 'primary.main',
+                          }}
+                        >
+                          {getInitials(user.displayName, user.userEmail)}
+                        </Avatar>
+                        <Box flex={1} minWidth={0}>
+                          <Typography variant="body2" fontWeight={500} noWrap>
+                            {user.displayName || user.userEmail?.split('@')[0] || 'Bilinmiyor'}
+                          </Typography>
+                        </Box>
+                        <Typography variant="caption" fontWeight={600} color="text.secondary">
+                          {user.totalLogins}
+                        </Typography>
+                      </Stack>
+                      <LinearProgress
+                        variant="determinate"
+                        value={(user.totalLogins / maxLogins) * 100}
+                        sx={{
+                          height: 4,
+                          borderRadius: 2,
+                          ml: 6.5,
+                          bgcolor: alpha(theme.palette.primary.main, 0.08),
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 2,
+                            bgcolor: i === 0 ? 'warning.main' : 'primary.main',
+                          },
+                        }}
+                      />
+                    </Stack>
+                  ))}
+                  {topUsers.length === 0 && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      textAlign="center"
+                      py={2}
+                    >
+                      Veri bulunamadı
+                    </Typography>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+
+            {/* Yaklaşan Bildirimler */}
+            <Card elevation={0} sx={{ border: `1px solid ${theme.palette.divider}` }}>
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                  <ScheduleIcon sx={{ color: 'info.main', fontSize: 20 }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Yaklaşan Bildirimler
+                  </Typography>
+                </Stack>
+                <Stack spacing={0}>
+                  {mockNotifications.map((notif, i) => (
+                    <Box key={notif.id}>
+                      <Stack direction="row" spacing={1.5} alignItems="flex-start" py={1.5}>
+                        <Avatar
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            bgcolor: alpha(theme.palette.info.main, 0.1),
+                            color: 'info.main',
+                          }}
+                        >
+                          {notif.icon}
+                        </Avatar>
+                        <Box flex={1} minWidth={0}>
+                          <Typography variant="body2" fontWeight={500}>
+                            {notif.title}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {notif.description}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={relativeTimeFuture(notif.time)}
+                          size="small"
+                          sx={{
+                            fontSize: 10,
+                            height: 22,
+                            bgcolor: alpha(theme.palette.info.main, 0.08),
+                            color: 'info.dark',
+                          }}
+                        />
+                      </Stack>
+                      {i < mockNotifications.length - 1 && <Divider />}
+                    </Box>
+                  ))}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Stack>
+        </Grid>
+      </Grid>
+
+      {/* User Detail Dialog */}
+      <Dialog
+        open={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        {selectedUser && (
+          <>
+            <DialogTitle>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" alignItems="center" spacing={2}>
+                  <Avatar
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      bgcolor: alpha(theme.palette.primary.main, 0.15),
+                      color: 'primary.main',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {getInitials(selectedUser.displayName, selectedUser.userEmail)}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" fontWeight={600}>
+                      {selectedUser.displayName || selectedUser.userEmail.split('@')[0]}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedUser.userEmail}
+                    </Typography>
+                  </Box>
+                </Stack>
+                <IconButton onClick={() => setSelectedUser(null)} size="small">
+                  <CloseIcon />
+                </IconButton>
+              </Stack>
+            </DialogTitle>
+            <DialogContent dividers>
+              {/* Stats Grid */}
+              <Grid container spacing={2} mb={3}>
+                {[
+                  {
+                    label: 'Toplam Giriş',
+                    value: userTimeline.length,
+                    icon: <PersonIcon fontSize="small" />,
+                    color: theme.palette.primary.main,
+                  },
+                  {
+                    label: 'Başarı Oranı',
+                    value:
+                      userTimeline.length > 0
+                        ? `${((userTimeline.filter((e) => e.status === 'SUCCESS').length / userTimeline.length) * 100).toFixed(0)}%`
+                        : '-',
+                    icon: <CheckCircleIcon fontSize="small" />,
+                    color: theme.palette.success.main,
+                  },
+                  {
+                    label: 'Risk Skoru',
+                    value:
+                      userTimeline.filter((e) => e.status === 'FAILURE').length > 3
+                        ? 'Yuksek'
+                        : 'Dusuk',
+                    icon: <SecurityIcon fontSize="small" />,
+                    color:
+                      userTimeline.filter((e) => e.status === 'FAILURE').length > 3
+                        ? theme.palette.error.main
+                        : theme.palette.success.main,
+                  },
+                  {
+                    label: 'Son Cihaz',
+                    value: userTimeline[0]?.device || '-',
+                    icon: <LaptopIcon fontSize="small" />,
+                    color: theme.palette.info.main,
+                  },
+                ].map((stat, i) => (
+                  <Grid item xs={6} key={i}>
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        bgcolor: alpha(stat.color, 0.06),
+                        textAlign: 'center',
+                      }}
+                    >
+                      <Box sx={{ color: stat.color, mb: 0.5 }}>{stat.icon}</Box>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {stat.label}
+                      </Typography>
+                      <Typography variant="body1" fontWeight={600}>
+                        {stat.value}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+
+              {/* User Info */}
+              <Typography variant="subtitle2" fontWeight={600} mb={1}>
+                Kullanıcı Bilgileri
+              </Typography>
+              <Stack spacing={1} mb={3}>
+                {[
+                  { label: 'Kullanıcı ID', value: selectedUser.userId },
+                  { label: 'E-posta', value: selectedUser.userEmail },
+                  {
+                    label: 'Son Oturum',
+                    value: selectedUser.lastSessionAt
+                      ? format(new Date(selectedUser.lastSessionAt), 'dd.MM.yyyy HH:mm')
+                      : '-',
+                  },
+                  {
+                    label: 'Son Giriş',
+                    value: selectedUser.lastLoginAt
+                      ? format(new Date(selectedUser.lastLoginAt), 'dd.MM.yyyy HH:mm')
+                      : '-',
+                  },
+                ].map((row, i) => (
+                  <Stack
+                    key={i}
+                    direction="row"
+                    justifyContent="space-between"
+                    sx={{
+                      py: 0.75,
+                      px: 1.5,
+                      borderRadius: 1,
+                      bgcolor:
+                        i % 2 === 0 ? alpha(theme.palette.grey[500], 0.04) : 'transparent',
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      {row.label}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      {row.value}
+                    </Typography>
+                  </Stack>
+                ))}
+              </Stack>
+
+              {/* Activity Timeline */}
+              <Typography variant="subtitle2" fontWeight={600} mb={1}>
+                Aktivite Gecmisi
+              </Typography>
+              <Stack spacing={0} sx={{ maxHeight: 240, overflowY: 'auto' }}>
+                {userTimeline.slice(0, 10).map((event, i) => (
+                  <Stack
+                    key={event.eventId}
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="flex-start"
+                    py={1}
+                    sx={{
+                      borderBottom:
+                        i < Math.min(userTimeline.length, 10) - 1
+                          ? `1px solid ${theme.palette.divider}`
+                          : 'none',
+                    }}
+                  >
+                    {event.status === 'SUCCESS' ? (
+                      <CheckCircleIcon
+                        sx={{ fontSize: 18, color: 'success.main', mt: 0.25 }}
+                      />
+                    ) : (
+                      <CancelIcon sx={{ fontSize: 18, color: 'error.main', mt: 0.25 }} />
+                    )}
+                    <Box flex={1}>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <Typography variant="body2" fontWeight={500}>
+                          {event.eventType === 'LOGIN'
+                            ? 'Giriş'
+                            : event.eventType === 'LOGOUT'
+                              ? 'Çıkış'
+                              : event.eventType}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {relativeTime(event.createdAt)}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={1} mt={0.25}>
+                        {event.ipAddress && (
+                          <Typography variant="caption" color="text.disabled">
+                            {event.ipAddress}
+                          </Typography>
+                        )}
+                        {event.device && (
+                          <Typography variant="caption" color="text.disabled">
+                            {event.device}
+                          </Typography>
+                        )}
+                      </Stack>
+                      {event.failureReason && (
+                        <Typography variant="caption" color="error.main">
+                          {event.failureReason}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Stack>
+                ))}
+                {userTimeline.length === 0 && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    textAlign="center"
+                    py={3}
+                  >
+                    Aktivite bulunamadı
+                  </Typography>
+                )}
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, py: 2 }}>
+              <Button
+                startIcon={<LogoutIcon />}
+                color="warning"
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  enqueueSnackbar('Oturum kapatma işlemi başlatıldı', { variant: 'info' });
+                  setSelectedUser(null);
+                }}
+              >
+                Oturumu Kapat
+              </Button>
+              <Button
+                startIcon={<BlockIcon />}
+                color="error"
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  enqueueSnackbar('Hesap engelleme işlemi başlatıldı', {
+                    variant: 'warning',
+                  });
+                  setSelectedUser(null);
+                }}
+              >
+                Hesabı Engelle
+              </Button>
+              <Button
+                startIcon={<PersonIcon />}
+                color="primary"
+                variant="contained"
+                size="small"
+                onClick={() => {
+                  setSelectedUser(null);
+                }}
+              >
+                Profili Gör
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
+
+      {/* Alert Detail Dialog */}
+      <Dialog
+        open={alertDialogOpen}
+        onClose={() => setAlertDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        {selectedAlert && (
+          <>
+            <DialogTitle>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                {selectedAlert.severity === 'HIGH' ? (
+                  <ErrorIcon color="error" />
                 ) : (
-                  auditTimeline.map(event => (
-                    <TableRow key={event.eventId} hover>
-                      <TableCell>{formatDateTime(event.createdAt)}</TableCell>
-                      <TableCell><Typography color="primary" fontWeight={600} variant="body2">{event.eventType}</Typography></TableCell>
-                      <TableCell>
-                        <Chip label={event.status} color={getStatusConfig(event.status).color} size="small" variant="outlined" />
-                      </TableCell>
-                      <TableCell>{event.userEmail || event.userId || '-'}</TableCell>
-                      <TableCell>{event.ipAddress || '-'}</TableCell>
-                      <TableCell>{event.device || '-'}</TableCell>
-                    </TableRow>
-                  ))
+                  <WarningIcon color="warning" />
                 )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Card>
-      </TabPanel>
-
+                <Typography variant="h6" fontWeight={600}>
+                  {selectedAlert.title}
+                </Typography>
+              </Stack>
+            </DialogTitle>
+            <DialogContent dividers>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Aciklama
+                  </Typography>
+                  <Typography variant="body2">{selectedAlert.description}</Typography>
+                </Box>
+                <Stack direction="row" spacing={2}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Onem Derecesi
+                    </Typography>
+                    <Box>
+                      <Chip
+                        size="small"
+                        label={
+                          selectedAlert.severity === 'HIGH'
+                            ? 'Yuksek'
+                            : selectedAlert.severity === 'MEDIUM'
+                              ? 'Orta'
+                              : 'Dusuk'
+                        }
+                        color={
+                          selectedAlert.severity === 'HIGH'
+                            ? 'error'
+                            : selectedAlert.severity === 'MEDIUM'
+                              ? 'warning'
+                              : 'info'
+                        }
+                      />
+                    </Box>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Durum
+                    </Typography>
+                    <Typography variant="body2">{selectedAlert.status}</Typography>
+                  </Box>
+                </Stack>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Kod
+                  </Typography>
+                  <Typography variant="body2" fontFamily="monospace">
+                    {selectedAlert.code}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Oluşturulma
+                  </Typography>
+                  <Typography variant="body2">
+                    {format(new Date(selectedAlert.createdAt), 'dd.MM.yyyy HH:mm:ss')}
+                  </Typography>
+                </Box>
+                {selectedAlert.assignee && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Atanan
+                    </Typography>
+                    <Typography variant="body2">{selectedAlert.assignee}</Typography>
+                  </Box>
+                )}
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setAlertDialogOpen(false)}>Kapat</Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </PageContainer>
   );
 }

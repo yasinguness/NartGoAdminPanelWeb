@@ -77,7 +77,6 @@ const menuSections: MenuSection[] = [
         defaultOpen: true,
         items: [
             { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
-            { text: 'Etkinlik Operasyonları', icon: <AdminPanelSettingsIcon />, path: '/event-operations' },
             { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories' },
             { text: 'Bilet Oluşturucu', icon: <TicketIcon />, path: '/ticket-creation' },
         ],

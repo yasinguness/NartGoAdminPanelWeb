@@ -30,7 +30,7 @@ import GamificationSettings from './pages/Gamification/GamificationSettings';
 import SubMerchants from './pages/SubMerchants/SubMerchants';
 import SubMerchantForm from './pages/SubMerchants/SubMerchantForm';
 import SubMerchantDetails from './pages/SubMerchants/SubMerchantDetails';
-import EventOperations from './pages/AdminOperations/EventOperations';
+import EventDetail from './pages/Events/EventDetail';
 import SalesCommandCenter from './pages/SalesCommandCenter/SalesCommandCenter';
 import VenueInventoryManager from './pages/VenueInventoryManager/VenueInventoryManager';
 import BoxOffice from './pages/BoxOffice/BoxOffice';
@@ -72,8 +72,7 @@ function App() {
                 <Route path="business-claims" element={<BusinessClaims />} />
                 <Route path="business-categories" element={<BusinessCategories />} />
                 <Route path="events" element={<Events />} />
-                <Route path="event-operations" element={<EventOperations />} />
-                <Route path="event-operations/:eventId" element={<EventOperations />} />
+                <Route path="events/:id" element={<EventDetail />} />
                 <Route path="sales-command" element={<SalesCommandCenter />} />
                 <Route path="venue-inventory" element={<VenueInventoryManager />} />
                 <Route path="box-office" element={<BoxOffice />} />
