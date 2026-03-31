@@ -61,7 +61,7 @@ export default function UserDetails() {
             setFormData(response.data);
         } catch (error) {
             console.error('Error fetching user:', error);
-            enqueueSnackbar('Failed to fetch user details', { variant: 'error' });
+            enqueueSnackbar('Kullanıcı detayları alınamadı', { variant: 'error' });
         } finally {
             setLoading(false);
         }
@@ -93,10 +93,10 @@ export default function UserDetails() {
             await updateUserAdmin({ userId: id!, userData: formData });
             setUser(formData);
             setEditing(false);
-            enqueueSnackbar('User updated successfully', { variant: 'success' });
+            enqueueSnackbar('Kullanıcı başarıyla güncellendi', { variant: 'success' });
         } catch (error) {
             console.error('Error updating user:', error);
-            enqueueSnackbar('Failed to update user', { variant: 'error' });
+            enqueueSnackbar('Kullanıcı güncellenemedi', { variant: 'error' });
         } finally {
             setSaving(false);
         }
@@ -114,15 +114,15 @@ export default function UserDetails() {
     };
 
     if (loading) {
-        return <LoadingState message="Loading user details..." />;
+        return <LoadingState message="Kullanıcı detayları yükleniyor..." />;
     }
 
     if (!user || !formData) {
         return (
             <PageContainer>
-                <ErrorState 
-                    title="User Not Found" 
-                    message="The user you are looking for does not exist or has been removed."
+                <ErrorState
+                    title="Kullanıcı Bulunamadı"
+                    message="Aradığınız kullanıcı mevcut değil veya kaldırılmış."
                     onRetry={() => navigate('/users')}
                     
                 />
@@ -131,7 +131,7 @@ export default function UserDetails() {
     }
 
     const displayData = editing ? formData : user;
-    const displayName = (displayData.displayName || `${displayData.firstName || ''} ${displayData.lastName || ''}`.trim() || displayData.email || 'Unknown User').trim();
+    const displayName = (displayData.displayName || `${displayData.firstName || ''} ${displayData.lastName || ''}`.trim() || displayData.email || 'Bilinmeyen Kullanıcı').trim();
     const avatarInitials = `${(displayData.firstName || '').trim().charAt(0)}${(displayData.lastName || '').trim().charAt(0)}`.trim()
         || (displayData.displayName || '').trim().charAt(0)
         || (displayData.email || '').trim().charAt(0)
@@ -144,7 +144,7 @@ export default function UserDetails() {
                 onClick={handleCancel}
                 color="inherit"
             >
-                Cancel
+                İptal
             </Button>
             <Button
                 startIcon={<SaveIcon />}
@@ -152,7 +152,7 @@ export default function UserDetails() {
                 variant="contained"
                 disabled={saving}
             >
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
             </Button>
         </Stack>
     ) : (
@@ -161,7 +161,7 @@ export default function UserDetails() {
             onClick={handleEdit}
             variant="contained"
         >
-            Edit User
+            Kullanıcıyı Düzenle
         </Button>
     );
 
@@ -173,9 +173,9 @@ export default function UserDetails() {
                 onBack={() => navigate('/users')}
                 actions={headerActions}
                 breadcrumbs={[
-                    { label: 'Dashboard', href: '/' },
-                    { label: 'Users', href: '/users' },
-                    { label: 'Details', active: true },
+                    { label: 'Kontrol Paneli', href: '/' },
+                    { label: 'Kullanıcılar', href: '/users' },
+                    { label: 'Detaylar', active: true },
                 ]}
             />
 
@@ -208,18 +208,18 @@ export default function UserDetails() {
 
                             <Stack direction="column" spacing={2} width="100%">
                                 <Box display="flex" justifyContent="space-between" alignItems="center">
-                                    <Typography variant="body2" color="text.secondary">Status</Typography>
+                                    <Typography variant="body2" color="text.secondary">Durum</Typography>
                                     <StatusChip status={displayData.userStatus} />
                                 </Box>
                                 <Box display="flex" justifyContent="space-between" alignItems="center">
-                                    <Typography variant="body2" color="text.secondary">Account Type</Typography>
+                                    <Typography variant="body2" color="text.secondary">Hesap Türü</Typography>
                                     <StatusChip 
                                         status={displayData.accountType} 
                                         color={displayData.accountType === AccountType.BUSINESS ? 'secondary' : 'info'}
                                     />
                                 </Box>
                                 <Box display="flex" justifyContent="space-between" alignItems="center">
-                                    <Typography variant="body2" color="text.secondary">Created At</Typography>
+                                    <Typography variant="body2" color="text.secondary">Oluşturulma Tarihi</Typography>
                                     <Typography variant="body2" fontWeight={500}>
                                         {displayData.createdAt ? new Date(displayData.createdAt).toLocaleDateString() : 'N/A'}
                                     </Typography>
@@ -250,25 +250,25 @@ export default function UserDetails() {
                         />
 
                         {/* Personal Info */}
-                        <PageSection title="Personal Information">
+                        <PageSection title="Kişisel Bilgiler">
                             <FormGrid>
                                 <TextField
                                     fullWidth
-                                    label="First Name"
+                                    label="Ad"
                                     value={displayData.firstName || ''}
                                     onChange={(e) => editing && handleChange('firstName', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Last Name"
+                                    label="Soyad"
                                     value={displayData.lastName || ''}
                                     onChange={(e) => editing && handleChange('lastName', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Email"
+                                    label="E-posta"
                                     value={displayData.email || ''}
                                     onChange={(e) => editing && handleChange('email', e.target.value)}
                                     disabled={!editing}
@@ -276,14 +276,14 @@ export default function UserDetails() {
                                 <Box display="flex" gap={1}>
                                     <TextField
                                         sx={{ width: '100px' }}
-                                        label="Code"
+                                        label="Kod"
                                         value={displayData.phoneCode || ''}
                                         onChange={(e) => editing && handleChange('phoneCode', e.target.value)}
                                         disabled={!editing}
                                     />
                                     <TextField
                                         fullWidth
-                                        label="Phone"
+                                        label="Telefon"
                                         value={displayData.gsmNo || ''}
                                         onChange={(e) => editing && handleChange('gsmNo', e.target.value)}
                                         disabled={!editing}
@@ -291,7 +291,7 @@ export default function UserDetails() {
                                 </Box>
                                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                                     <DatePicker
-                                        label="Birth Date"
+                                        label="Doğum Tarihi"
                                         value={displayData.birthDate ? new Date(displayData.birthDate) : null}
                                         onChange={(date) => editing && handleChange('birthDate', date?.toISOString())}
                                         disabled={!editing}
@@ -299,14 +299,14 @@ export default function UserDetails() {
                                     />
                                 </LocalizationProvider>
                                 <FormControl fullWidth>
-                                    <InputLabel>Race</InputLabel>
+                                    <InputLabel>Irk</InputLabel>
                                     <Select
                                         value={displayData.race || ''}
                                         onChange={(e) => editing && handleChange('race', e.target.value)}
                                         disabled={!editing}
-                                        label="Race"
+                                        label="Irk"
                                     >
-                                        <MenuItem value="">Not specified</MenuItem>
+                                        <MenuItem value="">Belirtilmemiş</MenuItem>
                                         {Object.values(RaceEnum).map((race) => (
                                             <MenuItem key={race} value={race}>{race}</MenuItem>
                                         ))}
@@ -314,25 +314,25 @@ export default function UserDetails() {
                                 </FormControl>
                                 <TextField
                                     fullWidth
-                                    label="Family"
+                                    label="Aile"
                                     value={displayData.family || ''}
                                     onChange={(e) => editing && handleChange('family', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Job"
+                                    label="Meslek"
                                     value={displayData.job || ''}
                                     onChange={(e) => editing && handleChange('job', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <FormControl fullWidth>
-                                    <InputLabel>Language</InputLabel>
+                                    <InputLabel>Dil</InputLabel>
                                     <Select
                                         value={displayData.language || ''}
                                         onChange={(e) => editing && handleChange('language', e.target.value)}
                                         disabled={!editing}
-                                        label="Language"
+                                        label="Dil"
                                     >
                                         {Object.entries(LanguageDisplayNames).map(([key, value]) => (
                                             <MenuItem key={key} value={key}>{value}</MenuItem>
@@ -342,7 +342,7 @@ export default function UserDetails() {
                                 <Box display="flex" alignItems="center">
                                     <StatusChip 
                                         status={displayData.profileIncomplete ? 'pending' : 'active'}
-                                        label={displayData.profileIncomplete ? 'Profile Incomplete' : 'Profile Complete'}
+                                        label={displayData.profileIncomplete ? 'Profil Eksik' : 'Profil Tamamlandı'}
                                         showIcon
                                     />
                                 </Box>
@@ -351,24 +351,24 @@ export default function UserDetails() {
 
                         {/* Business Info */}
                         {displayData.accountType === AccountType.BUSINESS && (
-                            <PageSection title="Business Information">
+                            <PageSection title="İşletme Bilgileri">
                                 <FormGrid>
                                     <TextField
                                         fullWidth
-                                        label="Company Name"
+                                        label="Şirket Adı"
                                         value={displayData.companyName || ''}
                                         onChange={(e) => editing && handleChange('companyName', e.target.value)}
                                         disabled={!editing}
                                     />
                                     <FormControl fullWidth>
-                                        <InputLabel>Business Type</InputLabel>
+                                        <InputLabel>İşletme Türü</InputLabel>
                                         <Select
                                             value={displayData.businessType || ''}
                                             onChange={(e) => editing && handleChange('businessType', e.target.value)}
                                             disabled={!editing}
-                                            label="Business Type"
+                                            label="İşletme Türü"
                                         >
-                                            <MenuItem value="">Not specified</MenuItem>
+                                            <MenuItem value="">Belirtilmemiş</MenuItem>
                                             {Object.values(BusinessType).map((type) => (
                                                 <MenuItem key={type} value={type}>{type}</MenuItem>
                                             ))}
@@ -379,32 +379,32 @@ export default function UserDetails() {
                         )}
 
                         {/* Current Address */}
-                        <PageSection title="Current Address">
+                        <PageSection title="Mevcut Adres">
                             <FormGrid>
                                 <TextField
                                     fullWidth
-                                    label="City"
+                                    label="Şehir"
                                     value={displayData.currentAddress?.city || ''}
                                     onChange={(e) => editing && handleAddressChange('currentAddress', 'city', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="District"
+                                    label="İlçe"
                                     value={displayData.currentAddress?.district || ''}
                                     onChange={(e) => editing && handleAddressChange('currentAddress', 'district', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Country"
+                                    label="Ülke"
                                     value={displayData.currentAddress?.country || ''}
                                     onChange={(e) => editing && handleAddressChange('currentAddress', 'country', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Postal Code"
+                                    label="Posta Kodu"
                                     value={displayData.currentAddress?.postalCode || ''}
                                     onChange={(e) => editing && handleAddressChange('currentAddress', 'postalCode', e.target.value)}
                                     disabled={!editing}
@@ -412,7 +412,7 @@ export default function UserDetails() {
                                 <Grid item xs={12}>
                                     <TextField
                                         fullWidth
-                                        label="Full Address Description"
+                                        label="Adres Açıklaması"
                                         value={displayData.currentAddress?.description || ''}
                                         onChange={(e) => editing && handleAddressChange('currentAddress', 'description', e.target.value)}
                                         disabled={!editing}
@@ -424,32 +424,32 @@ export default function UserDetails() {
                         </PageSection>
 
                         {/* Hometown Address */}
-                        <PageSection title="Hometown Address">
+                        <PageSection title="Memleket Adresi">
                             <FormGrid>
                                 <TextField
                                     fullWidth
-                                    label="City"
+                                    label="Şehir"
                                     value={displayData.hometownAddress?.city || ''}
                                     onChange={(e) => editing && handleAddressChange('hometownAddress', 'city', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="District"
+                                    label="İlçe"
                                     value={displayData.hometownAddress?.district || ''}
                                     onChange={(e) => editing && handleAddressChange('hometownAddress', 'district', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Country"
+                                    label="Ülke"
                                     value={displayData.hometownAddress?.country || ''}
                                     onChange={(e) => editing && handleAddressChange('hometownAddress', 'country', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Village"
+                                    label="Köy"
                                     value={displayData.hometownAddress?.village || ''}
                                     onChange={(e) => editing && handleAddressChange('hometownAddress', 'village', e.target.value)}
                                     disabled={!editing}
@@ -457,7 +457,7 @@ export default function UserDetails() {
                                 <Grid item xs={12}>
                                     <TextField
                                         fullWidth
-                                        label="Hometown Description"
+                                        label="Memleket Açıklaması"
                                         value={displayData.hometownAddress?.description || ''}
                                         onChange={(e) => editing && handleAddressChange('hometownAddress', 'description', e.target.value)}
                                         disabled={!editing}
@@ -469,32 +469,32 @@ export default function UserDetails() {
                         </PageSection>
 
                         {/* Additional Info */}
-                        <PageSection title="Legacy Location Info">
+                        <PageSection title="Eski Konum Bilgileri">
                             <FormGrid>
                                 <TextField
                                     fullWidth
-                                    label="Current City (Legacy)"
+                                    label="Mevcut Şehir (Eski)"
                                     value={displayData.currentCity || ''}
                                     onChange={(e) => editing && handleChange('currentCity', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Current District (Legacy)"
+                                    label="Mevcut İlçe (Eski)"
                                     value={displayData.currentDistrict || ''}
                                     onChange={(e) => editing && handleChange('currentDistrict', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Hometown City (Legacy)"
+                                    label="Memleket Şehri (Eski)"
                                     value={displayData.hometownCity || ''}
                                     onChange={(e) => editing && handleChange('hometownCity', e.target.value)}
                                     disabled={!editing}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Hometown Village (Legacy)"
+                                    label="Memleket Köyü (Eski)"
                                     value={displayData.hometownVillage || ''}
                                     onChange={(e) => editing && handleChange('hometownVillage', e.target.value)}
                                     disabled={!editing}
@@ -502,7 +502,7 @@ export default function UserDetails() {
                                 <Grid item xs={12}>
                                     <TextField
                                         fullWidth
-                                        label="Profile Image URL"
+                                        label="Profil Görseli URL"
                                         value={displayData.imageUrl || ''}
                                         onChange={(e) => editing && handleChange('imageUrl', e.target.value)}
                                         disabled={!editing}

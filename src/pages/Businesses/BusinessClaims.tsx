@@ -30,9 +30,9 @@ import {
 } from '../../types/businesses/businessClaimModel';
 
 const STATUS_OPTIONS: { value: BusinessClaimStatus; label: string }[] = [
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'PENDING', label: 'Beklemede' },
+  { value: 'APPROVED', label: 'Onaylandı' },
+  { value: 'REJECTED', label: 'Reddedildi' },
 ];
 
 const formatDateTime = (value?: string) => {
@@ -211,7 +211,7 @@ export default function BusinessClaims() {
   return (
     <PageContainer>
       <PageHeader
-        title="Business Claims"
+        title="İşletme Talepleri"
         subtitle="İşletme sahiplik taleplerini görüntüleyin, detaylarını inceleyin ve onaylayın/reddedin."
         actions={
           <Button

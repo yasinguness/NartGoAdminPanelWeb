@@ -356,11 +356,11 @@ export default function Businesses() {
                 coverImage || undefined,
                 galleryImages
             );
-            enqueueSnackbar('Business updated successfully', { variant: 'success' });
+            enqueueSnackbar('İşletme başarıyla güncellendi', { variant: 'success' });
             handleCloseDialog();
             resp.refetch();
         } catch (error) {
-            enqueueSnackbar('Failed to update business', { variant: 'error' });
+            enqueueSnackbar('İşletme güncellenemedi', { variant: 'error' });
         }
     };
 
@@ -384,12 +384,12 @@ export default function Businesses() {
         if (!businessToHardDelete) return;
         try {
             await businessStore.hardDeleteBusiness(businessToHardDelete);
-            enqueueSnackbar('Business permanently deleted successfully', { variant: 'success' });
+            enqueueSnackbar('İşletme kalıcı olarak silindi', { variant: 'success' });
             setOpenHardDeleteDialog(false);
             setBusinessToHardDelete(null);
             resp.refetch();
         } catch (error) {
-            enqueueSnackbar('Failed to permanently delete business', { variant: 'error' });
+            enqueueSnackbar('İşletme silinemedi', { variant: 'error' });
         }
     }, [businessToHardDelete, businessStore, enqueueSnackbar, resp]);
 
@@ -402,11 +402,11 @@ export default function Businesses() {
         if (!selectedBusiness) return;
         try {
             await businessStore.setBusinessAsGloballyFeatured(selectedBusiness.ownerId, selectedBusiness.id, durationInDays);
-            enqueueSnackbar('Business set as globally featured successfully', { variant: 'success' });
+            enqueueSnackbar('İşletme global öne çıkan olarak ayarlandı', { variant: 'success' });
             handleCloseDialog();
             resp.refetch();
         } catch (error) {
-            enqueueSnackbar('Failed to set business as globally featured', { variant: 'error' });
+            enqueueSnackbar('Global öne çıkan ayarlanamadı', { variant: 'error' });
         }
     };
 
@@ -414,11 +414,11 @@ export default function Businesses() {
         if (!selectedBusiness) return;
         try {
             await businessStore.setBusinessAsLocallyFeatured(selectedBusiness.ownerId, selectedBusiness.id, durationInDays, featuredRadiusInKm);
-            enqueueSnackbar('Business set as locally featured successfully', { variant: 'success' });
+            enqueueSnackbar('İşletme yerel öne çıkan olarak ayarlandı', { variant: 'success' });
             handleCloseDialog();
             resp.refetch();
         } catch (error) {
-            enqueueSnackbar('Failed to set business as locally featured', { variant: 'error' });
+            enqueueSnackbar('Yerel öne çıkan ayarlanamadı', { variant: 'error' });
         }
     };
 
@@ -426,11 +426,11 @@ export default function Businesses() {
         if (!selectedBusiness) return;
         try {
             await businessStore.removeFeaturedStatus(selectedBusiness.id);
-            enqueueSnackbar('Featured status removed successfully', { variant: 'success' });
+            enqueueSnackbar('Öne çıkan durumu kaldırıldı', { variant: 'success' });
             handleCloseDialog();
             resp.refetch();
         } catch (error) {
-            enqueueSnackbar('Failed to remove featured status', { variant: 'error' });
+            enqueueSnackbar('Öne çıkan durumu kaldırılamadı', { variant: 'error' });
         }
     };
 
@@ -439,9 +439,9 @@ export default function Businesses() {
         e.stopPropagation();
         try {
             await businessStore.verifyBusiness(id);
-            enqueueSnackbar(current ? 'Business unverified' : 'Business verified', { variant: 'success' });
+            enqueueSnackbar(current ? 'Doğrulama kaldırıldı' : 'İşletme doğrulandı', { variant: 'success' });
         } catch (error) {
-            enqueueSnackbar('Failed to update verification status', { variant: 'error' });
+            enqueueSnackbar('Doğrulama durumu güncellenemedi', { variant: 'error' });
         }
     };
 
@@ -450,15 +450,15 @@ export default function Businesses() {
         try {
             const updated = { ...business, hasSubscriptionSystem: !business.hasSubscriptionSystem };
             await businessStore.updateBusinessFields(business.id, updated);
-            enqueueSnackbar(updated.hasSubscriptionSystem ? 'Subscription enabled' : 'Subscription disabled', { variant: 'success' });
+            enqueueSnackbar(updated.hasSubscriptionSystem ? 'Abonelik etkinleştirildi' : 'Abonelik devre dışı bırakıldı', { variant: 'success' });
             resp.refetch();
         } catch (error) {
-            enqueueSnackbar('Failed to update subscription status', { variant: 'error' });
+            enqueueSnackbar('Abonelik durumu güncellenemedi', { variant: 'error' });
         }
     };
 
     const renderRating = (rating?: number, count?: number) => {
-        if (!rating) return <Typography variant="caption" color="text.secondary">No ratings</Typography>;
+        if (!rating) return <Typography variant="caption" color="text.secondary">Değerlendirme yok</Typography>;
         return (
             <Stack direction="row" alignItems="center" spacing={0.5}>
                 <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />
@@ -471,7 +471,7 @@ export default function Businesses() {
     const columns = [
         {
             id: 'business',
-            label: 'Business',
+            label: 'İşletme',
             render: (business: BusinessDto) => (
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Avatar
@@ -486,7 +486,7 @@ export default function Businesses() {
                             {business.name}
                         </Typography>
                         <Typography variant="caption" color="text.secondary" display="block">
-                            {business.categoryName} • {business.address?.city || 'Unknown Location'}
+                            {business.categoryName} • {business.address?.city || 'Bilinmeyen Konum'}
                         </Typography>
                     </Box>
                 </Stack>
@@ -494,16 +494,16 @@ export default function Businesses() {
         },
         {
             id: 'stats',
-            label: 'Stats',
+            label: 'İstatistik',
             render: (business: BusinessDto) => (
                 <Stack spacing={0.5}>
                     {renderRating(business.averageRating, business.totalReviews)}
                     <Stack direction="row" spacing={1} alignItems="center">
-                        <Box display="flex" alignItems="center" gap={0.5} title="Views">
+                        <Box display="flex" alignItems="center" gap={0.5} title="Görüntülenme">
                             <VisibilityIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
                             <Typography variant="caption" color="text.secondary">{business.viewCount || 0}</Typography>
                         </Box>
-                        <Box display="flex" alignItems="center" gap={0.5} title="Favorites">
+                        <Box display="flex" alignItems="center" gap={0.5} title="Favoriler">
                             <FavoriteIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
                             <Typography variant="caption" color="text.secondary">{business.favoriteCount || 0}</Typography>
                         </Box>
@@ -513,17 +513,17 @@ export default function Businesses() {
         },
         {
             id: 'status',
-            label: 'Status',
+            label: 'Durum',
             render: (business: BusinessDto) => (
                 <StatusChip status={business.status} />
             )
         },
         {
             id: 'features',
-            label: 'Features',
+            label: 'Özellikler',
             render: (business: BusinessDto) => (
                 <Stack direction="row" spacing={0.5}>
-                    <Tooltip title={business.verified ? "Verified Business" : "Not Verified"}>
+                    <Tooltip title={business.verified ? "Doğrulanmış İşletme" : "Doğrulanmamış"}>
                         <IconButton
                             size="small"
                             color={business.verified ? "success" : "default"}
@@ -537,7 +537,7 @@ export default function Businesses() {
                         </IconButton>
                     </Tooltip>
 
-                    <Tooltip title={business.globallyFeatured ? "Globally Featured" : "Not Globally Featured"}>
+                    <Tooltip title={business.globallyFeatured ? "Global Öne Çıkan" : "Global Öne Çıkan Değil"}>
                         <IconButton
                             size="small"
                             color={business.globallyFeatured ? "primary" : "default"}
@@ -553,7 +553,7 @@ export default function Businesses() {
                         </IconButton>
                     </Tooltip>
 
-                    <Tooltip title={business.locallyFeatured ? "Locally Featured" : "Not Locally Featured"}>
+                    <Tooltip title={business.locallyFeatured ? "Yerel Öne Çıkan" : "Yerel Öne Çıkan Değil"}>
                         <IconButton
                             size="small"
                             color={business.locallyFeatured ? "secondary" : "default"}
@@ -569,7 +569,7 @@ export default function Businesses() {
                         </IconButton>
                     </Tooltip>
 
-                    <Tooltip title={business.hasSubscriptionSystem ? "Subscription Active" : "No Subscription"}>
+                    <Tooltip title={business.hasSubscriptionSystem ? "Abonelik Aktif" : "Abonelik Yok"}>
                         <IconButton
                             size="small"
                             color={business.hasSubscriptionSystem ? "info" : "default"}
@@ -586,10 +586,10 @@ export default function Businesses() {
         },
         {
             id: 'owner',
-            label: 'Owner',
+            label: 'Sahip',
             render: (business: BusinessDto) => (
                 <Box>
-                    <Typography variant="body2">{business.ownerName || 'Unknown'}</Typography>
+                    <Typography variant="body2">{business.ownerName || 'Bilinmiyor'}</Typography>
                     <Typography variant="caption" color="text.secondary">ID: ...{business.ownerId?.slice(-6)}</Typography>
                 </Box>
             )
@@ -599,26 +599,26 @@ export default function Businesses() {
     return (
         <PageContainer>
             <PageHeader
-                title="Businesses"
-                subtitle="Manage your partners, subscriptions, and featured listings."
+                title="İşletmeler"
+                subtitle="İş ortaklarınızı, aboneliklerinizi ve öne çıkan listelemeleri yönetin."
                 actions={
                     <Button
                         variant="contained"
                         startIcon={<RefreshIcon />}
                         onClick={handleRefresh}
                     >
-                        Refresh Data
+                        Verileri Yenile
                     </Button>
                 }
                 breadcrumbs={[
-                    { label: 'Dashboard', href: '/' },
-                    { label: 'Businesses', active: true },
+                    { label: 'Kontrol Paneli', href: '/' },
+                    { label: 'İşletmeler', active: true },
                 ]}
             />
 
             {/* Error States */}
             {resp.isError && (
-                <Alert severity="error" sx={{ mb: 3 }} action={<Button color="inherit" size="small" onClick={handleRefresh}>Retry</Button>}>
+                <Alert severity="error" sx={{ mb: 3 }} action={<Button color="inherit" size="small" onClick={handleRefresh}>Tekrar Dene</Button>}>
                     {String(resp.error)}
                 </Alert>
             )}
@@ -628,66 +628,66 @@ export default function Businesses() {
                     search={{
                         value: localSearchValue,
                         onChange: handleSearchChange,
-                        placeholder: "Search businesses..."
+                        placeholder: "İşletme ara..."
                     }}
                     onClearFilters={handleClearFilters}
                     activeFilterCount={activeFilterCount}
                     filters={
                         <>
                             <FormControl size="small" sx={{ minWidth: 150 }}>
-                                <InputLabel>Category</InputLabel>
+                                <InputLabel>Kategori</InputLabel>
                                 <Select
                                     value={selectedCategory}
-                                    label="Category"
+                                    label="Kategori"
                                     onChange={(e) => setSelectedCategory(e.target.value)}
                                 >
-                                    <MenuItem value="">All Categories</MenuItem>
+                                    <MenuItem value="">Tüm Kategoriler</MenuItem>
                                     {categories.map((c) => (
                                         <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
                                     ))}
                                 </Select>
                             </FormControl>
                             <FormControl size="small" sx={{ minWidth: 150 }}>
-                                <InputLabel>Status</InputLabel>
+                                <InputLabel>Durum</InputLabel>
                                 <Select
                                     value={selectedStatus}
-                                    label="Status"
+                                    label="Durum"
                                     onChange={(e) => setSelectedStatus(e.target.value as BusinessStatus)}
                                 >
-                                    <MenuItem value="">All Statuses</MenuItem>
-                                    <MenuItem value={BusinessStatus.ACTIVE}>Active</MenuItem>
-                                    <MenuItem value={BusinessStatus.PENDING}>Pending</MenuItem>
-                                    <MenuItem value={BusinessStatus.INACTIVE}>Inactive</MenuItem>
-                                    <MenuItem value={BusinessStatus.SUSPENDED}>Suspended</MenuItem>
+                                    <MenuItem value="">Tüm Durumlar</MenuItem>
+                                    <MenuItem value={BusinessStatus.ACTIVE}>Aktif</MenuItem>
+                                    <MenuItem value={BusinessStatus.PENDING}>Beklemede</MenuItem>
+                                    <MenuItem value={BusinessStatus.INACTIVE}>Pasif</MenuItem>
+                                    <MenuItem value={BusinessStatus.SUSPENDED}>Askıya Alınmış</MenuItem>
                                 </Select>
                             </FormControl>
                             <Divider orientation="vertical" flexItem variant="middle" />
                             <FormControlLabel
                                 control={<Switch size="small" checked={featuredOnly} onChange={(e) => setFeaturedOnly(e.target.checked)} />}
-                                label={<Typography variant="body2">Featured Only</Typography>}
+                                label={<Typography variant="body2">Sadece Öne Çıkanlar</Typography>}
                             />
                         </>
                     }
                     advancedFilters={
                         <Grid container spacing={2}>
                             <Grid item xs={12} sm={6} md={3}>
-                                <TextField fullWidth label="City" size="small" value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)} />
+                                <TextField fullWidth label="Şehir" size="small" value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)} />
                             </Grid>
                             <Grid item xs={12} sm={6} md={3}>
                                 <FormControl fullWidth size="small">
-                                    <InputLabel>Sort By</InputLabel>
-                                    <Select value={sortBy} label="Sort By" onChange={(e) => setSortBy(e.target.value as any)}>
-                                        <MenuItem value="">Default</MenuItem>
-                                        <MenuItem value="name">Name (A-Z)</MenuItem>
-                                        <MenuItem value="recently_added">Newest First</MenuItem>
-                                        <MenuItem value="distance">Nearest</MenuItem>
+                                    <InputLabel>Sıralama</InputLabel>
+                                    <Select value={sortBy} label="Sıralama" onChange={(e) => setSortBy(e.target.value as any)}>
+                                        <MenuItem value="">Varsayılan</MenuItem>
+                                        <MenuItem value="name">İsim (A-Z)</MenuItem>
+                                        <MenuItem value="recently_added">En Yeni</MenuItem>
+                                        <MenuItem value="distance">En Yakın</MenuItem>
                                     </Select>
                                 </FormControl>
                             </Grid>
                             <Grid item xs={12} sm={6} md={3}>
                                 <TextField
                                     fullWidth
-                                    label="Radius (km)"
+                                    label="Yarıçap (km)"
                                     type="number"
                                     size="small"
                                     value={radiusInKm || ''}

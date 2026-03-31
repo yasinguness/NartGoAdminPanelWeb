@@ -7,7 +7,7 @@ interface PageLoaderProps {
 }
 
 export const PageLoader: React.FC<PageLoaderProps> = ({
-    message = 'Loading...',
+    message = 'Yükleniyor...',
     size = 60
 }) => {
     return (

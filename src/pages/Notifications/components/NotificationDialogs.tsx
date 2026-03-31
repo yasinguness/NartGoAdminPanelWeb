@@ -135,7 +135,7 @@ export default function NotificationDialogs({
                         <Stack direction="row" spacing={2} alignItems="center">
                             <NotificationsIcon color="primary" />
                             <Typography variant="h6" fontWeight={600}>
-                                {selectedNotification ? 'Edit Notification' : 'Create New Notification'}
+                                {selectedNotification ? 'Bildirimi Düzenle' : 'Yeni Bildirim Oluştur'}
                             </Typography>
                         </Stack>
                         <IconButton onClick={handleCloseDialog} size="small">
@@ -144,32 +144,32 @@ export default function NotificationDialogs({
                     </Stack>
                 </DialogTitle>
                 <DialogContent dividers sx={{ p: 4 }}>
-                    <FormSection title="Notification Details">
+                    <FormSection title="Bildirim Detayları">
                         <FormGrid>
                             <TextField
                                 fullWidth
-                                label="Title"
+                                label="Başlık"
                                 value={formData.title || ''}
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                 required
                             />
                             <FormControl fullWidth>
-                                <InputLabel>Priority</InputLabel>
+                                <InputLabel>Öncelik</InputLabel>
                                 <Select
                                     value={formData.priority || NotificationPriority.NORMAL}
                                     onChange={(e) => setFormData({ ...formData, priority: e.target.value as NotificationPriority })}
-                                    label="Priority"
+                                    label="Öncelik"
                                 >
-                                    <MenuItem value={NotificationPriority.LOW}>Low</MenuItem>
+                                    <MenuItem value={NotificationPriority.LOW}>Düşük</MenuItem>
                                     <MenuItem value={NotificationPriority.NORMAL}>Normal</MenuItem>
-                                    <MenuItem value={NotificationPriority.HIGH}>High</MenuItem>
-                                    <MenuItem value={NotificationPriority.URGENT}>Urgent</MenuItem>
+                                    <MenuItem value={NotificationPriority.HIGH}>Yüksek</MenuItem>
+                                    <MenuItem value={NotificationPriority.URGENT}>Acil</MenuItem>
                                 </Select>
                             </FormControl>
                             <Grid item xs={12}>
                                 <TextField
                                     fullWidth
-                                    label="Content"
+                                    label="İçerik"
                                     value={formData.content || ''}
                                     onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                                     multiline
@@ -181,9 +181,9 @@ export default function NotificationDialogs({
                     </FormSection>
                 </DialogContent>
                 <DialogActions sx={{ p: 3, px: 4 }}>
-                    <Button onClick={handleCloseDialog}>Cancel</Button>
+                    <Button onClick={handleCloseDialog}>İptal</Button>
                     <Button onClick={handleSubmit} variant="contained" sx={{ minWidth: 100 }}>
-                        {selectedNotification ? 'Update' : 'Create'}
+                        {selectedNotification ? 'Güncelle' : 'Oluştur'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -194,7 +194,7 @@ export default function NotificationDialogs({
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                         <Stack direction="row" spacing={2} alignItems="center">
                             <EmailIcon color="primary" />
-                            <Typography variant="h6" fontWeight={600}>Send Email Notification</Typography>
+                            <Typography variant="h6" fontWeight={600}>E-posta Bildirimi Gönder</Typography>
                         </Stack>
                         <IconButton onClick={handleCloseEmailDialog} size="small">
                             <CloseIcon fontSize="small" />
@@ -203,11 +203,11 @@ export default function NotificationDialogs({
                 </DialogTitle>
                 <DialogContent dividers sx={{ p: 4 }}>
                     <Stack spacing={4}>
-                        <FormSection title="Recipient & Subject">
+                        <FormSection title="Alıcı & Konu">
                             <FormGrid>
                                 <TextField
                                     fullWidth
-                                    label="To Email"
+                                    label="Alıcı E-posta"
                                     type="email"
                                     value={emailData.to || ''}
                                     onChange={(e) => setEmailData({ ...emailData, to: e.target.value })}
@@ -215,18 +215,18 @@ export default function NotificationDialogs({
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Subject"
+                                    label="Konu"
                                     value={emailData.subject || ''}
                                     onChange={(e) => setEmailData({ ...emailData, subject: e.target.value })}
                                     required
                                 />
                             </FormGrid>
                         </FormSection>
-                        <FormSection title="Template Content">
+                        <FormSection title="Şablon İçeriği">
                             <FormGrid>
                                 <TextField
                                     fullWidth
-                                    label="Template Name"
+                                    label="Şablon Adı"
                                     value={emailData.templateName || ''}
                                     onChange={(e) => setEmailData({ ...emailData, templateName: e.target.value })}
                                     placeholder="email-template-name"
@@ -234,7 +234,7 @@ export default function NotificationDialogs({
                                 <Grid item xs={12}>
                                     <TextField
                                         fullWidth
-                                        label="Template Variables (JSON)"
+                                        label="Şablon Değişkenleri (JSON)"
                                         value={JSON.stringify(emailData.templateVariables || {}, null, 2)}
                                         onChange={(e) => {
                                             try {
@@ -249,7 +249,7 @@ export default function NotificationDialogs({
                                         multiline
                                         rows={6}
                                         placeholder='{"message": "Your email content here", "userName": "John Doe"}'
-                                        helperText="Enter JSON object with template variables"
+                                        helperText="Şablon değişkenlerini JSON nesnesi olarak girin"
                                     />
                                 </Grid>
                             </FormGrid>
@@ -257,9 +257,9 @@ export default function NotificationDialogs({
                     </Stack>
                 </DialogContent>
                 <DialogActions sx={{ p: 3, px: 4 }}>
-                    <Button onClick={handleCloseEmailDialog}>Cancel</Button>
+                    <Button onClick={handleCloseEmailDialog}>İptal</Button>
                     <Button onClick={handleSendEmail} variant="contained" sx={{ minWidth: 100 }}>
-                        Send
+                        Gönder
                     </Button> 
                 </DialogActions>
             </Dialog>
@@ -308,7 +308,7 @@ export default function NotificationDialogs({
                                     <Grid item xs={12} sm={6}>
                                         <Card variant="outlined" sx={{ p: 3, height: '100%', borderRadius: 2 }}>
                                             <Stack spacing={1.5}>
-                                                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Delivery Details</Typography>
+                                                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Teslimat Detayları</Typography>
                                                 <Typography variant="body2">{selectedPriorityScenario.behaviors.delayTolerance}</Typography>
                                                 <Typography variant="body2">{selectedPriorityScenario.behaviors.sound}</Typography>
                                                 <Typography variant="body2">{selectedPriorityScenario.behaviors.vibration}</Typography>
@@ -318,7 +318,7 @@ export default function NotificationDialogs({
                                     <Grid item xs={12} sm={6}>
                                         <Card variant="outlined" sx={{ p: 3, height: '100%', borderRadius: 2 }}>
                                             <Stack spacing={1.5}>
-                                                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>User Experience</Typography>
+                                                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Kullanıcı Deneyimi</Typography>
                                                 <Typography variant="body2">{selectedPriorityScenario.behaviors.ui}</Typography>
                                                 <Typography variant="body2">{selectedPriorityScenario.behaviors.email}</Typography>
                                                 <Typography variant="body2">{selectedPriorityScenario.behaviors.retry}</Typography>
@@ -526,20 +526,20 @@ export default function NotificationDialogs({
                             <FormGrid>
                                 <TextField
                                     fullWidth
-                                    label="Template Code"
+                                    label="Şablon Kodu"
                                     value={adminFormData.templateCode || ''}
                                     onChange={(e) => setAdminFormData({ ...adminFormData, templateCode: e.target.value })}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Sender ID"
+                                    label="Gönderici ID"
                                     value={adminFormData.senderId || ''}
                                     onChange={(e) => setAdminFormData({ ...adminFormData, senderId: e.target.value })}
                                 />
                                 <Grid item xs={12}>
                                     <TextField
                                         fullWidth
-                                        label="Template Parameters (JSON)"
+                                        label="Şablon Parametreleri (JSON)"
                                         value={JSON.stringify(adminFormData.templateParameters || {}, null, 2)}
                                         onChange={(e) => {
                                             try {

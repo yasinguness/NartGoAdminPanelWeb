@@ -143,7 +143,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
   }
 
   if (error) {
-    return <Alert severity="error">Failed to load members.</Alert>;
+    return <Alert severity="error">Üyeler yüklenemedi.</Alert>;
   }
 
   const filteredMembers = members?.content.filter((member: AssociationMemberDto) =>
@@ -270,7 +270,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <TextField
-          placeholder="Search members..."
+          placeholder="Üyelerde ara..."
           variant="outlined"
           size="small"
           value={searchQuery}
@@ -290,7 +290,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
           onClick={handleAddMember}
           sx={{ textTransform: 'none' }}
         >
-          Add Member
+          Üye Ekle
         </Button>
       </Box>
 
@@ -298,12 +298,12 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Member</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Association</TableCell>
-              <TableCell>Join Date</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>Üye</TableCell>
+              <TableCell>E-posta</TableCell>
+              <TableCell>Durum</TableCell>
+              <TableCell>Dernek</TableCell>
+              <TableCell>Katılım Tarihi</TableCell>
+              <TableCell align="right">İşlemler</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -391,7 +391,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
                 sx={{ textTransform: 'none', mr: 1 }}
                 size="small"
             >
-                Edit Member
+                Üyeyi Düzenle
             </Button>
             <Button
                 variant="outlined"
@@ -404,7 +404,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
                 sx={{ textTransform: 'none' }}
                 size="small"
             >
-                Delete
+                Sil
             </Button>
           </Box>
         </DialogTitle>
@@ -417,10 +417,10 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
               scrollButtons="auto"
               sx={{ px:2 }}
             >
-              <Tab icon={<CalendarIcon />} iconPosition="start" label="Membership" sx={{textTransform: 'none'}} />
-              <Tab icon={<PaymentIcon />} iconPosition="start" label="Payment History" sx={{textTransform: 'none'}} />
-              <Tab icon={<ReceiptIcon />} iconPosition="start" label="Transactions" sx={{textTransform: 'none'}} />
-              <Tab icon={<GiftIcon />} iconPosition="start" label="Benefits" sx={{textTransform: 'none'}} />
+              <Tab icon={<CalendarIcon />} iconPosition="start" label="Üyelik" sx={{textTransform: 'none'}} />
+              <Tab icon={<PaymentIcon />} iconPosition="start" label="Ödeme Geçmişi" sx={{textTransform: 'none'}} />
+              <Tab icon={<ReceiptIcon />} iconPosition="start" label="İşlemler" sx={{textTransform: 'none'}} />
+              <Tab icon={<GiftIcon />} iconPosition="start" label="Avantajlar" sx={{textTransform: 'none'}} />
             </Tabs>
           </Box>
 
@@ -429,39 +429,39 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
               <Grid container spacing={3}> {/* Increased spacing */}
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="textSecondary">
-                    Membership Details
+                    Üyelik Detayları
                   </Typography>
                   <Box sx={{ mt: 1 }}>
                     <Typography variant="body2">
-                      <strong>Membership Number:</strong> {selectedMember?.membershipNumber}
+                      <strong>Üyelik Numarası:</strong> {selectedMember?.membershipNumber}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Type:</strong> {selectedMember?.membershipType}
+                      <strong>Tür:</strong> {selectedMember?.membershipType}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Price:</strong> ${selectedMember?.membershipPrice}
+                      <strong>Ücret:</strong> {selectedMember?.membershipPrice} TL
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Join Date:</strong> {selectedMember?.joinDate}
+                      <strong>Katılım Tarihi:</strong> {selectedMember?.joinDate}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>End Date:</strong> {selectedMember?.membershipEndDate}
+                      <strong>Bitiş Tarihi:</strong> {selectedMember?.membershipEndDate}
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="textSecondary">
-                    Contact Information
+                    İletişim Bilgileri
                   </Typography>
                   <Box sx={{ mt: 1 }}>
                     <Typography variant="body2">
-                      <strong>Phone:</strong> {selectedMember?.phone}
+                      <strong>Telefon:</strong> {selectedMember?.phone}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Association:</strong> {selectedMember?.association}
+                      <strong>Dernek:</strong> {selectedMember?.association}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Status:</strong>{' '}
+                      <strong>Durum:</strong>{' '}
                       <Chip
                         label={selectedMember?.status}
                         size="small"
@@ -474,18 +474,18 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
             </TabPanel>
 
             <TabPanel value={detailTabValue} index={1}>
-              <Typography variant="h6" gutterBottom sx={{mb:2}}> {/* Use h6 for section title */}
-                Payment History
+              <Typography variant="h6" gutterBottom sx={{mb:2}}>
+                Ödeme Geçmişi
               </Typography>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Amount</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Payment Method</TableCell>
-                      <TableCell>Actions</TableCell>
+                      <TableCell>Tarih</TableCell>
+                      <TableCell>Tutar</TableCell>
+                      <TableCell>Durum</TableCell>
+                      <TableCell>Ödeme Yöntemi</TableCell>
+                      <TableCell>İşlemler</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -517,17 +517,17 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
             </TabPanel>
 
             <TabPanel value={detailTabValue} index={2}>
-              <Typography variant="h6" gutterBottom sx={{mb:2}}> {/* Use h6 for section title */}
-                Transaction History
+              <Typography variant="h6" gutterBottom sx={{mb:2}}>
+                İşlem Geçmişi
               </Typography>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Transaction ID</TableCell>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Amount</TableCell>
-                      <TableCell>Status</TableCell>
+                      <TableCell>İşlem ID</TableCell>
+                      <TableCell>Tarih</TableCell>
+                      <TableCell>Tutar</TableCell>
+                      <TableCell>Durum</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -556,7 +556,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p:2 }}>
-          <Button onClick={() => setIsDetailsDialogOpen(false)} sx={{textTransform: 'none'}}>Close</Button>
+          <Button onClick={() => setIsDetailsDialogOpen(false)} sx={{textTransform: 'none'}}>Kapat</Button>
         </DialogActions>
       </Dialog>
 
@@ -568,20 +568,20 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
       >
         <MenuItem onClick={() => handleDownloadReceipt(selectedPayment)}>
           <DownloadIcon fontSize="small" sx={{ mr: 1 }} />
-          Download Receipt
+          Makbuzu İndir
         </MenuItem>
         <MenuItem onClick={() => handlePrintReceipt(selectedPayment)}>
           <PrintIcon fontSize="small" sx={{ mr: 1 }} />
-          Print Receipt
+          Makbuzu Yazdır
         </MenuItem>
         <MenuItem onClick={() => handleEmailReceipt(selectedPayment)}>
           <EmailIcon fontSize="small" sx={{ mr: 1 }} />
-          Email Receipt
+          Makbuzu E-postayla Gönder
         </MenuItem>
         <Divider />
         <MenuItem onClick={() => handleUpdatePaymentStatus(selectedPayment)}>
           <EditIcon fontSize="small" sx={{ mr: 1 }} />
-          Update Status
+          Durumu Güncelle
         </MenuItem>
       </Menu>
 
@@ -593,35 +593,35 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
         fullWidth
         PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle>Update Payment Status</DialogTitle>
+        <DialogTitle>Ödeme Durumunu Güncelle</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{mb:1}}>
-            Update payment status for Transaction ID: {selectedPayment?.transactionId}
+            İşlem ID: {selectedPayment?.transactionId} için ödeme durumunu güncelleyin
           </Typography>
           <Box sx={{ mt: 2 }}>
             <FormControl fullWidth>
-              <InputLabel>New Status</InputLabel>
+              <InputLabel>Yeni Durum</InputLabel>
               <Select
-                label="New Status"
+                label="Yeni Durum"
                 defaultValue=""
                 onChange={(e) => handlePaymentStatusConfirm(e.target.value)}
               >
-                <MenuItem value="PAID">Paid</MenuItem>
-                <MenuItem value="PENDING">Pending</MenuItem>
-                <MenuItem value="FAILED">Failed</MenuItem>
-                <MenuItem value="REFUNDED">Refunded</MenuItem>
+                <MenuItem value="PAID">Ödendi</MenuItem>
+                <MenuItem value="PENDING">Beklemede</MenuItem>
+                <MenuItem value="FAILED">Başarısız</MenuItem>
+                <MenuItem value="REFUNDED">İade Edildi</MenuItem>
               </Select>
             </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsPaymentStatusDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setIsPaymentStatusDialogOpen(false)}>İptal</Button>
           <Button
             onClick={() => handlePaymentStatusConfirm('PAID')}
             color="primary"
             variant="contained"
           >
-            Update
+            Güncelle
           </Button>
         </DialogActions>
       </Dialog>
@@ -634,16 +634,16 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
         fullWidth
         PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle>Delete Member</DialogTitle>
+        <DialogTitle>Üyeyi Sil</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete this member? This action cannot be undone.
+            Bu üyeyi silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setIsDeleteDialogOpen(false)}>İptal</Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-            Delete
+            Sil
           </Button>
         </DialogActions>
       </Dialog>
@@ -656,27 +656,27 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
         fullWidth
         PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle>Update Member Status</DialogTitle>
+        <DialogTitle>Üye Durumunu Güncelle</DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <FormControl fullWidth>
-              <InputLabel>New Status</InputLabel>
+              <InputLabel>Yeni Durum</InputLabel>
               <Select
-                label="New Status"
+                label="Yeni Durum"
                 defaultValue=""
                 onChange={(e) => handleStatusConfirm(e.target.value)}
               >
-                <MenuItem value="ACTIVE">Active</MenuItem>
-                <MenuItem value="SUSPENDED">Suspended</MenuItem>
-                <MenuItem value="PENDING">Pending</MenuItem>
+                <MenuItem value="ACTIVE">Aktif</MenuItem>
+                <MenuItem value="SUSPENDED">Askıya Alınmış</MenuItem>
+                <MenuItem value="PENDING">Beklemede</MenuItem>
               </Select>
             </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsStatusDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setIsStatusDialogOpen(false)}>İptal</Button>
           <Button onClick={() => handleStatusConfirm('ACTIVE')} color="primary" variant="contained">
-            Update
+            Güncelle
           </Button>
         </DialogActions>
       </Dialog>

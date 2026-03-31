@@ -187,11 +187,11 @@ export default function Bulletins() {
 
         try {
             await updateBulletinStatus(statusTarget.id, { status: statusValue });
-            enqueueSnackbar('Bülten status güncellendi', { variant: 'success' });
+            enqueueSnackbar('Bülten durumu güncellendi', { variant: 'success' });
             closeStatusDialog();
             await loadBulletins();
         } catch (_error) {
-            enqueueSnackbar('Status güncellenemedi', { variant: 'error' });
+            enqueueSnackbar('Durum güncellenemedi', { variant: 'error' });
         }
     };
 
@@ -265,11 +265,11 @@ export default function Bulletins() {
     return (
         <PageContainer>
             <PageHeader
-                title="Bulletins"
+                title="Bültenler"
                 subtitle="Admin bülten içeriklerini yönetin"
                 breadcrumbs={[
-                    { label: 'Dashboard', href: '/dashboard' },
-                    { label: 'Bulletins', active: true }
+                    { label: 'Kontrol Paneli', href: '/dashboard' },
+                    { label: 'Bültenler', active: true }
                 ]}
                 actions={
                     <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
@@ -314,7 +314,7 @@ export default function Bulletins() {
                                 <ListItemIcon>
                                     <RuleIcon fontSize="small" />
                                 </ListItemIcon>
-                                <ListItemText>Status Güncelle</ListItemText>
+                                <ListItemText>Durum Güncelle</ListItemText>
                             </ActionMenuItem>
                             <ActionMenuItem onClick={() => setDeleteId(row.id)} sx={{ color: 'error.main' }}>
                                 <ListItemIcon>
@@ -333,7 +333,7 @@ export default function Bulletins() {
                     <Stack spacing={2} mt={1}>
                         {!selectedBulletin && (
                             <TextField
-                                label="Publisher Email"
+                                label="Yayıncı E-postası"
                                 value={publisherEmail}
                                 onChange={(event) => setPublisherEmail(event.target.value)}
                                 required
@@ -407,11 +407,11 @@ export default function Bulletins() {
             </Dialog>
 
             <Dialog open={statusDialogOpen} onClose={closeStatusDialog} maxWidth="sm" fullWidth>
-                <DialogTitle>Bülten Status Güncelle</DialogTitle>
+                <DialogTitle>Bülten Durumunu Güncelle</DialogTitle>
                 <DialogContent dividers>
                     <Stack spacing={2} mt={1}>
                         <TextField
-                            label="Status"
+                            label="Durum"
                             select
                             value={statusValue}
                             onChange={(event) => setStatusValue(event.target.value as BulletinStatus)}

@@ -172,36 +172,36 @@ export default function VenueInventoryManager() {
       
       {/* 1. Yoğun veri odaklı üst bar */}
       <Box sx={{ p: 2, bgcolor: '#ffffff', borderBottom: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-        <Typography variant="h6" fontWeight={800} sx={{ mr: 4 }}>Venue Inventory</Typography>
+        <Typography variant="h6" fontWeight={800} sx={{ mr: 4 }}>Mekan Envanteri</Typography>
         
-        <TextField select size="small" label="Venue/Mekan" value="v-zpsm" sx={{ minWidth: 200 }}>
+        <TextField select size="small" label="Mekan" value="v-zpsm" sx={{ minWidth: 200 }}>
            <MenuItem value="v-zpsm">Zorlu PSM (Ana Sahne)</MenuItem>
            <MenuItem value="v-vw">Volkswagen Arena</MenuItem>
         </TextField>
         
         <TextField select size="small" label="Kontrol Modu" value="EVENT" sx={{ minWidth: 150 }}>
            <MenuItem value="VENUE">Master (Kalıcı)</MenuItem>
-           <MenuItem value="EVENT">Event Özel Dağıtım</MenuItem>
+           <MenuItem value="EVENT">Etkinlik Özel Dağıtım</MenuItem>
         </TextField>
 
         <Box sx={{ flexGrow: 1 }} />
         
         <Button variant="contained" disableElevation color="primary" size="small" sx={{ fontWeight: 600 }}>
-          Değişiklikleri Yayınla (Publish)
+          Değişiklikleri Yayınla
         </Button>
       </Box>
 
       {/* 2. Sticky KPI Bandı (Inventory Context) */}
       <Box sx={{ p: 2, bgcolor: '#1e293b', color: 'white', position: 'sticky', top: 64, zIndex: 10, display: 'flex', justifyContent: 'space-between', gap: 2, overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-        <KpiItem label="Total Capacity" value="2,000" subValue="Max Allowed" color={COLORS.neutral} />
+        <KpiItem label="Toplam Kapasite" value="2.000" subValue="Maksimum İzin" color={COLORS.neutral} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Public Sellable" value="1,600" subValue="80% of Venue" color={COLORS.sellable} icon={<SeatIcon fontSize="small"/>} />
+        <KpiItem label="Satışa Açık" value="1.600" subValue="Mekanın %80'i" color={COLORS.sellable} icon={<SeatIcon fontSize="small"/>} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Sponsor/VIP Allotment" value="150" subValue="Guaranteed Blocks" color={COLORS.vip} icon={<VipIcon fontSize="small"/>} />
+        <KpiItem label="Sponsor/VIP Kontenjan" value="150" subValue="Garantili Bloklar" color={COLORS.vip} icon={<VipIcon fontSize="small"/>} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Event Holds" value="200" subValue="Pending Release" color={COLORS.hold} icon={<LockIcon fontSize="small"/>} />
+        <KpiItem label="Etkinlik Bekletmeleri" value="200" subValue="Serbest Bırakılmayı Bekliyor" color={COLORS.hold} icon={<LockIcon fontSize="small"/>} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Tech Black-outs" value="50" subValue="Camera/Mix Desk" color={COLORS.blackout} icon={<TechIcon fontSize="small"/>}/>
+        <KpiItem label="Teknik Kapatmalar" value="50" subValue="Kamera/Mikser Masası" color={COLORS.blackout} icon={<TechIcon fontSize="small"/>}/>
       </Box>
 
       {/* 3. Split-view çalışma (Left: Tree Grid, Right: Drawer) */}
@@ -215,14 +215,14 @@ export default function VenueInventoryManager() {
               <>
                 <Typography variant="subtitle1" fontWeight={700} color="#7c3aed">{selectedIds.length} Birim Seçili</Typography>
                 <Stack direction="row" spacing={1}>
-                  <Button variant="contained" size="small" disableElevation sx={{ bgcolor: COLORS.vip }}>Toplu Allotment (VIP)</Button>
-                  <Button variant="contained" size="small" disableElevation sx={{ bgcolor: COLORS.blackout }}>Kapat (Blackout)</Button>
+                  <Button variant="contained" size="small" disableElevation sx={{ bgcolor: COLORS.vip }}>Toplu VIP Kontenjan</Button>
+                  <Button variant="contained" size="small" disableElevation sx={{ bgcolor: COLORS.blackout }}>Satışa Kapat</Button>
                   <Button variant="outlined" size="small" sx={{ borderColor: '#cbd5e1', color: 'text.primary' }}>Kilit Kaldır</Button>
                 </Stack>
               </>
             ) : (
               <>
-                <Typography variant="h6" fontWeight={700}>Mekan Ağacı (Topology)</Typography>
+                <Typography variant="h6" fontWeight={700}>Mekan Ağacı</Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                   <TextField 
                     size="small" 
@@ -243,13 +243,13 @@ export default function VenueInventoryManager() {
               <TableHead>
                 <TableRow>
                   <TableCell padding="checkbox" sx={{ bgcolor: '#f8fafc' }}></TableCell>
-                  <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Birim (Block / Row)</TableCell>
-                  <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700, align: 'center' }}>Total</TableCell>
-                  <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Allocation Map</TableCell>
+                  <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Birim (Blok / Sıra)</TableCell>
+                  <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700, align: 'center' }}>Toplam</TableCell>
+                  <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Dağılım Haritası</TableCell>
                   <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Satılabilir</TableCell>
                   <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700, color: COLORS.vip }}>VIP/Sponsor</TableCell>
-                  <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700, color: COLORS.hold }}>Hold</TableCell>
-                  <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700, color: COLORS.blackout }}>Blackout</TableCell>
+                  <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700, color: COLORS.hold }}>Bekletme</TableCell>
+                  <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700, color: COLORS.blackout }}>Kapalı</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -327,20 +327,20 @@ export default function VenueInventoryManager() {
               
               <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px dashed #cbd5e1', mb: 4, textAlign: 'center' }}>
                  <Typography variant="h3" fontWeight={800} color="#334155">{selectedEntity.capacity}</Typography>
-                 <Typography variant="caption" color="text.secondary" fontWeight={600}>TOPLAM KOLTUK (CAPACITY)</Typography>
+                 <Typography variant="caption" color="text.secondary" fontWeight={600}>TOPLAM KOLTUK</Typography>
               </Box>
 
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2 }}>Maksat (Allocation) Ataması</Typography>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2 }}>Kontenjan Ataması</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3, lh: 1.5 }}>
                  Bu birim içerisindeki müsait blok/koltukları belirli bir amaca tahsis edin veya teknik kısıtlar (kamera vs.) sebebiyle satıştan kaldırın.
               </Typography>
 
               <Stack spacing={3}>
-                 <TextField select fullWidth size="small" label="Atama Tipi (Hold Type)" defaultValue="VIP">
-                    <MenuItem value="SELLABLE">Satışa Açık (Public)</MenuItem>
-                    <MenuItem value="VIP">Sponsor / VIP Contenjan (Allotment)</MenuItem>
-                    <MenuItem value="HOLD">Geçici Hold (Event Reserved)</MenuItem>
-                    <MenuItem value="BLACKOUT">Satışa Kapalı (Teknik Kısıt / Blackout)</MenuItem>
+                 <TextField select fullWidth size="small" label="Atama Tipi" defaultValue="VIP">
+                    <MenuItem value="SELLABLE">Satışa Açık</MenuItem>
+                    <MenuItem value="VIP">Sponsor / VIP Kontenjan</MenuItem>
+                    <MenuItem value="HOLD">Geçici Bekletme (Etkinlik Rezerve)</MenuItem>
+                    <MenuItem value="BLACKOUT">Satışa Kapalı (Teknik Kısıt)</MenuItem>
                  </TextField>
 
                  <TextField fullWidth size="small" label="Adet / Koltuk Sayısı" type="number" defaultValue={selectedEntity.capacity} />

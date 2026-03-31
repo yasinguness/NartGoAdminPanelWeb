@@ -219,7 +219,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
     <Box sx={{ p: 0 }}>
       <Card sx={{ borderRadius: 2, boxShadow: 1 }}>
         <CardHeader
-          title="Member Benefits"
+          title="Üye Avantajları"
           titleTypographyProps={{ variant: 'h6' }}
           action={
             <Button
@@ -228,7 +228,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
               onClick={handleAddBenefit}
               sx={{ textTransform: 'none' }}
             >
-              Add New Benefit
+              Yeni Avantaj Ekle
             </Button>
           }
           sx={{ pb: 1, pt: 2, px: 2 }}
@@ -238,12 +238,12 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Business</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Benefit</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Agreement Period</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Usage</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>İşletme</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Avantaj</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Sözleşme Dönemi</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Kullanım</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Durum</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>İşlemler</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -253,10 +253,10 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                       <Box sx={{ py: 4, textAlign: 'center' }}>
                           <InfoIcon sx={{ fontSize: 48, color: 'text.disabled', mb:1 }}/>
                           <Typography variant="subtitle1" color="textSecondary">
-                              No benefits assigned yet.
+                              Henüz avantaj atanmamış.
                           </Typography>
                           <Typography variant="body2" color="textSecondary">
-                              Click "Add New Benefit" to get started.
+                              Başlamak için "Yeni Avantaj Ekle" butonuna tıklayın.
                           </Typography>
                       </Box>
                     </TableCell>
@@ -321,7 +321,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Tooltip title="Edit Benefit">
+                      <Tooltip title="Avantajı Düzenle">
                         <IconButton
                           size="small"
                           color="primary"
@@ -330,7 +330,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete Benefit">
+                      <Tooltip title="Avantajı Sil">
                         <IconButton
                           size="small"
                           color="error"
@@ -352,7 +352,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
       <Dialog open={isFormOpen} onClose={() => { setIsFormOpen(false); formik.resetForm(); }} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ pb: 1}}>
           <Typography variant="h6" component="div" fontWeight="bold">
-            {isEdit ? 'Edit Benefit' : 'Add New Benefit'}
+            {isEdit ? 'Avantajı Düzenle' : 'Yeni Avantaj Ekle'}
           </Typography>
         </DialogTitle>
         <form onSubmit={formik.handleSubmit}>
@@ -551,7 +551,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
             </Grid>
           </DialogContent>
           <DialogActions sx={{p:2}}>
-            <Button onClick={() => { setIsFormOpen(false); formik.resetForm(); }} sx={{textTransform:'none'}}>Cancel</Button>
+            <Button onClick={() => { setIsFormOpen(false); formik.resetForm(); }} sx={{textTransform:'none'}}>İptal</Button>
             <Button
               type="submit"
               variant="contained"
@@ -559,7 +559,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
               disabled={formik.isSubmitting || !formik.isValid}
               sx={{textTransform:'none'}}
             >
-              {isEdit ? 'Update Benefit' : 'Create Benefit'}
+              {isEdit ? 'Avantajı Güncelle' : 'Avantaj Oluştur'}
             </Button>
           </DialogActions>
         </form>
@@ -573,17 +573,17 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
         fullWidth
         PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle>Delete Benefit</DialogTitle>
+        <DialogTitle>Avantajı Sil</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete the benefit "<strong>{selectedBenefit?.benefitDescription || ''}</strong>" from "<strong>{selectedBenefit?.businessName || ''}</strong>"?
-            This action cannot be undone.
+            "<strong>{selectedBenefit?.businessName || ''}</strong>" işletmesine ait "<strong>{selectedBenefit?.benefitDescription || ''}</strong>" avantajını silmek istediğinize emin misiniz?
+            Bu işlem geri alınamaz.
           </Typography>
         </DialogContent>
         <DialogActions sx={{p:2}}>
-          <Button onClick={() => setIsDeleteDialogOpen(false)} sx={{textTransform:'none'}}>Cancel</Button>
+          <Button onClick={() => setIsDeleteDialogOpen(false)} sx={{textTransform:'none'}}>İptal</Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained" sx={{textTransform:'none'}}>
-            Delete
+            Sil
           </Button>
         </DialogActions>
       </Dialog>

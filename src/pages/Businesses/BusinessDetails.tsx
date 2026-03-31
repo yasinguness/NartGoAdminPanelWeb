@@ -73,15 +73,15 @@ const validateContactFields = (
     const errors: ContactValidationErrors = {};
 
     if (phoneNumber && !PHONE_REGEX.test(phoneNumber.trim())) {
-        errors.phoneNumber = 'Invalid phone format. Example: +905551112233';
+        errors.phoneNumber = 'Geçersiz telefon formatı. Örnek: +905551112233';
     }
 
     if (email && !EMAIL_REGEX.test(email.trim())) {
-        errors.email = 'Invalid email format.';
+        errors.email = 'Geçersiz e-posta formatı.';
     }
 
     if (website && !WEBSITE_REGEX.test(website.trim())) {
-        errors.website = 'Invalid website format.';
+        errors.website = 'Geçersiz web sitesi formatı.';
     }
 
     return errors;
@@ -165,7 +165,7 @@ export default function BusinessDetails() {
             edited.website ?? business.website
         );
         if (Object.keys(validationErrors).length > 0) {
-            enqueueSnackbar('Please fix contact field errors before saving.', { variant: 'error' });
+            enqueueSnackbar('Kaydetmeden önce iletişim alanı hatalarını düzeltin.', { variant: 'error' });
             return;
         }
         try {
@@ -177,11 +177,11 @@ export default function BusinessDetails() {
                 coverImage || undefined,
                 galleryImages
             );
-            enqueueSnackbar('Business updated successfully', { variant: 'success' });
+            enqueueSnackbar('İşletme başarıyla güncellendi', { variant: 'success' });
             refetch();
             setEdited({});
         } catch (error) {
-            enqueueSnackbar('Failed to update business', { variant: 'error' });
+            enqueueSnackbar('İşletme güncellenemedi', { variant: 'error' });
         }
     };
 
@@ -189,10 +189,10 @@ export default function BusinessDetails() {
         if (!business) return;
         try {
             await businessStore.verifyBusiness(business.id);
-            enqueueSnackbar(business.verified ? 'Business unverified' : 'Business verified', { variant: 'success' });
+            enqueueSnackbar(business.verified ? 'İşletme doğrulaması kaldırıldı' : 'İşletme doğrulandı', { variant: 'success' });
             refetch();
         } catch (error) {
-            enqueueSnackbar('Failed to toggle active status', { variant: 'error' });
+            enqueueSnackbar('Durum değiştirilemedi', { variant: 'error' });
         }
     };
 
@@ -200,10 +200,10 @@ export default function BusinessDetails() {
         if (!business) return;
         try {
             await businessStore.setBusinessAsGloballyFeatured(business.ownerId, business.id, durationInDays);
-            enqueueSnackbar('Set as globally featured', { variant: 'success' });
+            enqueueSnackbar('Global öne çıkan olarak ayarlandı', { variant: 'success' });
             refetch();
         } catch (error) {
-            enqueueSnackbar('Failed to set global feature', { variant: 'error' });
+            enqueueSnackbar('Global öne çıkarma ayarlanamadı', { variant: 'error' });
         }
     };
 
@@ -211,10 +211,10 @@ export default function BusinessDetails() {
         if (!business) return;
         try {
             await businessStore.setBusinessAsLocallyFeatured(business.ownerId, business.id, durationInDays, featuredRadiusInKm);
-            enqueueSnackbar('Set as locally featured', { variant: 'success' });
+            enqueueSnackbar('Yerel öne çıkan olarak ayarlandı', { variant: 'success' });
             refetch();
         } catch (error) {
-            enqueueSnackbar('Failed to set local feature', { variant: 'error' });
+            enqueueSnackbar('Yerel öne çıkarma ayarlanamadı', { variant: 'error' });
         }
     };
 
@@ -222,10 +222,10 @@ export default function BusinessDetails() {
         if (!business) return;
         try {
             await businessStore.removeFeaturedStatus(business.id);
-            enqueueSnackbar('Featured status removed', { variant: 'success' });
+            enqueueSnackbar('Öne çıkan durumu kaldırıldı', { variant: 'success' });
             refetch();
         } catch (error) {
-            enqueueSnackbar('Failed to remove featured status', { variant: 'error' });
+            enqueueSnackbar('Öne çıkan durumu kaldırılamadı', { variant: 'error' });
         }
     };
 
@@ -240,9 +240,9 @@ export default function BusinessDetails() {
     if (isError || !business) {
         return (
             <Box p={4}>
-                <Alert severity="error">Business not found or failed to load.</Alert>
+                <Alert severity="error">İşletme bulunamadı veya yüklenemedi.</Alert>
                 <Button startIcon={<ArrowBack />} onClick={() => navigate('/businesses')} sx={{ mt: 2 }}>
-                    Back to List
+                    Listeye Dön
                 </Button>
             </Box>
         );
@@ -267,7 +267,7 @@ export default function BusinessDetails() {
                         onClick={() => navigate('/businesses')}
                         color="inherit"
                     >
-                        Back
+                        Geri
                     </Button>
                     <Box>
                         <Typography variant="h4" fontWeight="bold">
@@ -286,7 +286,7 @@ export default function BusinessDetails() {
                         onClick={handleSave}
                         color="primary"
                     >
-                        Save Changes
+                        Değişiklikleri Kaydet
                     </Button>
                 </Stack>
             </Stack>
@@ -334,7 +334,7 @@ export default function BusinessDetails() {
                                         size="small" 
                                         variant="outlined" 
                                     />
-                                    {business.verified && <Chip icon={<VerifiedIcon />} label="Verified" color="success" size="small" />}
+                                    {business.verified && <Chip icon={<VerifiedIcon />} label="Doğrulanmış" color="success" size="small" />}
                                 </Stack>
                                 
                                 <Divider sx={{ my: 2 }} />
@@ -343,16 +343,16 @@ export default function BusinessDetails() {
                                     <Box display="flex" alignItems="center" gap={1}>
                                         <StarIcon color="warning" fontSize="small" />
                                         <Typography variant="body2">
-                                            {business.averageRating?.toFixed(1) || 'N/A'} ({business.totalReviews || 0} reviews)
+                                            {business.averageRating?.toFixed(1) || 'N/A'} ({business.totalReviews || 0} değerlendirme)
                                         </Typography>
                                     </Box>
                                     <Box display="flex" alignItems="center" gap={1}>
                                         <VisibilityIcon color="action" fontSize="small" />
-                                        <Typography variant="body2">{business.viewCount || 0} views</Typography>
+                                        <Typography variant="body2">{business.viewCount || 0} görüntülenme</Typography>
                                     </Box>
                                      <Box display="flex" alignItems="center" gap={1}>
                                         <FavoriteIcon color="error" fontSize="small" />
-                                        <Typography variant="body2">{business.favoriteCount || 0} favorites</Typography>
+                                        <Typography variant="body2">{business.favoriteCount || 0} favori</Typography>
                                     </Box>
                                 </Stack>
                            </CardContent>
@@ -364,7 +364,7 @@ export default function BusinessDetails() {
                             <CardContent sx={{ p: 0 }}>
                                 <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2, pt: 2 }}>
                                     <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                                        Featured Management
+                                        Öne Çıkarma Yönetimi
                                     </Typography>
                                     <Tabs  
                                         value={featuredTab} 
@@ -375,13 +375,13 @@ export default function BusinessDetails() {
                                         sx={{ minHeight: 40 }}
                                     >
                                         <Tab 
-                                            label="Global" 
+                                            label="Küresel"
                                             icon={<StarIcon sx={{ fontSize: 18 }} />} 
                                             iconPosition="start"
                                             sx={{ minHeight: 40, py: 1 }}
                                         />
                                         <Tab 
-                                            label="Local" 
+                                            label="Yerel"
                                             icon={<LocationIcon sx={{ fontSize: 18 }} />} 
                                             iconPosition="start" 
                                             sx={{ minHeight: 40, py: 1 }}
@@ -397,21 +397,21 @@ export default function BusinessDetails() {
                                                 <StarIcon fontSize="large" />
                                             </Avatar>
                                             <Box>
-                                                <Typography variant="h6" color="primary.main">Active Global Feature</Typography>
+                                                <Typography variant="h6" color="primary.main">Aktif Küresel Öne Çıkarma</Typography>
                                                 <Typography variant="body2" color="text.secondary">
-                                                    Promoted across the entire platform.
+                                                    Tüm platformda tanıtılıyor.
                                                 </Typography>
                                             </Box>
                                             
                                             <Paper variant="outlined" sx={{ width: '100%', p: 2, borderRadius: 2, bgcolor: 'background.default' }}>
                                                 <Stack spacing={1}>
                                                     <Box display="flex" justifyContent="space-between">
-                                                        <Typography variant="caption" color="text.secondary">Remaining Days</Typography>
-                                                        <Typography variant="body2" fontWeight="bold">{business.remainingFeaturedDays || 0} days</Typography>
+                                                        <Typography variant="caption" color="text.secondary">Kalan Gün</Typography>
+                                                        <Typography variant="body2" fontWeight="bold">{business.remainingFeaturedDays || 0} gün</Typography>
                                                     </Box>
                                                     <Divider />
                                                     <Box display="flex" justifyContent="space-between">
-                                                        <Typography variant="caption" color="text.secondary">End Date</Typography>
+                                                        <Typography variant="caption" color="text.secondary">Bitiş Tarihi</Typography>
                                                         <Typography variant="body2" fontWeight="bold">
                                                             {business.featuredEndDate ? new Date(business.featuredEndDate).toLocaleDateString() : 'N/A'}
                                                         </Typography>
@@ -425,23 +425,23 @@ export default function BusinessDetails() {
                                                 color="error"
                                                 onClick={handleRemoveFeatured}
                                             >
-                                                Cancel Global Feature
+                                                Küresel Öne Çıkarmayı İptal Et
                                             </Button>
                                         </Stack>
                                     ) : (
                                         <Stack spacing={2}>
                                             <Alert severity="info" sx={{ py: 0 }}>
-                                                Global featuring promotes this business to all users regardless of location.
+                                                Küresel öne çıkarma, bu işletmeyi konumdan bağımsız olarak tüm kullanıcılara tanıtır.
                                             </Alert>
                                             <TextField
-                                                label="Duration (Days)"
+                                                label="Süre (Gün)"
                                                 type="number"
                                                 size="small"
                                                 value={durationInDays}
                                                 onChange={(e) => setDurationInDays(Number(e.target.value))}
                                                 fullWidth
                                                 InputProps={{
-                                                    endAdornment: <InputAdornment position="end">Days</InputAdornment>,
+                                                    endAdornment: <InputAdornment position="end">Gün</InputAdornment>,
                                                 }}
                                             />
                                             <Button 
@@ -450,7 +450,7 @@ export default function BusinessDetails() {
                                                 onClick={handleSetGlobalFeatured}
                                                 startIcon={<TrendingUpIcon />}
                                             >
-                                                Promote Globally
+                                                Küresel Öne Çıkar
                                             </Button>
                                         </Stack>
                                     )}
@@ -464,26 +464,26 @@ export default function BusinessDetails() {
                                                 <LocationIcon fontSize="large" />
                                             </Avatar>
                                             <Box>
-                                                <Typography variant="h6" color="secondary.main">Active Local Feature</Typography>
+                                                <Typography variant="h6" color="secondary.main">Aktif Yerel Öne Çıkarma</Typography>
                                                 <Typography variant="body2" color="text.secondary">
-                                                    Promoted to users within <strong>{business.featuredRadiusKm || featuredRadiusInKm}km</strong>.
+                                                    <strong>{business.featuredRadiusKm || featuredRadiusInKm} km</strong> içindeki kullanıcılara tanıtılıyor.
                                                 </Typography>
                                             </Box>
 
                                             <Paper variant="outlined" sx={{ width: '100%', p: 2, borderRadius: 2, bgcolor: 'background.default' }}>
                                                 <Stack spacing={1}>
                                                     <Box display="flex" justifyContent="space-between">
-                                                        <Typography variant="caption" color="text.secondary">Radius</Typography>
+                                                        <Typography variant="caption" color="text.secondary">Yarıçap</Typography>
                                                         <Typography variant="body2" fontWeight="bold">{business.featuredRadiusKm} km</Typography>
                                                     </Box>
                                                     <Divider />
                                                     <Box display="flex" justifyContent="space-between">
-                                                        <Typography variant="caption" color="text.secondary">Remaining Days</Typography>
-                                                        <Typography variant="body2" fontWeight="bold">{business.remainingFeaturedDays || 0} days</Typography>
+                                                        <Typography variant="caption" color="text.secondary">Kalan Gün</Typography>
+                                                        <Typography variant="body2" fontWeight="bold">{business.remainingFeaturedDays || 0} gün</Typography>
                                                     </Box>
                                                     <Divider />
                                                     <Box display="flex" justifyContent="space-between">
-                                                        <Typography variant="caption" color="text.secondary">End Date</Typography>
+                                                        <Typography variant="caption" color="text.secondary">Bitiş Tarihi</Typography>
                                                         <Typography variant="body2" fontWeight="bold">
                                                             {business.featuredEndDate ? new Date(business.featuredEndDate).toLocaleDateString() : 'N/A'}
                                                         </Typography>
@@ -497,27 +497,27 @@ export default function BusinessDetails() {
                                                 color="error"
                                                 onClick={handleRemoveFeatured}
                                             >
-                                                Cancel Local Feature
+                                                Yerel Öne Çıkarmayı İptal Et
                                             </Button>
                                         </Stack>
                                     ) : (
                                         <Stack spacing={2}>
                                             <Alert severity="info" sx={{ py: 0 }}>
-                                                Local featuring boosts visibility for users near this business.
+                                                Yerel öne çıkarma, bu işletmenin yakınındaki kullanıcılar için görünürlüğü artırır.
                                             </Alert>
                                             <TextField
-                                                label="Duration (Days)"
+                                                label="Süre (Gün)"
                                                 type="number"
                                                 size="small"
                                                 value={durationInDays}
                                                 onChange={(e) => setDurationInDays(Number(e.target.value))}
                                                 fullWidth
                                                 InputProps={{
-                                                    endAdornment: <InputAdornment position="end">Days</InputAdornment>,
+                                                    endAdornment: <InputAdornment position="end">Gün</InputAdornment>,
                                                 }}
                                             />
                                             <TextField
-                                                label="Radius (Km)"
+                                                label="Yarıçap (Km)"
                                                 type="number"
                                                 size="small"
                                                 value={featuredRadiusInKm}
@@ -534,7 +534,7 @@ export default function BusinessDetails() {
                                                 onClick={handleSetLocalFeatured}
                                                 startIcon={<LocationIcon />}
                                             >
-                                                Promote Locally
+                                                Yerel Öne Çıkar
                                             </Button>
                                         </Stack>
                                     )}
@@ -546,7 +546,7 @@ export default function BusinessDetails() {
                          <Card elevation={0} sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
                             <CardContent>
                                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                                    Admin Actions
+                                    Admin İşlemleri
                                 </Typography>
                                 <Stack spacing={1}>
                                     <Button 
@@ -556,7 +556,7 @@ export default function BusinessDetails() {
                                         startIcon={<VerifyIcon />}
                                         onClick={handleVerify}
                                     >
-                                        {business.verified ? 'Revoke Verification' : 'Verify Business'}
+                                        {business.verified ? 'Doğrulamayı Kaldır' : 'İşletmeyi Doğrula'}
                                     </Button>
                                 </Stack>
                             </CardContent>
@@ -574,11 +574,11 @@ export default function BusinessDetails() {
                             scrollButtons="auto"
                             sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}
                         >
-                            <Tab label="General Info" icon={<BusinessIcon fontSize="small" />} iconPosition="start" />
-                            <Tab label="Location" icon={<MapIcon fontSize="small" />} iconPosition="start" />
-                            <Tab label="Contact" icon={<PhoneIcon fontSize="small" />} iconPosition="start" />
-                            <Tab label="Images" icon={<PhotoIcon fontSize="small" />} iconPosition="start" />
-                            <Tab label="Settings" icon={<TrendingUpIcon fontSize="small" />} iconPosition="start" />
+                            <Tab label="Genel Bilgi" icon={<BusinessIcon fontSize="small" />} iconPosition="start" />
+                            <Tab label="Konum" icon={<MapIcon fontSize="small" />} iconPosition="start" />
+                            <Tab label="İletişim" icon={<PhoneIcon fontSize="small" />} iconPosition="start" />
+                            <Tab label="Görseller" icon={<PhotoIcon fontSize="small" />} iconPosition="start" />
+                            <Tab label="Ayarlar" icon={<TrendingUpIcon fontSize="small" />} iconPosition="start" />
                         </Tabs>
 
                         {/* TAB 0: General Info */}
@@ -587,7 +587,7 @@ export default function BusinessDetails() {
                                 <Grid item xs={12}>
                                     <TextField
                                         fullWidth
-                                        label="Business Name"
+                                        label="İşletme Adı"
                                         value={edited.name ?? business.name ?? ''}
                                         onChange={(e) => handleInputChange('name', e.target.value)}
                                     />
@@ -595,18 +595,18 @@ export default function BusinessDetails() {
                                 <Grid item xs={12}>
                                     <TextField
                                         fullWidth
-                                        label="Short Description"
+                                        label="Kısa Açıklama"
                                         multiline
                                         rows={2}
                                         value={edited.shortDescription ?? business.shortDescription ?? ''}
                                         onChange={(e) => handleInputChange('shortDescription', e.target.value)}
-                                        helperText="Brief summary used in cards and lists"
+                                        helperText="Kartlarda ve listelerde kullanılan kısa özet"
                                     />
                                 </Grid>
                                 <Grid item xs={12}>
                                     <TextField
                                         fullWidth
-                                        label="Full Description"
+                                        label="Detaylı Açıklama"
                                         multiline
                                         rows={6}
                                         value={edited.description ?? business.description ?? ''}
@@ -622,7 +622,7 @@ export default function BusinessDetails() {
                                 <Grid item xs={12} md={6}>
                                     <TextField
                                         fullWidth
-                                        label="Street Address"
+                                        label="Sokak Adresi"
                                         value={edited.address?.street ?? business.address?.street ?? ''}
                                         onChange={(e) => handleAddressChange('street', e.target.value)}
                                     />
@@ -630,7 +630,7 @@ export default function BusinessDetails() {
                                 <Grid item xs={12} md={6}>
                                     <TextField
                                         fullWidth
-                                        label="District / Neighborhood"
+                                        label="İlçe / Mahalle"
                                         value={edited.address?.district ?? business.address?.district ?? ''}
                                         onChange={(e) => handleAddressChange('district', e.target.value)}
                                     />
@@ -638,7 +638,7 @@ export default function BusinessDetails() {
                                 <Grid item xs={12} md={4}>
                                     <TextField
                                         fullWidth
-                                        label="City"
+                                        label="Şehir"
                                         value={edited.address?.city ?? business.address?.city ?? ''}
                                         onChange={(e) => handleAddressChange('city', e.target.value)}
                                     />
@@ -646,7 +646,7 @@ export default function BusinessDetails() {
                                 <Grid item xs={12} md={4}>
                                     <TextField
                                         fullWidth
-                                        label="Zip Code"
+                                        label="Posta Kodu"
                                         value={edited.address?.postalCode ?? business.address?.postalCode ?? ''}
                                         onChange={(e) => handleAddressChange('postalCode', e.target.value)}
                                     />
@@ -654,20 +654,20 @@ export default function BusinessDetails() {
                                 <Grid item xs={12} md={4}>
                                     <TextField
                                         fullWidth
-                                        label="Country"
+                                        label="Ülke"
                                         value={edited.address?.country ?? business.address?.country ?? ''}
                                         onChange={(e) => handleAddressChange('country', e.target.value)}
                                     />
                                 </Grid>
                                 
                                 <Grid item xs={12}>
-                                    <Divider textAlign="left"><Chip label="Coordinates" size="small" /></Divider>
+                                    <Divider textAlign="left"><Chip label="Koordinatlar" size="small" /></Divider>
                                 </Grid>
                                 <Grid item xs={12} md={6}>
                                     <TextField
                                         fullWidth
                                         type="number"
-                                        label="Latitude"
+                                        label="Enlem"
                                         value={edited.address?.latitude ?? business.address?.latitude ?? ''}
                                         onChange={(e) => handleAddressChange('latitude', parseFloat(e.target.value))}
                                         InputProps={{
@@ -679,7 +679,7 @@ export default function BusinessDetails() {
                                     <TextField
                                         fullWidth
                                         type="number"
-                                        label="Longitude"
+                                        label="Boylam"
                                         value={edited.address?.longitude ?? business.address?.longitude ?? ''}
                                         onChange={(e) => handleAddressChange('longitude', parseFloat(e.target.value))}
                                         InputProps={{
@@ -696,7 +696,7 @@ export default function BusinessDetails() {
                                 <Grid item xs={12} md={6}>
                                     <TextField
                                         fullWidth
-                                        label="Phone Number"
+                                        label="Telefon Numarası"
                                         value={edited.phoneNumber ?? business.phoneNumber ?? ''}
                                         onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
                                         error={Boolean(contactValidationErrors.phoneNumber)}
@@ -709,7 +709,7 @@ export default function BusinessDetails() {
                                 <Grid item xs={12} md={6}>
                                     <TextField
                                         fullWidth
-                                        label="Email Address"
+                                        label="E-posta Adresi"
                                         type="email"
                                         value={edited.email ?? business.email ?? ''}
                                         onChange={(e) => handleInputChange('email', e.target.value)}
@@ -723,7 +723,7 @@ export default function BusinessDetails() {
                                 <Grid item xs={12}>
                                     <TextField
                                         fullWidth
-                                        label="Website URL"
+                                        label="Web Sitesi URL"
                                         value={edited.website ?? business.website ?? ''}
                                         onChange={(e) => handleInputChange('website', e.target.value)}
                                         error={Boolean(contactValidationErrors.website)}
@@ -740,21 +740,21 @@ export default function BusinessDetails() {
                         <TabPanel value={tabValue} index={3}>
                             <Grid container spacing={4}>
                                 <Grid item xs={12} md={6}>
-                                    <Typography variant="subtitle2" gutterBottom>Profile Image</Typography>
+                                    <Typography variant="subtitle2" gutterBottom>Profil Görseli</Typography>
                                     <ImageUploader 
                                         onImageSelect={(f) => setProfileImage(Array.isArray(f) ? f[0] : f)} 
                                         currentImage={business.profileImageUrl} 
                                     />
                                 </Grid>
                                 <Grid item xs={12} md={6}>
-                                    <Typography variant="subtitle2" gutterBottom>Cover Image</Typography>
+                                    <Typography variant="subtitle2" gutterBottom>Kapak Görseli</Typography>
                                     <ImageUploader 
                                         onImageSelect={(f) => setCoverImage(Array.isArray(f) ? f[0] : f)} 
                                         currentImage={business.coverImageUrl} 
                                     />
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <Typography variant="subtitle2" gutterBottom>Gallery Images</Typography>
+                                    <Typography variant="subtitle2" gutterBottom>Galeri Görselleri</Typography>
                                     <ImageUploader 
                                         onImageSelect={(f) => setGalleryImages(Array.isArray(f) ? f : [f])} 
                                         currentImage={business.galleryImages?.[0]} 
@@ -768,7 +768,7 @@ export default function BusinessDetails() {
                         <TabPanel value={tabValue} index={4}>
                             <Stack spacing={3}>
                                 <Box>
-                                    <Typography variant="h6" gutterBottom>System Features</Typography>
+                                    <Typography variant="h6" gutterBottom>Sistem Özellikleri</Typography>
                                     <Paper variant="outlined" sx={{ p: 2 }}>
                                         <FormControlLabel
                                             control={
@@ -779,9 +779,9 @@ export default function BusinessDetails() {
                                             }
                                             label={
                                                 <Box>
-                                                    <Typography variant="subtitle2">Enable Subscription System</Typography>
+                                                    <Typography variant="subtitle2">Abonelik Sistemini Etkinleştir</Typography>
                                                     <Typography variant="caption" color="text.secondary">
-                                                        Allows the business to offer subscription plans to users.
+                                                        İşletmenin kullanıcılara abonelik planları sunmasına olanak tanır.
                                                     </Typography>
                                                 </Box>
                                             }
@@ -790,11 +790,11 @@ export default function BusinessDetails() {
                                 </Box>
 
                                 <Box>
-                                    <Typography variant="h6" gutterBottom>Detailed Featured Stats</Typography>
+                                    <Typography variant="h6" gutterBottom>Detaylı Öne Çıkarma İstatistikleri</Typography>
                                     <Grid container spacing={2}>
                                         <Grid item xs={12} md={4}>
                                             <TextField 
-                                                label="Featured Views" 
+                                                label="Öne Çıkan Görüntülenme"
                                                 value={business.featuredViewsCount || 0} 
                                                 disabled 
                                                 fullWidth 
@@ -803,7 +803,7 @@ export default function BusinessDetails() {
                                         </Grid>
                                         <Grid item xs={12} md={4}>
                                             <TextField 
-                                                label="Featured Clicks" 
+                                                label="Öne Çıkan Tıklanma"
                                                 value={business.featuredClicksCount || 0} 
                                                 disabled 
                                                 fullWidth 
@@ -812,7 +812,7 @@ export default function BusinessDetails() {
                                         </Grid>
                                         <Grid item xs={12} md={4}>
                                             <TextField 
-                                                label="Conversion Rate" 
+                                                label="Dönüşüm Oranı"
                                                 value={`${business.featuredConversionRate || 0}%`} 
                                                 disabled 
                                                 fullWidth 

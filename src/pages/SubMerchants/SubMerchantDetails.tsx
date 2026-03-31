@@ -78,7 +78,7 @@ export default function SubMerchantDetails() {
         showBackButton
         backPath="/sub-merchants"
         breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Kontrol Paneli', href: '/dashboard' },
           { label: 'Alt Üye İşyeri', href: '/sub-merchants' },
           { label: detail?.name || 'Detay', active: true },
         ]}
@@ -105,20 +105,20 @@ export default function SubMerchantDetails() {
         </Alert>
       )}
 
-      <PageSection title="Sub-Merchant Bilgileri">
+      <PageSection title="Alt Üye İşyeri Bilgileri">
         <Grid container spacing={3}>
           <Grid item xs={12} md={3}>
-            <DetailItem label="Owner Type" value={detail?.ownerType} />
+            <DetailItem label="Sahip Türü" value={detail?.ownerType} />
           </Grid>
           <Grid item xs={12} md={3}>
-            <DetailItem label="Owner ID" value={detail?.ownerId} />
+            <DetailItem label="Sahip ID" value={detail?.ownerId} />
           </Grid>
           <Grid item xs={12} md={3}>
-            <DetailItem label="Status" value={undefined} />
+            <DetailItem label="Durum" value={undefined} />
             {detail?.status && <StatusChip status={detail.status} />}
           </Grid>
           <Grid item xs={12} md={3}>
-            <DetailItem label="Created At" value={formatDateTime(detail?.createdAt)} />
+            <DetailItem label="Oluşturulma Tarihi" value={formatDateTime(detail?.createdAt)} />
           </Grid>
           <Grid item xs={12} md={4}>
             <DetailItem label="E-posta" value={detail?.email} />
@@ -166,14 +166,14 @@ export default function SubMerchantDetails() {
       >
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
-            <DetailItem label="Iyzico Type" value={detail?.iyzicoSubMerchantType} />
+            <DetailItem label="Iyzico Türü" value={detail?.iyzicoSubMerchantType} />
           </Grid>
           <Grid item xs={12} md={4}>
             <DetailItem label="Sub Merchant Key" value={iyzico?.iyzicoSubMerchantKey || detail?.iyzicoSubMerchantKey} />
           </Grid>
           <Grid item xs={12} md={4}>
             <DetailItem
-              label="External ID"
+              label="Harici ID"
               value={iyzico?.iyzicoSubMerchantExternalId || detail?.iyzicoSubMerchantExternalId}
             />
           </Grid>
@@ -181,7 +181,7 @@ export default function SubMerchantDetails() {
             <DetailItem label="Son Sync Zamanı" value={formatDateTime(iyzico?.syncedAt || detail?.iyzicoSubMerchantSyncedAt)} />
           </Grid>
           <Grid item xs={12} md={4}>
-            <DetailItem label="Iyzico Status" value={iyzico?.status} />
+            <DetailItem label="Iyzico Durumu" value={iyzico?.status} />
           </Grid>
           <Grid item xs={12} md={4}>
             <Button

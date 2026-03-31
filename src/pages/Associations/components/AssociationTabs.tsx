@@ -137,19 +137,19 @@ const AssociationTabs: React.FC<AssociationTabsProps> = ({
         indicatorColor="primary"
         textColor="primary"
       >
-        <Tab icon={<PeopleIcon />} iconPosition="start" label="Members" sx={{textTransform: 'none', px: isMobile ? 1.5: 2.5}} />
-        <Tab icon={<EventIcon />} iconPosition="start" label="Events" sx={{textTransform: 'none', px: isMobile ? 1.5: 2.5}}/>
-        <Tab icon={<BusinessIcon />} iconPosition="start" label="Benefits" sx={{textTransform: 'none', px: isMobile ? 1.5: 2.5}}/>
-        <Tab icon={<MoneyIcon />} iconPosition="start" label="Transactions" sx={{textTransform: 'none', px: isMobile ? 1.5: 2.5}} />
+        <Tab icon={<PeopleIcon />} iconPosition="start" label="Üyeler" sx={{textTransform: 'none', px: isMobile ? 1.5: 2.5}} />
+        <Tab icon={<EventIcon />} iconPosition="start" label="Etkinlikler" sx={{textTransform: 'none', px: isMobile ? 1.5: 2.5}}/>
+        <Tab icon={<BusinessIcon />} iconPosition="start" label="Avantajlar" sx={{textTransform: 'none', px: isMobile ? 1.5: 2.5}}/>
+        <Tab icon={<MoneyIcon />} iconPosition="start" label="İşlemler" sx={{textTransform: 'none', px: isMobile ? 1.5: 2.5}} />
       </Tabs>
 
       <TabPanel value={tabValue} index={0}>
         <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
           <Button variant="contained" startIcon={<AddIcon />} onClick={onAddMember} sx={{textTransform: 'none'}}>
-            Add Member
+            Üye Ekle
           </Button>
         </Box>
-        {isLoadingMembers ? <Typography sx={{textAlign:'center', p:3}}>Loading members...</Typography> : (
+        {isLoadingMembers ? <Typography sx={{textAlign:'center', p:3}}>Üyeler yükleniyor...</Typography> : (
           <List dense={isMobile}>
             {members && members.length > 0 ? members.map((member) => (
               <ListItem
@@ -168,7 +168,7 @@ const AssociationTabs: React.FC<AssociationTabsProps> = ({
                 </ListItemAvatar>
                 <ListItemText
                   primary={`${member.userFirstName} ${member.userLastName}`}
-                  secondary={`Joined: ${new Date(member.membershipStartDate).toLocaleDateString()} | Type: ${member.membershipNumber || 'N/A'}`}
+                  secondary={`Katılım: ${new Date(member.membershipStartDate).toLocaleDateString()} | Tür: ${member.membershipNumber || 'Belirtilmemiş'}`}
                   primaryTypographyProps={{fontWeight:'medium'}}
                 />
                 <Chip 
@@ -178,7 +178,7 @@ const AssociationTabs: React.FC<AssociationTabsProps> = ({
                   sx={{ ml: 1, textTransform: 'capitalize' }} 
                 />
               </ListItem>
-            )) : renderEmptyState("No members found for this association.", <PeopleIcon sx={{fontSize: 40}}/>)}
+            )) : renderEmptyState("Bu dernek için üye bulunamadı.", <PeopleIcon sx={{fontSize: 40}}/>)}
           </List>
         )}
       </TabPanel>
@@ -186,12 +186,12 @@ const AssociationTabs: React.FC<AssociationTabsProps> = ({
       <TabPanel value={tabValue} index={1}>
         <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
           <Button variant="contained" startIcon={<AddIcon />} onClick={onAddEvent} sx={{textTransform: 'none'}}>
-            Add Event
+            Etkinlik Ekle
           </Button>
         </Box>
-         {isLoadingEvents ? <Typography sx={{textAlign:'center', p:3}}>Loading events...</Typography> : (
+         {isLoadingEvents ? <Typography sx={{textAlign:'center', p:3}}>Etkinlikler yükleniyor...</Typography> : (
           <>
-            <Typography variant="h6" gutterBottom>Upcoming Events</Typography>
+            <Typography variant="h6" gutterBottom>Yaklaşan Etkinlikler</Typography>
             <List dense={isMobile}>
               {eventSummary?.upcomingEvents && eventSummary.upcomingEvents.length > 0 ? eventSummary.upcomingEvents.map((event) => (
                 <ListItem
@@ -210,20 +210,20 @@ const AssociationTabs: React.FC<AssociationTabsProps> = ({
                   </ListItemAvatar>
                   <ListItemText
                     primary={event.title}
-                    secondary={`${new Date(event.eventTime).toLocaleDateString()} - ${new Date(event.eventTime).toLocaleDateString()} | ${event.address?.city || 'Location TBD'}`}
+                    secondary={`${new Date(event.eventTime).toLocaleDateString()} - ${new Date(event.eventTime).toLocaleDateString()} | ${event.address?.city || 'Konum belirlenecek'}`}
                     primaryTypographyProps={{fontWeight:'medium'}}
                   />
-                  <Chip 
-                      label="Upcoming" 
+                  <Chip
+                      label="Yaklaşan"
                       color={getStatusColor('upcoming', 'event')}
                       size="small" 
                       sx={{ ml: 1, textTransform: 'capitalize' }} 
                   />
                 </ListItem>
-              )) : renderEmptyState("No upcoming events scheduled.", <EventIcon sx={{fontSize: 40}}/>)}
+              )) : renderEmptyState("Planlanmış yaklaşan etkinlik yok.", <EventIcon sx={{fontSize: 40}}/>)}
             </List>
 
-            <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>Completed Events</Typography>
+            <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>Tamamlanan Etkinlikler</Typography>
             <List dense={isMobile}>
               {eventSummary?.completedEvents && eventSummary.completedEvents.length > 0 ? eventSummary.completedEvents.map((event) => (
                 <ListItem
@@ -242,17 +242,17 @@ const AssociationTabs: React.FC<AssociationTabsProps> = ({
                   </ListItemAvatar>
                   <ListItemText
                     primary={event.title}
-                    secondary={`${new Date(event.eventTime).toLocaleDateString()} - ${new Date(event.eventTime).toLocaleDateString()} | ${event.address?.city || 'Location TBD'}`}
+                    secondary={`${new Date(event.eventTime).toLocaleDateString()} - ${new Date(event.eventTime).toLocaleDateString()} | ${event.address?.city || 'Konum belirlenecek'}`}
                     primaryTypographyProps={{fontWeight:'medium'}}
                   />
-                  <Chip 
-                      label="Past" 
+                  <Chip
+                      label="Geçmiş"
                       color={getStatusColor('past', 'event')}
                       size="small" 
                       sx={{ ml: 1, textTransform: 'capitalize' }} 
                   />
                 </ListItem>
-              )) : renderEmptyState("No completed events found.", <EventIcon sx={{fontSize: 40}}/>)}
+              )) : renderEmptyState("Tamamlanmış etkinlik bulunamadı.", <EventIcon sx={{fontSize: 40}}/>)}
             </List>
           </>
          )}
@@ -261,10 +261,10 @@ const AssociationTabs: React.FC<AssociationTabsProps> = ({
       <TabPanel value={tabValue} index={2}>
         <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
           <Button variant="contained" startIcon={<AddIcon />} onClick={onAddBenefit} sx={{textTransform: 'none'}}>
-            Add Benefit
+            Avantaj Ekle
           </Button>
         </Box>
-        {isLoadingBenefits ? <Typography sx={{textAlign:'center', p:3}}>Loading benefits...</Typography> : (
+        {isLoadingBenefits ? <Typography sx={{textAlign:'center', p:3}}>Avantajlar yükleniyor...</Typography> : (
           <List dense={isMobile}>
             {benefitsList && benefitsList.length > 0 ? benefitsList.map((benefit) => (
               <ListItem
@@ -273,12 +273,12 @@ const AssociationTabs: React.FC<AssociationTabsProps> = ({
                 onClick={() => handleRowClick(benefit)}
                 secondaryAction={
                   <Box>
-                    <Tooltip title="Edit Benefit">
+                    <Tooltip title="Avantajı Düzenle">
                       <IconButton edge="end" aria-label="edit" onClick={e => { e.stopPropagation(); onEditBenefit(benefit); }} sx={{mr: 0.5}}>
                         <EditIcon fontSize="small"/>
                       </IconButton>
                     </Tooltip>
-                     <Tooltip title="Delete Benefit">
+                     <Tooltip title="Avantajı Sil">
                       <IconButton edge="end" aria-label="delete" onClick={e => { e.stopPropagation(); onDeleteBenefit(benefit); }}>
                         <DeleteIcon fontSize="small" color="error" />
                       </IconButton>
@@ -293,19 +293,19 @@ const AssociationTabs: React.FC<AssociationTabsProps> = ({
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={benefit.name || benefit.businessName || 'Unnamed Benefit'}
-                  secondary={benefit.description || 'No description available.'}
+                  primary={benefit.name || benefit.businessName || 'İsimsiz Avantaj'}
+                  secondary={benefit.description || 'Açıklama mevcut değil.'}
                   primaryTypographyProps={{fontWeight:'medium'}}
                 />
                 <Chip 
-                    label={benefit.discount ? `${benefit.discount}% off` : 'Details'}
+                    label={benefit.discount ? `%${benefit.discount} indirim` : 'Detaylar'}
                     color="primary" 
                     variant="outlined" 
                     size="small" 
                     sx={{ ml: 1 }} 
                 />
               </ListItem>
-            )) : renderEmptyState("No benefits available for this association.", <BusinessIcon sx={{fontSize: 40}}/>)}
+            )) : renderEmptyState("Bu dernek için avantaj bulunmamaktadır.", <BusinessIcon sx={{fontSize: 40}}/>)}
           </List>
         )}
       </TabPanel>

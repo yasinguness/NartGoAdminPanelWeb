@@ -53,10 +53,10 @@ export default function FilterBar({
             <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
                 <Box>
                     <Typography variant="h4" fontWeight="bold" gutterBottom>
-                        Notification Center
+                        Bildirim Merkezi
                     </Typography>
                     <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                        Manage and send notifications to your users
+                        Kullanıcılarınıza bildirim yönetin ve gönderin
                     </Typography>
                 </Box>
                 <Badge badgeContent={unreadCount} color="error" max={99}>
@@ -68,7 +68,7 @@ export default function FilterBar({
             
             <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
                 <TextField
-                    placeholder="Search notifications..."
+                    placeholder="Bildirim ara..."
                     variant="outlined"
                     size="small"
                     value={searchTerm}
@@ -102,11 +102,11 @@ export default function FilterBar({
                             }
                         }}
                     >
-                        <MenuItem value="all">All Priorities</MenuItem>
-                        <MenuItem value={NotificationPriority.LOW}>Low</MenuItem>
+                        <MenuItem value="all">Tüm Öncelikler</MenuItem>
+                        <MenuItem value={NotificationPriority.LOW}>Düşük</MenuItem>
                         <MenuItem value={NotificationPriority.NORMAL}>Normal</MenuItem>
-                        <MenuItem value={NotificationPriority.HIGH}>High</MenuItem>
-                        <MenuItem value={NotificationPriority.URGENT}>Urgent</MenuItem>
+                        <MenuItem value={NotificationPriority.HIGH}>Yüksek</MenuItem>
+                        <MenuItem value={NotificationPriority.URGENT}>Acil</MenuItem>
                     </Select>
                 </FormControl>
 

@@ -198,11 +198,11 @@ const SeatButton = styled(Box)<{
 });
 
 const steps = [
-  'Ticket Details',
-  'Categories & Pricing',
-  'Venue Layout',
-  'Sales Schedule',
-  'Preview & Save',
+  'Bilet Detayları',
+  'Kategoriler & Fiyatlandırma',
+  'Mekan Düzeni',
+  'Satış Takvimi',
+  'Önizleme & Kaydet',
 ];
 
 const categoryColors: Record<SeatCategory, string> = {
@@ -216,9 +216,9 @@ const categoryColors: Record<SeatCategory, string> = {
 const categoryNames: Record<SeatCategory, string> = {
   [SeatCategory.VIP]: 'VIP',
   [SeatCategory.PREMIUM]: 'Premium',
-  [SeatCategory.STANDARD]: 'Standard',
-  [SeatCategory.ECONOMY]: 'Economy',
-  [SeatCategory.WHEELCHAIR]: 'Wheelchair',
+  [SeatCategory.STANDARD]: 'Standart',
+  [SeatCategory.ECONOMY]: 'Ekonomi',
+  [SeatCategory.WHEELCHAIR]: 'Engelli',
 };
 
 interface TicketCreationPageProps {
@@ -801,7 +801,7 @@ const TicketCreationPage: React.FC<TicketCreationPageProps> = ({
     <Fade in timeout={500}>
       <Box>
         <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-          Preview & Confirm
+          Önizleme & Onay
         </Typography>
 
         <Grid container spacing={3}>
@@ -980,11 +980,11 @@ const TicketCreationPage: React.FC<TicketCreationPageProps> = ({
   return (
     <PageContainer>
         <PageHeader 
-          title="Ticket Creator"
-          subtitle="Professional seating layout and ticket management"
+          title="Bilet Oluşturucu"
+          subtitle="Profesyonel oturma düzeni ve bilet yönetimi"
           breadcrumbs={[
-            { label: 'Events', href: '/events' },
-            { label: 'Ticket Creator', active: true }
+            { label: 'Etkinlikler', href: '/events' },
+            { label: 'Bilet Oluşturucu', active: true }
           ]}
         />
       
@@ -1025,7 +1025,7 @@ const TicketCreationPage: React.FC<TicketCreationPageProps> = ({
           startIcon={<ArrowBackIcon />}
           sx={{ minWidth: 140 }}
         >
-          {activeStep === 0 ? 'Cancel' : 'Back'}
+          {activeStep === 0 ? 'İptal' : 'Geri'}
         </Button>
         <Button
           variant="contained"
@@ -1040,9 +1040,9 @@ const TicketCreationPage: React.FC<TicketCreationPageProps> = ({
           {loading ? (
             <CircularProgress size={24} color="inherit" />
           ) : activeStep === steps.length - 1 ? (
-            'Save'
+            'Kaydet'
           ) : (
-            'Next'
+            'İleri'
           )}
         </Button>
       </Box>

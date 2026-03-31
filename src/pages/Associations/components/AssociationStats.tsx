@@ -25,38 +25,38 @@ const AssociationStats: React.FC<AssociationStatsProps> = ({ stats }) => {
     <Grid container spacing={3} sx={{ mb: 4 }}>
       <Grid item xs={12} sm={6} md={3}>
         <StatCard
-          title="Active Members"
+          title="Aktif Üyeler"
           value={String(activeMembers)}
           icon={<PeopleIcon />}
           color="primary"
-          subtitle="Currently active"
+          subtitle="Şu anda aktif"
         />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
         <StatCard
-          title="Profile Views"
+          title="Profil Görüntülenme"
           value={String(viewCount)}
           icon={<VisibilityIcon />}
           color="info"
-          subtitle="Total profile views"
+          subtitle="Toplam profil görüntülenme"
         />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
         <StatCard
-          title="Total Revenue"
-          value={`$${totalRevenue.toLocaleString()}`}
+          title="Toplam Gelir"
+          value={`${totalRevenue.toLocaleString()} TL`}
           icon={<MoneyIcon />}
           color="success"
-          subtitle="Overall revenue generated"
+          subtitle="Toplam elde edilen gelir"
         />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
         <StatCard
-          title="Favorites"
+          title="Favoriler"
           value={String(favoriteCount)}
           icon={<FavoriteIcon />}
           color="warning"
-          subtitle="Times marked as favorite"
+          subtitle="Favorilere eklenme sayısı"
         />
       </Grid>
     </Grid>

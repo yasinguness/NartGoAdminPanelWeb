@@ -54,24 +54,24 @@ export interface MemberFormValues {
 }
 
 const validationSchema = Yup.object({
-  firstName: Yup.string().required('First name is required'),
-  lastName: Yup.string().required('Last name is required'),
-  email: Yup.string().email('Invalid email address').required('Email is required'),
-  phone: Yup.string().required('Phone number is required'),
-  membershipNumber: Yup.string().required('Membership number is required'),
-  joinDate: Yup.string().required('Join date is required'),
-  membershipEndDate: Yup.string().required('End date is required'),
-  status: Yup.string().required('Status is required'),
-  association: Yup.string().required('Association is required'),
-  membershipType: Yup.string().required('Membership type is required'),
-  address: Yup.string().required('Address is required'),
-  city: Yup.string().required('City is required'),
-  country: Yup.string().required('Country is required'),
-  postalCode: Yup.string().required('Postal code is required'),
-  membershipPrice: Yup.number().required('Membership price is required').min(0, 'Price must be positive'),
+  firstName: Yup.string().required('Ad zorunludur'),
+  lastName: Yup.string().required('Soyad zorunludur'),
+  email: Yup.string().email('Geçersiz e-posta adresi').required('E-posta zorunludur'),
+  phone: Yup.string().required('Telefon numarası zorunludur'),
+  membershipNumber: Yup.string().required('Üyelik numarası zorunludur'),
+  joinDate: Yup.string().required('Katılım tarihi zorunludur'),
+  membershipEndDate: Yup.string().required('Bitiş tarihi zorunludur'),
+  status: Yup.string().required('Durum zorunludur'),
+  association: Yup.string().required('Dernek zorunludur'),
+  membershipType: Yup.string().required('Üyelik türü zorunludur'),
+  address: Yup.string().required('Adres zorunludur'),
+  city: Yup.string().required('Şehir zorunludur'),
+  country: Yup.string().required('Ülke zorunludur'),
+  postalCode: Yup.string().required('Posta kodu zorunludur'),
+  membershipPrice: Yup.number().required('Üyelik ücreti zorunludur').min(0, 'Ücret pozitif olmalıdır'),
 });
 
-const steps = ['Basic Information', 'Membership Details', 'Contact Information'];
+const steps = ['Temel Bilgiler', 'Üyelik Detayları', 'İletişim Bilgileri'];
 
 const MemberForm: React.FC<MemberFormProps> = ({
   open,
@@ -147,7 +147,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="firstName"
-                label="First Name"
+                label="Ad"
                 value={formik.values.firstName}
                 onChange={formik.handleChange}
                 error={formik.touched.firstName && Boolean(formik.errors.firstName)}
@@ -158,7 +158,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="lastName"
-                label="Last Name"
+                label="Soyad"
                 value={formik.values.lastName}
                 onChange={formik.handleChange}
                 error={formik.touched.lastName && Boolean(formik.errors.lastName)}
@@ -169,7 +169,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="email"
-                label="Email"
+                label="E-posta"
                 value={formik.values.email}
                 onChange={formik.handleChange}
                 error={formik.touched.email && Boolean(formik.errors.email)}
@@ -180,7 +180,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="phone"
-                label="Phone"
+                label="Telefon"
                 value={formik.values.phone}
                 onChange={formik.handleChange}
                 error={formik.touched.phone && Boolean(formik.errors.phone)}
@@ -196,7 +196,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="membershipNumber"
-                label="Membership Number"
+                label="Üyelik Numarası"
                 value={formik.values.membershipNumber}
                 onChange={formik.handleChange}
                 error={formik.touched.membershipNumber && Boolean(formik.errors.membershipNumber)}
@@ -205,15 +205,15 @@ const MemberForm: React.FC<MemberFormProps> = ({
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth error={formik.touched.membershipType && Boolean(formik.errors.membershipType)}>
-                <InputLabel>Membership Type</InputLabel>
+                <InputLabel>Üyelik Türü</InputLabel>
                 <Select
                   name="membershipType"
                   value={formik.values.membershipType}
                   onChange={formik.handleChange}
-                  label="Membership Type"
+                  label="Üyelik Türü"
                 >
-                  <MenuItem value="BASIC">Basic</MenuItem>
-                  <MenuItem value="STANDARD">Standard</MenuItem>
+                  <MenuItem value="BASIC">Temel</MenuItem>
+                  <MenuItem value="STANDARD">Standart</MenuItem>
                   <MenuItem value="PREMIUM">Premium</MenuItem>
                 </Select>
               </FormControl>
@@ -222,7 +222,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="joinDate"
-                label="Join Date"
+                label="Katılım Tarihi"
                 type="date"
                 value={formik.values.joinDate}
                 onChange={formik.handleChange}
@@ -235,7 +235,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="membershipEndDate"
-                label="End Date"
+                label="Bitiş Tarihi"
                 type="date"
                 value={formik.values.membershipEndDate}
                 onChange={formik.handleChange}
@@ -246,16 +246,16 @@ const MemberForm: React.FC<MemberFormProps> = ({
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth error={formik.touched.status && Boolean(formik.errors.status)}>
-                <InputLabel>Status</InputLabel>
+                <InputLabel>Durum</InputLabel>
                 <Select
                   name="status"
                   value={formik.values.status}
                   onChange={formik.handleChange}
-                  label="Status"
+                  label="Durum"
                 >
-                  <MenuItem value="ACTIVE">Active</MenuItem>
-                  <MenuItem value="PENDING">Pending</MenuItem>
-                  <MenuItem value="SUSPENDED">Suspended</MenuItem>
+                  <MenuItem value="ACTIVE">Aktif</MenuItem>
+                  <MenuItem value="PENDING">Beklemede</MenuItem>
+                  <MenuItem value="SUSPENDED">Askıya Alınmış</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -263,7 +263,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="membershipPrice"
-                label="Membership Price"
+                label="Üyelik Ücreti"
                 type="number"
                 value={formik.values.membershipPrice}
                 onChange={formik.handleChange}
@@ -283,7 +283,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="address"
-                label="Address"
+                label="Adres"
                 value={formik.values.address}
                 onChange={formik.handleChange}
                 error={formik.touched.address && Boolean(formik.errors.address)}
@@ -294,7 +294,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="city"
-                label="City"
+                label="Şehir"
                 value={formik.values.city}
                 onChange={formik.handleChange}
                 error={formik.touched.city && Boolean(formik.errors.city)}
@@ -305,7 +305,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="country"
-                label="Country"
+                label="Ülke"
                 value={formik.values.country}
                 onChange={formik.handleChange}
                 error={formik.touched.country && Boolean(formik.errors.country)}
@@ -316,7 +316,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
               <TextField
                 fullWidth
                 name="postalCode"
-                label="Postal Code"
+                label="Posta Kodu"
                 value={formik.values.postalCode}
                 onChange={formik.handleChange}
                 error={formik.touched.postalCode && Boolean(formik.errors.postalCode)}
@@ -325,12 +325,12 @@ const MemberForm: React.FC<MemberFormProps> = ({
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth error={formik.touched.association && Boolean(formik.errors.association)}>
-                <InputLabel>Association</InputLabel>
+                <InputLabel>Dernek</InputLabel>
                 <Select
                   name="association"
                   value={formik.values.association}
                   onChange={formik.handleChange}
-                  label="Association"
+                  label="Dernek"
                 >
                   <MenuItem value="Basketball">Basketball</MenuItem>
                   <MenuItem value="Swimming">Swimming</MenuItem>
@@ -348,7 +348,7 @@ const MemberForm: React.FC<MemberFormProps> = ({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        <Typography variant="h6">{isEdit ? 'Edit Member' : 'Add New Member'}</Typography>
+        <Typography variant="h6">{isEdit ? 'Üyeyi Düzenle' : 'Yeni Üye Ekle'}</Typography>
       </DialogTitle>
       <DialogContent>
         <Box sx={{ mt: 2, mb: 4 }}>
@@ -363,17 +363,17 @@ const MemberForm: React.FC<MemberFormProps> = ({
         {renderStepContent(activeStep)}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>İptal</Button>
         {activeStep > 0 && (
-          <Button onClick={handleBack}>Back</Button>
+          <Button onClick={handleBack}>Geri</Button>
         )}
         {activeStep < steps.length - 1 ? (
           <Button onClick={handleNext} variant="contained">
-            Next
+            İleri
           </Button>
         ) : (
           <Button onClick={handleSubmit} variant="contained" color="primary">
-            {isEdit ? 'Update' : 'Create'}
+            {isEdit ? 'Güncelle' : 'Oluştur'}
           </Button>
         )}
       </DialogActions>

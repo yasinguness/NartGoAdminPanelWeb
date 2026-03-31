@@ -253,7 +253,7 @@ export default function SubMerchantForm() {
         showBackButton
         backPath="/sub-merchants"
         breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Kontrol Paneli', href: '/dashboard' },
           { label: 'Alt Üye İşyeri', href: '/sub-merchants' },
           { label: 'Oluştur', active: true },
         ]}
@@ -292,7 +292,7 @@ export default function SubMerchantForm() {
         <FormGrid>
           <TextField
             select
-            label="Owner Type"
+            label="Sahip Türü"
             value={values.ownerType}
             onChange={(event) => handleFieldChange('ownerType', event.target.value as SubMerchantOwnerType)}
             error={Boolean(errors.ownerType)}
@@ -305,7 +305,7 @@ export default function SubMerchantForm() {
             ))}
           </TextField>
           <TextField
-            label="Owner ID"
+            label="Sahip ID"
             value={values.ownerId}
             onChange={(event) => handleFieldChange('ownerId', event.target.value)}
             error={Boolean(errors.ownerId)}

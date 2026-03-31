@@ -30,7 +30,7 @@ const getApiErrorMessage = (error: unknown): string => {
   if (typeof maybeResponseMessage === 'string' && maybeResponseMessage.trim()) {
     return maybeResponseMessage;
   }
-  return 'Instagram videosu iceri aktarilamadi';
+  return 'Instagram videosu içeri aktarılamadı';
 };
 
 export default function FeedVideos() {
@@ -167,7 +167,7 @@ export default function FeedVideos() {
         setSlideOverVideo({ ...video, status: newStatus, rejectionReason: reason || video.rejectionReason });
       }
     } catch (error) {
-      addToast('Status update failed', 'warning');
+      addToast('Durum güncellenemedi', 'warning');
     }
   }, [feeds, updateFeedStatus, addToast, slideOverVideo]);
 
@@ -255,7 +255,7 @@ export default function FeedVideos() {
 
   const confirmReject = useCallback(async () => {
     if (!rejectDialog.reason.trim()) {
-      addToast('Rejection reason cannot be empty', 'warning');
+      addToast('Red nedeni boş bırakılamaz', 'warning');
       return;
     }
     setRejectDialog(prev => ({ ...prev, open: false }));
@@ -311,11 +311,11 @@ export default function FeedVideos() {
   return (
     <PageContainer>
       <PageHeader
-        title="Feed Videos v2.0"
+        title="Video Akışı"
         subtitle="Video feed içeriklerini yönetin"
         breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Feed Videos', active: true },
+          { label: 'Kontrol Paneli', href: '/dashboard' },
+          { label: 'Video Akışı', active: true },
         ]}
         actions={
           <Stack direction="row" spacing={1} alignItems="center">
@@ -330,7 +330,7 @@ export default function FeedVideos() {
             >
               Instagram'dan Al
             </Button>
-            <Tooltip title="Keyboard Shortcuts (?)" arrow>
+            <Tooltip title="Klavye Kısayolları (?)" arrow>
               <IconButton size="small" onClick={() => setShowShortcuts((s) => !s)} sx={{ border: '1px solid', borderColor: 'divider' }}>
                 <Keyboard size={16} />
               </IconButton>

@@ -57,7 +57,7 @@ const MemberDetailsDialog: React.FC<MemberDetailsDialogProps> = ({ open, onClose
               {member.userFirstName} {member.userLastName}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Member since {new Date(member.membershipStartDate).toLocaleDateString()}
+              {new Date(member.membershipStartDate).toLocaleDateString()} tarihinden beri üye
             </Typography>
           </Box>
         </Box>
@@ -69,7 +69,7 @@ const MemberDetailsDialog: React.FC<MemberDetailsDialogProps> = ({ open, onClose
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
-                  Personal Information
+                  Kişisel Bilgiler
                 </Typography>
                 <Box display="flex" flexDirection="column" gap={2}>
                   <Box display="flex" alignItems="center" gap={1}>
@@ -86,33 +86,33 @@ const MemberDetailsDialog: React.FC<MemberDetailsDialogProps> = ({ open, onClose
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
-                  Membership Details
+                  Üyelik Detayları
                 </Typography>
                 <Box display="flex" flexDirection="column" gap={2}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <MembershipIcon color="action" />
                     <Typography>
-                      Membership Number: {member.membershipNumber || 'N/A'}
+                      Üyelik Numarası: {member.membershipNumber || 'Belirtilmemiş'}
                     </Typography>
                   </Box>
                   <Box display="flex" alignItems="center" gap={1}>
                     <CalendarIcon color="action" />
                     <Typography>
-                      Start Date: {new Date(member.membershipStartDate).toLocaleDateString()}
+                      Başlangıç Tarihi: {new Date(member.membershipStartDate).toLocaleDateString()}
                     </Typography>
                   </Box>
                   {member.membershipEndDate && (
                     <Box display="flex" alignItems="center" gap={1}>
                       <CalendarIcon color="action" />
                       <Typography>
-                        End Date: {new Date(member.membershipEndDate).toLocaleDateString()}
+                        Bitiş Tarihi: {new Date(member.membershipEndDate).toLocaleDateString()}
                       </Typography>
                     </Box>
                   )}
                   <Box display="flex" alignItems="center" gap={1}>
                     <PersonIcon color="action" />
                     <Typography>
-                      Status:{' '}
+                      Durum:{' '}
                       <Chip
                         label={member.status}
                         color={getStatusColor(member.status)}
@@ -131,7 +131,7 @@ const MemberDetailsDialog: React.FC<MemberDetailsDialogProps> = ({ open, onClose
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Member Benefits
+                    Üye Avantajları
                   </Typography>
                   <Grid container spacing={2}>
                     {member.benefits.map((benefit, index) => (
@@ -154,12 +154,12 @@ const MemberDetailsDialog: React.FC<MemberDetailsDialogProps> = ({ open, onClose
                             </Typography>
                             {benefit.discountPercentage && (
                               <Typography variant="body2" color="text.secondary">
-                                {benefit.discountPercentage}% discount
+                                %{benefit.discountPercentage} indirim
                               </Typography>
                             )}
                             {benefit.couponCode && (
                               <Typography variant="body2" color="text.secondary">
-                                Code: {benefit.couponCode}
+                                Kod: {benefit.couponCode}
                               </Typography>
                             )}
                           </Box>
@@ -174,7 +174,7 @@ const MemberDetailsDialog: React.FC<MemberDetailsDialogProps> = ({ open, onClose
         </Grid>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>Kapat</Button>
       </DialogActions>
     </Dialog>
   );

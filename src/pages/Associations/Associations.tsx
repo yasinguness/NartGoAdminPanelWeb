@@ -126,7 +126,7 @@ const Associations = () => {
   const columns = [
     {
       id: 'name',
-      label: 'Association',
+      label: 'Dernek',
       render: (row: AssociationSummaryResponse) => (
         <Stack direction="row" spacing={2} alignItems="center">
           <Avatar 
@@ -144,7 +144,7 @@ const Associations = () => {
           <Box>
             <Typography variant="body2" fontWeight={600}>{row.name}</Typography>
             <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 200 }}>
-              {row.description || 'No description'}
+              {row.description || 'Açıklama yok'}
             </Typography>
           </Box>
         </Stack>
@@ -152,17 +152,17 @@ const Associations = () => {
     },
     {
       id: 'taxNumber',
-      label: 'Tax ID',
+      label: 'Vergi No',
       accessor: 'taxNumber' as keyof AssociationSummaryResponse,
     },
     {
       id: 'status',
-      label: 'Status',
+      label: 'Durum',
       render: () => <StatusChip status="ACTIVE" />,
     },
     {
       id: 'createdAt',
-      label: 'Created',
+      label: 'Oluşturulma',
       render: (row: AssociationSummaryResponse) => (
         <Typography variant="body2" color="text.secondary">
           {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : 'N/A'}
@@ -174,27 +174,27 @@ const Associations = () => {
   return (
     <PageContainer>
       <PageHeader
-        title="Association Management"
-        subtitle="Manage member organizations, tax details, and subscriptions"
+        title="Dernek Yönetimi"
+        subtitle="Üye kuruluşları, vergi detaylarını ve abonelikleri yönetin"
         actions={
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleCreateAssociation}
           >
-            Create Association
+            Dernek Oluştur
           </Button>
         }
         breadcrumbs={[
-          { label: 'Dashboard', href: '/' },
-          { label: 'Associations', active: true },
+          { label: 'Kontrol Paneli', href: '/' },
+          { label: 'Dernekler', active: true },
         ]}
       />
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Associations"
+            title="Toplam Dernek"
             value={String(stats.total)}
             icon={<BusinessIcon />}
             trend={8}
@@ -203,7 +203,7 @@ const Associations = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Active Groups"
+            title="Aktif Gruplar"
             value={String(stats.active)}
             icon={<TrendingUpIcon />}
             color="success"
@@ -211,7 +211,7 @@ const Associations = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Members"
+            title="Toplam Üye"
             value="1.2k"
             icon={<PeopleIcon />}
             trend={15}
@@ -220,7 +220,7 @@ const Associations = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Revenue Growth"
+            title="Gelir Artışı"
             value={stats.growth}
             icon={<AssessmentIcon />}
             color="warning"
@@ -228,16 +228,16 @@ const Associations = () => {
         </Grid>
       </Grid>
 
-      <PageSection title="Analytics Overview" sx={{ mb: 4 }}>
+      <PageSection title="Analiz Genel Bakışı" sx={{ mb: 4 }}>
         <AssociationCharts />
       </PageSection>
 
-      <PageSection title="Associations Directory">
+      <PageSection title="Dernek Listesi">
         <FilterBar
           search={{
             value: searchTerm,
             onChange: setSearchTerm,
-            placeholder: "Search by name, description or tax ID...",
+            placeholder: "Ad, açıklama veya vergi numarası ile ara...",
           }}
           sx={{ mb: 3 }}
         />
@@ -253,19 +253,19 @@ const Associations = () => {
                   <ListItemIcon>
                     <VisibilityIcon fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText>View</ListItemText>
+                  <ListItemText>Görüntüle</ListItemText>
                 </MenuItem>
                 <MenuItem onClick={() => handleEditAssociation(row)}>
                   <ListItemIcon>
                     <EditIcon fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText>Edit</ListItemText>
+                  <ListItemText>Düzenle</ListItemText>
                 </MenuItem>
                 <MenuItem onClick={() => handleDeleteClick(row)} sx={{ color: 'error.main' }}>
                   <ListItemIcon>
                     <DeleteIcon fontSize="small" color="error" />
                   </ListItemIcon>
-                  <ListItemText>Delete</ListItemText>
+                  <ListItemText>Sil</ListItemText>
                 </MenuItem>
             </ActionMenu>
           )}
@@ -282,10 +282,10 @@ const Associations = () => {
 
       <ConfirmDialog
         open={isDeleteDialogOpen}
-        title="Delete Association"
-        message={`Are you sure you want to delete ${associationToDelete?.name}? This will remove all associated member data.`}
+        title="Derneği Sil"
+        message={`${associationToDelete?.name} derneğini silmek istediğinize emin misiniz? Tüm ilişkili üye verileri kaldırılacaktır.`}
         severity="error"
-        confirmText="Delete Permanently"
+        confirmText="Kalıcı Olarak Sil"
         onConfirm={handleDeleteConfirm}
         onClose={() => setIsDeleteDialogOpen(false)}
       />

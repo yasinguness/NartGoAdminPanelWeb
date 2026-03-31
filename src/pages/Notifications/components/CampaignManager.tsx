@@ -196,7 +196,7 @@ export default function CampaignManager() {
                         {[
                             { label: 'Tümü', value: undefined },
                             { label: 'Kampanya', value: CampaignType.CAMPAIGN },
-                            { label: 'Transactional', value: CampaignType.TRANSACTIONAL },
+                            { label: 'İşlemsel', value: CampaignType.TRANSACTIONAL },
                         ].map(t => (
                             <Chip key={t.label} label={t.label}
                                 onClick={() => { setTypeFilter(t.value); setPage(0); }}

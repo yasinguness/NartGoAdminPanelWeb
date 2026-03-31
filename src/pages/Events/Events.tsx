@@ -340,7 +340,7 @@ export default function Events() {
   const columns = [
     {
       id: 'event',
-      label: 'Event',
+      label: 'Etkinlik',
       render: (row: EventResponseDTO) => (
         <Stack direction="row" spacing={2} alignItems="center">
           <Avatar
@@ -353,7 +353,7 @@ export default function Events() {
           <Box>
             <Typography variant="body2" fontWeight={600}>{row.name}</Typography>
             <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 200 }}>
-              {row.category?.name || 'General'}
+              {row.category?.name || 'Genel'}
             </Typography>
           </Box>
         </Stack>
@@ -361,31 +361,31 @@ export default function Events() {
     },
     {
       id: 'date',
-      label: 'Schedule',
+      label: 'Tarih',
       render: (row: EventResponseDTO) => (
         <Box>
           <Typography variant="body2">
-            {row.eventTime ? format(new Date(row.eventTime), 'MMM d, p') : 'TBD'}
+            {row.eventTime ? format(new Date(row.eventTime), 'dd MMM, HH:mm') : 'Belirlenmedi'}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {row.endTime ? `Ends: ${format(new Date(row.endTime), 'p')}` : 'No end time'}
+            {row.endTime ? `Bitiş: ${format(new Date(row.endTime), 'HH:mm')}` : 'Bitiş zamanı yok'}
           </Typography>
         </Box>
       )
     },
     {
       id: 'location',
-      label: 'Location',
+      label: 'Konum',
       render: (row: EventResponseDTO) => (
         <Stack direction="row" spacing={0.5} alignItems="center">
           <LocationIcon fontSize="inherit" sx={{ color: 'text.secondary' }} />
-          <Typography variant="body2">{row.address?.city || 'Virtual'}</Typography>
+          <Typography variant="body2">{row.address?.city || 'Sanal'}</Typography>
         </Stack>
       )
     },
     {
       id: 'participants',
-      label: 'Participants',
+      label: 'Katılımcılar',
       render: (row: EventResponseDTO) => (
         <Box>
           <Typography variant="body2" fontWeight={600}>
@@ -401,7 +401,7 @@ export default function Events() {
     },
     {
       id: 'status',
-      label: 'Status',
+      label: 'Durum',
       render: (row: EventResponseDTO) => (
         <StatusChip status={row.status === EventStatus.ACTIVE ? 'ACTIVE' : 'INACTIVE'} label={row.status} />
       )
@@ -411,23 +411,23 @@ export default function Events() {
   return (
     <PageContainer>
       <PageHeader
-        title="Events Management"
-        subtitle="Organize, track, and manage all your community events and tickets"
+        title="Etkinlik Yönetimi"
+        subtitle="Topluluk etkinliklerinizi ve biletlerinizi organize edin, takip edin ve yönetin"
         actions={
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
-            Create Event
+            Yeni Etkinlik
           </Button>
         }
         breadcrumbs={[
-          { label: 'Dashboard', href: '/' },
-          { label: 'Events', active: true },
+          { label: 'Kontrol Paneli', href: '/' },
+          { label: 'Etkinlikler', active: true },
         ]}
       />
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Events"
+            title="Toplam Etkinlik"
             value={String(stats.total)}
             icon={<EventIcon />}
             color="primary"
@@ -435,7 +435,7 @@ export default function Events() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Active Events"
+            title="Aktif Etkinlikler"
             value={String(stats.upcoming)}
             icon={<TrendingUpIcon />}
             color="success"
@@ -443,7 +443,7 @@ export default function Events() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Bookings"
+            title="Toplam Katılım"
             value={String(stats.participants)}
             icon={<PeopleIcon />}
             color="info"
@@ -451,8 +451,8 @@ export default function Events() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Est. Revenue"
-            value={`$${stats.revenue.toLocaleString()}`}
+            title="Tahmini Gelir"
+            value={`₺${stats.revenue.toLocaleString()}`}
             icon={<TicketIcon />}
             color="warning"
           />
@@ -465,7 +465,7 @@ export default function Events() {
             value: searchQuery,
             onChange: handleSearchChange,
             debounceMs: 500,
-            placeholder: "Search events..."
+            placeholder: "Etkinlik ara..."
           }}
           sx={{ mb: 3 }}
           filters={
@@ -477,7 +477,7 @@ export default function Events() {
                   size="small"
                 />
               }
-              label={<Typography variant="body2" color="text.secondary">Show Past Events</Typography>}
+              label={<Typography variant="body2" color="text.secondary">Geçmiş Etkinlikleri Göster</Typography>}
             />
           }
         />
@@ -496,23 +496,23 @@ export default function Events() {
             <ActionMenu>
               <MenuItem onClick={() => navigate(`/ticket-creation/${row.id}`)}>
                 <ListItemIcon><TicketIcon fontSize="small" /></ListItemIcon>
-                <ListItemText>Manage Tickets</ListItemText>
+                <ListItemText>Bilet Yönetimi</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => navigate(`/event-operations/${row.id}`)}>
                 <ListItemIcon><AdminPanelSettingsIcon fontSize="small" /></ListItemIcon>
-                <ListItemText>Admin Operations</ListItemText>
+                <ListItemText>Yönetici İşlemleri</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => handleOpenDialog(row)}>
                 <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
-                <ListItemText>Edit Event</ListItemText>
+                <ListItemText>Etkinliği Düzenle</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => handleToggleStatus(row)}>
                 <ListItemIcon><ToggleIcon fontSize="small" /></ListItemIcon>
-                <ListItemText>{row.status === EventStatus.ACTIVE ? 'Deactivate' : 'Activate'}</ListItemText>
+                <ListItemText>{row.status === EventStatus.ACTIVE ? 'Devre Dışı Bırak' : 'Etkinleştir'}</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => { setEventToDelete(row); setIsConfirmDeleteOpen(true); }} sx={{ color: 'error.main' }}>
                 <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
-                <ListItemText>Delete Event</ListItemText>
+                <ListItemText>Etkinliği Sil</ListItemText>
               </MenuItem>
             </ActionMenu>
           )}
@@ -524,7 +524,7 @@ export default function Events() {
         <DialogTitle>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="h6" fontWeight={600}>
-              {selectedEvent ? 'Edit Event' : 'Create New Event'}
+              {selectedEvent ? 'Etkinliği Düzenle' : 'Yeni Etkinlik Oluştur'}
             </Typography>
             <IconButton onClick={() => setOpenDialog(false)} size="small">
               <CloseIcon fontSize="small" />
@@ -535,9 +535,9 @@ export default function Events() {
           <Stack spacing={4}>
             {/* ORGANIZER SELECTION - Only for new events */}
             {!selectedEvent && (
-              <FormSection title="Event Organizer">
+              <FormSection title="Etkinlik Organizatörü">
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Select the association account owner who will be the organizer of this event.
+                  Bu etkinliğin organizatörü olacak dernek hesap sahibini seçin.
                 </Typography>
                 <Autocomplete
                   options={organizerOptions}
@@ -573,8 +573,8 @@ export default function Events() {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Select Organizer (Association)"
-                      placeholder="Search associations..."
+                      label="Organizatör Seçin (Dernek)"
+                      placeholder="Dernek ara..."
                       InputProps={{
                         ...params.InputProps,
                         startAdornment: (
@@ -597,7 +597,7 @@ export default function Events() {
             )}
 
             {/* EVENT IMAGE UPLOAD */}
-            <FormSection title="Event Image">
+            <FormSection title="Etkinlik Görseli">
               <input
                 type="file"
                 accept="image/*"
@@ -658,7 +658,7 @@ export default function Events() {
                         '&:hover': { bgcolor: 'white' },
                       }}
                     >
-                      Change
+                      Değiştir
                     </Button>
                     <Button
                       variant="contained"
@@ -670,7 +670,7 @@ export default function Events() {
                         '&:hover': { bgcolor: 'error.dark' },
                       }}
                     >
-                      Remove
+                      Kaldır
                     </Button>
                   </Box>
                 </Box>
@@ -706,22 +706,22 @@ export default function Events() {
                     }}
                   />
                   <Typography variant="body1" fontWeight={600} color={isDragging ? 'primary.main' : 'text.secondary'}>
-                    {isDragging ? 'Drop your image here' : 'Click or drag to upload event image'}
+                    {isDragging ? 'Görselinizi buraya bırakın' : 'Etkinlik görseli yüklemek için tıklayın veya sürükleyin'}
                   </Typography>
                   <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
-                    Supports JPG, PNG, WebP • Max 10MB
+                    JPG, PNG, WebP desteklenir • Maks 10MB
                   </Typography>
                 </Box>
               )}
             </FormSection>
 
             {/* GENERAL INFORMATION */}
-            <FormSection title="General Information">
+            <FormSection title="Genel Bilgiler">
               <FormGrid columns={1}>
                 <TextField
                   fullWidth
-                  label="Event Title"
-                  placeholder="e.g. Annual Sports Day 2024"
+                  label="Etkinlik Adı"
+                  placeholder="örn. Yıllık Spor Günü 2024"
                   value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
@@ -729,8 +729,8 @@ export default function Events() {
                   fullWidth
                   multiline
                   rows={3}
-                  label="Description"
-                  placeholder="Detailed information about the event..."
+                  label="Açıklama"
+                  placeholder="Etkinlik hakkında detaylı bilgi..."
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
@@ -770,8 +770,8 @@ export default function Events() {
                     <TextField
                       {...params}
                       fullWidth
-                      label="Event Category"
-                      placeholder="Select a category..."
+                      label="Etkinlik Kategorisi"
+                      placeholder="Kategori seçin..."
                       InputProps={{
                         ...params.InputProps,
                         startAdornment: (
@@ -790,11 +790,11 @@ export default function Events() {
             </FormSection>
 
             {/* SCHEDULE & CAPACITY */}
-            <FormSection title="Schedule & Capacity">
+            <FormSection title="Tarih & Kapasite">
               <FormGrid>
                 <TextField
                   fullWidth
-                  label="Start Time"
+                  label="Başlangıç Zamanı"
                   type="datetime-local"
                   value={formData.eventTime ? new Date(formData.eventTime).toISOString().slice(0, 16) : ''}
                   onChange={(e) => setFormData({ ...formData, eventTime: new Date(e.target.value).toISOString() })}
@@ -802,7 +802,7 @@ export default function Events() {
                 />
                 <TextField
                   fullWidth
-                  label="End Time"
+                  label="Bitiş Zamanı"
                   type="datetime-local"
                   value={formData.endTime ? new Date(formData.endTime).toISOString().slice(0, 16) : ''}
                   onChange={(e) => setFormData({ ...formData, endTime: new Date(e.target.value).toISOString() })}
@@ -810,14 +810,14 @@ export default function Events() {
                 />
                 <TextField
                   fullWidth
-                  label="Max Participants"
+                  label="Maksimum Katılımcı"
                   type="number"
                   value={formData.maxParticipants || ''}
                   onChange={(e) => setFormData({ ...formData, maxParticipants: parseInt(e.target.value) })}
                 />
                 <TextField
                   fullWidth
-                  label="Min Ticket Price (€)"
+                  label="Minimum Bilet Fiyatı (₺)"
                   type="number"
                   value={formData.ticketPrice || 0}
                   onChange={(e) => setFormData({ ...formData, ticketPrice: parseFloat(e.target.value) })}
@@ -826,7 +826,7 @@ export default function Events() {
             </FormSection>
 
             {/* LOCATION DETAILS - Google Places */}
-            <FormSection title="Location Details">
+            <FormSection title="Konum Detayları">
               <Stack spacing={3}>
                 {/* Google Places Search */}
                 <Autocomplete
@@ -842,10 +842,10 @@ export default function Events() {
                   loading={loadingPlaces}
                   noOptionsText={
                     placeSearchInput.length < 3
-                      ? 'Type at least 3 characters to search...'
+                      ? 'Aramak için en az 3 karakter yazın...'
                       : googleMapsLoaded
-                        ? 'No places found'
-                        : 'Google Maps API not loaded. Check your API key.'
+                        ? 'Yer bulunamadı'
+                        : 'Google Maps API yüklenemedi. API anahtarınızı kontrol edin.'
                   }
                   filterOptions={(x) => x} // Disable built-in filtering, use API results
                   isOptionEqualToValue={(option, value) => option.place_id === value.place_id}
@@ -868,8 +868,8 @@ export default function Events() {
                     <TextField
                       {...params}
                       fullWidth
-                      label="Search Location (Google Places)"
-                      placeholder="Search for a venue, address, or place..."
+                      label="Konum Ara (Google Places)"
+                      placeholder="Mekan, adres veya yer arayın..."
                       InputProps={{
                         ...params.InputProps,
                         startAdornment: (
@@ -905,7 +905,7 @@ export default function Events() {
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
                       <MyLocationIcon sx={{ color: 'success.main', fontSize: 18 }} />
                       <Typography variant="subtitle2" color="success.main">
-                        Address Details
+                        Adres Detayları
                       </Typography>
                       {formData.address.latitude && formData.address.longitude && (
                         <Chip
@@ -920,28 +920,28 @@ export default function Events() {
                     <FormGrid>
                       <TextField
                         fullWidth
-                        label="Country"
+                        label="Ülke"
                         value={formData.address?.country || ''}
                         onChange={(e) => setFormData({ ...formData, address: { ...formData.address!, country: e.target.value } })}
                         size="small"
                       />
                       <TextField
                         fullWidth
-                        label="City"
+                        label="Şehir"
                         value={formData.address?.city || ''}
                         onChange={(e) => setFormData({ ...formData, address: { ...formData.address!, city: e.target.value } })}
                         size="small"
                       />
                       <TextField
                         fullWidth
-                        label="District"
+                        label="İlçe"
                         value={formData.address?.district || ''}
                         onChange={(e) => setFormData({ ...formData, address: { ...formData.address!, district: e.target.value } })}
                         size="small"
                       />
                       <TextField
                         fullWidth
-                        label="Postal Code"
+                        label="Posta Kodu"
                         value={formData.address?.postalCode || ''}
                         onChange={(e) => setFormData({ ...formData, address: { ...formData.address!, postalCode: e.target.value } })}
                         size="small"
@@ -950,7 +950,7 @@ export default function Events() {
                     <Box mt={2}>
                       <TextField
                         fullWidth
-                        label="Full Address / Street"
+                        label="Tam Adres / Sokak"
                         value={formData.address?.street || ''}
                         onChange={(e) => setFormData({ ...formData, address: { ...formData.address!, street: e.target.value } })}
                         size="small"
@@ -961,8 +961,8 @@ export default function Events() {
                         fullWidth
                         multiline
                         rows={2}
-                        label="Address Description / Directions"
-                        placeholder="Additional directions or notes about the venue..."
+                        label="Adres Açıklaması / Yol Tarifi"
+                        placeholder="Mekan hakkında ek yol tarifi veya notlar..."
                         value={formData.address?.description || ''}
                         onChange={(e) => setFormData({ ...formData, address: { ...formData.address!, description: e.target.value } })}
                         size="small"
@@ -974,7 +974,7 @@ export default function Events() {
             </FormSection>
 
             {/* SETTINGS */}
-            <FormSection title="Settings">
+            <FormSection title="Ayarlar">
               <Stack direction="row" spacing={4}>
                 <FormControlLabel
                   control={
@@ -983,7 +983,7 @@ export default function Events() {
                       onChange={(e) => setFormData({ ...formData, status: e.target.checked ? EventStatus.ACTIVE : EventStatus.PASSIVE })}
                     />
                   }
-                  label="Event Active"
+                  label="Etkinlik Aktif"
                 />
                 <FormControlLabel
                   control={
@@ -992,14 +992,14 @@ export default function Events() {
                       onChange={(e) => setFormData({ ...formData, isRegistrationOpen: e.target.checked })}
                     />
                   }
-                  label="Open for Registration"
+                  label="Kayıt Açık"
                 />
               </Stack>
             </FormSection>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 3, px: 4 }}>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={() => setOpenDialog(false)}>İptal</Button>
           <Button
             variant="contained"
             onClick={handleSaveEvent}
@@ -1007,15 +1007,15 @@ export default function Events() {
             sx={{ px: 4 }}
             disabled={!selectedEvent && !selectedOrganizer}
           >
-            {selectedEvent ? 'Save Changes' : 'Create Event'}
+            {selectedEvent ? 'Değişiklikleri Kaydet' : 'Etkinlik Oluştur'}
           </Button>
         </DialogActions>
       </Dialog>
 
       <ConfirmDialog
         open={isConfirmDeleteOpen}
-        title="Delete Event"
-        message={`Are you sure you want to delete "${eventToDelete?.name}"? All ticket and participant data will be lost.`}
+        title="Etkinliği Sil"
+        message={`"${eventToDelete?.name}" etkinliğini silmek istediğinize emin misiniz? Tüm bilet ve katılımcı verileri silinecektir.`}
         severity="error"
         onConfirm={handleDeleteConfirm}
         onClose={() => setIsConfirmDeleteOpen(false)}

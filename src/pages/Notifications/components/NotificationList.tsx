@@ -190,7 +190,7 @@ export default function NotificationList({
                             
                             <Stack direction="row" alignItems="center" justifyContent="space-between" mt={4}>
                                 <Stack direction="row" spacing={1.5}>
-                                    <Tooltip title={`Priority: ${notification.priority}`}>
+                                    <Tooltip title={`Öncelik: ${notification.priority}`}>
                                         <Box>
                                              <StatusChip 
                                                 status={notification.priority} 
@@ -207,7 +207,7 @@ export default function NotificationList({
                                     </Tooltip>
                                     {!notification.isRead && (
                                         <StatusChip 
-                                            status="Unread" 
+                                            status="Okunmadı"
                                             color="primary"
                                             size="small"
                                             sx={{ fontWeight: 700, height: 24, borderRadius: '8px' }}
@@ -241,7 +241,7 @@ export default function NotificationList({
                                     '&:hover': { bgcolor: 'primary.50' }
                                 }}
                             >
-                                Details
+                                Detaylar
                             </Button>
 
                             <Stack direction="row" spacing={0.5}>
@@ -284,7 +284,7 @@ export default function NotificationList({
                     <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
                         <Stack spacing={2} alignItems="center">
                             <CircularProgress size={32} />
-                            <Typography variant="body2" color="text.secondary">Loading notifications...</Typography>
+                            <Typography variant="body2" color="text.secondary">Bildirimler yükleniyor...</Typography>
                         </Stack>
                     </TableCell>
                 </TableRow>
@@ -297,14 +297,14 @@ export default function NotificationList({
                     <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
                         <EmptyState 
                             icon={<SearchOffIcon sx={{ fontSize: 48 }} />}
-                            title={searchTerm ? "No matches found" : "No notifications yet"}
-                            description={searchTerm 
-                                ? `No notifications match "${searchTerm}". Try a different term.`
-                                : "Broadcast alerts and system updates to your users."
+                            title={searchTerm ? "Eşleşme bulunamadı" : "Henüz bildirim yok"}
+                            description={searchTerm
+                                ? `"${searchTerm}" ile eşleşen bildirim bulunamadı. Farklı bir terim deneyin.`
+                                : "Kullanıcılarınıza toplu uyarılar ve sistem güncellemeleri gönderin."
                             }
                             action={!searchTerm && (
                                 <Button startIcon={<AddIcon />} variant="contained" onClick={() => onOpenDialog()}>
-                                    Create Notification
+                                    Bildirim Oluştur
                                 </Button>
                             )}
                             compact
@@ -386,14 +386,14 @@ export default function NotificationList({
                 ) : filteredNotifications.length === 0 ? (
                     <EmptyState 
                         icon={<SearchX size={64} strokeWidth={1.5} color={alpha('#000', 0.1)} />}
-                        title={searchTerm ? "No matches found" : "Inbox is empty"}
-                        description={searchTerm 
-                            ? `We couldn't find anything matching "${searchTerm}". Try a different term.`
-                            : "Broadcast alerts and system updates to your users to keep them informed."
+                        title={searchTerm ? "Eşleşme bulunamadı" : "Gelen kutusu boş"}
+                        description={searchTerm
+                            ? `"${searchTerm}" ile eşleşen bir sonuç bulunamadı. Farklı bir terim deneyin.`
+                            : "Kullanıcılarınızı bilgilendirmek için toplu uyarılar ve sistem güncellemeleri gönderin."
                         }
                         action={!searchTerm && (
                             <Button startIcon={<AddIcon />} variant="contained" onClick={() => onOpenDialog()}>
-                                Create Notification
+                                Bildirim Oluştur
                             </Button>
                         )}
                     />
@@ -426,12 +426,12 @@ export default function NotificationList({
                 <Table sx={{ minWidth: 800 }}>
                     <TableHead sx={{ bgcolor: alpha('#f8fafc', 0.8) }}>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Title</TableCell>
-                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Content</TableCell>
-                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Priority</TableCell>
-                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Status</TableCell>
-                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Created At</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Actions</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Başlık</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>İçerik</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Öncelik</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Durum</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>Oluşturulma</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.8rem', textTransform: 'uppercase' }}>İşlemler</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>

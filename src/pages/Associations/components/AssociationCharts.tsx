@@ -16,19 +16,19 @@ import {
 
 // Dummy data for member growth chart
 const memberGrowthData = [
-  { month: 'Jan', members: 1000 },
-  { month: 'Feb', members: 1050 },
+  { month: 'Oca', members: 1000 },
+  { month: 'Şub', members: 1050 },
   { month: 'Mar', members: 1100 },
-  { month: 'Apr', members: 1150 },
+  { month: 'Nis', members: 1150 },
   { month: 'May', members: 1200 },
-  { month: 'Jun', members: 1234 },
+  { month: 'Haz', members: 1234 },
 ];
 
 // Dummy data for membership status distribution
 const membershipDistributionData = [
-  { name: 'Active', value: 1200 },
-  { name: 'Pending', value: 34 },
-  { name: 'Suspended', value: 12 },
+  { name: 'Aktif', value: 1200 },
+  { name: 'Beklemede', value: 34 },
+  { name: 'Askıda', value: 12 },
 ];
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
@@ -41,7 +41,7 @@ export const AssociationCharts: React.FC = () => {
       <Grid item xs={12} md={8}>
         <Card sx={{ borderRadius: 2, boxShadow: 1, p: { xs: 1, sm: 2 } }}>
           <Typography variant="h6" gutterBottom fontWeight="medium">
-            Member Growth Trend
+            Üye Artış Trendi
           </Typography>
           <Box sx={{ width: '100%', height: { xs: 200, sm: 300 } }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -67,7 +67,7 @@ export const AssociationCharts: React.FC = () => {
       <Grid item xs={12} md={4}>
         <Card sx={{ borderRadius: 2, boxShadow: 1, p: { xs: 1, sm: 2 } }}>
           <Typography variant="h6" gutterBottom fontWeight="medium">
-            Membership Status Distribution
+            Üyelik Durum Dağılımı
           </Typography>
           <Box sx={{ width: '100%', height: { xs: 200, sm: 300 } }}>
             <ResponsiveContainer width="100%" height="100%">

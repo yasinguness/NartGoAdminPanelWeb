@@ -23,7 +23,7 @@ const AssociationInfoSidebar: React.FC<AssociationInfoSidebarProps> = ({ associa
       {/* Contact Information Card */}
       <Card sx={{ borderRadius: 2, boxShadow: 1 }}>
         <CardHeader 
-          title="Contact Information" 
+          title="İletişim Bilgileri"
           titleTypographyProps={{ variant: 'h6', fontWeight: 'medium' }}
           sx={{ pb: 1 }}
         />
@@ -67,7 +67,7 @@ const AssociationInfoSidebar: React.FC<AssociationInfoSidebarProps> = ({ associa
       {(association.address) ? ( // Show card if we have coordinates or at least an address
         <Card sx={{ borderRadius: 2, boxShadow: 1, overflow: 'hidden' }}>
           <CardHeader 
-            title="Location" 
+            title="Konum"
             titleTypographyProps={{ variant: 'h6', fontWeight: 'medium' }}
             sx={{ pb: 1 }}
           />
@@ -87,12 +87,12 @@ const AssociationInfoSidebar: React.FC<AssociationInfoSidebarProps> = ({ associa
             ) : (
               <Box sx={{ height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.100', borderRadius: 1.5, mb: 1.5 }}>
                 <MapIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
-                 <Typography variant="caption" color="text.disabled" sx={{position: 'absolute'}}>Map data unavailable</Typography>
+                 <Typography variant="caption" color="text.disabled" sx={{position: 'absolute'}}>Harita verisi mevcut değil</Typography>
               </Box>
             )}
             <Typography variant="body2" sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
               <LocationIcon fontSize="small" color="action" sx={{mt:0.3}} />
-              {association.address.district || 'Address not available'}
+              {association.address.district || 'Adres mevcut değil'}
             </Typography>
               {association.address && (
               <Button
@@ -104,7 +104,7 @@ const AssociationInfoSidebar: React.FC<AssociationInfoSidebarProps> = ({ associa
                 startIcon={<MapIcon />}
                 sx={{ textTransform: 'none' }}
               >
-                View on Google Maps
+                Google Maps'te Görüntüle
               </Button>
             )}
           </CardContent>

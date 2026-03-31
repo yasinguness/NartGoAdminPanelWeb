@@ -90,7 +90,7 @@ export default function SubMerchants() {
         title="Alt Üye İşyeri"
         subtitle="Liste, durum yönetimi ve Iyzico operasyonları tek modülde."
         breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Kontrol Paneli', href: '/dashboard' },
           { label: 'Alt Üye İşyeri', active: true },
         ]}
         actions={
@@ -115,7 +115,7 @@ export default function SubMerchants() {
               <TextField
                 select
                 size="small"
-                label="Owner Type"
+                label="Sahip Türü"
                 value={ownerType}
                 onChange={(event) => {
                   setOwnerType(event.target.value as SubMerchantOwnerType | '');
@@ -131,7 +131,7 @@ export default function SubMerchants() {
               <TextField
                 select
                 size="small"
-                label="Status"
+                label="Durum"
                 value={status}
                 onChange={(event) => {
                   setStatus(event.target.value as SubMerchantStatus | '');
@@ -163,10 +163,10 @@ export default function SubMerchants() {
         <DataTable
           columns={[
             { id: 'name', label: 'Ad', render: (row: SubMerchantSummary) => <Typography fontWeight={600}>{row.name}</Typography> },
-            { id: 'ownerType', label: 'Owner Type', accessor: 'ownerType' },
-            { id: 'ownerId', label: 'Owner ID', accessor: 'ownerId', minWidth: 220 },
-            { id: 'email', label: 'Email', accessor: 'email' },
-            { id: 'status', label: 'Status', render: (row: SubMerchantSummary) => <StatusChip status={row.status} /> },
+            { id: 'ownerType', label: 'Sahip Türü', accessor: 'ownerType' },
+            { id: 'ownerId', label: 'Sahip ID', accessor: 'ownerId', minWidth: 220 },
+            { id: 'email', label: 'E-posta', accessor: 'email' },
+            { id: 'status', label: 'Durum', render: (row: SubMerchantSummary) => <StatusChip status={row.status} /> },
             { id: 'iyzicoSubMerchantKey', label: 'Iyzico Key', accessor: 'iyzicoSubMerchantKey' },
             {
               id: 'iyzicoSubMerchantSyncedAt',
@@ -175,7 +175,7 @@ export default function SubMerchants() {
             },
             {
               id: 'createdAt',
-              label: 'Created',
+              label: 'Oluşturulma',
               render: (row: SubMerchantSummary) => formatDate(row.createdAt),
             },
           ]}

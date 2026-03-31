@@ -140,11 +140,11 @@ export default function CampaignPromoEngine() {
         userFlagged: previewUserFlagged,
       });
       setEvaluationResult(result);
-      enqueueSnackbar('Campaign evaluation completed', { variant: 'success' });
+      enqueueSnackbar('Kampanya değerlendirmesi tamamlandı', { variant: 'success' });
     } catch (error) {
       console.error('Campaign evaluation failed, falling back to local simulation', error);
       setEvaluationResult(null);
-      enqueueSnackbar('Backend evaluation unavailable, showing local simulation', { variant: 'warning' });
+      enqueueSnackbar('Sunucu değerlendirmesi kullanılamıyor, yerel simülasyon gösteriliyor', { variant: 'warning' });
     } finally {
       setEvaluationLoading(false);
     }
@@ -165,7 +165,7 @@ export default function CampaignPromoEngine() {
       if (previewUserFlagged) rejections.push('Kullanıcı fraud kara listesinde (AntiAbuseConstraint).');
       if (rejections.length === 0) { isEligible = true; benefitAmount = previewBasket * 0.20; }
   } else {
-      rejections.push('Simülasyon motoru kural setini tanımıyor veya backend bekliyor.');
+      rejections.push('Simülasyon motoru kural setini tanımıyor veya sunucu yanıtı bekliyor.');
   }
 
   if (evaluationResult) {
@@ -186,7 +186,7 @@ export default function CampaignPromoEngine() {
       } else if (!isEligible && typeof rejectionSource === 'string') {
           rejections = [rejectionSource];
       } else if (!isEligible) {
-          rejections = ['Backend evaluation rejected the request.'];
+          rejections = ['Sunucu değerlendirmesi talebi reddetti.'];
       } else {
           rejections = [];
       }
@@ -204,7 +204,7 @@ export default function CampaignPromoEngine() {
       
       {/* HEADER */}
       <Box sx={{ p: 2, bgcolor: '#ffffff', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center' }}>
-        <Typography variant="h6" fontWeight={800} sx={{ mr: 4 }}>Campaign & Promo Engine</Typography>
+        <Typography variant="h6" fontWeight={800} sx={{ mr: 4 }}>Kampanya Motoru</Typography>
         <Stack direction="row" spacing={1}>
            {['DRAFT', 'ACTIVE', 'PAUSED', 'EXPIRED'].map(t => (
                <Chip 
@@ -249,7 +249,7 @@ export default function CampaignPromoEngine() {
                                 <Typography variant="body2" fontWeight={700}>{camp.redemptions} / {camp.quota}</Typography>
                             </Box>
                             <Box>
-                                <Typography variant="caption" color="text.secondary" display="block" fontWeight={700}>UPLIFT (GELİR)</Typography>
+                                <Typography variant="caption" color="text.secondary" display="block" fontWeight={700}>GELİR KATKISI</Typography>
                                 <Typography variant="body2" fontWeight={800} color={COLORS.success}>{camp.uplift}</Typography>
                             </Box>
                         </Stack>
@@ -274,17 +274,17 @@ export default function CampaignPromoEngine() {
             </Box>
 
             <Box sx={{ flex: 1, p: 4, overflow: 'auto' }}>
-                <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ mb: 2, display: 'block', letterSpacing: 1 }}>KURAL MOTORU (RULE BUILDER)</Typography>
+                <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ mb: 2, display: 'block', letterSpacing: 1 }}>KURAL MOTORU</Typography>
                 
                 {/* Visual Block: AUDIENCE */}
-                <RuleBlock title="HEDEF KİTLE (AUDIENCE)" icon={<RuleIcon/>} color={COLORS.brand}>
-                    <Typography variant="body2" fontWeight={600}>Tüm kullanıcılar geçerli (Global Segment).</Typography>
+                <RuleBlock title="HEDEF KİTLE" icon={<RuleIcon/>} color={COLORS.brand}>
+                    <Typography variant="body2" fontWeight={600}>Tüm kullanıcılar geçerli.</Typography>
                 </RuleBlock>
 
                 <RuleBlockConnector />
 
                 {/* Visual Block: CONDITIONS */}
-                <RuleBlock title="KOŞULLAR (CONDITIONS) [AND]" icon={<SettingIcon />} color={COLORS.primary}>
+                <RuleBlock title="KOŞULLAR [VE]" icon={<SettingIcon />} color={COLORS.primary}>
                     <Stack spacing={1}>
                         <Box sx={{ p: 1.5, bgcolor: 'white', borderRadius: 1, border: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between' }}>
                             <Typography variant="body2" fontWeight={600}><Typography component="span" fontWeight={800} color={COLORS.primary}>TİP:</Typography> PROMO_CODE</Typography>
@@ -307,7 +307,7 @@ export default function CampaignPromoEngine() {
                 <RuleBlockConnector />
 
                 {/* Visual Block: BENEFIT */}
-                <RuleBlock title="KAZANIM (BENEFITS)" icon={<PromoIcon />} color={COLORS.success}>
+                <RuleBlock title="KAZANIM" icon={<PromoIcon />} color={COLORS.success}>
                     <Box sx={{ p: 1.5, bgcolor: 'white', borderRadius: 1, border: `1px dashed ${COLORS.success}`, display: 'flex', justifyContent: 'space-between' }}>
                         <Typography variant="body2" fontWeight={600}><Typography component="span" fontWeight={800} color={COLORS.success}>TİP:</Typography> PERCENTAGE_DISCOUNT</Typography>
                         <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>Format: %15, Cap: Yok</Typography>
@@ -317,13 +317,13 @@ export default function CampaignPromoEngine() {
                 <RuleBlockConnector />
 
                 {/* Visual Block: CONSTRAINTS */}
-                <RuleBlock title="LİMİT & GÜVENLİK (CONSTRAINTS)" icon={<WarningIcon />} color={COLORS.error}>
+                <RuleBlock title="LİMİT & GÜVENLİK" icon={<WarningIcon />} color={COLORS.error}>
                      <Stack spacing={1}>
                         <Box sx={{ p: 1.5, bgcolor: 'white', borderRadius: 1, border: `1px solid ${COLORS.error}40` }}>
-                            <Typography variant="body2" fontWeight={600}>Total Quota Limit: {selectedCamp.quota} Adet</Typography>
+                            <Typography variant="body2" fontWeight={600}>Toplam Kota Limiti: {selectedCamp.quota} Adet</Typography>
                         </Box>
                         <Box sx={{ p: 1.5, bgcolor: 'white', borderRadius: 1, border: `1px solid ${COLORS.error}40` }}>
-                            <Typography variant="body2" fontWeight={600}>Anti Abuse Guard: Aktif (Block Flagged Users)</Typography>
+                            <Typography variant="body2" fontWeight={600}>Kötüye Kullanım Koruması: Aktif (İşaretli Kullanıcıları Engelle)</Typography>
                         </Box>
                     </Stack>
                 </RuleBlock>
@@ -334,16 +334,16 @@ export default function CampaignPromoEngine() {
         {/* PANEL 3: ELIGIBILITY PREVIEW (25%) */}
         <Box sx={{ width: '25%', minWidth: 350, borderLeft: `1px solid ${COLORS.border}`, bgcolor: 'white', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ p: 3, borderBottom: `1px solid ${COLORS.border}`, bgcolor: '#1e293b', color: 'white' }}>
-                <Typography variant="subtitle1" fontWeight={800}>Eligibility Preview & Etki</Typography>
+                <Typography variant="subtitle1" fontWeight={800}>Uygunluk Önizleme & Etki</Typography>
                 <Typography variant="caption" color="#94a3b8">Simülasyon motoru kural setini canlı test eder.</Typography>
             </Box>
 
             <Box sx={{ flex: 1, p: 3, overflow: 'auto' }}>
-                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, color: COLORS.neutral }}>GİRDİ (TEST INPUT)</Typography>
+                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, color: COLORS.neutral }}>GİRDİ (TEST)</Typography>
                 
                 <Stack spacing={2} sx={{ mb: 4 }}>
-                    <TextField 
-                       label="Sepet Tutarı (Base Amount)" 
+                    <TextField
+                       label="Sepet Tutarı"
                        size="small" fullWidth type="number" 
                        value={previewBasket} onChange={e => setPreviewBasket(Number(e.target.value))}
                        InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }}
@@ -363,7 +363,7 @@ export default function CampaignPromoEngine() {
                         <MenuItem value="GARANTI_PAY">Garanti Pay</MenuItem>
                     </TextField>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, border: `1px solid ${COLORS.border}`, borderRadius: 1 }}>
-                        <Typography variant="body2" fontWeight={600}>Kullanıcı Fraud Flag?</Typography>
+                        <Typography variant="body2" fontWeight={600}>Kullanıcı Şüpheli İşaretli mi?</Typography>
                         <Switch size="small" color="error" checked={previewUserFlagged} onChange={e => setPreviewUserFlagged(e.target.checked)} />
                     </Box>
                     <Button
@@ -373,22 +373,22 @@ export default function CampaignPromoEngine() {
                         disabled={evaluationLoading}
                         sx={{ fontWeight: 800, bgcolor: COLORS.primary }}
                     >
-                        {evaluationLoading ? 'Değerlendiriliyor...' : 'Canlı Evaluate'}
+                        {evaluationLoading ? 'Değerlendiriliyor...' : 'Canlı Değerlendir'}
                     </Button>
                 </Stack>
 
                 <Divider sx={{ mb: 3 }} />
 
-                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, color: COLORS.neutral }}>SONUÇ (EVALUATION)</Typography>
+                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, color: COLORS.neutral }}>SONUÇ</Typography>
                 
                 {isEligible ? (
                     <Paper elevation={0} sx={{ p: 2, bgcolor: '#ecfdf5', border: '1px solid #10b981', borderRadius: 2 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', color: '#047857', mb: 1 }}>
                             <ValidIcon sx={{ mr: 1 }} />
-                            <Typography variant="subtitle1" fontWeight={800}>ELIGIBLE (Geçerli)</Typography>
+                            <Typography variant="subtitle1" fontWeight={800}>GEÇERLİ (Uygun)</Typography>
                         </Box>
                         <Typography variant="body2" color="#065f46" fontWeight={600} sx={{ mb: 2 }}>
-                            Sepet belirlenen tüm "Condition" kilitlerini açtı.
+                            Sepet belirlenen tüm koşul kilitlerini açtı.
                         </Typography>
                         
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #34d399', pt: 1 }}>
@@ -404,7 +404,7 @@ export default function CampaignPromoEngine() {
                     <Paper elevation={0} sx={{ p: 2, bgcolor: '#fef2f2', border: '1px solid #ef4444', borderRadius: 2 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', color: '#b91c1c', mb: 1 }}>
                             <InvalidIcon sx={{ mr: 1 }} />
-                            <Typography variant="subtitle1" fontWeight={800}>INELIGIBLE (Reddedildi)</Typography>
+                            <Typography variant="subtitle1" fontWeight={800}>UYGUN DEĞİL (Reddedildi)</Typography>
                         </Box>
                         <Typography variant="body2" color="#b91c1c" fontWeight={600} sx={{ mb: 1 }}>Aşağıdaki koşullar sağlanamadığı için kural motorunda takıldı:</Typography>
                         

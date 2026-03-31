@@ -111,7 +111,7 @@ export default function BoxOffice() {
         <Box sx={{ flex: 1, display: 'flex', gap: 2 }}>
           <TextField select size="small" label="Satış Modu" defaultValue="NEW" sx={{ minWidth: 200 }}>
              <MenuItem value="NEW">Yeni Bilet Satışı</MenuItem>
-             <MenuItem value="PICKUP">Rezervasyon / Will-Call Teslimatı</MenuItem>
+             <MenuItem value="PICKUP">Rezervasyon / Teslimat</MenuItem>
           </TextField>
           <TextField select size="small" label="Etkinlik Kapsamı" defaultValue="e-28haz" sx={{ minWidth: 300 }}>
              <MenuItem value="e-28haz">28 Haziran - Zorlu PSM Yaz Konseri</MenuItem>
@@ -119,7 +119,7 @@ export default function BoxOffice() {
           </TextField>
         </Box>
         
-        <Typography variant="h6" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 1 }}>BOX OFFICE</Typography>
+        <Typography variant="h6" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 1 }}>GİŞE</Typography>
       </Box>
 
       {/* 2. Split-view çalışma (Left: POS Operations, Right: Cart/Summary) */}
@@ -133,10 +133,10 @@ export default function BoxOffice() {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center' }}>
                     <PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                    Müşteri Bağlantısı (CRM)
+                    Müşteri Bağlantısı
                 </Typography>
                 <RadioGroup row value={customerMode} onChange={(e) => setCustomerMode(e.target.value as any)}>
-                    <FormControlLabel value="GUEST" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>Hızlı Guest (Gişe)</Typography>} />
+                    <FormControlLabel value="GUEST" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>Hızlı Misafir (Gişe)</Typography>} />
                     <FormControlLabel value="SEARCH" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>Kayıtlı Bul / Üye Yap</Typography>} />
                 </RadioGroup>
             </Box>
@@ -223,7 +223,7 @@ export default function BoxOffice() {
             {/* Cart Header */}
             <Box sx={{ p: 3, borderBottom: '1px solid #f1f5f9', bgcolor: '#f8fafc', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="h6" fontWeight={800}>Sepet (Cart)</Typography>
+                    <Typography variant="h6" fontWeight={800}>Sepet</Typography>
                     <Badge badgeContent={totalTickets} color="primary">
                         <CartIcon color="action" />
                     </Badge>
@@ -292,7 +292,7 @@ export default function BoxOffice() {
 
                 <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: 'block' }}>TESLİMAT FORMU</Typography>
                 <Grid container spacing={1} sx={{ mb: 3 }}>
-                    <DeliveryMethodButton label="YAZDIR (PRINT)" icon={<PrintIcon fontSize="small"/>} val="PRINT" current={deliveryType} set={setDeliveryType} disabled={customerMode === 'GUEST' && !customerPhone && deliveryType !== 'PRINT'}/>
+                    <DeliveryMethodButton label="YAZDIR" icon={<PrintIcon fontSize="small"/>} val="PRINT" current={deliveryType} set={setDeliveryType} disabled={customerMode === 'GUEST' && !customerPhone && deliveryType !== 'PRINT'}/>
                     <DeliveryMethodButton label="E-MAIL/SMS" icon={<EmailIcon fontSize="small"/>} val="DIGITAL" current={deliveryType} set={setDeliveryType} disabled={customerMode === 'GUEST' && !customerPhone} />
                 </Grid>
 

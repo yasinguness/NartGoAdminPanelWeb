@@ -278,7 +278,7 @@ export default function Dashboard() {
       setRecentUsersTotal(response.totalElements);
       return response;
     } catch (err) {
-      console.error('Recent users fetch error:', err);
+      // silently handle error
       return null;
     }
   };
@@ -600,7 +600,7 @@ export default function Dashboard() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <CheckCircleIcon color="success" sx={{ fontSize: 16 }} />
                               <Typography variant="caption" fontWeight={700} color="success.main">
-                                {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'N/A'}
+                                {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Bilgi yok'}
                               </Typography>
                             </Box>
                           </TableCell>
@@ -737,7 +737,7 @@ export default function Dashboard() {
                           </TableCell>
                           <TableCell align="right" sx={{ pr: 3 }}>
                             <Typography variant="caption" fontWeight={600} color="text.secondary">
-                              {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : 'N/A'}
+                              {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : 'Bilgi yok'}
                             </Typography>
                           </TableCell>
                         </TableRow>

@@ -83,18 +83,18 @@ function AssociationDetails() {
     setSelectedBenefit(null);
   };
 
-  if (isAssociationLoading) return <LoadingState message="Fetching association details..." />;
-  if (associationError || !association) return <ErrorState message="Could not load association details" onRetry={() => window.location.reload()} />;
+  if (isAssociationLoading) return <LoadingState message="Dernek detayları yükleniyor..." />;
+  if (associationError || !association) return <ErrorState message="Dernek detayları yüklenemedi" onRetry={() => window.location.reload()} />;
 
   return (
     <PageContainer>
       <PageHeader
         title={association.name}
-        subtitle={association.description || 'Association Profile'}
+        subtitle={association.description || 'Dernek Profili'}
         backTo="/associations"
         breadcrumbs={[
-          { label: 'Dashboard', path: '/' },
-          { label: 'Associations', path: '/associations' },
+          { label: 'Kontrol Paneli', path: '/' },
+          { label: 'Dernekler', path: '/associations' },
           { label: association.name, active: true },
         ]}
         actions={
@@ -104,7 +104,7 @@ function AssociationDetails() {
               startIcon={<EditIcon />}
               onClick={handleEdit}
             >
-              Edit
+              Düzenle
             </Button>
             <Button
               variant="outlined"
@@ -112,7 +112,7 @@ function AssociationDetails() {
               startIcon={<DeleteIcon />}
               onClick={handleDelete}
             >
-              Delete
+              Sil
             </Button>
           </Stack>
         }
@@ -156,8 +156,8 @@ function AssociationDetails() {
       {/* Dialogs */}
       <ConfirmDialog
         open={isDeleteDialogOpen}
-        title="Delete Association"
-        message="Are you sure you want to delete this association? This action cannot be undone and will remove all related data."
+        title="Derneği Sil"
+        message="Bu derneği silmek istediğinize emin misiniz? Bu işlem geri alınamaz ve tüm ilişkili veriler kaldırılacaktır."
         severity="error"
         onConfirm={handleDeleteConfirm}
         onClose={() => setIsDeleteDialogOpen(false)}
@@ -165,28 +165,28 @@ function AssociationDetails() {
 
       {/* Add Member Dialog (Simplified for refactor) */}
       <Dialog open={isAddMemberDialogOpen} onClose={() => setIsAddMemberDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Member</DialogTitle>
+        <DialogTitle>Yeni Üye Ekle</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} sm={6}><TextField fullWidth label="First Name" /></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth label="Last Name" /></Grid>
-            <Grid item xs={12}><TextField fullWidth label="Email" type="email" /></Grid>
+            <Grid item xs={12} sm={6}><TextField fullWidth label="Ad" /></Grid>
+            <Grid item xs={12} sm={6}><TextField fullWidth label="Soyad" /></Grid>
+            <Grid item xs={12}><TextField fullWidth label="E-posta" type="email" /></Grid>
           </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setIsAddMemberDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained">Add Member</Button>
+          <Button onClick={() => setIsAddMemberDialogOpen(false)}>İptal</Button>
+          <Button variant="contained">Üye Ekle</Button>
         </DialogActions>
       </Dialog>
 
       {/* Benefit Form Dialog */}
       <Dialog open={isBenefitDialogOpen} onClose={() => setIsBenefitDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{selectedBenefit ? 'Edit Benefit' : 'Add Benefit'}</DialogTitle>
+        <DialogTitle>{selectedBenefit ? 'Avantajı Düzenle' : 'Avantaj Ekle'}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               fullWidth
-              label="Benefit Name"
+              label="Avantaj Adı"
               value={benefitForm.name || ''}
               onChange={e => setBenefitForm(f => ({ ...f, name: e.target.value }))}
             />
@@ -194,15 +194,15 @@ function AssociationDetails() {
               fullWidth
               multiline
               rows={3}
-              label="Description"
+              label="Açıklama"
               value={benefitForm.description || ''}
               onChange={e => setBenefitForm(f => ({ ...f, description: e.target.value }))}
             />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setIsBenefitDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleBenefitFormSave}>Save Benefit</Button>
+          <Button onClick={() => setIsBenefitDialogOpen(false)}>İptal</Button>
+          <Button variant="contained" onClick={handleBenefitFormSave}>Avantajı Kaydet</Button>
         </DialogActions>
       </Dialog>
     </PageContainer>

@@ -1,34 +1,17 @@
-/**
- * ErrorState Component
- * 
- * Displays an error message with a retry button.
- * Used for full-page or section-level errors.
- * 
- * Usage:
- * ```tsx
- * if (error) return <ErrorState message={error.message} onRetry={refetch} />;
- * ```
- */
-
 import { Box, Typography, Button, SxProps, Theme } from '@mui/material';
 import { ErrorOutline as ErrorIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 
 interface ErrorStateProps {
-  /** Error message */
   message?: string;
-  /** Error title */
   title?: string;
-  /** Retry handler */
   onRetry?: () => void;
-  /** Compact mode for inline usage */
   compact?: boolean;
-  /** Custom styles */
   sx?: SxProps<Theme>;
 }
 
 export default function ErrorState({
-  message = 'Something went wrong. Please try again.',
-  title = 'Oops! Error occurred',
+  message = 'Bir şeyler yanlış gitti. Lütfen tekrar deneyin.',
+  title = 'Bir hata oluştu',
   onRetry,
   compact = false,
   sx,
@@ -75,7 +58,7 @@ export default function ErrorState({
           onClick={onRetry}
           sx={{ borderRadius: 2 }}
         >
-          Retry
+          Tekrar Dene
         </Button>
       )}
     </Box>

@@ -55,8 +55,8 @@ const COLORS = {
 
 const mockChannels = [
   { name: 'Web', percent: 55, color: '#3b82f6', icon: <WebIcon fontSize="small" /> },
-  { name: 'Mobile App', percent: 30, color: '#8b5cf6', icon: <AppIcon fontSize="small" /> },
-  { name: 'Box Office (Gişe)', percent: 15, color: '#10b981', icon: <RetailIcon fontSize="small" /> },
+  { name: 'Mobil Uygulama', percent: 30, color: '#8b5cf6', icon: <AppIcon fontSize="small" /> },
+  { name: 'Gişe', percent: 15, color: '#10b981', icon: <RetailIcon fontSize="small" /> },
 ];
 
 const mockRecentOrders = [
@@ -71,7 +71,7 @@ const mockRecentOrders = [
 
 const mockTimeline = [
   { time: '14:26:00', action: 'Bilet Email Gönderildi', actor: 'System', color: COLORS.neutral },
-  { time: '14:25:05', action: 'Ödeme Onaylandı (Iyzico)', actor: 'Payment Gateway', color: COLORS.success },
+  { time: '14:25:05', action: 'Ödeme Onaylandı (Iyzico)', actor: 'Ödeme Sistemi', color: COLORS.success },
   { time: '14:24:10', action: 'Koltuklar Kilitlendi (Hold 5 dk)', actor: 'Can Y.', color: COLORS.neutral },
   { time: '14:22:30', action: 'Kategori Seçimi (VIP: 2 Adet)', actor: 'Can Y.', color: COLORS.neutral },
 ];
@@ -117,9 +117,9 @@ export default function SalesCommandCenter() {
       
       {/* 1. Yoğun veri odaklı üst bar (Data-heavy top bar) */}
       <Box sx={{ p: 2, bgcolor: '#ffffff', borderBottom: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-        <Typography variant="h6" fontWeight={800} sx={{ mr: 4 }}>Sales Command</Typography>
+        <Typography variant="h6" fontWeight={800} sx={{ mr: 4 }}>Satış Merkezi</Typography>
         
-        <TextField select size="small" label="Event" value="e-28haz" sx={{ minWidth: 200 }}>
+        <TextField select size="small" label="Etkinlik" value="e-28haz" sx={{ minWidth: 200 }}>
            <MenuItem value="e-28haz">Zorlu PSM - Yaz Konseri</MenuItem>
            <MenuItem value="e-15tem">Harbiye - Akustik Gece</MenuItem>
         </TextField>
@@ -129,11 +129,11 @@ export default function SalesCommandCenter() {
         <TextField select size="small" label="Kanal" value="ALL" sx={{ minWidth: 150 }}>
            <MenuItem value="ALL">Tüm Kanallar</MenuItem>
            <MenuItem value="WEB">Web</MenuItem>
-           <MenuItem value="APP">Mobile App</MenuItem>
-           <MenuItem value="BOX">Gişe (Box Office)</MenuItem>
+           <MenuItem value="APP">Mobil Uygulama</MenuItem>
+           <MenuItem value="BOX">Gişe</MenuItem>
         </TextField>
 
-        <TextField select size="small" label="Status" value="ALL" sx={{ minWidth: 150 }}>
+        <TextField select size="small" label="Durum" value="ALL" sx={{ minWidth: 150 }}>
            <MenuItem value="ALL">Tüm Durumlar</MenuItem>
            <MenuItem value="PAID">Ödendi</MenuItem>
            <MenuItem value="REFUND">İade/İptal</MenuItem>
@@ -143,21 +143,21 @@ export default function SalesCommandCenter() {
         <Box sx={{ flexGrow: 1 }} />
         
         <Button variant="outlined" startIcon={<RefreshIcon />} size="small" sx={{ borderColor: '#cbd5e1', color: 'text.primary', fontWeight: 600 }}>
-          Last updated: Just now
+          Son güncelleme: Az önce
         </Button>
       </Box>
 
       {/* 2. Sticky KPI Bandı */}
       <Box sx={{ p: 2, bgcolor: '#0f172a', color: 'white', position: 'sticky', top: 64, zIndex: 10, display: 'flex', justifyContent: 'space-between', gap: 2, overflowX: 'auto' }}>
-        <KpiItem label="Gross Sales" value="₺452,100" subValue="+12% v yesterday" color={COLORS.success} />
+        <KpiItem label="Brüt Satış" value="₺452,100" subValue="+%12 düne göre" color={COLORS.success} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Occupancy" value="72.5%" subValue="1,450 / 2,000 Tickets" color={COLORS.success} />
+        <KpiItem label="Doluluk" value="%72,5" subValue="1.450 / 2.000 Bilet" color={COLORS.success} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Sales Velocity" value="14 / hr" subValue="Peak expected in 2h" color={COLORS.success} />
+        <KpiItem label="Satış Hızı" value="14 / sa" subValue="2 saat içinde zirve bekleniyor" color={COLORS.success} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Refund Rate" value="2.7%" subValue="₺12,500 Total Ref." color={COLORS.warning} />
+        <KpiItem label="İade Oranı" value="%2,7" subValue="₺12.500 Toplam İade" color={COLORS.warning} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Fraud Alerts" value="3" subValue="Requires manual review" color={COLORS.error} />
+        <KpiItem label="Dolandırıcılık Alarmları" value="3" subValue="Manuel inceleme gerekli" color={COLORS.error} />
       </Box>
 
       {/* 3. Split-view çalışma (Left: Grid/Charts, Right: Drawer) */}
@@ -169,7 +169,7 @@ export default function SalesCommandCenter() {
           <Grid container spacing={3}>
             <Grid item xs={12} md={8}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Kanal Bazlı Satış (Channel Split)</Typography>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Kanal Bazlı Satış</Typography>
                 <Box sx={{ display: 'flex', height: 40, bgcolor: '#f1f5f9', borderRadius: 2, overflow: 'hidden', mb: 2 }}>
                   {mockChannels.map(ch => (
                     <Tooltip key={ch.name} title={`${ch.name}: %${ch.percent}`}>
@@ -191,7 +191,7 @@ export default function SalesCommandCenter() {
             </Grid>
             <Grid item xs={12} md={4}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3, height: '100%' }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Canlı Aksiyon (Live Stream)</Typography>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Canlı Aksiyon</Typography>
                 <Stack spacing={1.5}>
                    <LiveStreamItem text="VIP 1. Sıra Satıldı (ORD-991A)" time="2 sn önce" color={COLORS.success} />
                    <LiveStreamItem text="Fraud Yakalandı (ORD-115C)" time="11 dk önce" color={COLORS.error} />
@@ -210,13 +210,13 @@ export default function SalesCommandCenter() {
                 <>
                   <Typography variant="subtitle1" fontWeight={700} color="#0369a1">{selectedIds.length} Sipariş Seçili</Typography>
                   <Stack direction="row" spacing={1}>
-                    <Button variant="contained" size="small" disableElevation sx={{ bgcolor: COLORS.admin }}>Toplu İade (Bulk Refund)</Button>
+                    <Button variant="contained" size="small" disableElevation sx={{ bgcolor: COLORS.admin }}>Toplu İade</Button>
                     <Button variant="outlined" size="small" sx={{ color: COLORS.neutral, borderColor: COLORS.neutral }}>Etiket Ver</Button>
                   </Stack>
                 </>
               ) : (
                 <>
-                  <Typography variant="h6" fontWeight={700}>Sipariş Akışı (Order Feed)</Typography>
+                  <Typography variant="h6" fontWeight={700}>Sipariş Akışı</Typography>
                   <Stack direction="row" spacing={2} alignItems="center">
                     <TextField 
                       size="small" 
@@ -241,13 +241,13 @@ export default function SalesCommandCenter() {
                         onChange={(e) => setSelectedIds(e.target.checked ? orders.map(o => o.id) : [])}
                       />
                     </TableCell>
-                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Order ID</TableCell>
-                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Time</TableCell>
-                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Customer</TableCell>
-                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700, align: 'center' }}>Qty</TableCell>
-                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Amount</TableCell>
-                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Channel</TableCell>
-                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Status</TableCell>
+                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Sipariş No</TableCell>
+                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Saat</TableCell>
+                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Müşteri</TableCell>
+                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700, align: 'center' }}>Adet</TableCell>
+                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Tutar</TableCell>
+                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Kanal</TableCell>
+                    <TableCell sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>Durum</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -306,7 +306,7 @@ export default function SalesCommandCenter() {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
                  <Box>
                     <Typography variant="h5" fontWeight={800} sx={{ fontFamily: 'monospace' }}>{selectedOrder.id}</Typography>
-                    <Typography variant="body2" color="text.secondary">Order Details & Timeline</Typography>
+                    <Typography variant="body2" color="text.secondary">Sipariş Detayları & Zaman Çizelgesi</Typography>
                  </Box>
                  <IconButton onClick={() => setDrawerOpen(false)} size="small" sx={{ bgcolor: '#f1f5f9' }}>
                     <CloseIcon fontSize="small" />
@@ -315,31 +315,31 @@ export default function SalesCommandCenter() {
               
               <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
                 <StatusChip status={selectedOrder.status} />
-                {selectedOrder.risk === 'HIGH' && <Chip size="small" label="HIGH RISK" color="error" variant="outlined" />}
+                {selectedOrder.risk === 'HIGH' && <Chip size="small" label="YÜKSEK RİSK" color="error" variant="outlined" />}
               </Box>
 
               <Grid container spacing={2} sx={{ mb: 4 }}>
                  <Grid item xs={6}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">CUSTOMER</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">MÜŞTERİ</Typography>
                     <Typography variant="body2" fontWeight={600}>{selectedOrder.customer}</Typography>
                  </Grid>
                  <Grid item xs={6}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">TOTAL AMOUNT</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">TOPLAM TUTAR</Typography>
                     <Typography variant="body2" fontWeight={800} color={COLORS.success}>₺{selectedOrder.amount}</Typography>
                  </Grid>
                  <Grid item xs={6}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">CHANNEL</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">KANAL</Typography>
                     <Typography variant="body2" fontWeight={600}>{selectedOrder.channel}</Typography>
                  </Grid>
                  <Grid item xs={6}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">TICKETS</Typography>
-                    <Typography variant="body2" fontWeight={600}>{selectedOrder.tickets} x VIP Category</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">BİLETLER</Typography>
+                    <Typography variant="body2" fontWeight={600}>{selectedOrder.tickets} x VIP Kategori</Typography>
                  </Grid>
               </Grid>
 
               <Divider sx={{ mb: 4 }} />
 
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 3 }}>Sipariş Yaşam Döngüsü (Timeline)</Typography>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 3 }}>Sipariş Yaşam Döngüsü</Typography>
 
               <Box sx={{ flex: 1, position: 'relative' }}>
                  {/* Timeline Line */}
@@ -364,11 +364,11 @@ export default function SalesCommandCenter() {
               {/* Action Bar Bottom */}
               <Box sx={{ mt: 'auto', display: 'flex', gap: 2, pt: 3, borderTop: '1px solid #f1f5f9' }}>
                  <Button variant="contained" fullWidth disableElevation sx={{ bgcolor: COLORS.admin }} startIcon={<AdminIcon />}>
-                   Yönet/Override
+                   Yönet
                  </Button>
                  {selectedOrder.status !== 'REFUNDED' && (
                    <Button variant="outlined" color="error" fullWidth>
-                     İade Et (Refund)
+                     İade Et
                    </Button>
                  )}
               </Box>
@@ -404,10 +404,10 @@ export default function SalesCommandCenter() {
     let label = status;
     let icon = null;
 
-    if (status === 'PAID') { color = COLORS.success; label = 'YÖNLENDİRİLDİ (PAID)'; icon = <SuccessIcon sx={{ fontSize: 14 }} />; }
-    if (status === 'REFUNDED') { color = COLORS.warning; icon = <RefundIcon sx={{ fontSize: 14 }} />; }
-    if (status === 'FRAUD_ALERT') { color = COLORS.error; label = 'FRAUD RISK'; icon = <WarningIcon sx={{ fontSize: 14 }} />; }
-    if (status === 'ADMIN_HOLD') { color = COLORS.admin; icon = <AdminIcon sx={{ fontSize: 14 }} />; }
+    if (status === 'PAID') { color = COLORS.success; label = 'ÖDENDİ'; icon = <SuccessIcon sx={{ fontSize: 14 }} />; }
+    if (status === 'REFUNDED') { color = COLORS.warning; label = 'İADE EDİLDİ'; icon = <RefundIcon sx={{ fontSize: 14 }} />; }
+    if (status === 'FRAUD_ALERT') { color = COLORS.error; label = 'DOLANDIRICILIK RİSKİ'; icon = <WarningIcon sx={{ fontSize: 14 }} />; }
+    if (status === 'ADMIN_HOLD') { color = COLORS.admin; label = 'ADMİN BEKLETMESİ'; icon = <AdminIcon sx={{ fontSize: 14 }} />; }
 
     return (
       <Chip 

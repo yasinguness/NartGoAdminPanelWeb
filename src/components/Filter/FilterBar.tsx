@@ -132,7 +132,7 @@ export default function FilterBar({
               onClick={() => setExpanded(!expanded)}
               size="small"
             >
-              More Filters
+              Daha Fazla Filtre
             </Button>
           </Badge>
         )}
@@ -146,7 +146,7 @@ export default function FilterBar({
             onClick={onClearFilters}
             size="small"
           >
-            Clear All
+            Tümünü Temizle
           </Button>
         )}
       </Paper>
@@ -174,7 +174,7 @@ export default function FilterBar({
                   color="secondary"
                   size="small"
                 >
-                  Clear Filters
+                  Filtreleri Temizle
                 </Button>
               </Box>
             )}

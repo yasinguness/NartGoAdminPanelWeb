@@ -84,14 +84,14 @@ const FederationDetails: React.FC = () => {
     });
   };
 
-  if (isLoading) return <LoadingState message="Loading federation details..." />;
+  if (isLoading) return <LoadingState message="Federasyon detayları yükleniyor..." />;
 
   if (error || !federation) {
     return (
       <PageContainer>
         <ErrorState 
-          title="Failed to load federation" 
-          message={error?.message || "Could not find the requested federation"} 
+          title="Federasyon yüklenemedi"
+          message={error?.message || "İstenen federasyon bulunamadı"}
           onRetry={() => window.location.reload()}
         />
       </PageContainer>
@@ -127,7 +127,7 @@ const FederationDetails: React.FC = () => {
               startIcon={<EditIcon />} 
               onClick={handleEdit}
             >
-              Edit Federation
+              Federasyonu Düzenle
             </Button>
             <Button 
               variant="outlined" 
@@ -135,13 +135,13 @@ const FederationDetails: React.FC = () => {
               startIcon={<DeleteIcon />} 
               onClick={() => setIsDeleteDialogOpen(true)}
             >
-              Delete
+              Sil
             </Button>
           </Stack>
         }
         breadcrumbs={[
-          { label: 'Dashboard', path: '/' },
-          { label: 'Federations', path: '/federations' },
+          { label: 'Kontrol Paneli', path: '/' },
+          { label: 'Federasyonlar', path: '/federations' },
           { label: name, active: true },
         ]}
       />
@@ -195,7 +195,7 @@ const FederationDetails: React.FC = () => {
             <Stack direction="row" spacing={1} alignItems="center">
               <StatusChip status={status} />
               <Typography variant="body2" color="rgba(255,255,255,0.8)" fontWeight={500}>
-                Founded {foundationDate ? new Date(foundationDate).toLocaleDateString() : 'N/A'}
+                Kuruluş: {foundationDate ? new Date(foundationDate).toLocaleDateString() : 'Belirtilmemiş'}
               </Typography>
             </Stack>
           </Box>
@@ -205,30 +205,30 @@ const FederationDetails: React.FC = () => {
       <Grid container spacing={3}>
         {/* Sidebar Info */}
         <Grid item xs={12} md={4}>
-          <PageSection title="Federation Info">
+          <PageSection title="Federasyon Bilgileri">
             <Stack spacing={2.5}>
               <Box>
-                <Typography variant="overline" color="text.secondary" fontWeight={600}>About</Typography>
+                <Typography variant="overline" color="text.secondary" fontWeight={600}>Hakkında</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.6 }}>
-                  {description || 'No description provided.'}
+                  {description || 'Açıklama belirtilmemiş.'}
                 </Typography>
               </Box>
               
               <Box>
-                <Typography variant="overline" color="text.secondary" fontWeight={600}>Contact</Typography>
+                <Typography variant="overline" color="text.secondary" fontWeight={600}>İletişim</Typography>
                 <Stack spacing={1} mt={1}>
-                  <Typography variant="body2"><strong>Email:</strong> {email || 'N/A'}</Typography>
-                  <Typography variant="body2"><strong>Phone:</strong> {phoneNumber || 'N/A'}</Typography>
+                  <Typography variant="body2"><strong>E-posta:</strong> {email || 'Belirtilmemiş'}</Typography>
+                  <Typography variant="body2"><strong>Telefon:</strong> {phoneNumber || 'Belirtilmemiş'}</Typography>
                   <Typography variant="body2">
-                    <strong>Website:</strong> {website ? <a href={website} target="_blank" rel="noopener noreferrer">{website}</a> : 'N/A'}
+                    <strong>Web Sitesi:</strong> {website ? <a href={website} target="_blank" rel="noopener noreferrer">{website}</a> : 'Belirtilmemiş'}
                   </Typography>
                 </Stack>
               </Box>
 
               <Box>
-                <Typography variant="overline" color="text.secondary" fontWeight={600}>Location</Typography>
+                <Typography variant="overline" color="text.secondary" fontWeight={600}>Konum</Typography>
                 <Typography variant="body2" mt={1}>
-                  {address ? `${address.description || ''} ${address.city ? ', ' + address.city : ''}` : 'No address provided'}
+                  {address ? `${address.description || ''} ${address.city ? ', ' + address.city : ''}` : 'Adres belirtilmemiş'}
                 </Typography>
               </Box>
             </Stack>
@@ -244,10 +244,10 @@ const FederationDetails: React.FC = () => {
               textColor="primary"
               indicatorColor="primary"
             >
-              <Tab icon={<DashboardIcon />} iconPosition="start" label="Overview" />
-              <Tab icon={<BusinessIcon />} iconPosition="start" label="Associations" />
-              <Tab icon={<GroupIcon />} iconPosition="start" label="Members" />
-              <Tab icon={<EventIcon />} iconPosition="start" label="Coming Soon" />
+              <Tab icon={<DashboardIcon />} iconPosition="start" label="Genel Bakış" />
+              <Tab icon={<BusinessIcon />} iconPosition="start" label="Dernekler" />
+              <Tab icon={<GroupIcon />} iconPosition="start" label="Üyeler" />
+              <Tab icon={<EventIcon />} iconPosition="start" label="Yakında" />
             </Tabs>
           </Box>
 
@@ -255,7 +255,7 @@ const FederationDetails: React.FC = () => {
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <StatCard 
-                  title="Total Associations" 
+                  title="Toplam Dernek"
                   value={String(totalAssociationCount || 0)} 
                   icon={<BusinessIcon />} 
                   color="primary"
@@ -263,7 +263,7 @@ const FederationDetails: React.FC = () => {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <StatCard 
-                  title="Total Members" 
+                  title="Toplam Üye"
                   value={String(stats?.totalMembers || 0)} 
                   icon={<GroupIcon />} 
                   color="success"
@@ -271,7 +271,7 @@ const FederationDetails: React.FC = () => {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <StatCard 
-                  title="Active Members" 
+                  title="Aktif Üyeler"
                   value={String(stats?.activeMembers || 0)} 
                   icon={<PersonAddIcon />} 
                   color="info"
@@ -279,7 +279,7 @@ const FederationDetails: React.FC = () => {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <StatCard 
-                  title="Member Participation" 
+                  title="Üye Katılımı"
                   value="88%" 
                   icon={<EmojiEventsIcon />} 
                   color="warning"
@@ -300,8 +300,8 @@ const FederationDetails: React.FC = () => {
             <PageSection>
               <Box sx={{ py: 8, textAlign: 'center' }}>
                 <EventIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-                <Typography variant="h5" gutterBottom>Events & Competitions</Typography>
-                <Typography color="text.secondary">This module is currently under development.</Typography>
+                <Typography variant="h5" gutterBottom>Etkinlikler ve Yarışmalar</Typography>
+                <Typography color="text.secondary">Bu modül şu anda geliştirme aşamasındadır.</Typography>
               </Box>
             </PageSection>
           </TabPanel>
@@ -310,10 +310,10 @@ const FederationDetails: React.FC = () => {
 
       <ConfirmDialog
         open={isDeleteDialogOpen}
-        title="Delete Federation"
-        message={`Are you sure you want to delete ${name}? This action will permanently remove the federation and all its associated data.`}
+        title="Federasyonu Sil"
+        message={`${name} federasyonunu silmek istediğinize emin misiniz? Bu işlem federasyonu ve tüm ilişkili verilerini kalıcı olarak kaldıracaktır.`}
         severity="error"
-        confirmLabel="Delete Permanently"
+        confirmLabel="Kalıcı Olarak Sil"
         onConfirm={handleDeleteConfirm}
         onClose={() => setIsDeleteDialogOpen(false)}
       />

@@ -42,7 +42,7 @@ const defaultIcons = {
 
 export default function EmptyState({
   icon,
-  title = 'No data found',
+  title = 'Veri bulunamadı',
   description,
   action,
   compact = false,
@@ -119,16 +119,16 @@ export function NoSearchResults({
   return (
     <EmptyState
       icon={<SearchOff sx={{ fontSize: 64 }} />}
-      title="No results found"
+      title="Sonuç bulunamadı"
       description={
         searchTerm
-          ? `No results found for "${searchTerm}". Try adjusting your search or filters.`
-          : 'Try adjusting your search or filters.'
+          ? `"${searchTerm}" için sonuç bulunamadı. Arama veya filtrelerinizi değiştirmeyi deneyin.`
+          : 'Arama veya filtrelerinizi değiştirmeyi deneyin.'
       }
       action={
         onClear && (
           <Button variant="outlined" onClick={onClear}>
-            Clear Filters
+            Filtreleri Temizle
           </Button>
         )
       }
@@ -137,7 +137,7 @@ export function NoSearchResults({
 }
 
 export function NoDataYet({
-  resourceName = 'items',
+  resourceName = 'kayıt',
   onAdd,
   addLabel,
 }: {
@@ -148,12 +148,12 @@ export function NoDataYet({
   return (
     <EmptyState
       icon={<FolderOpen sx={{ fontSize: 64 }} />}
-      title={`No ${resourceName} yet`}
-      description={`Get started by adding your first ${resourceName.replace(/s$/, '')}.`}
+      title={`Henüz ${resourceName} yok`}
+      description={`İlk ${resourceName} ekleyerek başlayın.`}
       action={
         onAdd && (
           <Button variant="contained" onClick={onAdd}>
-            {addLabel || `Add ${resourceName.replace(/s$/, '')}`}
+            {addLabel || `${resourceName} Ekle`}
           </Button>
         )
       }

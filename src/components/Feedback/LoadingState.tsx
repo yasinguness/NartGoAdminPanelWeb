@@ -1,34 +1,38 @@
-/**
- * LoadingState Component
- * 
- * Full-page or container-level loading indicator.
- * Consistent styling for all loading states.
- * 
- * Usage:
- * ```tsx
- * if (isLoading) return <LoadingState message="Fetching data..." />;
- * ```
- */
-
-import { Box, CircularProgress, Typography, SxProps, Theme } from '@mui/material';
+import { Box, CircularProgress, Typography, Skeleton, SxProps, Theme } from '@mui/material';
 
 interface LoadingStateProps {
-  /** Optional loading message */
   message?: string;
-  /** Circular progress size */
   size?: number;
-  /** Full viewport height */
   fullPage?: boolean;
-  /** Custom styles */
+  variant?: 'spinner' | 'skeleton';
+  skeletonRows?: number;
   sx?: SxProps<Theme>;
 }
 
 export default function LoadingState({
-  message = 'Loading...',
+  message = 'Yükleniyor...',
   size = 40,
   fullPage = false,
+  variant = 'spinner',
+  skeletonRows = 4,
   sx,
 }: LoadingStateProps) {
+  if (variant === 'skeleton') {
+    return (
+      <Box sx={{ p: 3, ...sx }}>
+        {Array.from({ length: skeletonRows }).map((_, i) => (
+          <Skeleton
+            key={i}
+            variant="rectangular"
+            height={i === 0 ? 32 : 24}
+            sx={{ mb: 2, borderRadius: 1, width: `${85 - i * 10}%` }}
+            animation="wave"
+          />
+        ))}
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{

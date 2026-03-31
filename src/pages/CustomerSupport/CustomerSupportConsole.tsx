@@ -57,9 +57,9 @@ const mockCustomer = {
 const mockTimeline = [
   { id: 1, type: 'CALL', time: 'Bugün 14:15', title: 'Çağrı Merkezi İletişimi', desc: 'Müşteri bilet barkodu gelmediği için aradı. SMS ve Email tekrar tetiklendi.', actor: 'Destek - Ayşe', color: COLORS.warning, icon: <PhoneIcon fontSize="small"/> },
   { id: 2, type: 'MANUAL_ACTION', time: 'Bugün 14:14', title: 'Bilet Yeniden Gönderimi', desc: 'TCK-9921 numaralı bilet email ve SMS kanallarından tekrar yollandı.', actor: 'Destek - Ayşe', color: COLORS.primary, icon: <SendIcon fontSize="small"/> },
-  { id: 3, type: 'FRAUD_ALERT', time: '28 Haz 19:45', title: 'Şüpheli Kapı Giriş Denemesi', desc: 'TCK-9921 barkodu VIP Kapısında art arda 3 kez okutuldu (REPLAY). Müşteri girişi reddedildi.', actor: 'Gate - VIP1', color: COLORS.error, icon: <WarningIcon fontSize="small"/> },
-  { id: 4, type: 'CHECKIN', time: '28 Haz 19:40', title: 'Başarılı Check-In', desc: 'TCK-9921 bilet Zemin Kapısında onaylandı.', actor: 'Gate - Zemin', color: COLORS.success, icon: <CheckCircleIcon fontSize="small"/> },
-  { id: 5, type: 'ORDER', time: '15 Haz 10:20', title: 'Sipariş Tamamlandı', desc: 'ORD-991A numaralı sipariş başarıyla ödendi (2x VIP Bilet, Toplam ₺900).', actor: 'Web Cüzdan', color: COLORS.primary, icon: <OrderIcon fontSize="small"/> },
+  { id: 3, type: 'FRAUD_ALERT', time: '28 Haz 19:45', title: 'Şüpheli Kapı Giriş Denemesi', desc: 'TCK-9921 barkodu VIP Kapısında art arda 3 kez okutuldu. Müşteri girişi reddedildi.', actor: 'Kapı - VIP1', color: COLORS.error, icon: <WarningIcon fontSize="small"/> },
+  { id: 4, type: 'CHECKIN', time: '28 Haz 19:40', title: 'Başarılı Giriş', desc: 'TCK-9921 bilet Zemin Kapısında onaylandı.', actor: 'Kapı - Zemin', color: COLORS.success, icon: <CheckCircleIcon fontSize="small"/> },
+  { id: 5, type: 'ORDER', time: '15 Haz 10:20', title: 'Sipariş Tamamlandı', desc: 'ORD-991A numaralı sipariş başarıyla ödendi (2x VIP Bilet, Toplam ₺900).', actor: 'Web', color: COLORS.primary, icon: <OrderIcon fontSize="small"/> },
 ];
 
 export default function CustomerSupportConsole() {
@@ -133,7 +133,7 @@ export default function CustomerSupportConsole() {
       {loading ? (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <ResetIcon sx={{ fontSize: 60, color: COLORS.primary, animation: 'spin 2s linear infinite', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" fontWeight={700}>Backend aranıyor...</Typography>
+            <Typography variant="h6" color="text.secondary" fontWeight={700}>Aranıyor...</Typography>
             <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </Box>
       ) : hasSearched ? (
@@ -163,7 +163,7 @@ export default function CustomerSupportConsole() {
                     <Divider orientation="vertical" flexItem />
 
                     <Box sx={{ textAlign: 'center', px: 2 }}>
-                       <Typography variant="caption" color="text.secondary" fontWeight={700}>LIFE-TIME VALUE</Typography>
+                       <Typography variant="caption" color="text.secondary" fontWeight={700}>YAŞAM BOYU DEĞER</Typography>
                        <Typography variant="h5" fontWeight={800} color={COLORS.success}>{customer?.ltv || mockCustomer.ltv}</Typography>
                     </Box>
                     <Box sx={{ textAlign: 'center', px: 2 }}>
@@ -181,10 +181,10 @@ export default function CustomerSupportConsole() {
                     
                     <Box sx={{ p: 3, borderBottom: '1px solid #f1f5f9', bgcolor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography variant="h6" fontWeight={800} display="flex" alignItems="center">
-                            <HistoryIcon sx={{ mr: 1, color: COLORS.primary }} /> Birleştirilmiş Müşteri Geçmişi (Unified Audit)
+                            <HistoryIcon sx={{ mr: 1, color: COLORS.primary }} /> Birleştirilmiş Müşteri Geçmişi
                         </Typography>
                         <Stack direction="row" spacing={1}>
-                            <Chip label="Tümü (Omni)" size="small" sx={{ bgcolor: '#334155', color: 'white', fontWeight: 700 }} />
+                            <Chip label="Tümü" size="small" sx={{ bgcolor: '#334155', color: 'white', fontWeight: 700 }} />
                             <Chip label="Siparişler" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
                             <Chip label="Destek Çağrıları" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
                             <Chip label="Kapı İşlemleri" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
@@ -243,7 +243,7 @@ export default function CustomerSupportConsole() {
                             <Typography variant="body2" fontWeight={700}>2x VIP</Typography>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Typography variant="body2" color="text.secondary">Tutar (Credit Card)</Typography>
+                            <Typography variant="body2" color="text.secondary">Tutar (Kredi Kartı)</Typography>
                             <Typography variant="body2" fontWeight={800}>₺900</Typography>
                         </Box>
                     </Stack>
@@ -258,13 +258,13 @@ export default function CustomerSupportConsole() {
                             BİLETİ (EMAIL/SMS) YENİDEN GÖNDER
                         </Button>
                         <Button variant="outlined" disableElevation startIcon={<ResetIcon />} sx={{ justifyContent: 'flex-start', py: 1.5, borderColor: '#cbd5e1', color: '#334155', fontWeight: 700 }}>
-                            CHECK-IN DURUMUNU SIFIRLA
+                            GİRİŞ DURUMUNU SIFIRLA
                         </Button>
                         <Button variant="outlined" disableElevation startIcon={<RefundIcon />} sx={{ justifyContent: 'flex-start', py: 1.5, borderColor: 'rgba(239, 68, 68, 0.3)', color: COLORS.error, fontWeight: 700, bgcolor: 'rgba(239, 68, 68, 0.05)' }}>
-                            SİPARİŞİ İPTAL & İADE ET (REFUND)
+                            SİPARİŞİ İPTAL & İADE ET
                         </Button>
                         <Button variant="outlined" disableElevation startIcon={<SecurityIcon />} sx={{ justifyContent: 'flex-start', py: 1.5, borderColor: 'rgba(245, 158, 11, 0.3)', color: COLORS.warning, fontWeight: 700, bgcolor: 'rgba(245, 158, 11, 0.05)' }}>
-                            MÜŞTERİYİ ŞÜPHELİ (FRAUD) İŞARETLE
+                            MÜŞTERİYİ ŞÜPHELİ İŞARETLE
                         </Button>
                     </Stack>
 
@@ -279,7 +279,7 @@ export default function CustomerSupportConsole() {
                             sx={{ bgcolor: '#f8fafc', '& fieldset': { borderColor: '#cbd5e1' }, mb: 2 }}
                         />
                         <Button variant="contained" fullWidth disableElevation sx={{ py: 1.5, fontWeight: 800, bgcolor: '#0f172a' }} startIcon={<NoteIcon />}>
-                            AJAN NOTU & LOG KAYDET
+                            AJAN NOTU KAYDET
                         </Button>
                     </Box>
                 </Paper>

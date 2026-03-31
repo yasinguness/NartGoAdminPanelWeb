@@ -46,14 +46,14 @@ export default function EventCategories() {
     }, []);
 
     if (loading) {
-        return <LoadingState message="Loading event categories..." />;
+        return <LoadingState message="Etkinlik kategorileri yükleniyor..." />;
     }
 
     if (error) {
         return (
             <PageContainer>
-                <ErrorState 
-                    title="Failed to Load Categories" 
+                <ErrorState
+                    title="Kategoriler Yüklenemedi"
                     message={error} 
                     onRetry={fetchCategories} 
                 />
@@ -64,34 +64,34 @@ export default function EventCategories() {
     const columns = [
         { 
             id: 'name', 
-            label: 'Name',
+            label: 'Ad',
             render: (row: any) => (
                 <Box fontWeight={600}>{row.name}</Box>
             )
         },
         { 
             id: 'description', 
-            label: 'Description' 
+            label: 'Açıklama'
         },
     ];
 
     return (
         <PageContainer>
             <PageHeader
-                title="Event Categories"
-                subtitle="Manage categories for events and competitions"
+                title="Etkinlik Kategorileri"
+                subtitle="Etkinlik ve yarışma kategorilerini yönetin"
                 actions={
                     <Button
                         variant="contained"
                         startIcon={<AddIcon />}
                         onClick={() => handleOpenDialog()}
                     >
-                        Add Category
+                        Kategori Ekle
                     </Button>
                 }
                 breadcrumbs={[
-                    { label: 'Dashboard', href: '/' },
-                    { label: 'Event Categories', active: true },
+                    { label: 'Kontrol Paneli', href: '/' },
+                    { label: 'Etkinlik Kategorileri', active: true },
                 ]}
             />
 
@@ -105,13 +105,13 @@ export default function EventCategories() {
                                 <ListItemIcon>
                                     <EditIcon fontSize="small" />
                                 </ListItemIcon>
-                                <ListItemText>Edit System Category</ListItemText>
+                                <ListItemText>Kategoriyi Düzenle</ListItemText>
                             </MenuItem>
                             <MenuItem onClick={() => handleOpenDialog(row)} sx={{ color: 'error.main' }}>
                                 <ListItemIcon>
                                     <DeleteIcon fontSize="small" color="error" />
                                 </ListItemIcon>
-                                <ListItemText>Delete</ListItemText>
+                                <ListItemText>Sil</ListItemText>
                             </MenuItem>
                         </ActionMenu>
                     )}
@@ -120,21 +120,21 @@ export default function EventCategories() {
 
             <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
                 <DialogTitle>
-                    {editedCategory?.id ? 'Edit Category' : 'Add Category'}
+                    {editedCategory?.id ? 'Kategoriyi Düzenle' : 'Kategori Ekle'}
                 </DialogTitle>
                 <DialogContent dividers>
                     <Box sx={{ mt: 1 }}>
                         <FormGrid columns={1}>
                             <TextField
                                 fullWidth
-                                label="Category Name"
+                                label="Kategori Adı"
                                 value={editedCategory?.name || ''}
                                 onChange={(e) => handleInputChange('name', e.target.value)}
                                 required
                             />
                             <TextField
                                 fullWidth
-                                label="Description"
+                                label="Açıklama"
                                 value={editedCategory?.description || ''}
                                 onChange={(e) => handleInputChange('description', e.target.value)}
                                 multiline
@@ -144,15 +144,15 @@ export default function EventCategories() {
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 2.5 }}>
-                    <Button onClick={handleCloseDialog} color="inherit">Cancel</Button>
+                    <Button onClick={handleCloseDialog} color="inherit">İptal</Button>
                     <Stack direction="row" spacing={1}>
                         {editedCategory?.id && (
                             <Button onClick={handleDelete} color="error" variant="outlined">
-                                Delete
+                                Sil
                             </Button>
                         )}
                         <Button onClick={handleSave} variant="contained">
-                            {editedCategory?.id ? 'Save Changes' : 'Create Category'}
+                            {editedCategory?.id ? 'Değişiklikleri Kaydet' : 'Kategori Oluştur'}
                         </Button>
                     </Stack>
                 </DialogActions>

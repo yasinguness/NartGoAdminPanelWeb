@@ -51,7 +51,7 @@ export default function AnalyticsDashboard() {
         <Box>
             {/* Timeframe Selector */}
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                <Typography variant="h6" fontWeight={700}>📊 Analitik Dashboard</Typography>
+                <Typography variant="h6" fontWeight={700}>📊 Analitik Kontrol Paneli</Typography>
                 <FormControl size="small" sx={{ minWidth: 160 }}>
                     <Select value={timeframe} onChange={(e) => setTimeframe(e.target.value as AnalyticsTimeframe)}>
                         {Object.entries(TIMEFRAME_LABELS).map(([k, v]) => (

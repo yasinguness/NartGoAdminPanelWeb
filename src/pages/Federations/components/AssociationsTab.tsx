@@ -71,7 +71,7 @@ const AssociationsTab: React.FC<AssociationsTabProps> = ({ federationId }) => {
   }
 
   if (error) {
-    return <Alert severity="error">Failed to load associations.</Alert>;
+    return <Alert severity="error">Dernekler yüklenemedi.</Alert>;
   }
 
   const filteredAssociations = associations?.content.filter((association: AssociationDto) =>
@@ -83,7 +83,7 @@ const AssociationsTab: React.FC<AssociationsTabProps> = ({ federationId }) => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <TextField
-          placeholder="Search associations..."
+          placeholder="Derneklerde ara..."
           variant="outlined"
           size="small"
           value={searchQuery}
@@ -103,7 +103,7 @@ const AssociationsTab: React.FC<AssociationsTabProps> = ({ federationId }) => {
           onClick={handleAddAssociation}
           sx={{ textTransform: 'none' }}
         >
-          Add Association
+          Dernek Ekle
         </Button>
       </Box>
 
@@ -111,12 +111,12 @@ const AssociationsTab: React.FC<AssociationsTabProps> = ({ federationId }) => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Association</TableCell>
-              <TableCell>Code</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Members</TableCell>
-              <TableCell>Location</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>Dernek</TableCell>
+              <TableCell>Kod</TableCell>
+              <TableCell>Durum</TableCell>
+              <TableCell>Üyeler</TableCell>
+              <TableCell>Konum</TableCell>
+              <TableCell align="right">İşlemler</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

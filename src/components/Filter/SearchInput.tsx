@@ -50,7 +50,7 @@ export default function SearchInput({
   loading = false,
   onClear,
   minChars = 0,
-  placeholder = 'Search...',
+  placeholder = 'Ara...',
   size = 'small',
   sx,
   ...textFieldProps
@@ -107,7 +107,7 @@ export default function SearchInput({
                 size="small"
                 onClick={handleClear}
                 edge="end"
-                aria-label="clear search"
+                aria-label="aramayı temizle"
               >
                 <ClearIcon fontSize="small" />
               </IconButton>

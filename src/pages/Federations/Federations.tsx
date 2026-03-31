@@ -157,32 +157,32 @@ const Federations: React.FC = () => {
   const columns = [
     { 
       id: 'name', 
-      label: 'Federation Name',
+      label: 'Federasyon Adı',
       render: (row: FederationDto) => (
         <Box fontWeight={600} color="primary.main">{row.name}</Box>
       )
     },
-    { id: 'federationCode', label: 'Code' },
+    { id: 'federationCode', label: 'Kod' },
     { 
       id: 'status', 
-      label: 'Status',
+      label: 'Durum',
       render: (row: FederationDto) => <StatusChip status={row.status} />
     },
     { 
       id: 'members', 
-      label: 'Members',
+      label: 'Üyeler',
       align: 'center' as const,
       render: (row: FederationDto) => row.stats?.totalMembers ?? '0'
     },
     { 
       id: 'associations', 
-      label: 'Associations',
+      label: 'Dernekler',
       align: 'center' as const,
       render: (row: FederationDto) => row.associationIds?.length ?? '0'
     },
     { 
       id: 'date', 
-      label: 'Foundation Date',
+      label: 'Kuruluş Tarihi',
       render: (row: FederationDto) => row.foundationDate ? new Date(row.foundationDate).toLocaleDateString() : '-'
     }
   ];
@@ -191,8 +191,8 @@ const Federations: React.FC = () => {
     return (
       <PageContainer>
         <ErrorState 
-          title="Error loading federations" 
-          message={error?.message || "An unexpected error occurred"} 
+          title="Federasyonlar yüklenirken hata oluştu"
+          message={error?.message || "Beklenmeyen bir hata oluştu"}
           onRetry={() => window.location.reload()}
         />
       </PageContainer>
@@ -202,48 +202,48 @@ const Federations: React.FC = () => {
   return (
     <PageContainer>
       <PageHeader
-        title="Federations"
-        subtitle="Manage national sporting federations and their hierarchies"
+        title="Federasyonlar"
+        subtitle="Ulusal spor federasyonlarını ve hiyerarşilerini yönetin"
         actions={
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleCreateFederation}
           >
-            Add Federation
+            Federasyon Ekle
           </Button>
         }
         breadcrumbs={[
-          { label: 'Dashboard', href: '/' },
-          { label: 'Federations', active: true },
+          { label: 'Kontrol Paneli', href: '/' },
+          { label: 'Federasyonlar', active: true },
         ]}
       />
 
       {/* Statistics Row */}
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} mb={4}>
         <StatCard 
-          title="Total Associations" 
-          value="24" 
+          title="Toplam Dernek"
+          value="24"
           trend={2} 
           icon={<BusinessIcon />} 
           color="primary"
         />
         <StatCard 
-          title="Active Members" 
+          title="Aktif Üyeler"
           value="1,234" 
           trend={156} 
           icon={<PeopleIcon />} 
           color="success"
         />
         <StatCard 
-          title="Pending Approvals" 
+          title="Bekleyen Onaylar"
           value="5" 
           trend={-2} 
           icon={<HourglassEmptyIcon />} 
           color="warning"
         />
         <StatCard 
-          title="Monthly Revenue" 
+          title="Aylık Gelir"
           value="$45,678" 
           trend={12} 
           icon={<MonetizationOnIcon />} 
@@ -257,18 +257,18 @@ const Federations: React.FC = () => {
           search={{
             value: searchTerm,
             onChange: setSearchTerm,
-            placeholder: "Search by name or code...",
+            placeholder: "Ad veya kod ile ara...",
           }}
           filters={
             <FilterSelect
-              label="Status"
+              label="Durum"
               value={statusFilter}
               onChange={(val) => setStatusFilter(val as string)}
               options={[
-                { label: 'All Statuses', value: 'all' },
-                { label: 'Active', value: 'active' },
-                { label: 'Pending', value: 'pending' },
-                { label: 'Suspended', value: 'suspended' },
+                { label: 'Tüm Durumlar', value: 'all' },
+                { label: 'Aktif', value: 'active' },
+                { label: 'Beklemede', value: 'pending' },
+                { label: 'Askıya Alınmış', value: 'suspended' },
               ]}
             />
           }
@@ -288,19 +288,19 @@ const Federations: React.FC = () => {
                 <ListItemIcon>
                   <VisibilityIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>View Details</ListItemText>
+                <ListItemText>Detayları Görüntüle</ListItemText>
               </MenuItem>
               <MenuItem onClick={(e) => { e.stopPropagation(); handleEditFederation(row); }}>
                 <ListItemIcon>
                   <EditIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Edit Federation</ListItemText>
+                <ListItemText>Federasyonu Düzenle</ListItemText>
               </MenuItem>
               <MenuItem onClick={(e) => { e.stopPropagation(); handleDeleteClick(row.id); }} sx={{ color: 'error.main' }}>
                 <ListItemIcon>
                   <DeleteIcon fontSize="small" color="error" />
                 </ListItemIcon>
-                <ListItemText>Delete</ListItemText>
+                <ListItemText>Sil</ListItemText>
               </MenuItem>
             </ActionMenu>
           )}
@@ -319,10 +319,10 @@ const Federations: React.FC = () => {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         open={isDeleteDialogOpen}
-        title="Delete Federation"
-        message="Are you sure you want to delete this federation? This action is permanent and will affect all associated associations and members."
+        title="Federasyonu Sil"
+        message="Bu federasyonu silmek istediğinize emin misiniz? Bu işlem kalıcıdır ve tüm ilişkili dernekleri ve üyeleri etkileyecektir."
         severity="error"
-        confirmText='Delete Federation'
+        confirmText='Federasyonu Sil'
         onConfirm={handleDeleteConfirm}
         onClose={() => setIsDeleteDialogOpen(false)}
       />

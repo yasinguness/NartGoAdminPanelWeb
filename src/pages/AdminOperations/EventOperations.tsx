@@ -71,13 +71,13 @@ export default function EventOperations() {
   const [selectedEvent, setSelectedEvent] = useState<EventResponseDTO | null>(null);
   const [activeTab, setActiveTab] = useState<TabValue>('event');
   const [submittingKey, setSubmittingKey] = useState<string | null>(null);
-  const [lastAction, setLastAction] = useState<string>('No request yet');
+  const [lastAction, setLastAction] = useState<string>('Henüz istek yok');
   const [responseBody, setResponseBody] = useState<string>('');
 
-  const [eventReason, setEventReason] = useState('Operational admin action');
+  const [eventReason, setEventReason] = useState('Operasyonel admin aksiyonu');
   const [eventCapacity, setEventCapacity] = useState<number>(0);
 
-  const [seatReason, setSeatReason] = useState('Admin seating override');
+  const [seatReason, setSeatReason] = useState('Admin koltuk üstüne yazma');
   const [seatTargetState, setSeatTargetState] = useState<SeatTargetState>('BLOCKED');
   const [seatIdsInput, setSeatIdsInput] = useState('');
   const [singleSeatId, setSingleSeatId] = useState('');
@@ -90,7 +90,7 @@ export default function EventOperations() {
   const [moveTargetRowLabel, setMoveTargetRowLabel] = useState('');
   const [moveTargetSeatNumber, setMoveTargetSeatNumber] = useState<number>(1);
 
-  const [orderReason, setOrderReason] = useState('Manual admin adjustment');
+  const [orderReason, setOrderReason] = useState('Manuel admin düzeltmesi');
   const [orderIdsInput, setOrderIdsInput] = useState('');
   const [orderId, setOrderId] = useState('');
   const [ticketId, setTicketId] = useState('');
@@ -143,7 +143,7 @@ export default function EventOperations() {
           }
         }
       } catch (error) {
-        enqueueSnackbar('Failed to load event options', { variant: 'error' });
+        enqueueSnackbar('Etkinlik seçenekleri yüklenemedi', { variant: 'error' });
       } finally {
         if (mounted) {
           setEventsLoading(false);
@@ -170,14 +170,14 @@ export default function EventOperations() {
   const currentEventId = selectedEvent?.id ?? routeEventId ?? '';
   const currentEventLabel = useMemo(() => {
     if (!selectedEvent) {
-      return 'No event selected';
+      return 'Etkinlik seçilmedi';
     }
     return `${selectedEvent.name} (${selectedEvent.id})`;
   }, [selectedEvent]);
 
   const requireEventId = () => {
     if (!currentEventId) {
-      throw new Error('Select an event first');
+      throw new Error('Önce bir etkinlik seçin');
     }
     return currentEventId;
   };
@@ -188,9 +188,9 @@ export default function EventOperations() {
       const response = await request();
       setLastAction(label);
       setResponseBody(prettyResponse(response));
-      enqueueSnackbar(`${label} completed`, { variant: 'success' });
+      enqueueSnackbar(`${label} tamamlandı`, { variant: 'success' });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Request failed';
+      const message = error instanceof Error ? error.message : 'İstek başarısız oldu';
       setLastAction(`${label} failed`);
       setResponseBody(prettyResponse({ error: message }));
       enqueueSnackbar(message, { variant: 'error' });
@@ -211,33 +211,33 @@ export default function EventOperations() {
   );
 
   const sectionTabs = [
-    { value: 'event', label: 'Event Admin', icon: <AdminPanelSettingsIcon fontSize="small" /> },
-    { value: 'seats', label: 'Seat Admin', icon: <SeatsIcon fontSize="small" /> },
-    { value: 'orders', label: 'Order/Ticket', icon: <OrdersIcon fontSize="small" /> },
-    { value: 'audit', label: 'Audit', icon: <AuditIcon fontSize="small" /> },
-    { value: 'checkin', label: 'Check-In', icon: <CheckInIcon fontSize="small" /> },
+    { value: 'event', label: 'Etkinlik Yönetimi', icon: <AdminPanelSettingsIcon fontSize="small" /> },
+    { value: 'seats', label: 'Koltuk Yönetimi', icon: <SeatsIcon fontSize="small" /> },
+    { value: 'orders', label: 'Sipariş/Bilet', icon: <OrdersIcon fontSize="small" /> },
+    { value: 'audit', label: 'Denetim', icon: <AuditIcon fontSize="small" /> },
+    { value: 'checkin', label: 'Giriş', icon: <CheckInIcon fontSize="small" /> },
   ] as const;
 
   return (
     <PageContainer>
       <PageHeader
-        title="Event Operations"
-        subtitle="Event lifecycle, seating, order, audit and check-in admin calls in one surface."
+        title="Etkinlik Operasyonları"
+        subtitle="Etkinlik yaşam döngüsü, koltuk, sipariş, denetim ve giriş yönetimi tek bir ekranda."
         breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Events', href: '/events' },
-          { label: 'Operations', active: true },
+          { label: 'Kontrol Paneli', href: '/dashboard' },
+          { label: 'Etkinlikler', href: '/events' },
+          { label: 'Operasyonlar', active: true },
         ]}
         showBackButton
         backPath="/events"
         actions={
           <Button variant="outlined" onClick={() => navigate('/events')}>
-            Back to Events
+            Etkinliklere Dön
           </Button>
         }
       />
 
-      <PageSection title="Context" subtitle="Select the event that admin requests should target.">
+      <PageSection title="Bağlam" subtitle="Admin isteklerinin hedeflemesi gereken etkinliği seçin.">
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
             <Autocomplete
@@ -255,8 +255,8 @@ export default function EventOperations() {
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Target event"
-                  placeholder="Search loaded events"
+                  label="Hedef etkinlik"
+                  placeholder="Yüklenen etkinliklerde ara"
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
@@ -274,14 +274,14 @@ export default function EventOperations() {
             <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
               <Stack spacing={1}>
                 <Typography variant="subtitle2" color="text.secondary">
-                  Active event
+                  Aktif etkinlik
                 </Typography>
                 <Typography variant="body2">{currentEventLabel}</Typography>
                 {selectedEvent && (
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     <Chip size="small" label={selectedEvent.status} />
-                    <Chip size="small" label={`Capacity ${selectedEvent.maxParticipants ?? 0}`} />
-                    <Chip size="small" label={`Participants ${selectedEvent.currentParticipants ?? 0}`} />
+                    <Chip size="small" label={`Kapasite ${selectedEvent.maxParticipants ?? 0}`} />
+                    <Chip size="small" label={`Katılımcı ${selectedEvent.currentParticipants ?? 0}`} />
                   </Stack>
                 )}
               </Stack>
@@ -292,7 +292,7 @@ export default function EventOperations() {
 
       {!currentEventId && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          Most operations require an event selection. Choose one above before submitting requests.
+          Çoğu işlem etkinlik seçimi gerektirir. İstek göndermeden önce yukarıdan birini seçin.
         </Alert>
       )}
 
@@ -321,7 +321,7 @@ export default function EventOperations() {
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
-                  label="Reason"
+                  label="Sebep"
                   value={eventReason}
                   onChange={(event) => setEventReason(event.target.value)}
                 />
@@ -329,7 +329,7 @@ export default function EventOperations() {
               <Grid item xs={12} md={3}>
                 <TextField
                   fullWidth
-                  label="Capacity"
+                  label="Kapasite"
                   type="number"
                   value={eventCapacity}
                   onChange={(event) => setEventCapacity(Number(event.target.value))}
@@ -337,12 +337,12 @@ export default function EventOperations() {
               </Grid>
               <Grid item xs={12}>
                 <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-                  {renderSubmitButton('pause', 'Pause', () => runAction('pause', 'Pause event', () => adminOperationsService.pauseEvent(requireEventId())), <PauseIcon />)}
-                  {renderSubmitButton('resume', 'Resume', () => runAction('resume', 'Resume event', () => adminOperationsService.resumeEvent(requireEventId())), <ResumeIcon />)}
-                  {renderSubmitButton('cancel', 'Cancel Event', () => runAction('cancel', 'Cancel event', () => adminOperationsService.cancelEvent(requireEventId(), { reason: eventReason })), <CancelIcon />)}
-                  {renderSubmitButton('close-sales', 'Close Sales', () => runAction('close-sales', 'Close event sales', () => adminOperationsService.closeEventSales(requireEventId())), <CloseSalesIcon />)}
-                  {renderSubmitButton('capacity', 'Update Capacity', () => runAction('capacity', 'Update event capacity', () => adminOperationsService.updateEventCapacity(requireEventId(), { capacity: eventCapacity, reason: eventReason })))}
-                  {renderSubmitButton('event-audit-backfill', 'Audit Backfill', () => runAction('event-audit-backfill', 'Backfill event audit', () => adminOperationsService.backfillEventAudit(requireEventId(), { reason: eventReason })), <BackfillIcon />)}
+                  {renderSubmitButton('pause', 'Duraklat', () => runAction('pause', 'Etkinlik duraklatıldı', () => adminOperationsService.pauseEvent(requireEventId())), <PauseIcon />)}
+                  {renderSubmitButton('resume', 'Devam Et', () => runAction('resume', 'Etkinlik devam ettirildi', () => adminOperationsService.resumeEvent(requireEventId())), <ResumeIcon />)}
+                  {renderSubmitButton('cancel', 'Etkinliği İptal Et', () => runAction('cancel', 'Etkinlik iptal edildi', () => adminOperationsService.cancelEvent(requireEventId(), { reason: eventReason })), <CancelIcon />)}
+                  {renderSubmitButton('close-sales', 'Satışı Kapat', () => runAction('close-sales', 'Etkinlik satışı kapatıldı', () => adminOperationsService.closeEventSales(requireEventId())), <CloseSalesIcon />)}
+                  {renderSubmitButton('capacity', 'Kapasiteyi Güncelle', () => runAction('capacity', 'Etkinlik kapasitesi güncellendi', () => adminOperationsService.updateEventCapacity(requireEventId(), { capacity: eventCapacity, reason: eventReason })))}
+                  {renderSubmitButton('event-audit-backfill', 'Denetim Doldur', () => runAction('event-audit-backfill', 'Etkinlik denetimi dolduruldu', () => adminOperationsService.backfillEventAudit(requireEventId(), { reason: eventReason })), <BackfillIcon />)}
                 </Stack>
               </Grid>
             </Grid>
@@ -363,7 +363,7 @@ export default function EventOperations() {
                       reason: actionReason,
                       seatIds: seatIds,
                     });
-                    enqueueSnackbar(`Seats successfully updated via interactive map!`, { variant: 'success' });
+                    enqueueSnackbar(`Koltuklar interaktif harita üzerinden başarıyla güncellendi!`, { variant: 'success' });
                  }}
               />
             </Box>
@@ -379,23 +379,23 @@ export default function EventOperations() {
                     orderIds,
                     reason,
                   });
-                  enqueueSnackbar(`${orderIds.length} orders refunded successfully!`, { variant: 'success' });
+                  enqueueSnackbar(`${orderIds.length} sipariş başarıyla iade edildi!`, { variant: 'success' });
                 }}
                 onCancelAll={async (reason) => {
                   await adminOperationsService.cancelAllOrders(requireEventId(), { reason });
-                  enqueueSnackbar(`All orders grouped for cancellation!`, { variant: 'success' });
+                  enqueueSnackbar(`Tüm siparişler iptal için gruplandı!`, { variant: 'success' });
                 }}
                 onRefundOrder={async (orderId, reason) => {
                   await adminOperationsService.refundOrder(orderId, { reason });
-                  enqueueSnackbar(`Order ${orderId} refunded successfully!`, { variant: 'success' });
+                  enqueueSnackbar(`Sipariş ${orderId} başarıyla iade edildi!`, { variant: 'success' });
                 }}
                 onTicketOverride={async (ticketId, action, reason) => {
                   await adminOperationsService.overrideTicket(requireEventId(), ticketId, { action, reason });
-                  enqueueSnackbar(`Ticket ${ticketId} overridden to ${action}`, { variant: 'success' });
+                  enqueueSnackbar(`Bilet ${ticketId} durumu ${action} olarak değiştirildi`, { variant: 'success' });
                 }}
                 onUpdateCategoryCapacity={async (categoryId, capacity, reason) => {
                   await adminOperationsService.updateCategoryCapacity(requireEventId(), categoryId, { capacity, reason });
-                  enqueueSnackbar(`Category ${categoryId} capacity updated to ${capacity}`, { variant: 'success' });
+                  enqueueSnackbar(`Kategori ${categoryId} kapasitesi ${capacity} olarak güncellendi`, { variant: 'success' });
                 }}
               />
             </Box>
@@ -411,35 +411,35 @@ export default function EventOperations() {
                     eventId: requireEventId(),
                     ...filters
                   });
-                  enqueueSnackbar(`Admin audit logs fetched successfully!`, { variant: 'success' });
+                  enqueueSnackbar(`Admin denetim kayıtları başarıyla getirildi!`, { variant: 'success' });
                 }}
                 onBackfillAdminAudit={async () => {
                   await adminOperationsService.backfillAdminAudit(requireEventId());
-                  enqueueSnackbar(`Audit backfill requested.`, { variant: 'info' });
+                  enqueueSnackbar(`Denetim doldurma talep edildi.`, { variant: 'info' });
                 }}
                 onFetchCheckInAudit={async () => {
                   await adminOperationsService.getCheckInAuditByEvent(requireEventId());
-                  enqueueSnackbar(`Check-in event audit logs fetched!`, { variant: 'success' });
+                  enqueueSnackbar(`Giriş denetim kayıtları getirildi!`, { variant: 'success' });
                 }}
                 onFetchMyHistory={async () => {
                   await adminOperationsService.getMyCheckInHistory();
-                  enqueueSnackbar(`Your check-in history fetched!`, { variant: 'success' });
+                  enqueueSnackbar(`Giriş geçmişiniz getirildi!`, { variant: 'success' });
                 }}
                 onFetchStaffStats={async () => {
                   await adminOperationsService.getCheckInStaffStats(requireEventId());
-                  enqueueSnackbar(`Staff stats fetched!`, { variant: 'success' });
+                  enqueueSnackbar(`Personel istatistikleri getirildi!`, { variant: 'success' });
                 }}
                 onFetchRecentCheckIns={async () => {
                   await adminOperationsService.getRecentCheckIns(requireEventId());
-                  enqueueSnackbar(`Recent check-ins fetched!`, { variant: 'success' });
+                  enqueueSnackbar(`Son girişler getirildi!`, { variant: 'success' });
                 }}
                 onFetchHourlyCounts={async () => {
                   await adminOperationsService.getHourlyCheckInCounts(requireEventId());
-                  enqueueSnackbar(`Hourly check-in counts fetched!`, { variant: 'success' });
+                  enqueueSnackbar(`Saatlik giriş sayıları getirildi!`, { variant: 'success' });
                 }}
                 onFetchTicketAudit={async (ticketId) => {
                   await adminOperationsService.getCheckInAuditByTicket(ticketId);
-                  enqueueSnackbar(`Ticket audit history for ${ticketId} fetched!`, { variant: 'success' });
+                  enqueueSnackbar(`${ticketId} bilet denetim geçmişi getirildi!`, { variant: 'success' });
                 }}
               />
             </Box>
@@ -469,13 +469,13 @@ export default function EventOperations() {
         </Box>
       </PageSection>
 
-      <PageSection title="Latest Response" subtitle={lastAction}>
+      <PageSection title="Son Yanıt" subtitle={lastAction}>
         <TextField
           fullWidth
           multiline
           minRows={16}
           value={responseBody}
-          placeholder="Responses will be rendered here as formatted JSON."
+          placeholder="Yanıtlar burada biçimlendirilmiş JSON olarak gösterilecektir."
           InputProps={{
             readOnly: true,
             sx: {

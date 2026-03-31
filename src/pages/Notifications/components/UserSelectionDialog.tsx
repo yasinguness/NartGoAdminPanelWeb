@@ -180,9 +180,9 @@ export default function UserSelectionDialog({
             <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
                 <DialogTitle>
                     <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Typography variant="h6">Select Users for Notification</Typography>
+                        <Typography variant="h6">Bildirim İçin Kullanıcı Seçin</Typography>
                         <Chip 
-                            label={`${selectedUsers.length} selected`} 
+                            label={`${selectedUsers.length} seçildi`}
                             color="primary" 
                             size="small"
                         />
@@ -193,7 +193,7 @@ export default function UserSelectionDialog({
                         {/* Search Bar */}
                         <TextField
                             fullWidth
-                            placeholder="Search users by name or email..."
+                            placeholder="İsim veya e-posta ile kullanıcı ara..."
                             value={userSearchTerm}
                             onChange={handleUserSearchChange}
                             InputProps={{
@@ -217,7 +217,7 @@ export default function UserSelectionDialog({
                         {selectedUsers.length > 0 && (
                             <Alert severity="info" sx={{ mb: 2 }}>
                                 <Typography variant="body2">
-                                    {selectedUsers.length} user{selectedUsers.length > 1 ? 's' : ''} selected across all pages
+                                    Tüm sayfalarda {selectedUsers.length} kullanıcı seçildi
                                 </Typography>
                             </Alert>
                         )}
@@ -231,18 +231,18 @@ export default function UserSelectionDialog({
                                 size="small"
                                 disabled={usersLoading || !usersData?.content?.length}
                             >
-                                {usersData?.content?.every(user => selectedUsers.includes(user.id)) ? 'Deselect Page' : 'Select Page'}
+                                {usersData?.content?.every(user => selectedUsers.includes(user.id)) ? 'Sayfayı Kaldır' : 'Sayfayı Seç'}
                             </Button>
                             <Box textAlign="right">
                                 <Typography variant="body2" color="text.secondary">
-                                    {userSearchTerm 
-                                        ? `${usersData?.totalElements || 0} users found` 
-                                        : `${usersData?.totalElements || 0} total users`
+                                    {userSearchTerm
+                                        ? `${usersData?.totalElements || 0} kullanıcı bulundu`
+                                        : `Toplam ${usersData?.totalElements || 0} kullanıcı`
                                     }
                                 </Typography>
                                 {usersData && usersData.totalPages > 1 && (
                                     <Typography variant="caption" color="text.secondary">
-                                        Page {userPage + 1} of {usersData.totalPages}
+                                        Sayfa {userPage + 1} / {usersData.totalPages}
                                     </Typography>
                                 )}
                             </Box>
@@ -255,7 +255,7 @@ export default function UserSelectionDialog({
                             <Box display="flex" flexDirection="column" alignItems="center" p={3}>
                                 <CircularProgress />
                                 <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                                    {userSearchTerm ? 'Searching users...' : 'Loading users...'}
+                                    {userSearchTerm ? 'Kullanıcılar aranıyor...' : 'Kullanıcılar yükleniyor...'}
                                 </Typography>
                             </Box>
                         ) : (
@@ -303,7 +303,7 @@ export default function UserSelectionDialog({
                         {usersData?.content?.length === 0 && !usersLoading && (
                             <Box textAlign="center" py={4}>
                                 <Typography variant="body1" color="text.secondary">
-                                    {userSearchTerm ? 'No users found matching your search' : 'No active users found'}
+                                    {userSearchTerm ? 'Aramanızla eşleşen kullanıcı bulunamadı' : 'Aktif kullanıcı bulunamadı'}
                                 </Typography>
                             </Box>
                         )}
@@ -325,34 +325,34 @@ export default function UserSelectionDialog({
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleClose}>Cancel</Button>
-                    <Button 
+                    <Button onClick={handleClose}>İptal</Button>
+                    <Button
                         onClick={handleOpenUserNotificationDialog}
                         variant="contained"
                         disabled={selectedUsers.length === 0}
                         startIcon={<SendIcon />}
                     >
-                        {onSelectionComplete ? 'Select' : 'Continue'} ({selectedUsers.length} users)
+                        {onSelectionComplete ? 'Seç' : 'Devam'} ({selectedUsers.length} kullanıcı)
                     </Button>
                 </DialogActions>
             </Dialog>
 
             {/* User Notification Dialog */}
             <Dialog open={openUserNotificationDialog} onClose={handleCloseUserNotificationDialog} maxWidth="sm" fullWidth>
-                <DialogTitle>Send Notification to Selected Users</DialogTitle>
+                <DialogTitle>Seçili Kullanıcılara Bildirim Gönder</DialogTitle>
                 <DialogContent>
                     <Box sx={{ mt: 2 }}>
                         {/* Selected users summary */}
                         <Alert severity="info" sx={{ mb: 3 }}>
                             <Typography variant="body2">
-                                Sending to {selectedUsers.length} selected users
+                                {selectedUsers.length} seçili kullanıcıya gönderilecek
                             </Typography>
                         </Alert>
 
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <TextField
                                 fullWidth
-                                label="Notification Title"
+                                label="Bildirim Başlığı"
                                 value={userNotificationData.title || ''}
                                 onChange={(e) => setUserNotificationData({ ...userNotificationData, title: e.target.value })}
                                 required
@@ -360,7 +360,7 @@ export default function UserSelectionDialog({
 
                             <TextField
                                 fullWidth
-                                label="Content"
+                                label="İçerik"
                                 multiline
                                 rows={4}
                                 value={userNotificationData.content || ''}
@@ -372,48 +372,48 @@ export default function UserSelectionDialog({
                                 <TextField
                                     select
                                     fullWidth
-                                    label="Type"
+                                    label="Tür"
                                     value={userNotificationData.type || ''}
                                     onChange={(e) => setUserNotificationData({ ...userNotificationData, type: e.target.value })}
                                     SelectProps={{ native: true }}
                                 >
-                                    <option value="">Select Type</option>
-                                    <option value={NotificationType.SYSTEM}>System</option>
-                                    <option value={NotificationType.PROMOTION}>Promotion</option>
-                                    <option value={NotificationType.ANNOUNCEMENT}>Announcement</option>
-                                    <option value={NotificationType.ALERT}>Alert</option>
+                                    <option value="">Tür Seçin</option>
+                                    <option value={NotificationType.SYSTEM}>Sistem</option>
+                                    <option value={NotificationType.PROMOTION}>Promosyon</option>
+                                    <option value={NotificationType.ANNOUNCEMENT}>Duyuru</option>
+                                    <option value={NotificationType.ALERT}>Uyarı</option>
                                 </TextField>
 
                                 <TextField
                                     select
                                     fullWidth
-                                    label="Priority"
+                                    label="Öncelik"
                                     value={userNotificationData.priority || NotificationPriority.NORMAL}
                                     onChange={(e) => setUserNotificationData({ ...userNotificationData, priority: e.target.value as NotificationPriority })}
                                     SelectProps={{ native: true }}
                                 >
-                                    <option value={NotificationPriority.LOW}>Low</option>
+                                    <option value={NotificationPriority.LOW}>Düşük</option>
                                     <option value={NotificationPriority.NORMAL}>Normal</option>
-                                    <option value={NotificationPriority.HIGH}>High</option>
-                                    <option value={NotificationPriority.URGENT}>Urgent</option>
+                                    <option value={NotificationPriority.HIGH}>Yüksek</option>
+                                    <option value={NotificationPriority.URGENT}>Acil</option>
                                 </TextField>
                             </Box>
 
                             {/* Channel Selection */}
                             <Box>
                                 <Typography variant="subtitle2" gutterBottom>
-                                    Delivery Channels
+                                    Gönderim Kanalları
                                 </Typography>
                                 <Box display="flex" flexWrap="wrap" gap={2}>
                                     <Chip
-                                        label="Push Notification"
+                                        label="Push Bildirim"
                                         color={userNotificationData.sendPush ? "primary" : "default"}
                                         variant={userNotificationData.sendPush ? "filled" : "outlined"}
                                         onClick={() => setUserNotificationData({ ...userNotificationData, sendPush: !userNotificationData.sendPush })}
                                         clickable
                                     />
                                     <Chip
-                                        label="Email"
+                                        label="E-posta"
                                         color={userNotificationData.sendEmail ? "primary" : "default"}
                                         variant={userNotificationData.sendEmail ? "filled" : "outlined"}
                                         onClick={() => setUserNotificationData({ ...userNotificationData, sendEmail: !userNotificationData.sendEmail })}
@@ -439,14 +439,14 @@ export default function UserSelectionDialog({
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleCloseUserNotificationDialog}>Cancel</Button>
-                    <Button 
+                    <Button onClick={handleCloseUserNotificationDialog}>İptal</Button>
+                    <Button
                         onClick={handleSendToSelectedUsers}
                         variant="contained"
                         disabled={!userNotificationData.title || !userNotificationData.content || !userNotificationData.type}
                         startIcon={<SendIcon />}
                     >
-                        Send to {selectedUsers.length} Users
+                        {selectedUsers.length} Kullanıcıya Gönder
                     </Button>
                 </DialogActions>
             </Dialog>

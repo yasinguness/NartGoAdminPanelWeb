@@ -137,7 +137,7 @@ export default function GateOpsLiveBoard() {
       
       {/* 1. Control Room Header */}
       <Box sx={{ p: 2, bgcolor: '#1e293b', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', color: 'white' }}>
-        <Typography variant="h6" fontWeight={800} sx={{ mr: 4 }}>Gate Ops (Live)</Typography>
+        <Typography variant="h6" fontWeight={800} sx={{ mr: 4 }}>Kapı Operasyonları (Canlı)</Typography>
         
         <TextField select size="small" label="Mekan / Etkinlik" defaultValue="e-28haz" sx={{ minWidth: 250, '& .MuiInputBase-root': { color: 'white' }, '& .MuiInputLabel-root': { color: '#94a3b8' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: '#334155' } }}>
            <MenuItem value="e-28haz">Zorlu PSM (Şu Anki Konser)</MenuItem>
@@ -145,21 +145,21 @@ export default function GateOpsLiveBoard() {
 
         <Box sx={{ flexGrow: 1 }} />
         
-        <Chip icon={<Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: COLORS.success, ml: 1, animation: 'pulse 1.5s infinite' }}/>} label="LIVE STREAMING" sx={{ bgcolor: 'rgba(16, 185, 129, 0.1)', color: COLORS.success, fontWeight: 700 }} />
+        <Chip icon={<Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: COLORS.success, ml: 1, animation: 'pulse 1.5s infinite' }}/>} label="CANLI YAYIN" sx={{ bgcolor: 'rgba(16, 185, 129, 0.1)', color: COLORS.success, fontWeight: 700 }} />
         <Button variant="outlined" startIcon={<RefreshIcon />} size="small" sx={{ borderColor: '#334155', color: '#cbd5e1', fontWeight: 600 }}>
-          Sync Now
+          Şimdi Senkronize Et
         </Button>
       </Box>
 
       {/* 2. Global KPI Bar (Sticky) */}
       <Box sx={{ p: 2, bgcolor: '#0b0f19', color: 'white', position: 'sticky', top: 64, zIndex: 10, display: 'flex', justifyContent: 'space-between', gap: 2, overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <KpiItem label="Giriş Yapan (Checked-in)" value={`${totalCheckedIn} / ${totalExpected}`} subValue={`${occupancyPct}% Doluluk`} color={COLORS.success} />
+        <KpiItem label="Giriş Yapan" value={`${totalCheckedIn} / ${totalExpected}`} subValue={`%${occupancyPct} Doluluk`} color={COLORS.success} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Ortalama Bekleme (Avg Wait)" value="14 dk" subValue="Max Queue 35 dk" color={COLORS.warning} icon={<QueueIcon fontSize="small"/>} />
+        <KpiItem label="Ortalama Bekleme" value="14 dk" subValue="Maks. Kuyruk 35 dk" color={COLORS.warning} icon={<QueueIcon fontSize="small"/>} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Tarayıcı Durumu (Devices)" value={`${totalDevices - offlineDevices} / ${totalDevices}`} subValue={`${offlineDevices} Cihaz Offline`} color={offlineDevices > 0 ? COLORS.error : COLORS.success} icon={<DeviceIcon fontSize="small"/>} />
+        <KpiItem label="Tarayıcı Durumu" value={`${totalDevices - offlineDevices} / ${totalDevices}`} subValue={`${offlineDevices} Cihaz Çevrimdışı`} color={offlineDevices > 0 ? COLORS.error : COLORS.success} icon={<DeviceIcon fontSize="small"/>} />
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        <KpiItem label="Güvenlik & Fraud (Alarms)" value={`${activeFraudAlarms}`} subValue="Son 1 Saat İçinde" color={activeFraudAlarms > 0 ? COLORS.error : COLORS.success} icon={<FraudIcon fontSize="small"/>}/>
+        <KpiItem label="Güvenlik & Dolandırıcılık" value={`${activeFraudAlarms}`} subValue="Son 1 Saat İçinde" color={activeFraudAlarms > 0 ? COLORS.error : COLORS.success} icon={<FraudIcon fontSize="small"/>}/>
       </Box>
 
       {/* 3. Split-view: Gate Grid vs Drawer */}
@@ -204,12 +204,12 @@ export default function GateOpsLiveBoard() {
                                 
                                 <Grid container spacing={2} sx={{ mb: 3 }}>
                                     <Grid item xs={6}>
-                                        <Typography variant="caption" color="#94a3b8" fontWeight={700}>TRAFİK (GİREN/ÖNGÖRÜLEN)</Typography>
+                                        <Typography variant="caption" color="#94a3b8" fontWeight={700}>TRAFİK (GİREN / BEKLENEN)</Typography>
                                         <Typography variant="h5" color="white" fontWeight={800}>{gate.checkedIn} <Typography component="span" variant="body2" color="#64748b">/ {gate.expectedTotal}</Typography></Typography>
                                         <LinearProgress variant="determinate" value={Number(pct)} sx={{ mt: 1, bgcolor: '#334155', '& .MuiLinearProgress-bar': { bgcolor: COLORS.success } }} />
                                     </Grid>
                                     <Grid item xs={6}>
-                                        <Typography variant="caption" color="#94a3b8" fontWeight={700} sx={{ display: 'block' }}>HIZ & BEKLEME (WAIT)</Typography>
+                                        <Typography variant="caption" color="#94a3b8" fontWeight={700} sx={{ display: 'block' }}>HIZ & BEKLEME</Typography>
                                         <Box sx={{ display: 'flex', alignItems: 'end', gap: 1 }}>
                                             <Typography variant="h5" color={gate.waitMins > 20 ? COLORS.error : gate.waitMins > 10 ? COLORS.warning : COLORS.success} fontWeight={800}>
                                                 {gate.waitMins} <Typography component="span" variant="caption" fontWeight={700}>dk</Typography>
@@ -257,7 +257,7 @@ export default function GateOpsLiveBoard() {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
                  <Box>
                     <Typography variant="h5" fontWeight={800} color="white">{selectedGate.name}</Typography>
-                    <Typography variant="caption" color="#94a3b8" sx={{ fontFamily: 'monospace', letterSpacing: 1 }}>{selectedGate.id} • KAPI DETAYI (DRILL-DOWN)</Typography>
+                    <Typography variant="caption" color="#94a3b8" sx={{ fontFamily: 'monospace', letterSpacing: 1 }}>{selectedGate.id} • KAPI DETAYI</Typography>
                  </Box>
                  <IconButton onClick={() => setDrawerOpen(false)} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white' }}>
                     <CloseIcon fontSize="small" />
@@ -267,7 +267,7 @@ export default function GateOpsLiveBoard() {
               <Divider sx={{ mb: 4, borderColor: 'rgba(255,255,255,0.1)' }} />
 
               <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, color: '#e2e8f0', display: 'flex', alignItems: 'center' }}>
-                 <DeviceIcon sx={{ mr: 1, fontSize: 18, color: '#64748b' }} /> Cihaz & Personel Skoru (Scanners)
+                 <DeviceIcon sx={{ mr: 1, fontSize: 18, color: '#64748b' }} /> Cihaz & Personel Skoru
               </Typography>
 
               <Stack spacing={2} sx={{ mb: 4 }}>
@@ -308,13 +308,13 @@ export default function GateOpsLiveBoard() {
               </Stack>
 
               <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 2, color: '#e2e8f0', display: 'flex', alignItems: 'center' }}>
-                 <WarningIcon sx={{ mr: 1, fontSize: 18, color: '#f59e0b' }} /> Canlı Güvenlik Log / Fraud
+                 <WarningIcon sx={{ mr: 1, fontSize: 18, color: '#f59e0b' }} /> Canlı Güvenlik Kaydı
               </Typography>
 
               <Stack spacing={1} sx={{ flex: 1 }}>
                   {selectedGate.fraudAlarms.length === 0 ? (
                       <Box sx={{ p: 3, textAlign: 'center', bgcolor: 'rgba(16, 185, 129, 0.05)', borderRadius: 2, border: '1px dashed rgba(16, 185, 129, 0.2)' }}>
-                          <Typography variant="body2" color={COLORS.success} fontWeight={600}>Bu kapıda güvenlik şüphesi yok. (Sıfır Ticket Replay!)</Typography>
+                          <Typography variant="body2" color={COLORS.success} fontWeight={600}>Bu kapıda güvenlik şüphesi yok.</Typography>
                       </Box>
                   ) : (
                       selectedGate.fraudAlarms.map((alm: any, idx: number) => (
@@ -335,7 +335,7 @@ export default function GateOpsLiveBoard() {
                    KAPIYI SIFIRLA
                  </Button>
                  <Button variant="contained" color="error" fullWidth disableElevation sx={{ fontWeight: 700 }}>
-                   ANONSA BAĞLAN (BROADCAST)
+                   ANONSA BAĞLAN
                  </Button>
               </Box>
             </Box>

@@ -61,10 +61,10 @@ export class ErrorBoundary extends Component<Props, State> {
                             sx={{ fontSize: 80, color: 'error.main', mb: 2 }}
                         />
                         <Typography variant="h4" gutterBottom color="error">
-                            Something went wrong
+                            Bir hata oluştu
                         </Typography>
                         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                            {this.state.error?.message || 'An unexpected error occurred'}
+                            {this.state.error?.message || 'Beklenmeyen bir hata meydana geldi'}
                         </Typography>
                         <Box sx={{ mb: 3 }}>
                             <Button
@@ -73,13 +73,13 @@ export class ErrorBoundary extends Component<Props, State> {
                                 onClick={this.handleReset}
                                 size="large"
                             >
-                                Reload Page
+                                Sayfayı Yenile
                             </Button>
                         </Box>
                         {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
                             <Box sx={{ mt: 3, textAlign: 'left' }}>
                                 <Typography variant="h6" gutterBottom>
-                                    Error Details:
+                                    Hata Detayları:
                                 </Typography>
                                 <Paper
                                     elevation={1}

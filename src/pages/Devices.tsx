@@ -89,30 +89,30 @@ export default function Devices() {
   const columns = [
     { 
       id: 'deviceId', 
-      label: 'Device ID',
+      label: 'Cihaz ID',
       render: (row: Device) => (
         <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
           {row.deviceId}
         </Typography>
       )
     },
-    { id: 'deviceType', label: 'Type' },
+    { id: 'deviceType', label: 'Tür' },
     { id: 'deviceModel', label: 'Model' },
     { 
       id: 'email', 
-      label: 'User',
-      render: (row: Device) => row.email || 'Anonymous'
+      label: 'Kullanıcı',
+      render: (row: Device) => row.email || 'Anonim'
     },
     { 
       id: 'active', 
-      label: 'Status',
+      label: 'Durum',
       render: (row: Device) => (
         <StatusChip status={row.active ? 'active' : 'inactive'} />
       )
     },
     { 
       id: 'lastActiveAt', 
-      label: 'Last Active',
+      label: 'Son Aktiflik',
       render: (row: Device) => new Date(row.lastActiveAt).toLocaleString()
     }
   ];
@@ -120,11 +120,11 @@ export default function Devices() {
   return (
     <PageContainer>
       <PageHeader
-        title="Devices"
-        subtitle="Monitor and manage registered user devices"
+        title="Cihazlar"
+        subtitle="Kayıtlı kullanıcı cihazlarını izleyin ve yönetin"
         breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Devices' }
+          { label: 'Kontrol Paneli', href: '/dashboard' },
+          { label: 'Cihazlar' }
         ]}
       />
 
@@ -132,7 +132,7 @@ export default function Devices() {
         search={{
           value: search,
           onChange: setSearch,
-          placeholder: 'Search by Device ID, Model, or User...'
+          placeholder: 'Cihaz ID, Model veya Kullanıcı ile ara...'
         }}
       />
 
@@ -143,12 +143,12 @@ export default function Devices() {
         onRowClick={handleDeviceDetails}
         renderRowActions={(device: Device) => (
           <Box display="flex" gap={0.5}>
-            <Tooltip title="View Details">
+            <Tooltip title="Detayları Görüntüle">
               <IconButton size="small" onClick={() => handleDeviceDetails(device)}>
                 <InfoIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title={device.active ? 'Block Device' : 'Unblock Device'}>
+            <Tooltip title={device.active ? 'Cihazı Engelle' : 'Engeli Kaldır'}>
               <IconButton size="small">
                 {device.active ? <BlockIcon fontSize="small" /> : <ActiveIcon fontSize="small" />}
               </IconButton>
@@ -159,44 +159,44 @@ export default function Devices() {
 
       {/* Device Details Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Device Information</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>Cihaz Bilgileri</DialogTitle>
         <DialogContent dividers>
           {selectedDevice && (
             <Box sx={{ mt: 1 }}>
-              <FormSection title="General Information" showDivider={false}>
+              <FormSection title="Genel Bilgiler" showDivider={false}>
                 <FormGrid>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">Device ID</Typography>
+                    <Typography variant="caption" color="text.secondary">Cihaz ID</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>{selectedDevice.deviceId}</Typography>
                   </Box>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">Device Model</Typography>
+                    <Typography variant="caption" color="text.secondary">Cihaz Modeli</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>{selectedDevice.deviceModel}</Typography>
                   </Box>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">Device Type</Typography>
+                    <Typography variant="caption" color="text.secondary">Cihaz Türü</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500, textTransform: 'uppercase' }}>{selectedDevice.deviceType}</Typography>
                   </Box>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">Associated User</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>{selectedDevice.email || 'Anonymous'}</Typography>
+                    <Typography variant="caption" color="text.secondary">İlişkili Kullanıcı</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>{selectedDevice.email || 'Anonim'}</Typography>
                   </Box>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">Current Status</Typography>
+                    <Typography variant="caption" color="text.secondary">Mevcut Durum</Typography>
                     <Box mt={0.5}>
                       <StatusChip status={selectedDevice.active ? 'active' : 'inactive'} showIcon />
                     </Box>
                   </Box>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">Last Communication</Typography>
+                    <Typography variant="caption" color="text.secondary">Son İletişim</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>{new Date(selectedDevice.lastActiveAt).toLocaleString()}</Typography>
                   </Box>
                 </FormGrid>
               </FormSection>
 
-              <FormSection title="Technical Details" mt={3}>
+              <FormSection title="Teknik Detaylar" mt={3}>
                 <Box>
-                  <Typography variant="caption" color="text.secondary">FCM Token (Notification ID)</Typography>
+                  <Typography variant="caption" color="text.secondary">FCM Token (Bildirim ID)</Typography>
                   <Typography
                     sx={{
                       p: 1.5,
@@ -217,14 +217,14 @@ export default function Devices() {
         </DialogContent>
         <DialogActions sx={{ p: 2, px: 3 }}>
           <Button variant="outlined" onClick={() => setDialogOpen(false)} color="inherit">
-            Close
+            Kapat
           </Button>
           <Button 
             variant="contained" 
             color={selectedDevice?.active ? 'error' : 'success'}
             startIcon={selectedDevice?.active ? <BlockIcon /> : <ActiveIcon />}
           >
-            {selectedDevice?.active ? 'Block Device' : 'Unblock Device'}
+            {selectedDevice?.active ? 'Cihazı Engelle' : 'Engeli Kaldır'}
           </Button>
         </DialogActions>
       </Dialog>

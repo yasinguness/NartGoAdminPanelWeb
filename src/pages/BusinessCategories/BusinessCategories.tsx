@@ -109,14 +109,14 @@ const BusinessCategories = () => {
   };
 
   if (loading) {
-    return <LoadingState message="Loading categories..." />;
+    return <LoadingState message="Kategoriler yükleniyor..." />;
   }
 
   if (error) {
     return (
       <PageContainer>
-        <ErrorState 
-          title="Failed to Load Categories" 
+        <ErrorState
+          title="Kategoriler Yüklenemedi"
           message={error} 
           onRetry={() => window.location.reload()} 
         />
@@ -127,15 +127,15 @@ const BusinessCategories = () => {
   const columns = [
     { 
       id: 'name', 
-      label: 'Name',
+      label: 'Ad',
       render: (row: BusinessCategory) => (
         <Box fontWeight={600}>{row.name}</Box>
       )
     },
-    { id: 'description', label: 'Description' },
+    { id: 'description', label: 'Açıklama' },
     { 
       id: 'businessCount', 
-      label: 'Businesses',
+      label: 'İşletmeler',
       align: 'center' as const,
       render: (row: BusinessCategory) => (
         <StatusChip 
@@ -145,10 +145,10 @@ const BusinessCategories = () => {
         />
       )
     },
-    { id: 'displayOrder', label: 'Order', align: 'center' as const },
+    { id: 'displayOrder', label: 'Sıra', align: 'center' as const },
     { 
       id: 'active', 
-      label: 'Status',
+      label: 'Durum',
       render: (row: BusinessCategory) => (
         <Stack direction="row" alignItems="center" spacing={1}>
           <Switch
@@ -165,20 +165,20 @@ const BusinessCategories = () => {
   return (
     <PageContainer>
       <PageHeader
-        title="Business Categories"
-        subtitle="Manage categories for businesses and organizations"
+        title="İşletme Kategorileri"
+        subtitle="İşletme ve kuruluş kategorilerini yönetin"
         actions={
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
           >
-            Add Category
+            Kategori Ekle
           </Button>
         }
         breadcrumbs={[
-          { label: 'Dashboard', href: '/' },
-          { label: 'Business Categories', active: true },
+          { label: 'Kontrol Paneli', href: '/' },
+          { label: 'İşletme Kategorileri', active: true },
         ]}
       />
 
@@ -192,13 +192,13 @@ const BusinessCategories = () => {
                 <ListItemIcon>
                   <EditIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Edit System Category</ListItemText>
+                <ListItemText>Kategoriyi Düzenle</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => setDeleteId(row.id)} sx={{ color: 'error.main' }}>
                 <ListItemIcon>
                   <DeleteIcon fontSize="small" color="error" />
                 </ListItemIcon>
-                <ListItemText>Delete</ListItemText>
+                <ListItemText>Sil</ListItemText>
               </MenuItem>
             </ActionMenu>
           )}
@@ -208,34 +208,34 @@ const BusinessCategories = () => {
       {/* Edit/Add Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingCategory ? 'Edit Category' : 'Add New Category'}
+          {editingCategory ? 'Kategoriyi Düzenle' : 'Yeni Kategori Ekle'}
         </DialogTitle>
         <DialogContent dividers>
           <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <FormGrid>
               <TextField
-                label="Category Name"
+                label="Kategori Adı"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 fullWidth
                 required
               />
               <TextField
-                label="Display Order"
+                label="Görüntüleme Sırası"
                 type="number"
                 value={formData.displayOrder}
                 onChange={(e) => setFormData({ ...formData, displayOrder: Number(e.target.value) })}
                 fullWidth
               />
               <TextField
-                label="Icon Name"
+                label="İkon Adı"
                 value={formData.iconName}
                 onChange={(e) => setFormData({ ...formData, iconName: e.target.value })}
                 fullWidth
                 placeholder="e.g. store, restaurant"
               />
               <TextField
-                label="Icon Color"
+                label="İkon Rengi"
                 value={formData.iconColor}
                 onChange={(e) => setFormData({ ...formData, iconColor: e.target.value })}
                 fullWidth
@@ -244,7 +244,7 @@ const BusinessCategories = () => {
             </FormGrid>
             
             <TextField
-              label="Description"
+              label="Açıklama"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               fullWidth
@@ -259,14 +259,14 @@ const BusinessCategories = () => {
                   onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
                 />
               }
-              label="Active Status"
+              label="Aktif Durumu"
             />
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={handleCloseDialog} color="inherit">Cancel</Button>
+          <Button onClick={handleCloseDialog} color="inherit">İptal</Button>
           <Button onClick={handleSubmit} variant="contained">
-            {editingCategory ? 'Save Changes' : 'Create Category'}
+            {editingCategory ? 'Değişiklikleri Kaydet' : 'Kategori Oluştur'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -274,10 +274,10 @@ const BusinessCategories = () => {
       {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteId}
-        title="Delete Category"
-        message="Are you sure you want to delete this category? This action cannot be undone and may affect associated businesses."
+        title="Kategoriyi Sil"
+        message="Bu kategoriyi silmek istediğinize emin misiniz? Bu işlem geri alınamaz ve ilişkili işletmeleri etkileyebilir."
         severity="error"
-        confirmLabel="Delete"
+        confirmLabel="Sil"
         onConfirm={handleDeleteConfirm}
         onClose={() => setDeleteId(null)}
       />

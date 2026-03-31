@@ -128,8 +128,35 @@ export default function StatusChip({
   // Get icon if enabled
   const icon = showIcon ? statusIconMap[normalizedStatus] : undefined;
   
-  // Format label: use provided label or capitalize status
-  const displayLabel = label || (normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1));
+  // Turkish status label mapping
+  const statusLabelMap: Record<string, string> = {
+    active: 'Aktif',
+    inactive: 'Pasif',
+    pending: 'Beklemede',
+    blocked: 'Engellendi',
+    deleted: 'Silindi',
+    enabled: 'Etkin',
+    disabled: 'Devre Dışı',
+    approved: 'Onaylandı',
+    rejected: 'Reddedildi',
+    draft: 'Taslak',
+    published: 'Yayında',
+    verified: 'Doğrulandı',
+    completed: 'Tamamlandı',
+    online: 'Çevrimiçi',
+    offline: 'Çevrimdışı',
+    processing: 'İşleniyor',
+    review: 'İncelemede',
+    failed: 'Başarısız',
+    expired: 'Süresi Doldu',
+    suspended: 'Askıya Alındı',
+    archived: 'Arşivlendi',
+    cancelled: 'İptal Edildi',
+    passive: 'Pasif',
+  };
+
+  // Format label: use provided label or Turkish mapping or capitalize status
+  const displayLabel = label || statusLabelMap[normalizedStatus] || (normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1));
 
   return (
     <Chip

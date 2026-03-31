@@ -96,9 +96,9 @@ export default function Users() {
     try {
       const status = action === 'block' ? UserStatusEnum.BLOCKED : UserStatusEnum.ACTIVE;
       await toggleUserStatus({ userId, status });
-      enqueueSnackbar(`User ${action}ed successfully`, { variant: 'success' });
+      enqueueSnackbar(`Kullanıcı başarıyla ${action === 'block' ? 'engellendi' : 'engeli kaldırıldı'}`, { variant: 'success' });
     } catch (error) {
-      enqueueSnackbar(`Failed to ${action} user`, { variant: 'error' });
+      enqueueSnackbar(`Kullanıcı ${action === 'block' ? 'engellenemedi' : 'engeli kaldırılamadı'}`, { variant: 'error' });
     }
   };
 
@@ -106,11 +106,11 @@ export default function Users() {
     if (!deleteUser) return;
     try {
       await deleteAccount(deleteUser.id);
-      enqueueSnackbar('Account deleted successfully', { variant: 'success' });
+      enqueueSnackbar('Hesap başarıyla silindi', { variant: 'success' });
       setDeleteDialogOpen(false);
       await refetch();
     } catch (error) {
-      enqueueSnackbar('Failed to delete account', { variant: 'error' });
+      enqueueSnackbar('Hesap silinemedi', { variant: 'error' });
     }
   };
 
@@ -135,7 +135,7 @@ export default function Users() {
     const firstName = (user.firstName ?? '').trim();
     const lastName = (user.lastName ?? '').trim();
     const fullName = `${firstName} ${lastName}`.trim();
-    return fullName || user.email || 'Unknown User';
+    return fullName || user.email || 'Bilinmeyen Kullanıcı';
   };
 
   const getAvatarInitial = (user: UserDTO) => {
@@ -150,7 +150,7 @@ export default function Users() {
   const columns = [
     {
       id: 'user',
-      label: 'User',
+      label: 'Kullanıcı',
       render: (user: UserDTO) => (
         <Stack direction="row" spacing={2} alignItems="center">
           <Avatar
@@ -171,25 +171,25 @@ export default function Users() {
         </Stack>
       )
     },
-    { id: 'email', label: 'Email' },
+    { id: 'email', label: 'E-posta' },
     {
       id: 'userStatus',
-      label: 'Status',
+      label: 'Durum',
       render: (user: UserDTO) => <StatusChip status={user.userStatus} />
     },
     {
       id: 'accountType',
-      label: 'Account',
+      label: 'Hesap',
       render: (user: UserDTO) => (
-        <StatusChip 
-          status={user.accountType === AccountType.BUSINESS ? 'Business' : 'Individual'} 
+        <StatusChip
+          status={user.accountType === AccountType.BUSINESS ? 'İşletme' : 'Bireysel'}
           color={user.accountType === AccountType.BUSINESS ? 'secondary' : 'default'}
         />
       )
     },
     {
       id: 'location',
-      label: 'City',
+      label: 'Şehir',
       render: (user: UserDTO) => user.currentAddress?.city || '-'
     }
   ];
@@ -197,15 +197,15 @@ export default function Users() {
   return (
     <PageContainer>
       <PageHeader
-        title="Users"
-        subtitle="Manage user accounts, monitor status and update permissions"
+        title="Kullanıcılar"
+        subtitle="Kullanıcı hesaplarını yönetin, durumları izleyin ve yetkileri güncelleyin"
         breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Users' }
+          { label: 'Kontrol Paneli', href: '/dashboard' },
+          { label: 'Kullanıcılar' }
         ]}
         actions={
           <Button variant="contained" startIcon={<RefreshIcon />} onClick={() => refetch()}>
-            Refresh List
+            Listeyi Yenile
           </Button>
         }
       />
@@ -213,25 +213,25 @@ export default function Users() {
       {/* Stats Summary */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <StatCard title="Total Users" value={data?.totalElements ?? 0} color="primary" />
+          <StatCard title="Toplam Kullanıcı" value={data?.totalElements ?? 0} color="primary" />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
-            title="Active" 
+            title="Aktif"
             value={data?.content?.filter(u => u.userStatus === UserStatusEnum.ACTIVE).length ?? 0} 
             color="success" 
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
-            title="Blocked" 
+            title="Engelli"
             value={data?.content?.filter(u => u.userStatus === UserStatusEnum.BLOCKED).length ?? 0} 
             color="error" 
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
-            title="Admins" 
+            title="Yöneticiler"
             value={data?.content?.filter(u => (u.role ?? []).some(r => r === 'ADMIN')).length ?? 0} 
             color="warning" 
           />
@@ -243,35 +243,35 @@ export default function Users() {
         search={{
           value: search,
           onChange: setSearch,
-          placeholder: 'Search by Name, Email or Phone...'
+          placeholder: 'Ad, E-posta veya Telefon ile ara...'
         }}
         filters={
           <>
             <FilterSelect
-              label="Type"
+              label="Tür"
               value={accountTypeFilter}
               onChange={(v) => setAccountTypeFilter(v as AccountType | '')}
               options={[
-                { value: AccountType.INDIVIDUAL, label: 'Individual' },
-                { value: AccountType.BUSINESS, label: 'Business' }
+                { value: AccountType.INDIVIDUAL, label: 'Bireysel' },
+                { value: AccountType.BUSINESS, label: 'İşletme' }
               ]}
               showAllOption
-              allOptionLabel="All Types"
+              allOptionLabel="Tüm Türler"
             />
             <FilterSelect
-              label="Status"
+              label="Durum"
               value={statusFilter}
               onChange={(v) => setStatusFilter(v as UserStatusEnum | '')}
               options={Object.values(UserStatusEnum).map(s => ({ value: s, label: s }))}
               showAllOption
-              allOptionLabel="All Statuses"
+              allOptionLabel="Tüm Durumlar"
             />
           </>
         }
         advancedFilters={
           <FormGrid spacing={2}>
             <FilterSelect
-              label="Language"
+              label="Dil"
               value={languageFilter}
               onChange={(v) => setLanguageFilter(v as Language)}
               options={Object.entries(LanguageDisplayNames).map(([v, l]) => ({ value: v, label: l }))}
@@ -279,13 +279,13 @@ export default function Users() {
             <Stack direction="row" spacing={2} sx={{ width: '100%' }}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker 
-                  label="Birth Date From" 
+                  label="Doğum Tarihi Başlangıç"
                   value={birthDateFrom} 
                   onChange={setBirthDateFrom} 
                   slotProps={{ textField: { size: 'small', fullWidth: true } }} 
                 />
                 <DatePicker 
-                  label="Birth Date To" 
+                  label="Doğum Tarihi Bitiş"
                   value={birthDateTo} 
                   onChange={setBirthDateTo} 
                   slotProps={{ textField: { size: 'small', fullWidth: true } }} 
@@ -294,14 +294,14 @@ export default function Users() {
             </Stack>
             <Stack direction="row" spacing={2} sx={{ width: '100%' }}>
               <TextField
-                placeholder="City" 
+                placeholder="Şehir"
                 value={currentCityFilter} 
                 onChange={(e) => setCurrentCityFilter(e.target.value)}
                 size="small"
                 fullWidth
               />
               <TextField
-                placeholder="District" 
+                placeholder="İlçe"
                 value={currentDistrictFilter} 
                 onChange={(e) => setCurrentDistrictFilter(e.target.value)}
                 size="small"
@@ -330,22 +330,22 @@ export default function Users() {
           <ActionMenu>
             <MenuItem onClick={() => navigate(`/users/${user.id}`)}>
               <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
-              <ListItemText>Edit Details</ListItemText>
+              <ListItemText>Detayları Düzenle</ListItemText>
             </MenuItem>
             <MenuItem onClick={() => handleUserAction(user.id, user.userStatus === UserStatusEnum.ACTIVE ? 'block' : 'unblock')}>
               <ListItemIcon>
                 {user.userStatus === UserStatusEnum.ACTIVE ? <BlockIcon fontSize="small" color="error" /> : <ActiveIcon fontSize="small" color="success" />}
               </ListItemIcon>
-              <ListItemText>{user.userStatus === UserStatusEnum.ACTIVE ? 'Block User' : 'Unblock User'}</ListItemText>
+              <ListItemText>{user.userStatus === UserStatusEnum.ACTIVE ? 'Kullanıcıyı Engelle' : 'Engeli Kaldır'}</ListItemText>
             </MenuItem>
             <MenuItem>
                 <ListItemIcon><HistoryIcon fontSize="small" /></ListItemIcon>
-                <ListItemText>View History</ListItemText>
+                <ListItemText>Geçmişi Görüntüle</ListItemText>
             </MenuItem>
             <Divider />
             <MenuItem onClick={() => { setDeleteUser(user); setDeleteDialogOpen(true); }} sx={{ color: 'error.main' }}>
               <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
-              <ListItemText>Delete Account</ListItemText>
+              <ListItemText>Hesabı Sil</ListItemText>
             </MenuItem>
           </ActionMenu>
         )}
@@ -356,10 +356,10 @@ export default function Users() {
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete User Account"
-        message={`Are you sure you want to permanently delete ${deleteUser?.firstName}'s account? This action cannot be undone.`}
+        title="Kullanıcı Hesabını Sil"
+        message={`${deleteUser?.firstName} adlı kullanıcının hesabını kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
         severity="error"
-        confirmLabel="Delete Account"
+        confirmLabel="Hesabı Sil"
       />
     </PageContainer>
   );

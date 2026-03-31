@@ -54,8 +54,8 @@ export default function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText = 'Onayla',
+  cancelText = 'İptal',
   severity = 'warning',
   loading = false,
 }: ConfirmDialogProps) {
@@ -110,7 +110,7 @@ export default function ConfirmDialog({
           disabled={loading}
           autoFocus
         >
-          {loading ? 'Processing...' : confirmText}
+          {loading ? 'İşleniyor...' : confirmText}
         </Button>
       </DialogActions>
     </Dialog>
