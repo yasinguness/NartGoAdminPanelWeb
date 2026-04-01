@@ -12,34 +12,56 @@ export enum ArticleCategory {
   FOOD = 'FOOD',
   COMMUNITY = 'COMMUNITY',
   MYTHOLOGY = 'MYTHOLOGY',
+  EDUCATION = 'EDUCATION',
+  SPORTS = 'SPORTS',
+  TECHNOLOGY = 'TECHNOLOGY',
+  MUSIC = 'MUSIC',
+  NATURE = 'NATURE',
+  INTERVIEW = 'INTERVIEW',
+  ANNOUNCEMENT = 'ANNOUNCEMENT',
 }
 
 export enum ArticleType {
   ARTICLE = 'ARTICLE',
   NEWS = 'NEWS',
   GALLERY = 'GALLERY',
+  VIDEO = 'VIDEO',
+  PODCAST = 'PODCAST',
+  EVENT_RECAP = 'EVENT_RECAP',
+  GUIDE = 'GUIDE',
 }
 
 export const CATEGORY_LABELS: Record<ArticleCategory, string> = {
-  [ArticleCategory.NEWS]: 'Haber',
-  [ArticleCategory.CULTURE]: 'Kultur',
-  [ArticleCategory.HISTORY]: 'Tarih',
-  [ArticleCategory.TRAVEL]: 'Seyahat',
-  [ArticleCategory.FOOD]: 'Mutfak',
-  [ArticleCategory.COMMUNITY]: 'Topluluk',
-  [ArticleCategory.MYTHOLOGY]: 'Mitoloji',
+  [ArticleCategory.NEWS]: 'Haber & Gündem',
+  [ArticleCategory.CULTURE]: 'Kültür & Sanat',
+  [ArticleCategory.HISTORY]: 'Tarih & Miras',
+  [ArticleCategory.TRAVEL]: 'Gezi & Keşif',
+  [ArticleCategory.FOOD]: 'Mutfak & Lezzet',
+  [ArticleCategory.COMMUNITY]: 'Topluluk & Dernek',
+  [ArticleCategory.MYTHOLOGY]: 'Mitoloji & Efsaneler',
+  [ArticleCategory.EDUCATION]: 'Eğitim & Bilgi',
+  [ArticleCategory.SPORTS]: 'Spor & Aktif Yaşam',
+  [ArticleCategory.TECHNOLOGY]: 'Teknoloji & Dijital',
+  [ArticleCategory.MUSIC]: 'Müzik & Sahne',
+  [ArticleCategory.NATURE]: 'Doğa & Çevre',
+  [ArticleCategory.INTERVIEW]: 'Röportaj & Söyleşi',
+  [ArticleCategory.ANNOUNCEMENT]: 'Duyuru & İlan',
 };
 
 export const STATUS_LABELS: Record<ArticleStatus, string> = {
   [ArticleStatus.DRAFT]: 'Taslak',
-  [ArticleStatus.PUBLISHED]: 'Yayinda',
-  [ArticleStatus.ARCHIVED]: 'Arsiv',
+  [ArticleStatus.PUBLISHED]: 'Yayında',
+  [ArticleStatus.ARCHIVED]: 'Arşiv',
 };
 
 export const TYPE_LABELS: Record<ArticleType, string> = {
   [ArticleType.ARTICLE]: 'Makale',
-  [ArticleType.NEWS]: 'Kisa Haber',
-  [ArticleType.GALLERY]: 'Galeri',
+  [ArticleType.NEWS]: 'Kısa Haber',
+  [ArticleType.GALLERY]: 'Fotoğraf Galerisi',
+  [ArticleType.VIDEO]: 'Video İçerik',
+  [ArticleType.PODCAST]: 'Podcast',
+  [ArticleType.EVENT_RECAP]: 'Etkinlik Özeti',
+  [ArticleType.GUIDE]: 'Rehber',
 };
 
 export interface ArticleMediaDto {
