@@ -1,1085 +1,471 @@
-import { useEffect, useCallback, useState, useMemo } from 'react';
+/**
+ * Businesses — Premium Card-Based Redesign
+ * Matching Events page pattern with glass cards, chip filters, stat cards.
+ */
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Box,
-    Button,
-    TextField,
-    Typography,
-    Alert,
-    Chip,
-    IconButton,
-    Tooltip,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    Grid,
-    Switch,
-    FormControlLabel,
-    Stack,
-    Avatar,
-    Divider,
-    useTheme,
-    alpha,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogContentText,
-    DialogActions,
-    Tabs,
-    Tab,
-    ListItemIcon,
-    ListItemText,
-    Paper
+  Box, Typography, Button, Stack, Avatar, TextField, Chip,
+  LinearProgress, IconButton, Menu, MenuItem, ListItemIcon, ListItemText,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  alpha, Grid, Tooltip, Divider, Pagination,
 } from '@mui/material';
 import {
-    Refresh as RefreshIcon,
-    Edit as EditIcon,
-    Star as StarIcon,
-    LocationOn as LocationIcon,
-    Delete as DeleteIcon,
-    Business as BusinessIcon,
-    CheckCircle as VerifyIcon,
-    Verified as VerifiedIcon,
-    CardMembership as SubscriptionIcon,
-    TrendingUp as TrendingUpIcon,
-    Visibility as VisibilityIcon,
-    Favorite as FavoriteIcon,
+  Add as AddIcon, Search as SearchIcon, Business as BusinessIcon,
+  Verified as VerifiedIcon, Star as StarIcon, Visibility as ViewIcon,
+  Favorite as FavoriteIcon, Edit as EditIcon, Delete as DeleteIcon,
+  MoreVert as MoreIcon, LocationOn as LocationIcon,
+  CheckCircle as CheckIcon, ArrowForwardIos as ChevronIcon,
+  Refresh as RefreshIcon, Category as CategoryIcon,
 } from '@mui/icons-material';
+import { debounce } from 'lodash';
 import { useSnackbar } from 'notistack';
 import { useBusinessQuery } from '../../hooks/useBusinessQuery';
 import { useBusinessStore } from '../../store/businesses/businessStore';
-import { BusinessDto, BusinessStatus } from '../../types/businesses/businessModel';
 import { useBusinessCategory } from '../../hooks/useBusinessCategory';
-import debounce from 'lodash/debounce';
-import { ImageUploader } from '../../components/ImageUploader';
-import { businessService, GoogleMapsImportResponse } from '../../services/business/businessService';
+import { BusinessDto, BusinessStatus } from '../../types/businesses/businessModel';
+import { PageContainer, PageHeader } from '../../components/Page';
 
-// Standardized Components
-import { PageContainer, PageHeader, PageSection } from '../../components/Page';
-import { DataTable, StatusChip } from '../../components/Data';
-import { FilterBar } from '../../components/Filter';
-import { ActionMenu } from '../../components/Actions';
-
-interface TabPanelProps {
-    children?: React.ReactNode;
-    index: number;
-    value: number;
-}
-
-const PHONE_REGEX = /^\+?[1-9]\d{1,14}$/;
-const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-const WEBSITE_REGEX = /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\/\S*)?$/;
-
-interface ContactValidationErrors {
-    phoneNumber?: string;
-    email?: string;
-    website?: string;
-}
-
-const validateContactFields = (
-    phoneNumber?: string,
-    email?: string,
-    website?: string
-): ContactValidationErrors => {
-    const errors: ContactValidationErrors = {};
-
-    if (phoneNumber && !PHONE_REGEX.test(phoneNumber.trim())) {
-        errors.phoneNumber = 'Telefon formatı geçersiz. Örn: +905551112233';
-    }
-
-    if (email && !EMAIL_REGEX.test(email.trim())) {
-        errors.email = 'Email formatı geçersiz.';
-    }
-
-    if (website && !WEBSITE_REGEX.test(website.trim())) {
-        errors.website = 'Website formatı geçersiz.';
-    }
-
-    return errors;
+// ─── PREMIUM STYLES ──────────────────────────────────────
+const glassCardSx = {
+  bgcolor: 'background.paper',
+  border: '1px solid', borderColor: 'divider', borderRadius: 4,
+  overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  cursor: 'pointer',
+  '&:hover': {
+    borderColor: 'primary.light',
+    boxShadow: '0 12px 32px rgba(0,0,0,0.08)',
+    transform: 'translateY(-4px)',
+  },
 };
 
-function TabPanel(props: TabPanelProps) {
-    const { children, value, index, ...other } = props;
-    return (
-        <div
-            role="tabpanel"
-            hidden={value !== index}
-            id={`business-tabpanel-${index}`}
-            aria-labelledby={`business-tab-${index}`}
-            {...other}
-        >
-            {value === index && (
-                <Box sx={{ p: 3 }}>
-                    {children}
-                </Box>
-            )}
-        </div>
-    );
-}
+const statCardSx = (color: string) => ({
+  p: 3, borderRadius: 4, bgcolor: 'background.paper',
+  border: '1px solid', borderColor: 'divider',
+  position: 'relative' as const, overflow: 'hidden',
+  '&::before': {
+    content: '""', position: 'absolute',
+    top: 0, left: 0, width: '4px', height: '100%', bgcolor: color,
+  },
+});
 
+// ─── FILTERS ──────────────────────────────────────────
+type FilterKey = 'all' | 'active' | 'inactive' | 'pending' | 'verified' | 'featured';
+
+const FILTERS: { id: FilterKey; label: string }[] = [
+  { id: 'all', label: 'Tümü' },
+  { id: 'active', label: 'Aktif' },
+  { id: 'inactive', label: 'Pasif' },
+  { id: 'pending', label: 'Beklemede' },
+  { id: 'verified', label: 'Doğrulanmış' },
+  { id: 'featured', label: 'Öne Çıkan' },
+];
+
+// ─── COMPONENT ──────────────────────────────────────────
 export default function Businesses() {
-    const theme = useTheme();
-    const navigate = useNavigate();
-    const { enqueueSnackbar } = useSnackbar();
-    const { categories } = useBusinessCategory();
-    const businessStore = useBusinessStore();
+  const navigate = useNavigate();
+  const { enqueueSnackbar } = useSnackbar();
+  const { categories } = useBusinessCategory();
+  const businessStore = useBusinessStore();
 
-    // Dialog & Interaction logic
-    const [selectedBusiness, setSelectedBusiness] = useState<BusinessDto | null>(null);
-    const [openDialog, setOpenDialog] = useState(false);
-    const [dialogType, setDialogType] = useState<'details' | 'edit' | 'feature'>('details');
-    const [editedBusiness, setEditedBusiness] = useState<Partial<BusinessDto> | null>(null);
-    const [profileImage, setProfileImage] = useState<File | null>(null);
-    const [coverImage, setCoverImage] = useState<File | null>(null);
-    const [galleryImages, setGalleryImages] = useState<File[]>([]);
-    const [tabValue, setTabValue] = useState(0);
-    const [openHardDeleteDialog, setOpenHardDeleteDialog] = useState(false);
-    const [businessToHardDelete, setBusinessToHardDelete] = useState<string | null>(null);
-    const [durationInDays, setDurationInDays] = useState<number>(30);
-    const [featuredRadiusInKm, setFeaturedRadiusInKm] = useState<number>(10);
-    const [openGoogleImportDialog, setOpenGoogleImportDialog] = useState(false);
-    const [googleMapsUrl, setGoogleMapsUrl] = useState('');
-    const [googleImportLoading, setGoogleImportLoading] = useState(false);
-    const [googleImportResult, setGoogleImportResult] = useState<GoogleMapsImportResponse | null>(null);
-    const [googleImportError, setGoogleImportError] = useState<string | null>(null);
+  // State
+  const [page, setPage] = useState(1);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [selectedCategory, setSelectedCategory] = useState('');
 
-    // UI States
-    const [page, setPage] = useState(1);
-    const [searchKeyword, setSearchKeyword] = useState('');
+  // Menu state
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [menuBusiness, setMenuBusiness] = useState<BusinessDto | null>(null);
 
-    // Filters
-    const [selectedCategory, setSelectedCategory] = useState<string>('');
-    const [selectedStatus, setSelectedStatus] = useState<BusinessStatus | ''>('');
-    const [featuredOnly, setFeaturedOnly] = useState(false);
-    const [selectedCity, setSelectedCity] = useState<string>('');
-    const [radiusInKm, setRadiusInKm] = useState<number | null>(null);
-    const [sortBy, setSortBy] = useState<'distance' | 'name' | 'recently_added' | ''>('');
+  // Delete dialog
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    // Query Configuration
-    const queryParams = useMemo(() => ({
-        page: page - 1,
-        size: 10,
-        keyword: searchKeyword,
-        categoryId: selectedCategory,
-        status: selectedStatus || undefined,
-        city: selectedCity || undefined,
-        featuredOnly,
-        radiusInKm: radiusInKm || undefined,
-        sortBy: sortBy || undefined,
-        includeUnverified: true,
-        includeInactive: true
-    }), [page, searchKeyword, selectedCategory, selectedStatus, selectedCity, featuredOnly, radiusInKm, sortBy]);
+  // Featured dialog
+  const [featuredOpen, setFeaturedOpen] = useState(false);
+  const [featuredBusiness, setFeaturedBusiness] = useState<BusinessDto | null>(null);
+  const [featuredDays, setFeaturedDays] = useState(30);
 
-    const resp = useBusinessQuery(queryParams);
+  // Query
+  const queryParams = useMemo(() => ({
+    page: page - 1, size: 12, keyword: searchKeyword,
+    categoryId: selectedCategory || undefined,
+    status: activeFilter === 'active' ? BusinessStatus.ACTIVE
+      : activeFilter === 'inactive' ? BusinessStatus.INACTIVE
+      : activeFilter === 'pending' ? BusinessStatus.PENDING : undefined,
+    featuredOnly: activeFilter === 'featured' || undefined,
+    includeUnverified: true, includeInactive: true,
+  }), [page, searchKeyword, selectedCategory, activeFilter]);
 
-    // Handlers
-    const debouncedSetSearchKeyword = useMemo(
-        () => debounce((value: string) => {
-            setSearchKeyword(value);
-            setPage(1);
-        }, 500),
-        []
-    );
+  const resp = useBusinessQuery(queryParams);
+  const businesses: BusinessDto[] = resp.data || [];
+  const totalElements = resp.totalElements || 0;
+  const totalPages = Math.ceil(totalElements / 12);
+  const maxViewCount = Math.max(...businesses.map(b => b.viewCount || 0), 1);
 
-    // Filter Clears
-    const handleClearFilters = useCallback(() => {
-        setSelectedCategory('');
-        setSelectedStatus('');
-        setFeaturedOnly(false);
-        setSelectedCity('');
-        setRadiusInKm(null);
-        setSortBy('');
-        // We do not clear keyword, keyword has its own clear button
-    }, []);
+  // Debounced search
+  const debouncedSearch = useMemo(
+    () => debounce((v: string) => { setSearchKeyword(v); setPage(1); }, 500),
+    []
+  );
 
-    const activeFilterCount = useMemo(() => {
-        let count = 0;
-        if (selectedCategory) count++;
-        if (selectedStatus) count++;
-        if (featuredOnly) count++;
-        if (selectedCity) count++;
-        if (radiusInKm) count++;
-        if (sortBy) count++;
-        return count;
-    }, [selectedCategory, selectedStatus, featuredOnly, selectedCity, radiusInKm, sortBy]);
+  // Stats
+  const stats = useMemo(() => ({
+    total: totalElements,
+    verified: businesses.filter(b => b.verified).length,
+    featured: businesses.filter(b => b.globallyFeatured || b.locallyFeatured).length,
+    totalViews: businesses.reduce((sum, b) => sum + (b.viewCount || 0), 0),
+  }), [businesses, totalElements]);
 
-    // Local search value for immediate display (controlled by SearchInput's internal state)
-    const [localSearchValue, setLocalSearchValue] = useState('');
+  // Filter by verified (client-side for current page)
+  const filteredBusinesses = useMemo(() => {
+    if (activeFilter === 'verified') return businesses.filter(b => b.verified);
+    if (activeFilter === 'featured') return businesses.filter(b => b.globallyFeatured || b.locallyFeatured);
+    return businesses;
+  }, [businesses, activeFilter]);
 
-    const handleSearchChange = useCallback((value: string) => {
-        setLocalSearchValue(value);
-        debouncedSetSearchKeyword(value);
-    }, [debouncedSetSearchKeyword]);
+  // ─── HANDLERS ─────────────────────────────────────
+  const handleMenuOpen = (e: React.MouseEvent<HTMLElement>, b: BusinessDto) => {
+    e.stopPropagation();
+    setAnchorEl(e.currentTarget);
+    setMenuBusiness(b);
+  };
 
-    const handlePageChange = useCallback((newPage: number) => {
-        setPage(newPage);
-    }, []);
+  const handleVerify = async (b: BusinessDto) => {
+    try {
+      await businessStore.verifyBusiness(b.id);
+      enqueueSnackbar(b.verified ? 'Doğrulama kaldırıldı' : 'İşletme doğrulandı', { variant: 'success' });
+      resp.refetch();
+    } catch { enqueueSnackbar('İşlem başarısız', { variant: 'error' }); }
+    setAnchorEl(null);
+  };
 
-    const handleRefresh = useCallback(() => resp.refetch(), [resp]);
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    try {
+      await businessStore.hardDeleteBusiness(deletingId);
+      enqueueSnackbar('İşletme kalıcı olarak silindi', { variant: 'success' });
+      resp.refetch();
+    } catch { enqueueSnackbar('Silme işlemi başarısız', { variant: 'error' }); }
+    setDeleteOpen(false); setDeletingId(null);
+  };
 
-    // Dialog Handlers
-    const handleOpenDialog = useCallback((business: BusinessDto, type: 'details' | 'edit' | 'feature') => {
-        setSelectedBusiness(business);
-        setDialogType(type);
-        setOpenDialog(true);
-        if (type === 'edit') {
-            setEditedBusiness({ ...business });
-        }
-    }, []);
+  const handleSetFeatured = async () => {
+    if (!featuredBusiness) return;
+    try {
+      await businessStore.setBusinessAsGloballyFeatured(featuredBusiness.ownerId, featuredBusiness.id, featuredDays);
+      enqueueSnackbar('İşletme öne çıkan olarak ayarlandı', { variant: 'success' });
+      resp.refetch();
+    } catch { enqueueSnackbar('İşlem başarısız', { variant: 'error' }); }
+    setFeaturedOpen(false); setFeaturedBusiness(null);
+  };
 
-    const handleCloseDialog = useCallback(() => {
-        setOpenDialog(false);
-        setSelectedBusiness(null);
-        setEditedBusiness(null);
-        setProfileImage(null);
-        setCoverImage(null);
-        setGalleryImages([]);
-    }, []);
-
-    const handleTabChange = (_e: React.SyntheticEvent, newValue: number) => {
-        setTabValue(newValue);
-    };
-
-    const handleOpenGoogleImportDialog = () => {
-        setGoogleImportError(null);
-        setOpenGoogleImportDialog(true);
-    };
-
-    const handleCloseGoogleImportDialog = () => {
-        setOpenGoogleImportDialog(false);
-        setGoogleMapsUrl('');
-        setGoogleImportError(null);
-        setGoogleImportResult(null);
-        setGoogleImportLoading(false);
-    };
-
-    const handleImportFromGoogleMaps = async () => {
-        if (!googleMapsUrl.trim()) {
-            setGoogleImportError('Google Maps linki zorunlu.');
-            return;
-        }
-
-        try {
-            setGoogleImportLoading(true);
-            setGoogleImportError(null);
-            const response = await businessService.importGoogleMapsBusiness({
-                mapsUrl: googleMapsUrl.trim()
-            });
-            setGoogleImportResult(response.data);
-            enqueueSnackbar('Google Maps verisi başarıyla alındı', { variant: 'success' });
-        } catch (error: any) {
-            const message =
-                error?.response?.data?.message ||
-                error?.message ||
-                'Google Maps import işlemi başarısız oldu.';
-            setGoogleImportError(message);
-            enqueueSnackbar(message, { variant: 'error' });
-        } finally {
-            setGoogleImportLoading(false);
-        }
-    };
-
-    const handleApplyGoogleImportToBusiness = () => {
-        if (!googleImportResult) {
-            return;
-        }
-
-        setEditedBusiness((prev) => {
-            if (!prev) {
-                return prev;
-            }
-
-            const mergedAddress = prev.address
-                ? {
-                    ...prev.address,
-                    description: googleImportResult.formattedAddress || prev.address.description,
-                    latitude: googleImportResult.latitude ?? prev.address.latitude,
-                    longitude: googleImportResult.longitude ?? prev.address.longitude
-                }
-                : prev.address;
-
-            const openingHoursText = (googleImportResult.openingHours || []).join('\n');
-            const importedDescription = openingHoursText
-                ? `Google Maps opening hours:\n${openingHoursText}`
-                : undefined;
-
-            return {
-                ...prev,
-                name: googleImportResult.name || prev.name,
-                phoneNumber: googleImportResult.phone || prev.phoneNumber,
-                website: googleImportResult.website || prev.website,
-                address: mergedAddress,
-                shortDescription: googleImportResult.formattedAddress || prev.shortDescription,
-                description: prev.description || importedDescription
-            };
-        });
-
-        enqueueSnackbar('Import edilen bilgiler forma aktarıldı', { variant: 'success' });
-        handleCloseGoogleImportDialog();
-    };
-
-    const handleInputChange = (field: keyof BusinessDto, value: any) => {
-        setEditedBusiness(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
-
-    // Image handlers
-    const handleProfileImageSelect = (files: File | File[]) => {
-        setProfileImage(Array.isArray(files) ? files[0] : files);
-    };
-
-    const handleCoverImageSelect = (files: File | File[]) => {
-        setCoverImage(Array.isArray(files) ? files[0] : files);
-    };
-
-    // Action Logic
-    const handleUpdateBusiness = async () => {
-        if (!selectedBusiness || !editedBusiness) return;
-        const validationErrors = validateContactFields(
-            editedBusiness.phoneNumber,
-            editedBusiness.email,
-            editedBusiness.website
-        );
-        if (Object.keys(validationErrors).length > 0) {
-            enqueueSnackbar('Lütfen iletişim alanlarındaki hataları düzeltin.', { variant: 'error' });
-            return;
-        }
-        try {
-            await businessStore.updateUserBusiness(
-                selectedBusiness.ownerId,
-                selectedBusiness.id,
-                editedBusiness,
-                profileImage || undefined,
-                coverImage || undefined,
-                galleryImages
-            );
-            enqueueSnackbar('İşletme başarıyla güncellendi', { variant: 'success' });
-            handleCloseDialog();
-            resp.refetch();
-        } catch (error) {
-            enqueueSnackbar('İşletme güncellenemedi', { variant: 'error' });
-        }
-    };
-
-    const contactValidationErrors = useMemo(
-        () =>
-            validateContactFields(
-                editedBusiness?.phoneNumber,
-                editedBusiness?.email,
-                editedBusiness?.website
-            ),
-        [editedBusiness?.phoneNumber, editedBusiness?.email, editedBusiness?.website]
-    );
-    const hasContactValidationErrors = Object.keys(contactValidationErrors).length > 0;
-
-    const handleHardDeleteBusiness = useCallback(async (businessId: string) => {
-        setBusinessToHardDelete(businessId);
-        setOpenHardDeleteDialog(true);
-    }, []);
-
-    const confirmHardDelete = useCallback(async () => {
-        if (!businessToHardDelete) return;
-        try {
-            await businessStore.hardDeleteBusiness(businessToHardDelete);
-            enqueueSnackbar('İşletme kalıcı olarak silindi', { variant: 'success' });
-            setOpenHardDeleteDialog(false);
-            setBusinessToHardDelete(null);
-            resp.refetch();
-        } catch (error) {
-            enqueueSnackbar('İşletme silinemedi', { variant: 'error' });
-        }
-    }, [businessToHardDelete, businessStore, enqueueSnackbar, resp]);
-
-    const cancelHardDelete = useCallback(() => {
-        setOpenHardDeleteDialog(false);
-        setBusinessToHardDelete(null);
-    }, []);
-
-    const handleSetGlobalFeatured = async () => {
-        if (!selectedBusiness) return;
-        try {
-            await businessStore.setBusinessAsGloballyFeatured(selectedBusiness.ownerId, selectedBusiness.id, durationInDays);
-            enqueueSnackbar('İşletme global öne çıkan olarak ayarlandı', { variant: 'success' });
-            handleCloseDialog();
-            resp.refetch();
-        } catch (error) {
-            enqueueSnackbar('Global öne çıkan ayarlanamadı', { variant: 'error' });
-        }
-    };
-
-    const handleSetLocalFeatured = async () => {
-        if (!selectedBusiness) return;
-        try {
-            await businessStore.setBusinessAsLocallyFeatured(selectedBusiness.ownerId, selectedBusiness.id, durationInDays, featuredRadiusInKm);
-            enqueueSnackbar('İşletme yerel öne çıkan olarak ayarlandı', { variant: 'success' });
-            handleCloseDialog();
-            resp.refetch();
-        } catch (error) {
-            enqueueSnackbar('Yerel öne çıkan ayarlanamadı', { variant: 'error' });
-        }
-    };
-
-    const handleRemoveFeatured = async () => {
-        if (!selectedBusiness) return;
-        try {
-            await businessStore.removeFeaturedStatus(selectedBusiness.id);
-            enqueueSnackbar('Öne çıkan durumu kaldırıldı', { variant: 'success' });
-            handleCloseDialog();
-            resp.refetch();
-        } catch (error) {
-            enqueueSnackbar('Öne çıkan durumu kaldırılamadı', { variant: 'error' });
-        }
-    };
-
-    // Quick Toggles
-    const handleToggleVerified = async (e: React.MouseEvent, id: string, current: boolean) => {
-        e.stopPropagation();
-        try {
-            await businessStore.verifyBusiness(id);
-            enqueueSnackbar(current ? 'Doğrulama kaldırıldı' : 'İşletme doğrulandı', { variant: 'success' });
-        } catch (error) {
-            enqueueSnackbar('Doğrulama durumu güncellenemedi', { variant: 'error' });
-        }
-    };
-
-    const handleToggleSubscription = async (e: React.MouseEvent, business: BusinessDto) => {
-        e.stopPropagation();
-        try {
-            const updated = { ...business, hasSubscriptionSystem: !business.hasSubscriptionSystem };
-            await businessStore.updateBusinessFields(business.id, updated);
-            enqueueSnackbar(updated.hasSubscriptionSystem ? 'Abonelik etkinleştirildi' : 'Abonelik devre dışı bırakıldı', { variant: 'success' });
-            resp.refetch();
-        } catch (error) {
-            enqueueSnackbar('Abonelik durumu güncellenemedi', { variant: 'error' });
-        }
-    };
-
-    const renderRating = (rating?: number, count?: number) => {
-        if (!rating) return <Typography variant="caption" color="text.secondary">Değerlendirme yok</Typography>;
-        return (
-            <Stack direction="row" alignItems="center" spacing={0.5}>
-                <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />
-                <Typography variant="body2" fontWeight="bold">{rating.toFixed(1)}</Typography>
-                <Typography variant="caption" color="text.secondary">({count})</Typography>
+  // ─── RENDER ───────────────────────────────────────
+  return (
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f8fafc', pb: 8 }}>
+      <PageContainer>
+        <PageHeader
+          title="İşletme Yönetimi"
+          subtitle="İş ortaklarınızı, aboneliklerinizi ve öne çıkan listelemeleri yönetin."
+          actions={
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => resp.refetch()}
+                sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600 }}>
+                Yenile
+              </Button>
+              <Button variant="contained" startIcon={<AddIcon />}
+                onClick={() => navigate('/businesses/new')}
+                sx={{ borderRadius: 2.5, px: 3, textTransform: 'none', fontWeight: 700,
+                  boxShadow: '0 4px 14px 0 rgba(30, 107, 60, 0.39)',
+                }}>
+                Yeni İşletme Ekle
+              </Button>
             </Stack>
-        );
-    };
+          }
+          breadcrumbs={[
+            { label: 'Kontrol Paneli', href: '/' },
+            { label: 'İşletmeler', active: true },
+          ]}
+        />
 
-    const columns = [
-        {
-            id: 'business',
-            label: 'İşletme',
-            render: (business: BusinessDto) => (
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <Avatar
-                        src={business.profileImageUrl}
-                        variant="rounded"
-                        sx={{ width: 48, height: 48, bgcolor: 'primary.light' }}
-                    >
-                        {business.name?.[0]?.toUpperCase() || <BusinessIcon />}
-                    </Avatar>
-                    <Box>
-                        <Typography variant="subtitle2" fontWeight="bold">
-                            {business.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                            {business.categoryName} • {business.address?.city || 'Bilinmeyen Konum'}
-                        </Typography>
-                    </Box>
+        {/* ═══ STAT CARDS ═══ */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {[
+            { label: 'Toplam İşletme', value: stats.total, icon: <BusinessIcon />, color: '#1e6b3c' },
+            { label: 'Doğrulanmış', value: stats.verified, icon: <VerifiedIcon />, color: '#3b82f6' },
+            { label: 'Öne Çıkan', value: stats.featured, icon: <StarIcon />, color: '#f59e0b' },
+            { label: 'Toplam Görüntülenme', value: stats.totalViews.toLocaleString('tr-TR'), icon: <ViewIcon />, color: '#8b5cf6' },
+          ].map((stat, i) => (
+            <Grid item xs={12} sm={6} md={3} key={i}>
+              <Box sx={statCardSx(stat.color)}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing={1}>
+                      {stat.label}
+                    </Typography>
+                    <Typography variant="h4" fontWeight={800} sx={{ mt: 0.5 }}>
+                      {stat.value}
+                    </Typography>
+                  </Box>
+                  <Avatar sx={{ bgcolor: alpha(stat.color, 0.1), color: stat.color, width: 44, height: 44 }}>
+                    {stat.icon}
+                  </Avatar>
                 </Stack>
-            )
-        },
-        {
-            id: 'stats',
-            label: 'İstatistik',
-            render: (business: BusinessDto) => (
-                <Stack spacing={0.5}>
-                    {renderRating(business.averageRating, business.totalReviews)}
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        <Box display="flex" alignItems="center" gap={0.5} title="Görüntülenme">
-                            <VisibilityIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                            <Typography variant="caption" color="text.secondary">{business.viewCount || 0}</Typography>
-                        </Box>
-                        <Box display="flex" alignItems="center" gap={0.5} title="Favoriler">
-                            <FavoriteIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                            <Typography variant="caption" color="text.secondary">{business.favoriteCount || 0}</Typography>
-                        </Box>
-                    </Stack>
-                </Stack>
-            )
-        },
-        {
-            id: 'status',
-            label: 'Durum',
-            render: (business: BusinessDto) => (
-                <StatusChip status={business.status} />
-            )
-        },
-        {
-            id: 'features',
-            label: 'Özellikler',
-            render: (business: BusinessDto) => (
-                <Stack direction="row" spacing={0.5}>
-                    <Tooltip title={business.verified ? "Doğrulanmış İşletme" : "Doğrulanmamış"}>
-                        <IconButton
-                            size="small"
-                            color={business.verified ? "success" : "default"}
-                            onClick={(e) => handleToggleVerified(e, business.id, business.verified)}
-                            sx={{
-                                bgcolor: business.verified ? alpha(theme.palette.success.main, 0.1) : 'transparent',
-                                '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.2) }
-                            }}
-                        >
-                            {business.verified ? <VerifiedIcon fontSize="small" /> : <VerifyIcon fontSize="small" />}
-                        </IconButton>
-                    </Tooltip>
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
 
-                    <Tooltip title={business.globallyFeatured ? "Global Öne Çıkan" : "Global Öne Çıkan Değil"}>
-                        <IconButton
-                            size="small"
-                            color={business.globallyFeatured ? "primary" : "default"}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenDialog(business, 'feature');
-                            }}
-                            sx={{
-                                bgcolor: business.globallyFeatured ? alpha(theme.palette.primary.main, 0.1) : 'transparent'
-                            }}
-                        >
-                            <TrendingUpIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-
-                    <Tooltip title={business.locallyFeatured ? "Yerel Öne Çıkan" : "Yerel Öne Çıkan Değil"}>
-                        <IconButton
-                            size="small"
-                            color={business.locallyFeatured ? "secondary" : "default"}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenDialog(business, 'feature');
-                            }}
-                            sx={{
-                                bgcolor: business.locallyFeatured ? alpha(theme.palette.secondary.main, 0.1) : 'transparent'
-                            }}
-                        >
-                            <LocationIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-
-                    <Tooltip title={business.hasSubscriptionSystem ? "Abonelik Aktif" : "Abonelik Yok"}>
-                        <IconButton
-                            size="small"
-                            color={business.hasSubscriptionSystem ? "info" : "default"}
-                            onClick={(e) => handleToggleSubscription(e, business)}
-                            sx={{
-                                bgcolor: business.hasSubscriptionSystem ? alpha(theme.palette.info.main, 0.1) : 'transparent'
-                            }}
-                        >
-                            <SubscriptionIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                </Stack>
-            )
-        },
-        {
-            id: 'owner',
-            label: 'Sahip',
-            render: (business: BusinessDto) => (
-                <Box>
-                    <Typography variant="body2">{business.ownerName || 'Bilinmiyor'}</Typography>
-                    <Typography variant="caption" color="text.secondary">ID: ...{business.ownerId?.slice(-6)}</Typography>
-                </Box>
-            )
-        }
-    ];
-
-    return (
-        <PageContainer>
-            <PageHeader
-                title="İşletmeler"
-                subtitle="İş ortaklarınızı, aboneliklerinizi ve öne çıkan listelemeleri yönetin."
-                actions={
-                    <Button
-                        variant="contained"
-                        startIcon={<RefreshIcon />}
-                        onClick={handleRefresh}
-                    >
-                        Verileri Yenile
-                    </Button>
-                }
-                breadcrumbs={[
-                    { label: 'Kontrol Paneli', href: '/' },
-                    { label: 'İşletmeler', active: true },
-                ]}
-            />
-
-            {/* Error States */}
-            {resp.isError && (
-                <Alert severity="error" sx={{ mb: 3 }} action={<Button color="inherit" size="small" onClick={handleRefresh}>Tekrar Dene</Button>}>
-                    {String(resp.error)}
-                </Alert>
-            )}
-
-            <PageSection>
-                <FilterBar
-                    search={{
-                        value: localSearchValue,
-                        onChange: handleSearchChange,
-                        placeholder: "İşletme ara..."
-                    }}
-                    onClearFilters={handleClearFilters}
-                    activeFilterCount={activeFilterCount}
-                    filters={
-                        <>
-                            <FormControl size="small" sx={{ minWidth: 150 }}>
-                                <InputLabel>Kategori</InputLabel>
-                                <Select
-                                    value={selectedCategory}
-                                    label="Kategori"
-                                    onChange={(e) => setSelectedCategory(e.target.value)}
-                                >
-                                    <MenuItem value="">Tüm Kategoriler</MenuItem>
-                                    {categories.map((c) => (
-                                        <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl size="small" sx={{ minWidth: 150 }}>
-                                <InputLabel>Durum</InputLabel>
-                                <Select
-                                    value={selectedStatus}
-                                    label="Durum"
-                                    onChange={(e) => setSelectedStatus(e.target.value as BusinessStatus)}
-                                >
-                                    <MenuItem value="">Tüm Durumlar</MenuItem>
-                                    <MenuItem value={BusinessStatus.ACTIVE}>Aktif</MenuItem>
-                                    <MenuItem value={BusinessStatus.PENDING}>Beklemede</MenuItem>
-                                    <MenuItem value={BusinessStatus.INACTIVE}>Pasif</MenuItem>
-                                    <MenuItem value={BusinessStatus.SUSPENDED}>Askıya Alınmış</MenuItem>
-                                </Select>
-                            </FormControl>
-                            <Divider orientation="vertical" flexItem variant="middle" />
-                            <FormControlLabel
-                                control={<Switch size="small" checked={featuredOnly} onChange={(e) => setFeaturedOnly(e.target.checked)} />}
-                                label={<Typography variant="body2">Sadece Öne Çıkanlar</Typography>}
-                            />
-                        </>
-                    }
-                    advancedFilters={
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6} md={3}>
-                                <TextField fullWidth label="Şehir" size="small" value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)} />
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel>Sıralama</InputLabel>
-                                    <Select value={sortBy} label="Sıralama" onChange={(e) => setSortBy(e.target.value as any)}>
-                                        <MenuItem value="">Varsayılan</MenuItem>
-                                        <MenuItem value="name">İsim (A-Z)</MenuItem>
-                                        <MenuItem value="recently_added">En Yeni</MenuItem>
-                                        <MenuItem value="distance">En Yakın</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
-                                <TextField
-                                    fullWidth
-                                    label="Yarıçap (km)"
-                                    type="number"
-                                    size="small"
-                                    value={radiusInKm || ''}
-                                    onChange={(e) => setRadiusInKm(e.target.value ? parseFloat(e.target.value) : null)}
-                                />
-                            </Grid>
-                        </Grid>
-                    }
-                />
-
-                <DataTable
-                    columns={columns}
-                    data={resp.data || []}
-                    loading={resp.isLoading}
-                    pagination={{
-                        page: page,
-                        pageSize: 10,
-                        total: resp.totalElements || 0,
-                        onPageChange: handlePageChange
-                    }}
-                    onRowClick={(row) => navigate(`/businesses/${row.id}`)}
-                    renderRowActions={(row) => (
-                        <ActionMenu>
-                            <MenuItem onClick={() => navigate(`/businesses/${row.id}`)}>
-                                <ListItemIcon><VisibilityIcon fontSize="small" /></ListItemIcon>
-                                <ListItemText>View Details</ListItemText>
-                            </MenuItem>
-                            <MenuItem onClick={() => handleOpenDialog(row, 'edit')}>
-                                <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
-                                <ListItemText>Edit Business</ListItemText>
-                            </MenuItem>
-                            <Divider />
-                            <MenuItem onClick={() => handleHardDeleteBusiness(row.id)} sx={{ color: 'error.main' }}>
-                                <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
-                                <ListItemText>Delete Permanently</ListItemText>
-                            </MenuItem>
-                        </ActionMenu>
-                    )}
-                />
-            </PageSection>
-
-            {/* Dialogs */}
-            <Dialog
-                open={openDialog}
-                onClose={handleCloseDialog}
-                maxWidth="md"
-                fullWidth
-                PaperProps={{
-                    sx: {
-                        height: 'auto',
-                        maxHeight: '90vh',
-                        borderRadius: 2
-                    },
+        {/* ═══ SEARCH & FILTERS ═══ */}
+        <Box sx={{
+          bgcolor: 'background.paper', p: 2, borderRadius: 4, mb: 3,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: 2,
+        }}>
+          <TextField
+            fullWidth placeholder="İşletme adı, kategori veya konuma göre ara..."
+            onChange={(e) => debouncedSearch(e.target.value)}
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ color: 'text.disabled', mr: 1 }} />,
+              sx: { borderRadius: 3, bgcolor: '#f1f5f9', border: 'none', '& fieldset': { border: 'none' } },
+            }}
+          />
+          <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
+            {FILTERS.map((f) => (
+              <Chip key={f.id} label={f.label}
+                onClick={() => { setActiveFilter(f.id); setPage(1); }}
+                color={activeFilter === f.id ? 'primary' : 'default'}
+                variant={activeFilter === f.id ? 'filled' : 'outlined'}
+                sx={{ fontWeight: 600, borderRadius: 2, px: 1, height: 36,
+                  borderColor: activeFilter === f.id ? 'primary.main' : 'divider',
                 }}
-            >
-                <DialogTitle sx={{ borderBottom: 1, borderColor: 'divider', pb: 2 }}>
-                    {dialogType === 'details' ? 'Business Details' :
-                        dialogType === 'edit' ? 'Edit Business' :
-                            'Manage Featured Status'}
-                </DialogTitle>
-                <DialogContent sx={{ mt: 2 }}>
-                    {selectedBusiness && (
-                        <Box>
-                            {dialogType === 'details' ? (
-                                <Grid container spacing={2}>
-                                    <Grid item xs={12}>
-                                        <Alert severity="info" icon={<BusinessIcon />}>
-                                            Detailed view is best seen on the dedicated business page.
-                                        </Alert>
-                                    </Grid>
-                                    <Grid item xs={12} display="flex" justifyContent="flex-end">
-                                        <Button
-                                            variant="contained"
-                                            onClick={() => navigate(`/businesses/${selectedBusiness.id}`)}
-                                        >
-                                            Go to Full Details Page
-                                        </Button>
-                                    </Grid>
-                                </Grid>
-                            ) : dialogType === 'edit' ? (
-                                <>
-                                    <Tabs value={tabValue} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-                                        <Tab label="Basic Info" />
-                                        <Tab label="Contact" />
-                                        <Tab label="Features" />
-                                        <Tab label="Images" />
-                                    </Tabs>
+              />
+            ))}
+          </Stack>
+        </Box>
 
-                                    <TabPanel value={tabValue} index={0}>
-                                        <Stack spacing={2}>
-                                            <TextField
-                                                fullWidth
-                                                label="Name"
-                                                value={editedBusiness?.name || ''}
-                                                onChange={(e) => handleInputChange('name', e.target.value)}
-                                            />
-                                            <TextField
-                                                fullWidth
-                                                label="Description"
-                                                value={editedBusiness?.description || ''}
-                                                multiline
-                                                rows={4}
-                                                onChange={(e) => handleInputChange('description', e.target.value)}
-                                            />
-                                        </Stack>
-                                    </TabPanel>
+        {/* ═══ CATEGORY CHIPS (optional) ═══ */}
+        {categories.length > 0 && (
+          <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 0.5 }}>
+            <Chip label="Tüm Kategoriler" size="small"
+              onClick={() => { setSelectedCategory(''); setPage(1); }}
+              color={!selectedCategory ? 'primary' : 'default'}
+              variant={!selectedCategory ? 'filled' : 'outlined'}
+              sx={{ fontWeight: 600, fontSize: 11 }}
+            />
+            {categories.slice(0, 8).map((cat) => (
+              <Chip key={cat.id} label={cat.name} size="small"
+                onClick={() => { setSelectedCategory(cat.id); setPage(1); }}
+                color={selectedCategory === cat.id ? 'primary' : 'default'}
+                variant={selectedCategory === cat.id ? 'filled' : 'outlined'}
+                sx={{ fontWeight: 500, fontSize: 11 }}
+              />
+            ))}
+          </Stack>
+        )}
 
-                                    <TabPanel value={tabValue} index={1}>
-                                        <Stack spacing={2}>
-                                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
-                                                <Button variant="outlined" onClick={handleOpenGoogleImportDialog}>
-                                                    Google Maps'ten İçe Aktar
-                                                </Button>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Bağlantıdan isim, telefon, adres ve website alanları doldurulur.
-                                                </Typography>
-                                            </Stack>
-                                            <TextField
-                                                fullWidth
-                                                label="Phone"
-                                                value={editedBusiness?.phoneNumber || ''}
-                                                onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                                                error={Boolean(contactValidationErrors.phoneNumber)}
-                                                helperText={contactValidationErrors.phoneNumber}
-                                            />
-                                            <TextField
-                                                fullWidth
-                                                label="Email"
-                                                type="email"
-                                                value={editedBusiness?.email || ''}
-                                                onChange={(e) => handleInputChange('email', e.target.value)}
-                                                error={Boolean(contactValidationErrors.email)}
-                                                helperText={contactValidationErrors.email}
-                                            />
-                                            <TextField
-                                                fullWidth
-                                                label="Website"
-                                                value={editedBusiness?.website || ''}
-                                                onChange={(e) => handleInputChange('website', e.target.value)}
-                                                error={Boolean(contactValidationErrors.website)}
-                                                helperText={contactValidationErrors.website}
-                                            />
-                                        </Stack>
-                                    </TabPanel>
+        {/* ═══ BUSINESS LIST ═══ */}
+        <Stack spacing={2}>
+          {resp.isLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Box key={i} sx={{ height: 88, borderRadius: 4, bgcolor: 'background.paper', opacity: 0.5,
+                animation: 'pulse 1.5s infinite',
+                '@keyframes pulse': { '0%,100%': { opacity: 0.4 }, '50%': { opacity: 0.7 } },
+              }} />
+            ))
+          ) : filteredBusinesses.length === 0 ? (
+            <Box sx={{ py: 10, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 4 }}>
+              <BusinessIcon sx={{ fontSize: 56, color: 'text.disabled', mb: 2 }} />
+              <Typography variant="h5" color="text.disabled" fontWeight={700}>İşletme Bulunamadı</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Arama veya filtrelerinizi değiştirmeyi deneyin.
+              </Typography>
+            </Box>
+          ) : (
+            filteredBusinesses.map((biz) => {
+              const viewPct = maxViewCount > 0 ? Math.round(((biz.viewCount || 0) / maxViewCount) * 100) : 0;
+              const hasIncompleteProfile = !biz.address?.city || !biz.ownerName;
 
-                                    <TabPanel value={tabValue} index={2}>
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    checked={editedBusiness?.hasSubscriptionSystem || false}
-                                                    onChange={(e) => handleInputChange('hasSubscriptionSystem', e.target.checked)}
-                                                />
-                                            }
-                                            label="Enable Subscription System"
-                                        />
-                                    </TabPanel>
+              return (
+                <Box key={biz.id} sx={glassCardSx} onClick={() => navigate(`/businesses/${biz.id}`)}>
+                  <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: '64px 1.5fr 1fr 1.2fr 48px' },
+                    gap: 3, alignItems: 'center', p: 2.5,
+                  }}>
+                    {/* Avatar */}
+                    <Avatar
+                      src={biz.profileImageUrl}
+                      variant="rounded"
+                      sx={{ width: 64, height: 64, borderRadius: 3, border: '1px solid', borderColor: 'divider',
+                        bgcolor: alpha('#1e6b3c', 0.08), color: '#1e6b3c', fontWeight: 800, fontSize: 20,
+                      }}
+                    >
+                      {biz.name?.[0]?.toUpperCase() || <BusinessIcon />}
+                    </Avatar>
 
-                                    <TabPanel value={tabValue} index={3}>
-                                        <Stack spacing={3}>
-                                            <Box>
-                                                <Typography variant="subtitle2" gutterBottom>Profile Image</Typography>
-                                                <ImageUploader onImageSelect={handleProfileImageSelect} currentImage={selectedBusiness.profileImageUrl} />
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="subtitle2" gutterBottom>Cover Image</Typography>
-                                                <ImageUploader onImageSelect={handleCoverImageSelect} currentImage={selectedBusiness.coverImageUrl} />
-                                            </Box>
-                                        </Stack>
-                                    </TabPanel>
-                                </>
-                            ) : (
-                                <Stack spacing={3} sx={{ py: 2 }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Typography variant="subtitle1" fontWeight={600}>
-                                            Current Status
-                                        </Typography>
-                                        <Stack direction="row" spacing={1}>
-                                            <Chip
-                                                icon={<StarIcon />}
-                                                label="Global"
-                                                color={selectedBusiness.globallyFeatured ? "primary" : "default"}
-                                                variant={selectedBusiness.globallyFeatured ? "filled" : "outlined"}
-                                            />
-                                            <Chip
-                                                icon={<LocationIcon />}
-                                                label="Local"
-                                                color={selectedBusiness.locallyFeatured ? "secondary" : "default"}
-                                                variant={selectedBusiness.locallyFeatured ? "filled" : "outlined"}
-                                            />
-                                        </Stack>
-                                    </Box>
-
-                                    {(selectedBusiness.globallyFeatured || selectedBusiness.locallyFeatured) && (
-                                        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
-                                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                                Featured Performance
-                                            </Typography>
-                                            <Grid container spacing={2}>
-                                                <Grid item xs={6} md={3}>
-                                                    <Typography variant="caption" color="text.secondary">Remaining Days</Typography>
-                                                    <Typography variant="h6">{selectedBusiness.remainingFeaturedDays || 0}</Typography>
-                                                </Grid>
-                                                <Grid item xs={6} md={3}>
-                                                    <Typography variant="caption" color="text.secondary">Views</Typography>
-                                                    <Typography variant="h6">{selectedBusiness.featuredViewsCount || 0}</Typography>
-                                                </Grid>
-                                                <Grid item xs={6} md={3}>
-                                                    <Typography variant="caption" color="text.secondary">Clicks</Typography>
-                                                    <Typography variant="h6">{selectedBusiness.featuredClicksCount || 0}</Typography>
-                                                </Grid>
-                                                <Grid item xs={6} md={3}>
-                                                    <Typography variant="caption" color="text.secondary">Conversion Rate</Typography>
-                                                    <Typography variant="h6">{selectedBusiness.featuredConversionRate ? `${selectedBusiness.featuredConversionRate.toFixed(1)}%` : '0%'}</Typography>
-                                                </Grid>
-                                            </Grid>
-                                            <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Start: {selectedBusiness.featuredStartDate ? new Date(selectedBusiness.featuredStartDate).toLocaleDateString() : 'N/A'}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    End: {selectedBusiness.featuredEndDate ? new Date(selectedBusiness.featuredEndDate).toLocaleDateString() : 'N/A'}
-                                                </Typography>
-                                            </Box>
-                                        </Paper>
-                                    )}
-
-                                    <Divider />
-                                    
-                                    <Typography variant="subtitle2" fontWeight={600}>
-                                        Set Featured Status
-                                    </Typography>
-                                    <Grid container spacing={2}>
-                                        <Grid item xs={12} sm={6}>
-                                            <TextField
-                                                fullWidth
-                                                type="number"
-                                                label="Duration (days)"
-                                                value={durationInDays}
-                                                onChange={(e) => setDurationInDays(Number(e.target.value))}
-                                                InputProps={{ inputProps: { min: 1 } }}
-                                                size="small"
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} sm={6}>
-                                            <TextField
-                                                fullWidth
-                                                type="number"
-                                                label="Radius (km) - Local Only"
-                                                value={featuredRadiusInKm}
-                                                onChange={(e) => setFeaturedRadiusInKm(Number(e.target.value))}
-                                                InputProps={{ inputProps: { min: 1 } }}
-                                                size="small"
-                                                disabled={selectedBusiness.globallyFeatured && !selectedBusiness.locallyFeatured}
-                                            />
-                                        </Grid>
-                                    </Grid>
-
-                                    <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-                                        {!selectedBusiness.globallyFeatured && (
-                                            <Button variant="contained" color="primary" startIcon={<StarIcon />} onClick={handleSetGlobalFeatured} fullWidth>
-                                                Globally Featured
-                                            </Button>
-                                        )}
-                                        {!selectedBusiness.locallyFeatured && (
-                                            <Button variant="contained" color="secondary" startIcon={<LocationIcon />} onClick={handleSetLocalFeatured} fullWidth>
-                                                Locally Featured
-                                            </Button>
-                                        )}
-                                    </Stack>
-
-                                    {(selectedBusiness.globallyFeatured || selectedBusiness.locallyFeatured) && (
-                                        <Button variant="outlined" color="error" onClick={handleRemoveFeatured} fullWidth sx={{ mt: 2 }}>
-                                            Remove All Featured Status
-                                        </Button>
-                                    )}
-                                </Stack>
-                            )}
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-                    {dialogType === 'edit' ? (
-                        <>
-                            <Button onClick={handleCloseDialog}>Cancel</Button>
-                            <Button
-                                onClick={handleUpdateBusiness}
-                                variant="contained"
-                                color="primary"
-                                disabled={hasContactValidationErrors}
-                            >
-                                Save Changes
-                            </Button>
-                        </>
-                    ) : (
-                        <Button onClick={handleCloseDialog}>Close</Button>
-                    )}
-                </DialogActions>
-            </Dialog>
-
-            <Dialog
-                open={openGoogleImportDialog}
-                onClose={handleCloseGoogleImportDialog}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>Google Maps'ten İşletme Bilgisi Al</DialogTitle>
-                <DialogContent sx={{ mt: 1 }}>
-                    <Stack spacing={2}>
-                        <TextField
-                            autoFocus
-                            fullWidth
-                            label="Google Maps Linki"
-                            placeholder="https://maps.google.com/... veya https://share.google/..."
-                            value={googleMapsUrl}
-                            onChange={(e) => setGoogleMapsUrl(e.target.value)}
-                            disabled={googleImportLoading}
-                        />
-
-                        {googleImportError && <Alert severity="error">{googleImportError}</Alert>}
-
-                        {googleImportResult && (
-                            <Paper variant="outlined" sx={{ p: 2 }}>
-                                <Stack spacing={1}>
-                                    <Typography variant="subtitle2" fontWeight={700}>
-                                        {googleImportResult.name || '-'}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        {googleImportResult.formattedAddress || 'Adres bulunamadı'}
-                                    </Typography>
-                                    <Typography variant="body2">
-                                        Telefon: {googleImportResult.phone || '-'}
-                                    </Typography>
-                                    <Typography variant="body2">
-                                        Website: {googleImportResult.website || '-'}
-                                    </Typography>
-                                    <Typography variant="body2">
-                                        Place ID: {googleImportResult.placeId || '-'}
-                                    </Typography>
-                                    {typeof googleImportResult.latitude === 'number' && typeof googleImportResult.longitude === 'number' && (
-                                        <Typography variant="body2">
-                                            Konum: {googleImportResult.latitude}, {googleImportResult.longitude}
-                                        </Typography>
-                                    )}
-                                    {googleImportResult.openingHours && googleImportResult.openingHours.length > 0 && (
-                                        <Box>
-                                            <Typography variant="body2" fontWeight={600}>Çalışma Saatleri</Typography>
-                                            {googleImportResult.openingHours.map((hour) => (
-                                                <Typography key={hour} variant="caption" display="block" color="text.secondary">
-                                                    {hour}
-                                                </Typography>
-                                            ))}
-                                        </Box>
-                                    )}
-                                </Stack>
-                            </Paper>
+                    {/* Info */}
+                    <Box>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle1" fontWeight={800} noWrap>{biz.name}</Typography>
+                        {biz.verified && (
+                          <Tooltip title="Doğrulanmış İşletme">
+                            <VerifiedIcon sx={{ fontSize: 16, color: '#3b82f6' }} />
+                          </Tooltip>
                         )}
-                    </Stack>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseGoogleImportDialog} disabled={googleImportLoading}>
-                        Kapat
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        onClick={handleImportFromGoogleMaps}
-                        disabled={googleImportLoading}
-                    >
-                        {googleImportLoading ? 'Alınıyor...' : 'Bilgileri Çek'}
-                    </Button>
-                    <Button
-                        variant="contained"
-                        onClick={handleApplyGoogleImportToBusiness}
-                        disabled={!googleImportResult || googleImportLoading}
-                    >
-                        Forma Uygula
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                      </Stack>
+                      <Stack direction="row" spacing={2} sx={{ mt: 0.5, color: 'text.secondary' }}>
+                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <LocationIcon sx={{ fontSize: 14 }} /> {biz.address?.city || 'Konum belirtilmemiş'}
+                        </Typography>
+                        <Chip label={biz.categoryName || 'Kategori yok'} size="small"
+                          sx={{ height: 20, fontSize: 10, fontWeight: 700 }} />
+                      </Stack>
+                      {biz.ownerName && (
+                        <Typography variant="caption" color="text.disabled" sx={{ mt: 0.3, display: 'block' }}>
+                          Sahip: {biz.ownerName}
+                        </Typography>
+                      )}
+                    </Box>
 
-            {/* Hard Delete Dialog */}
-            <Dialog open={openHardDeleteDialog} onClose={cancelHardDelete}>
-                <DialogTitle>Confirm Permanent Deletion</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Are you sure you want to permanently delete this business? This action cannot be undone.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={cancelHardDelete}>Cancel</Button>
-                    <Button onClick={confirmHardDelete} color="error" variant="contained">Delete Permanently</Button>
-                </DialogActions>
-            </Dialog>
-        </PageContainer>
-    );
+                    {/* Stats */}
+                    <Box>
+                      <Stack spacing={0.5}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <ViewIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                          <Typography variant="caption" fontWeight={600} sx={{ fontFamily: 'monospace', minWidth: 40 }}>
+                            {(biz.viewCount || 0).toLocaleString()}
+                          </Typography>
+                          <Box sx={{ flex: 1, maxWidth: 60, height: 3, bgcolor: alpha('#1e6b3c', 0.1), borderRadius: 2, overflow: 'hidden' }}>
+                            <Box sx={{ width: `${viewPct}%`, height: '100%', bgcolor: '#1e6b3c', borderRadius: 2 }} />
+                          </Box>
+                        </Stack>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <FavoriteIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                          <Typography variant="caption" color="text.secondary">{biz.favoriteCount || 0}</Typography>
+                        </Stack>
+                        {biz.averageRating ? (
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <StarIcon sx={{ fontSize: 14, color: '#f59e0b' }} />
+                            <Typography variant="caption" fontWeight={700}>{biz.averageRating.toFixed(1)}</Typography>
+                            <Typography variant="caption" color="text.disabled">({biz.totalReviews})</Typography>
+                          </Stack>
+                        ) : (
+                          <Typography variant="caption" color="text.disabled">Değerlendirme yok</Typography>
+                        )}
+                      </Stack>
+                    </Box>
+
+                    {/* Status Badges */}
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
+                      <Chip
+                        label={biz.status === BusinessStatus.ACTIVE ? 'Aktif' : biz.status === BusinessStatus.PENDING ? 'Beklemede' : 'Pasif'}
+                        size="small"
+                        color={biz.status === BusinessStatus.ACTIVE ? 'success' : biz.status === BusinessStatus.PENDING ? 'warning' : 'default'}
+                        variant="outlined"
+                        sx={{ fontWeight: 700, fontSize: 10, height: 22 }}
+                      />
+                      {(biz.globallyFeatured || biz.locallyFeatured) && (
+                        <Chip label="Öne Çıkan" size="small"
+                          sx={{ fontWeight: 700, fontSize: 10, height: 22, bgcolor: alpha('#f59e0b', 0.1), color: '#b45309', borderColor: alpha('#f59e0b', 0.3), border: '1px solid' }}
+                        />
+                      )}
+                      {hasIncompleteProfile && (
+                        <Chip label="Eksik Profil" size="small"
+                          sx={{ fontWeight: 700, fontSize: 10, height: 22, bgcolor: alpha('#f97316', 0.1), color: '#c2410c', borderColor: alpha('#f97316', 0.3), border: '1px solid' }}
+                        />
+                      )}
+                    </Stack>
+
+                    {/* Kebab Menu */}
+                    <IconButton size="small" onClick={(e) => handleMenuOpen(e, biz)}
+                      sx={{ '&:hover': { bgcolor: alpha('#000', 0.04) } }}>
+                      <MoreIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
+              );
+            })
+          )}
+        </Stack>
+
+        {/* ═══ PAGINATION ═══ */}
+        {totalPages > 1 && (
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 3, px: 1 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={500}>
+              {totalElements} işletme · Sayfa {page} / {totalPages}
+            </Typography>
+            <Pagination count={totalPages} page={page} onChange={(_, v) => setPage(v)} color="primary" shape="rounded" />
+          </Stack>
+        )}
+      </PageContainer>
+
+      {/* ═══ KEBAB MENU ═══ */}
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        slotProps={{ paper: { sx: { borderRadius: 3, minWidth: 200, boxShadow: '0 12px 32px rgba(0,0,0,0.12)' } } }}>
+        <MenuItem onClick={() => { navigate(`/businesses/${menuBusiness?.id}`); setAnchorEl(null); }}>
+          <ListItemIcon><ViewIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Detayları Gör</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => { if (menuBusiness) handleVerify(menuBusiness); }}>
+          <ListItemIcon><CheckIcon fontSize="small" color={menuBusiness?.verified ? 'error' : 'success'} /></ListItemIcon>
+          <ListItemText>{menuBusiness?.verified ? 'Doğrulamayı Kaldır' : 'Doğrula'}</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => { setFeaturedBusiness(menuBusiness); setFeaturedOpen(true); setAnchorEl(null); }}>
+          <ListItemIcon><StarIcon fontSize="small" sx={{ color: '#f59e0b' }} /></ListItemIcon>
+          <ListItemText>Öne Çıkar</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={() => { setDeletingId(menuBusiness?.id || null); setDeleteOpen(true); setAnchorEl(null); }}
+          sx={{ color: 'error.main' }}>
+          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemText>Kalıcı Olarak Sil</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* ═══ DELETE DIALOG ═══ */}
+      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth
+        PaperProps={{ sx: { borderRadius: 4 } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>İşletmeyi Sil</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Bu işlem geri alınamaz. İşletme ve tüm ilişkili verileri kalıcı olarak silinecektir.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteOpen(false)} color="inherit">İptal</Button>
+          <Button onClick={handleDelete} variant="contained" color="error" sx={{ fontWeight: 700 }}>
+            Kalıcı Olarak Sil
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ═══ FEATURED DIALOG ═══ */}
+      <Dialog open={featuredOpen} onClose={() => setFeaturedOpen(false)} maxWidth="xs" fullWidth
+        PaperProps={{ sx: { borderRadius: 4 } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>İşletmeyi Öne Çıkar</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {featuredBusiness?.name} işletmesini global olarak öne çıkarmak için süre belirleyin.
+          </Typography>
+          <TextField
+            fullWidth type="number" label="Süre (gün)" value={featuredDays}
+            onChange={(e) => setFeaturedDays(Number(e.target.value))}
+            helperText="İşletme bu süre boyunca öne çıkarılır"
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setFeaturedOpen(false)} color="inherit">İptal</Button>
+          <Button onClick={handleSetFeatured} variant="contained"
+            sx={{ fontWeight: 700, bgcolor: '#f59e0b', '&:hover': { bgcolor: '#d97706' } }}>
+            Öne Çıkar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
 }

@@ -26,6 +26,8 @@ import TicketCreationPage from './pages/Tickets/TicketCreationPage';
 import RaffleLivePage from './pages/Event/RaffleLivePage';
 import FeedVideos from './pages/Feeds/FeedVideos';
 import Bulletins from './pages/Bulletins/Bulletins';
+import ContentList from './pages/Content/ContentList';
+import ContentEditor from './pages/Content/ContentEditor';
 import GamificationSettings from './pages/Gamification/GamificationSettings';
 import SubMerchants from './pages/SubMerchants/SubMerchants';
 import SubMerchantForm from './pages/SubMerchants/SubMerchantForm';
@@ -66,6 +68,9 @@ function App() {
                 <Route path="notifications" element={<NotificationsRefactored />} />
                 <Route path="feeds" element={<FeedVideos />} />
                 <Route path="bulletins" element={<Bulletins />} />
+                <Route path="content" element={<ContentList />} />
+                <Route path="content/new" element={<ContentEditor />} />
+                <Route path="content/:id/edit" element={<ContentEditor />} />
                 <Route path="users" element={<Users />} />
                 <Route path="users/:id" element={<UserDetails />} />
                 <Route path="businesses" element={<Businesses />} />

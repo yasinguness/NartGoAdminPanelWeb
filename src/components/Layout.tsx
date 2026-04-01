@@ -48,6 +48,7 @@ import {
     ConfirmationNumber as TicketIcon,
     Campaign as CampaignIcon,
     EventSeat as EventSeatIcon,
+    Article as ArticleIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 
@@ -117,6 +118,7 @@ const menuSections: MenuSection[] = [
             { text: 'Video Akışı', icon: <FeedIcon />, path: '/feeds' },
             { text: 'Bültenler', icon: <CampaignIcon />, path: '/bulletins' },
             { text: 'Kampanya Motoru', icon: <LocalActivityIcon />, path: '/campaign-engine' },
+            { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
         ],
     },
     {
