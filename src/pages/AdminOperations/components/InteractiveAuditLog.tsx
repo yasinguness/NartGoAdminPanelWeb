@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -19,7 +19,11 @@ import {
   IconButton,
   Menu,
   LinearProgress,
+  Skeleton,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
+import { adminOperationsService } from '../../../services/admin/adminOperationsService';
 import {
   Search as SearchIcon,
   FilterAlt as FilterIcon,
@@ -46,15 +50,14 @@ export interface InteractiveAuditLogProps {
   onFetchTicketAudit?: (ticketId: string) => Promise<void>;
 }
 
-// Mock Audit Logs
-const mockAuditData = [
-  { id: 'log-1', type: 'ADMIN', actor: 'admin_root', action: 'EVENT_CAPACITY_UPDATE', detail: 'Kapasite 320 -> 340 yapıldı. Neden: Talep artışı', time: '10:45:12' },
-  { id: 'log-2', type: 'CHECKIN', actor: 'staff_ali', action: 'QR_VALIDATE', detail: 'Bilet TCK-9921 onaylandı. Kapı: VIP', time: '10:42:05' },
-  { id: 'log-3', type: 'CHECKIN', actor: 'staff_ayse', action: 'QR_VALIDATE_FAILED', detail: 'Bilet geçersiz (ALREADY_USED). Kapı: Ana Giriş', time: '10:41:50' },
-  { id: 'log-4', type: 'SEAT', actor: 'admin_root', action: 'SEAT_BLOCK', detail: 'B-04 koltuğu bloke edildi. Neden: Arızalı', time: '09:12:30' },
-  { id: 'log-5', type: 'ORDER', actor: 'admin_root', action: 'ORDER_REFUND', detail: 'ORD-115C iade edildi. Neden: Müşteri talebi', time: '08:30:00' },
-  { id: 'log-6', type: 'CHECKIN', actor: 'staff_ali', action: 'OFFLINE_SYNC', detail: '45 çevrimdışı kayıt senkronize edildi.', time: '08:05:11' },
-];
+interface AuditEntry {
+  id: string;
+  type: string;
+  actor: string;
+  action: string;
+  detail: string;
+  time: string;
+}
 
 export default function InteractiveAuditLog({
   eventId,
@@ -70,12 +73,37 @@ export default function InteractiveAuditLog({
 }: InteractiveAuditLogProps) {
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [auditData, setAuditData] = useState<AuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
   // Ticket Audit Search
   const [ticketSearch, setTicketSearch] = useState('');
 
   // Quick Reports Menu
   const [reportAnchorEl, setReportAnchorEl] = useState<null | HTMLElement>(null);
+
+  useEffect(() => {
+    if (!eventId) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const response = await adminOperationsService.getAdminAudit({ eventId });
+        const entries = (response?.data as any[]) ?? [];
+        setAuditData(entries.map((e: any) => ({
+          id: e.id ?? e.eventId ?? String(Math.random()),
+          type: e.type ?? e.eventType ?? 'ADMIN',
+          actor: e.actor ?? e.userEmail ?? e.performedBy ?? '',
+          action: e.action ?? e.description ?? '',
+          detail: e.detail ?? e.notes ?? '',
+          time: e.time ?? e.createdAt ?? '',
+        })));
+      } catch {
+        setAuditData([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [eventId]);
 
   const getLogIcon = (type: string) => {
     switch (type) {
@@ -97,7 +125,7 @@ export default function InteractiveAuditLog({
     }
   };
 
-  const filteredLogs = mockAuditData.filter(log => {
+  const filteredLogs = auditData.filter(log => {
      if (activeFilter !== 'ALL' && log.type !== activeFilter) return false;
      if (searchQuery && !log.actor.includes(searchQuery) && !log.detail.includes(searchQuery)) return false;
      return true;

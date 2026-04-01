@@ -36,12 +36,6 @@ import {
   AccountCircle as OperatorIcon,
 } from '@mui/icons-material';
 
-const mockCategories = [
-  { id: 'cat-1', name: 'Zemin (Ön Bölge)', price: 450, available: 120 },
-  { id: 'cat-2', name: 'Zemin (Arka Bölge)', price: 250, available: 300 },
-  { id: 'cat-3', name: 'Balkon', price: 150, available: 45 },
-  { id: 'cat-4', name: 'VIP Loge', price: 1200, available: 4 },
-];
 
 export default function BoxOffice() {
   const [categories, setCategories] = useState<any[]>([]);
@@ -60,13 +54,10 @@ export default function BoxOffice() {
       try {
         setLoading(true);
         const data = await boxOfficeService.getAvailableCategories('e-28haz');
-        if (data && data.length > 0) {
-          setCategories(data);
-        } else {
-          setCategories(mockCategories);
-        }
+        setCategories(data || []);
       } catch (err) {
-        setCategories(mockCategories);
+        console.error('Failed to fetch categories', err);
+        setCategories([]);
       } finally {
         setLoading(false);
       }
@@ -87,7 +78,7 @@ export default function BoxOffice() {
     });
   };
 
-  const currentCategories = categories.length > 0 ? categories : mockCategories;
+  const currentCategories = categories;
   const totalTickets = Object.values(cart).reduce((a, b) => a + b, 0);
   const subtotal = Object.entries(cart).reduce((acc, [catId, qty]) => {
     const cat = currentCategories.find(c => c.id === catId);

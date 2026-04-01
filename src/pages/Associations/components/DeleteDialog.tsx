@@ -35,10 +35,10 @@ export const DeleteDialog: React.FC<DeleteDialogProps> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={isLoading}>
-          Cancel
+          İptal
         </Button>
         <Button onClick={onConfirm} color="error" disabled={isLoading}>
-          {isLoading ? 'Deleting...' : 'Delete'}
+          {isLoading ? 'Siliniyor...' : 'Sil'}
         </Button>
       </DialogActions>
     </Dialog>

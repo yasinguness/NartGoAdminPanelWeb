@@ -50,46 +50,90 @@ export default function InteractiveCheckInDashboard({ eventId, eventName, onScan
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Stats
-  const [stats, setStats] = useState({ total: 1200, checkedIn: 843, remaining: 357 });
-
-  // Recent scans mock
-  const [recentScans, setRecentScans] = useState<ScanData[]>([
-    { id: 'scan-1', time: '14:23:45', name: 'Ayşe Yılmaz', ticketType: 'VIP', status: 'SUCCESS', seat: 'VIP-A1' },
-    { id: 'scan-2', time: '14:23:10', name: 'Bilinmeyen Bilet', ticketType: '-', status: 'INVALID' },
-    { id: 'scan-3', time: '14:22:55', name: 'Can Demir', ticketType: 'Genel Giriş', status: 'ALREADY_USED', seat: 'A Blok-12' },
-  ]);
-
+  // Stats — fetched from real API
+  const [stats, setStats] = useState({ total: 0, checkedIn: 0, remaining: 0 });
+  const [recentScans, setRecentScans] = useState<ScanData[]>([]);
   const [lastScanResult, setLastScanResult] = useState<ScanData | null>(null);
 
+  // Fetch real check-in stats on mount
+  useEffect(() => {
+    if (!eventId) return;
+    const fetchStats = async () => {
+      try {
+        const { api } = await import('../../../services/api');
+        const response = await api.get(`/tickets/checkin/stats/${eventId}`);
+        const data = response.data?.data;
+        if (data) {
+          setStats({
+            total: data.totalTickets || data.total || 0,
+            checkedIn: data.checkedInCount || 0,
+            remaining: data.remainingCount || 0,
+          });
+        }
+        // Fetch recent scans
+        const auditRes = await api.get(`/ticket/checkin/audit/event/${eventId}/recent`, { params: { hoursAgo: 2 } });
+        const audits = auditRes.data?.data || [];
+        setRecentScans(audits.slice(0, 10).map((a: any) => ({
+          id: a.id || String(Math.random()),
+          time: a.createdAt ? new Date(a.createdAt).toLocaleTimeString('tr-TR') : '',
+          name: a.userName || a.userEmail || 'Bilinmeyen',
+          ticketType: a.ticketTypeName || 'Genel',
+          status: a.validationStatus === 'SUCCESS' ? 'SUCCESS' : a.validationStatus === 'ALREADY_USED' ? 'ALREADY_USED' : 'INVALID',
+          seat: a.seatRow ? `${a.seatRow}-${a.seatNumber}` : undefined,
+        })));
+      } catch { /* silently handle */ }
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 15000);
+    return () => clearInterval(interval);
+  }, [eventId]);
+
+  // Real QR scan via API
   const simulateScan = async (code: string) => {
     setIsProcessing(true);
     setInputValue('');
 
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 600));
+    try {
+      const { api } = await import('../../../services/api');
+      const response = await api.post('/tickets/checkin/validate', {
+        qrCodeData: code,
+        eventId,
+        deviceInfo: { deviceType: 'ADMIN_PANEL' },
+      });
+      const result = response.data?.data;
 
-    let scanResult: ScanData;
+      const scanResult: ScanData = {
+        id: Date.now().toString(),
+        time: new Date().toLocaleTimeString('tr-TR'),
+        name: result?.userName || 'Misafir',
+        ticketType: result?.ticketTypeName || 'Genel',
+        status: result?.validationStatus === 'SUCCESS' ? 'SUCCESS'
+          : result?.validationStatus === 'ALREADY_USED' ? 'ALREADY_USED' : 'INVALID',
+        seat: result?.seatInfo ? `${result.seatInfo.row}-${result.seatInfo.number}` : undefined,
+      };
 
-    if (code.includes('fail')) {
-      scanResult = { id: Date.now().toString(), time: new Date().toLocaleTimeString('tr-TR'), name: 'Test Bilet', ticketType: 'Genel', status: 'INVALID' };
-    } else if (code.includes('used')) {
-      scanResult = { id: Date.now().toString(), time: new Date().toLocaleTimeString('tr-TR'), name: 'Test Bilet', ticketType: 'Genel', status: 'ALREADY_USED' };
-    } else {
-      scanResult = { id: Date.now().toString(), time: new Date().toLocaleTimeString('tr-TR'), name: 'Ziyaretçi ' + Math.floor(Math.random() * 100), ticketType: Math.random() > 0.8 ? 'VIP' : 'Genel Giriş', status: 'SUCCESS', seat: `C-${Math.floor(Math.random() * 40)}` };
-      setStats(prev => ({ ...prev, checkedIn: prev.checkedIn + 1, remaining: prev.remaining - 1 }));
+      setLastScanResult(scanResult);
+      setRecentScans(prev => [scanResult, ...prev].slice(0, 10));
+
+      if (scanResult.status === 'SUCCESS') {
+        setStats(prev => ({ ...prev, checkedIn: prev.checkedIn + 1, remaining: Math.max(0, prev.remaining - 1) }));
+      }
+    } catch {
+      const scanResult: ScanData = {
+        id: Date.now().toString(),
+        time: new Date().toLocaleTimeString('tr-TR'),
+        name: 'Hata',
+        ticketType: '-',
+        status: 'INVALID',
+      };
+      setLastScanResult(scanResult);
+      setRecentScans(prev => [scanResult, ...prev].slice(0, 10));
     }
 
-    setLastScanResult(scanResult);
-    setRecentScans(prev => [scanResult, ...prev].slice(0, 10)); // Keep last 10
     setIsProcessing(false);
 
     if (onScan) {
-      try {
-        await onScan(code, gate);
-      } catch (err) {
-        console.error('API Error mock', err);
-      }
+      try { await onScan(code, gate); } catch { /* silently handle */ }
     }
   };
 

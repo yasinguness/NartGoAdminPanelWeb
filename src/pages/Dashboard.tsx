@@ -55,6 +55,7 @@ import { format } from 'date-fns';
 import { useSnackbar } from 'notistack';
 import { PageContainer } from '../components/Page';
 import { adminLoginStatsService } from '../services/auth/adminLoginStatsService';
+import { campaignService } from '../services/notification/campaignService';
 import type {
   LoginStatsOverviewDto,
   RecentLoggedInUserDto,
@@ -102,29 +103,12 @@ const getInitials = (name?: string | null, email?: string | null): string => {
   return '?';
 };
 
-const mockNotifications = [
-  {
-    id: 1,
-    icon: <NotificationIcon fontSize="small" />,
-    title: 'Sistem Bakimi',
-    description: 'Planli bakim calismasi',
-    time: new Date(Date.now() + 2 * 3600000).toISOString(),
-  },
-  {
-    id: 2,
-    icon: <SecurityIcon fontSize="small" />,
-    title: 'Guvenlik Taramasi',
-    description: 'Otomatik guvenlik taramasi baslatilacak',
-    time: new Date(Date.now() + 5 * 3600000).toISOString(),
-  },
-  {
-    id: 3,
-    icon: <EventIcon fontSize="small" />,
-    title: 'Rapor Gönderimi',
-    description: 'Haftalık rapor e-posta ile gönderilecek',
-    time: new Date(Date.now() + 24 * 3600000).toISOString(),
-  },
-];
+interface UpcomingNotification {
+  id: string | number;
+  title: string;
+  description: string;
+  time: string;
+}
 
 export default function Dashboard() {
   const theme = useTheme();
@@ -142,6 +126,7 @@ export default function Dashboard() {
   const [userTimeline, setUserTimeline] = useState<AuditTimelineEventDto[]>([]);
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<ActiveAlertDto | null>(null);
+  const [upcomingNotifications, setUpcomingNotifications] = useState<UpcomingNotification[]>([]);
 
   const query = useMemo(() => {
     const end = new Date();
@@ -162,6 +147,7 @@ export default function Dashboard() {
       adminLoginStatsService.getTopWeeklyUsers({ ...query, limit: 10 }),
       adminLoginStatsService.getActiveAlerts(query),
       adminLoginStatsService.getRecentLogs({ ...query, limit: 10 }),
+      campaignService.getCampaigns(undefined, 0, 5),
     ]);
 
     if (results[0].status === 'fulfilled') setOverview(results[0].value);
@@ -170,6 +156,19 @@ export default function Dashboard() {
     if (results[3].status === 'fulfilled') setTopUsers(results[3].value);
     if (results[4].status === 'fulfilled') setAlerts(results[4].value);
     if (results[5].status === 'fulfilled') setRecentLogs(results[5].value);
+    if (results[6].status === 'fulfilled') {
+      const campaignData = results[6].value;
+      const scheduled = (campaignData.campaigns || [])
+        .filter((c: any) => c.status === 'SCHEDULED' || c.scheduledAt)
+        .slice(0, 4)
+        .map((c: any) => ({
+          id: c.id,
+          title: c.name || c.title || 'Kampanya',
+          description: c.description || c.content?.body || '',
+          time: c.scheduledAt || c.createdAt || new Date().toISOString(),
+        }));
+      if (scheduled.length > 0) setUpcomingNotifications(scheduled);
+    }
 
     const failCount = results.filter((r) => r.status === 'rejected').length;
     if (failCount > 0) {
@@ -660,7 +659,11 @@ export default function Dashboard() {
                   </Typography>
                 </Stack>
                 <Stack spacing={0}>
-                  {mockNotifications.map((notif, i) => (
+                  {upcomingNotifications.length === 0 ? (
+                    <Typography variant="body2" color="text.disabled" textAlign="center" py={3}>
+                      Yaklaşan bildirim bulunmuyor
+                    </Typography>
+                  ) : upcomingNotifications.map((notif, i) => (
                     <Box key={notif.id}>
                       <Stack direction="row" spacing={1.5} alignItems="flex-start" py={1.5}>
                         <Avatar
@@ -671,7 +674,7 @@ export default function Dashboard() {
                             color: 'info.main',
                           }}
                         >
-                          {notif.icon}
+                          <NotificationIcon fontSize="small" />
                         </Avatar>
                         <Box flex={1} minWidth={0}>
                           <Typography variant="body2" fontWeight={500}>
@@ -692,7 +695,7 @@ export default function Dashboard() {
                           }}
                         />
                       </Stack>
-                      {i < mockNotifications.length - 1 && <Divider />}
+                      {i < upcomingNotifications.length - 1 && <Divider />}
                     </Box>
                   ))}
                 </Stack>

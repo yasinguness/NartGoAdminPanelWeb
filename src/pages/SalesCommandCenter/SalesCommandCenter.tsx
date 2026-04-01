@@ -53,28 +53,6 @@ const COLORS = {
   neutral: '#64748b'
 };
 
-const mockChannels = [
-  { name: 'Web', percent: 55, color: '#3b82f6', icon: <WebIcon fontSize="small" /> },
-  { name: 'Mobil Uygulama', percent: 30, color: '#8b5cf6', icon: <AppIcon fontSize="small" /> },
-  { name: 'Gişe', percent: 15, color: '#10b981', icon: <RetailIcon fontSize="small" /> },
-];
-
-const mockRecentOrders = [
-  { id: 'ORD-991A', time: '14:25', customer: 'Can Y.', amount: 450, status: 'PAID', channel: 'Web', tickets: 2, risk: 'LOW' },
-  { id: 'ORD-442B', time: '14:21', customer: 'Ayşe K.', amount: 150, status: 'PAID', channel: 'Mobile App', tickets: 1, risk: 'LOW' },
-  { id: 'ORD-115C', time: '14:10', customer: 'Bilinmeyen', amount: 900, status: 'FRAUD_ALERT', channel: 'Web', tickets: 4, risk: 'HIGH' },
-  { id: 'ORD-882D', time: '13:55', customer: 'Gişe Müşteri', amount: 300, status: 'PAID', channel: 'Box Office', tickets: 2, risk: 'LOW' },
-  { id: 'ORD-332E', time: '13:42', customer: 'Mehmet Y.', amount: 600, status: 'REFUNDED', channel: 'Mobile App', tickets: 3, risk: 'LOW' },
-  { id: 'ORD-901F', time: '13:15', customer: 'Admin', amount: 0, status: 'ADMIN_HOLD', channel: 'Backend', tickets: 10, risk: 'LOW' },
-  { id: 'ORD-451G', time: '13:00', customer: 'Ahmet D.', amount: 750, status: 'PAID', channel: 'Web', tickets: 5, risk: 'MEDIUM' },
-];
-
-const mockTimeline = [
-  { time: '14:26:00', action: 'Bilet Email Gönderildi', actor: 'System', color: COLORS.neutral },
-  { time: '14:25:05', action: 'Ödeme Onaylandı (Iyzico)', actor: 'Ödeme Sistemi', color: COLORS.success },
-  { time: '14:24:10', action: 'Koltuklar Kilitlendi (Hold 5 dk)', actor: 'Can Y.', color: COLORS.neutral },
-  { time: '14:22:30', action: 'Kategori Seçimi (VIP: 2 Adet)', actor: 'Can Y.', color: COLORS.neutral },
-];
 
 export default function SalesCommandCenter() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -82,19 +60,18 @@ export default function SalesCommandCenter() {
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [isDrawerOpen, setDrawerOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [channels, setChannels] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchSalesData = async () => {
       try {
         setLoading(true);
         const data = await salesCommandService.getOrderFeed('e-28haz');
-        if (data && data.length > 0) {
-          setOrders(data);
-        } else {
-          setOrders(mockRecentOrders);
-        }
+        setOrders(data || []);
       } catch (err) {
-        setOrders(mockRecentOrders);
+        console.error('Failed to fetch sales data', err);
+        setOrders([]);
       } finally {
         setLoading(false);
       }
@@ -171,7 +148,7 @@ export default function SalesCommandCenter() {
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Kanal Bazlı Satış</Typography>
                 <Box sx={{ display: 'flex', height: 40, bgcolor: '#f1f5f9', borderRadius: 2, overflow: 'hidden', mb: 2 }}>
-                  {mockChannels.map(ch => (
+                  {channels.map(ch => (
                     <Tooltip key={ch.name} title={`${ch.name}: %${ch.percent}`}>
                       <Box sx={{ width: `${ch.percent}%`, bgcolor: ch.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
                         {ch.percent > 10 && `${ch.percent}%`}
@@ -180,7 +157,7 @@ export default function SalesCommandCenter() {
                   ))}
                 </Box>
                 <Stack direction="row" spacing={3} sx={{ mt: 'auto', flexWrap: 'wrap' }}>
-                  {mockChannels.map(ch => (
+                  {channels.map(ch => (
                      <Box key={ch.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ width: 12, height: 12, borderRadius: 1, bgcolor: ch.color }} />
                         <Typography variant="body2" color="text.secondary" fontWeight={600}>{ch.name}</Typography>
@@ -346,7 +323,7 @@ export default function SalesCommandCenter() {
                  <Box sx={{ position: 'absolute', top: 10, bottom: 20, left: 11, width: 2, bgcolor: '#e2e8f0' }} />
                  
                  <Stack spacing={3}>
-                   {mockTimeline.map((ev, i) => (
+                   {timeline.map((ev, i) => (
                      <Box key={i} sx={{ position: 'relative', display: 'flex', pl: 4 }}>
                         <Box sx={{ position: 'absolute', left: 7, top: 4, width: 10, height: 10, borderRadius: '50%', bgcolor: ev.color, border: '2px solid white', boxShadow: '0 0 0 1px #e2e8f0' }} />
                         <Box>

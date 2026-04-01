@@ -70,18 +70,6 @@ export interface SettlementBatch {
   anomalyFlags: string[];
 }
 
-const mockBatches: SettlementBatch[] = [
-  { id: 'SET-9921', organizerName: 'Zorlu PSM', period: '15-21 Haz 2026', currency: 'TRY', status: 'READY', payoutStatus: 'QUEUED', grossSales: 150000, refundedAmount: 12000, serviceFeeRevenue: 7500, taxTotal: 2500, manualAdjustmentsTotal: 0, chargebackTotal: 0, netPayable: 128000, anomalyFlags: [] },
-  { id: 'SET-9922', organizerName: 'BKM Organizasyon', period: '15-21 Haz 2026', currency: 'TRY', status: 'ON_HOLD', payoutStatus: 'NOT_STARTED', grossSales: 240000, refundedAmount: 45000, serviceFeeRevenue: 12000, taxTotal: 0, manualAdjustmentsTotal: -5000, chargebackTotal: 1500, netPayable: 176500, anomalyFlags: ['HIGH_REFUND_RATE', 'UNRESOLVED_CHARGEBACK'] },
-  { id: 'SET-9920', organizerName: 'DasDas Sahne', period: '08-14 Haz 2026', currency: 'TRY', status: 'PAID', payoutStatus: 'SETTLED', grossSales: 80000, refundedAmount: 2000, serviceFeeRevenue: 4000, taxTotal: 0, manualAdjustmentsTotal: 0, chargebackTotal: 0, netPayable: 74000, anomalyFlags: [] },
-];
-
-const mockLedger = [
-  { id: 'L-1', type: 'SALE', desc: 'Bilet Satışı (ORD-99A)', amount: +450 },
-  { id: 'L-2', type: 'SERVICE_FEE', desc: 'Platform Komisyonu (-%5)', amount: -22.5 },
-  { id: 'L-3', type: 'REFUND', desc: 'Müşteri İadesi (ORD-11C)', amount: -900 },
-  { id: 'L-4', type: 'CHARGEBACK', desc: 'Garanti Bankası İtiraz', amount: -1500 },
-];
 
 const COLORS = {
   success: '#10b981',
@@ -98,6 +86,7 @@ import { settlementService } from '../../services/finance/settlement.service';
 export default function SettlementFinance() {
   const [selectedBatch, setSelectedBatch] = useState<SettlementBatch | null>(null);
   const [batches, setBatches] = useState<SettlementBatch[]>([]);
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [rightTab, setRightTab] = useState(0);
 
@@ -106,20 +95,18 @@ export default function SettlementFinance() {
     const fetchSettlements = async () => {
       try {
         setLoading(true);
-        // Gerçek request:
         const data = await settlementService.getSettlements();
+        setBatches(data || []);
         if (data && data.length > 0) {
-            setBatches(data);
             setSelectedBatch(data[0]);
-        } else {
-            // Fallback for visual demo if backend is empty
-            setBatches(mockBatches);
-            setSelectedBatch(mockBatches[0]);
+        }
+        const kpis = await settlementService.getKpis();
+        if (kpis?.ledger) {
+            setLedger(kpis.ledger);
         }
       } catch (err) {
-        console.error("Backend fetch failed, using fallback data", err);
-        setBatches(mockBatches);
-        setSelectedBatch(mockBatches[0]);
+        console.error('Failed to fetch settlements', err);
+        setBatches([]);
       } finally {
         setLoading(false);
       }
@@ -296,7 +283,7 @@ export default function SettlementFinance() {
             <Box sx={{ flex: 1, overflow: 'auto', p: 0 }}>
                 {rightTab === 0 && (
                     <List disablePadding>
-                        {mockLedger.map(l => (
+                        {ledger.map(l => (
                             <ListItemButton key={l.id} sx={{ borderBottom: `1px solid ${COLORS.surface}`, p: 2 }}>
                                 <Box sx={{ flex: 1 }}>
                                     <Typography variant="body2" fontWeight={700}>{l.desc}</Typography>

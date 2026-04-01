@@ -2,9 +2,11 @@
  * TicketCreationPage — 3-step wizard for creating events & tickets
  * Steps: (1) Event Info, (2) Ticket & Pricing, (3) Preview & Publish
  */
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
+import { ticketService } from '../../services/ticket/ticketService';
+import { api } from '../../services/api';
 import {
   Box,
   Typography,
@@ -91,10 +93,18 @@ type Visibility = 'public' | 'link' | 'draft';
 export default function TicketCreationPage() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { eventId } = useParams<{ eventId?: string }>();
   const { enqueueSnackbar } = useSnackbar();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
+  const [publishing, setPublishing] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  // Image state
+  const [eventImage, setEventImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Step 1: Event Info
   const [eventName, setEventName] = useState('');
@@ -132,15 +142,102 @@ export default function TicketCreationPage() {
 
   // ─── STEP NAVIGATION ──────────────────────────────
   const goNext = () => {
+    if (!validateStep(currentStep)) return;
     if (currentStep < totalSteps) setCurrentStep(currentStep + 1);
     else handlePublish();
   };
   const goBack = () => { if (currentStep > 1) setCurrentStep(currentStep - 1); };
   const goToStep = (n: number) => { if (n <= currentStep) setCurrentStep(n); };
 
-  const handlePublish = () => {
-    setPublished(true);
-    enqueueSnackbar('🎉 Etkinlik başarıyla yayınlandı!', { variant: 'success' });
+  // ─── VALIDATION ────────────────────────────────
+  const validateStep = (step: number): boolean => {
+    const errors: Record<string, string> = {};
+    if (step === 1) {
+      if (!eventName.trim()) errors.eventName = 'Etkinlik adı zorunludur';
+      if (!eventStart) errors.eventStart = 'Başlangıç tarihi zorunludur';
+      if (!eventEnd) errors.eventEnd = 'Bitiş tarihi zorunludur';
+      if (eventStart && eventEnd && new Date(eventStart) >= new Date(eventEnd)) errors.eventEnd = 'Bitiş tarihi başlangıçtan sonra olmalıdır';
+      if (!capacity || Number(capacity) <= 0) errors.capacity = 'Kapasite 0\'dan büyük olmalıdır';
+    } else if (step === 2) {
+      if (ticketType === 'paid' && tiers.length === 0) errors.tiers = 'En az 1 bilet kategorisi ekleyin';
+      if (ticketType === 'paid' && tiers.some(t => !t.name.trim())) errors.tierName = 'Tüm kategorilerin adı olmalıdır';
+      if (!saleStart) errors.saleStart = 'Satış başlangıcı zorunludur';
+    }
+    setValidationErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      enqueueSnackbar('Lütfen zorunlu alanları doldurun', { variant: 'warning' });
+      return false;
+    }
+    return true;
+  };
+
+  // ─── IMAGE HANDLERS ────────────────────────────
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { enqueueSnackbar('Sadece görsel dosyaları yüklenebilir', { variant: 'warning' }); return; }
+    if (file.size > 10 * 1024 * 1024) { enqueueSnackbar('Dosya boyutu 10MB\'ı aşamaz', { variant: 'warning' }); return; }
+    setEventImage(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  // ─── PUBLISH (Real API) ────────────────────────
+  const handlePublish = async () => {
+    if (!validateStep(1) || !validateStep(2)) { setCurrentStep(1); return; }
+
+    setPublishing(true);
+    try {
+      // 1. Create event via admin API
+      const eventPayload = {
+        name: eventName,
+        description: eventDescription,
+        eventTime: new Date(eventStart).toISOString(),
+        endTime: new Date(eventEnd).toISOString(),
+        maxParticipants: Number(capacity),
+        status: visibility === 'draft' ? 'PASSIVE' : 'ACTIVE',
+        isRegistrationOpen: visibility !== 'draft',
+        ticketPrice: tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0,
+        address: eventLocation ? { city: eventLocation } : undefined,
+      };
+
+      const formData = new FormData();
+      formData.append('request', new Blob([JSON.stringify(eventPayload)], { type: 'application/json' }));
+      if (eventImage) formData.append('image', eventImage);
+
+      const eventResponse = await api.post('/events/admin', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const createdEventId = eventResponse.data?.data?.id || eventId;
+
+      // 2. Create ticket types for the event
+      if (createdEventId && ticketType === 'paid') {
+        for (const tier of tiers) {
+          try {
+            await ticketService.createTicketType({
+              eventId: createdEventId,
+              name: tier.name,
+              price: tier.price,
+              maxTickets: tier.quota,
+              currency: currency,
+              saleStartAt: saleStart ? new Date(saleStart).toISOString() : undefined,
+              saleEndAt: saleEnd ? new Date(saleEnd).toISOString() : undefined,
+            } as any);
+          } catch {
+            enqueueSnackbar(`"${tier.name}" bilet kategorisi oluşturulamadı`, { variant: 'warning' });
+          }
+        }
+      }
+
+      setPublished(true);
+      enqueueSnackbar('Etkinlik ve biletler başarıyla oluşturuldu!', { variant: 'success' });
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Etkinlik oluşturulamadı. Lütfen tekrar deneyin.';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setPublishing(false);
+    }
   };
 
   // ─── TIER MANAGEMENT ──────────────────────────────
@@ -261,7 +358,8 @@ export default function TicketCreationPage() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Etkinliğinizin adı, açıklaması ve kategorisini belirleyin.</Typography>
 
               <TextField fullWidth label="Etkinlik Adı *" placeholder="Örn: Ankara Caz Festivali 2026"
-                value={eventName} onChange={(e) => setEventName(e.target.value)} sx={{ mb: 2 }}
+                value={eventName} onChange={(e) => { setEventName(e.target.value); if (validationErrors.eventName) setValidationErrors(p => ({ ...p, eventName: '' })); }}
+                error={!!validationErrors.eventName} helperText={validationErrors.eventName} sx={{ mb: 2 }}
               />
               <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
                 <FormControl fullWidth>
@@ -320,6 +418,32 @@ export default function TicketCreationPage() {
                   </Select>
                 </FormControl>
               </Stack>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>Etkinlik Görseli</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>Kapak görseli ekleyin (opsiyonel). JPG, PNG, WebP — Maks 10MB.</Typography>
+              <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} style={{ display: 'none' }} />
+              {imagePreview ? (
+                <Box sx={{ position: 'relative', borderRadius: 3, overflow: 'hidden', border: '2px solid', borderColor: 'divider', '&:hover .img-overlay': { opacity: 1 } }}>
+                  <Box component="img" src={imagePreview} alt="Etkinlik görseli" sx={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+                  <Box className="img-overlay" sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, opacity: 0, transition: '0.2s' }}>
+                    <Button size="small" variant="contained" onClick={() => fileInputRef.current?.click()} sx={{ bgcolor: 'rgba(255,255,255,0.9)', color: 'text.primary', '&:hover': { bgcolor: 'white' } }}>Değiştir</Button>
+                    <Button size="small" variant="contained" color="error" onClick={() => { setEventImage(null); setImagePreview(null); }}>Kaldır</Button>
+                  </Box>
+                </Box>
+              ) : (
+                <Box onClick={() => fileInputRef.current?.click()} sx={{
+                  border: '2px dashed', borderColor: 'divider', borderRadius: 3, p: 4, textAlign: 'center', cursor: 'pointer',
+                  transition: '0.15s', '&:hover': { borderColor: 'primary.main', bgcolor: (t) => alpha(t.palette.primary.main, 0.02) },
+                }}>
+                  <Typography sx={{ fontSize: 32, mb: 1, opacity: 0.3 }}>📷</Typography>
+                  <Typography variant="body2" color="text.secondary" fontWeight={600}>Görsel yüklemek için tıklayın</Typography>
+                  <Typography variant="caption" color="text.disabled">veya sürükleyip bırakın</Typography>
+                </Box>
+              )}
             </Box>
 
             <Divider />
@@ -619,7 +743,7 @@ export default function TicketCreationPage() {
                     { ok: !!eventName && !!eventStart, text: 'Etkinlik adı ve tarihi dolduruldu' },
                     { ok: tiers.length > 0, text: 'En az 1 bilet kategorisi tanımlandı' },
                     { ok: !!saleStart, text: 'Satış başlangıç tarihi belirlendi' },
-                    { ok: false, text: 'Etkinlik görseli eklenmedi', optional: true },
+                    { ok: !!eventImage, text: eventImage ? 'Etkinlik görseli eklendi' : 'Etkinlik görseli eklenmedi', optional: !eventImage },
                     { ok: !!eventDescription, text: eventDescription ? 'Açıklama eklendi' : 'Açıklama eklenmedi', optional: !eventDescription },
                   ].map((check, i) => (
                     <Stack key={i} direction="row" spacing={1.2} alignItems="center">
@@ -712,11 +836,11 @@ export default function TicketCreationPage() {
           <Button variant="outlined" onClick={() => enqueueSnackbar('💾 Taslak olarak kaydedildi', { variant: 'info' })}
             sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
           >Taslak Kaydet</Button>
-          <Button variant="contained" onClick={goNext}
+          <Button variant="contained" onClick={goNext} disabled={publishing}
             endIcon={currentStep === totalSteps ? <RocketIcon /> : <ForwardIcon />}
             sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
           >
-            {currentStep === totalSteps ? '🚀 Yayınla' : 'Devam Et →'}
+            {publishing ? 'Yayınlanıyor...' : currentStep === totalSteps ? '🚀 Yayınla' : 'Devam Et →'}
           </Button>
         </Stack>
       </Box>

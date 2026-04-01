@@ -139,7 +139,7 @@ const FederationForm: React.FC<FederationFormProps> = ({
       <DialogTitle>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h6" fontWeight={600}>
-            {isEdit ? 'Edit Federation' : 'Create New Federation'}
+            {isEdit ? 'Federasyonu Düzenle' : 'Yeni Federasyon Oluştur'}
           </Typography>
           <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
             <CloseIcon fontSize="small" />
@@ -371,7 +371,7 @@ const FederationForm: React.FC<FederationFormProps> = ({
             disabled={formik.isSubmitting}
             sx={{ px: 4 }}
           >
-            {isEdit ? 'Save Changes' : 'Create Federation'}
+            {isEdit ? 'Değişiklikleri Kaydet' : 'Federasyon Oluştur'}
           </Button>
         </DialogActions>
       </form>

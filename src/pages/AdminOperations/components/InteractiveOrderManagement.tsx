@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -24,7 +24,10 @@ import {
   DialogContentText,
   DialogActions,
   IconButton,
+  Skeleton,
+  Alert,
 } from '@mui/material';
+import { adminOperationsService } from '../../../services/admin/adminOperationsService';
 import {
   Search as SearchIcon,
   WarningAmber as WarningIcon,
@@ -45,7 +48,7 @@ export interface InteractiveOrderManagementProps {
   onUpdateCategoryCapacity?: (categoryId: string, capacity: number, reason: string) => Promise<void>;
 }
 
-interface MockOrder {
+interface OrderData {
   id: string;
   customerName: string;
   date: string;
@@ -53,16 +56,6 @@ interface MockOrder {
   status: 'PAID' | 'REFUNDED' | 'CANCELLED';
   ticketCount: number;
 }
-
-const mockOrders: MockOrder[] = [
-  { id: 'ORD-891A', customerName: 'Zeynep Kaya', date: '28 Haz 10:45', amount: 450, status: 'PAID', ticketCount: 2 },
-  { id: 'ORD-442B', customerName: 'Ahmet Yılmaz', date: '28 Haz 09:12', amount: 1200, status: 'PAID', ticketCount: 4 },
-  { id: 'ORD-115C', customerName: 'Ceren Demir', date: '27 Haz 18:30', amount: 300, status: 'REFUNDED', ticketCount: 1 },
-  { id: 'ORD-988D', customerName: 'Burak Cengiz', date: '27 Haz 16:05', amount: 600, status: 'PAID', ticketCount: 2 },
-  { id: 'ORD-332E', customerName: 'Ayşe Yıldız', date: '26 Haz 11:20', amount: 900, status: 'CANCELLED', ticketCount: 3 },
-  { id: 'ORD-445F', customerName: 'Mehmet Kaplan', date: '26 Haz 09:15', amount: 300, status: 'PAID', ticketCount: 1 },
-  { id: 'ORD-771G', customerName: 'Elif Sahin', date: '25 Haz 14:40', amount: 1500, status: 'PAID', ticketCount: 5 },
-];
 
 export default function InteractiveOrderManagement({
   eventId,
@@ -73,9 +66,42 @@ export default function InteractiveOrderManagement({
   onTicketOverride,
   onUpdateCategoryCapacity,
 }: InteractiveOrderManagementProps) {
+  const [orders, setOrders] = useState<OrderData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await adminOperationsService.getOrders(eventId);
+        if (!cancelled) {
+          const data = (response.data as any[]) ?? [];
+          setOrders(data.map((o: any) => ({
+            id: o.id ?? o.orderId ?? '',
+            customerName: o.customerName ?? o.buyerName ?? '',
+            date: o.date ?? o.createdAt ?? '',
+            amount: o.amount ?? o.totalAmount ?? 0,
+            status: o.status ?? 'PAID',
+            ticketCount: o.ticketCount ?? o.tickets?.length ?? 0,
+          })));
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setError(err?.message ?? 'Siparişler yüklenirken hata oluştu');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchOrders();
+    return () => { cancelled = true; };
+  }, [eventId]);
 
   // Dialog state
   const [cancelAllOpen, setCancelAllOpen] = useState(false);
@@ -90,7 +116,7 @@ export default function InteractiveOrderManagement({
   const [categoryCapacity, setCategoryCapacity] = useState<number>(0);
   const [categoryReason, setCategoryReason] = useState('');
 
-  const filteredOrders = mockOrders.filter(
+  const filteredOrders = orders.filter(
     (o) =>
       o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.customerName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -155,7 +181,7 @@ export default function InteractiveOrderManagement({
         <Stack direction="row" spacing={3} alignItems="center">
           <Box sx={{ textAlign: 'right' }}>
             <Typography variant="caption" color="text.secondary">Toplam Ciro</Typography>
-            <Typography variant="subtitle1" fontWeight={700} color="success.main">5.250 ₺</Typography>
+            <Typography variant="subtitle1" fontWeight={700} color="success.main">{orders.reduce((sum, o) => sum + o.amount, 0).toLocaleString('tr-TR')} ₺</Typography>
           </Box>
           <Divider orientation="vertical" flexItem />
           <Button 
@@ -170,8 +196,12 @@ export default function InteractiveOrderManagement({
         </Stack>
       </Box>
 
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>
+      )}
+
       <Grid container spacing={3} sx={{ flex: 1 }}>
-        
+
         {/* LEFT PANEL: DATA TABLE */}
         <Grid item xs={12} lg={8}>
           <Paper elevation={0} sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'white', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
@@ -246,7 +276,20 @@ export default function InteractiveOrderManagement({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredOrders.length === 0 ? (
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={`skeleton-${i}`}>
+                        <TableCell padding="checkbox"><Skeleton variant="rectangular" width={20} height={20} /></TableCell>
+                        <TableCell><Skeleton width={80} /></TableCell>
+                        <TableCell><Skeleton width={120} /></TableCell>
+                        <TableCell><Skeleton width={100} /></TableCell>
+                        <TableCell><Skeleton width={30} /></TableCell>
+                        <TableCell><Skeleton width={60} /></TableCell>
+                        <TableCell><Skeleton width={70} /></TableCell>
+                        <TableCell><Skeleton width={24} /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : filteredOrders.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} align="center" sx={{ py: 8, color: 'text.secondary' }}>
                         Hiçbir sipariş bulunamadı.

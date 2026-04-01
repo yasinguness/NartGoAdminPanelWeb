@@ -52,10 +52,10 @@ export const useConfirm = (): UseConfirmReturn => {
         if (!dialogProps || !isOpen) return null;
 
         const {
-            title = 'Confirm',
+            title = 'Onayla',
             message,
-            confirmText = 'Confirm',
-            cancelText = 'Cancel',
+            confirmText = 'Onayla',
+            cancelText = 'İptal',
             confirmColor = 'primary',
         } = dialogProps;
 

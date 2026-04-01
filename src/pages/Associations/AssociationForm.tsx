@@ -105,7 +105,7 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
       <DialogTitle>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h6" fontWeight={600}>
-            {isEdit ? 'Edit Association' : 'Create New Association'}
+            {isEdit ? 'Derneği Düzenle' : 'Yeni Dernek Oluştur'}
           </Typography>
           <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
             <CloseIcon fontSize="small" />
@@ -307,9 +307,9 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 3, px: 4 }}>
-          <Button onClick={onClose} color="inherit">Cancel</Button>
+          <Button onClick={onClose} color="inherit">İptal</Button>
           <Button type="submit" variant="contained" sx={{ px: 4 }}>
-            {isEdit ? 'Save Changes' : 'Create Association'}
+            {isEdit ? 'Değişiklikleri Kaydet' : 'Dernek Oluştur'}
           </Button>
         </DialogActions>
       </form>

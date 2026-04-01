@@ -45,45 +45,6 @@ const COLORS = {
   neutral: '#64748b' // grey
 };
 
-// Mock Hierarchical Inventory Data
-const mockInventory = [
-  {
-    id: 'BLK-VIP',
-    type: 'BLOCK',
-    name: 'VIP Lounge',
-    capacity: 200,
-    allocation: { sellable: 50, vip: 150, blackout: 0, hold: 0 },
-    expanded: true,
-    children: [
-      { id: 'ROW-V1', type: 'ROW', name: 'Sıra 1', capacity: 100, allocation: { sellable: 0, vip: 100, blackout: 0, hold: 0 } },
-      { id: 'ROW-V2', type: 'ROW', name: 'Sıra 2', capacity: 100, allocation: { sellable: 50, vip: 50, blackout: 0, hold: 0 } },
-    ]
-  },
-  {
-    id: 'BLK-A',
-    type: 'BLOCK',
-    name: 'Blok A (Zemin)',
-    capacity: 1000,
-    allocation: { sellable: 800, vip: 0, blackout: 50, hold: 150 },
-    expanded: false,
-    children: [
-      { id: 'ROW-A1', type: 'ROW', name: 'Sıra 1-10', capacity: 500, allocation: { sellable: 500, vip: 0, blackout: 0, hold: 0 } },
-      { id: 'ROW-A2', type: 'ROW', name: 'Sıra 11-20', capacity: 500, allocation: { sellable: 300, vip: 0, blackout: 50, hold: 150 } },
-    ]
-  },
-  {
-    id: 'BLK-B',
-    type: 'BLOCK',
-    name: 'Blok B (Balkon)',
-    capacity: 800,
-    allocation: { sellable: 750, vip: 0, blackout: 0, hold: 50 },
-    expanded: false,
-    children: [
-      { id: 'ROW-B1', type: 'ROW', name: 'Ön Balkon', capacity: 200, allocation: { sellable: 150, vip: 0, blackout: 0, hold: 50 } },
-      { id: 'ROW-B2', type: 'ROW', name: 'Arka Balkon', capacity: 600, allocation: { sellable: 600, vip: 0, blackout: 0, hold: 0 } },
-    ]
-  }
-];
 
 export default function VenueInventoryManager() {
   const [data, setData] = useState<any[]>([]);
@@ -98,13 +59,10 @@ export default function VenueInventoryManager() {
       try {
         setLoading(true);
         const inv = await venueInventoryService.getVenueTopology('v-zpsm');
-        if (inv && inv.length > 0) {
-          setData(inv);
-        } else {
-          setData(mockInventory);
-        }
+        setData(inv || []);
       } catch (err) {
-        setData(mockInventory);
+        console.error('Failed to fetch venue inventory', err);
+        setData([]);
       } finally {
         setLoading(false);
       }

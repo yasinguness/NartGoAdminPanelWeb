@@ -52,12 +52,6 @@ interface CampaignMock {
   fraudFlags: number;
 }
 
-const mockCampaigns: CampaignMock[] = [
-  { id: 'CMP-101', name: 'Yaz Başlangıcı Sürprizi', type: 'PROMO_CODE', status: 'ACTIVE', stackPolicy: 'EXCLUSIVE', redemptions: 450, quota: 1000, fractionUsed: 45, uplift: '+₺12K', fraudFlags: 2 },
-  { id: 'CMP-102', name: 'Garanti BBVA %20 İndirim', type: 'BANK_PROMO', status: 'ACTIVE', stackPolicy: 'STACKABLE', redemptions: 1200, quota: 5000, fractionUsed: 24, uplift: '+₺85K', fraudFlags: 15 },
-  { id: 'CMP-103', name: 'VIP Erken Kayıt (Early Bird)', type: 'EARLY_BIRD', status: 'EXPIRED', stackPolicy: 'EXCLUSIVE', redemptions: 300, quota: 300, fractionUsed: 100, uplift: '+₺45K', fraudFlags: 0 },
-  { id: 'CMP-104', name: 'Öğrenciye Ücretsiz Hizmet Bedeli', type: 'AUTO_DISCOUNT', status: 'PAUSED', stackPolicy: 'STACKABLE_WITH_RESTRICTIONS', redemptions: 50, quota: 500, fractionUsed: 10, uplift: '+₺1.2K', fraudFlags: 0 },
-];
 
 const COLORS = {
   success: '#10b981',
@@ -85,19 +79,17 @@ export default function CampaignPromoEngine() {
       try {
         setLoading(true);
         const data = await campaignService.getCampaigns({ status: activeTab });
+        setCampaigns(data || []);
         if (data && data.length > 0) {
-          setCampaigns(data);
           setSelectedCamp(data[0]);
-          setEvaluationResult(null);
         } else {
-          setCampaigns(mockCampaigns);
-          setSelectedCamp(mockCampaigns[0]);
-          setEvaluationResult(null);
+          setSelectedCamp(null);
         }
+        setEvaluationResult(null);
       } catch (err) {
-        console.error("Failed to fetch campaigns, using mock", err);
-        setCampaigns(mockCampaigns);
-        setSelectedCamp(mockCampaigns[0]);
+        console.error('Failed to fetch campaigns', err);
+        setCampaigns([]);
+        setSelectedCamp(null);
         setEvaluationResult(null);
       } finally {
         setLoading(false);

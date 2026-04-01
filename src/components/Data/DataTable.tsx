@@ -235,7 +235,7 @@ export default function DataTable<T extends Record<string, any>>({
                     {column.label}
                   </TableCell>
                 ))}
-                {renderRowActions && <TableCell align="right" sx={{ width: 80 }}>Actions</TableCell>}
+                {renderRowActions && <TableCell align="right" sx={{ width: 80 }}>İşlemler</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -291,13 +291,13 @@ export default function DataTable<T extends Record<string, any>>({
                     {column.label}
                   </TableCell>
                 ))}
-                {renderRowActions && <TableCell align="right" sx={{ width: 80 }}>Actions</TableCell>}
+                {renderRowActions && <TableCell align="right" sx={{ width: 80 }}>İşlemler</TableCell>}
               </TableRow>
             </TableHead>
           </Table>
         </TableContainer>
         <EmptyState
-          title={emptyState?.title || 'No data found'}
+          title={emptyState?.title || 'Veri bulunamadı'}
           description={emptyState?.description}
           icon={emptyState?.icon}
           action={emptyState?.action}

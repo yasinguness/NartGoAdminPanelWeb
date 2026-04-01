@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Card, Grid, Typography, useTheme } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Card, Grid, Typography, useTheme, Skeleton } from '@mui/material';
 import {
   LineChart,
   Line,
@@ -13,27 +13,37 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-
-// Dummy data for member growth chart
-const memberGrowthData = [
-  { month: 'Jan', members: 1000 },
-  { month: 'Feb', members: 1050 },
-  { month: 'Mar', members: 1100 },
-  { month: 'Apr', members: 1150 },
-  { month: 'May', members: 1200 },
-  { month: 'Jun', members: 1234 },
-];
-
-// Dummy data for association distribution
-const associationDistributionData = [
-  { name: 'Active', value: 18 },
-  { name: 'Pending', value: 4 },
-  { name: 'Suspended', value: 2 },
-];
+import { federationService } from '../../../services/federation/federationService';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-export const FederationCharts: React.FC = () => {
+interface FederationChartsProps {
+  federationId?: string;
+}
+
+export const FederationCharts: React.FC<FederationChartsProps> = ({ federationId }) => {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!federationId) { setLoading(false); return; }
+    (async () => {
+      try {
+        const data = await federationService.getFederationStatistics(federationId);
+        setStats(data);
+      } catch { /* silently handle */ }
+      setLoading(false);
+    })();
+  }, [federationId]);
+
+  const memberGrowthData = stats?.memberGrowth || [
+    { month: 'Oca', members: stats?.totalMembers || 0 },
+  ];
+  const associationDistributionData = [
+    { name: 'Aktif', value: stats?.activeAssociations || 0 },
+    { name: 'Beklemede', value: stats?.pendingAssociations || 0 },
+    { name: 'Askıda', value: stats?.suspendedAssociations || 0 },
+  ].filter(d => d.value > 0);
   const theme = useTheme();
 
   return (

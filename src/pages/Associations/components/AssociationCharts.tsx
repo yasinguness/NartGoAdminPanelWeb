@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Card, Grid, Typography, useTheme } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Card, Grid, Typography, useTheme, Skeleton } from '@mui/material';
 import {
   LineChart,
   Line,
@@ -13,27 +13,37 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-
-// Dummy data for member growth chart
-const memberGrowthData = [
-  { month: 'Oca', members: 1000 },
-  { month: 'Şub', members: 1050 },
-  { month: 'Mar', members: 1100 },
-  { month: 'Nis', members: 1150 },
-  { month: 'May', members: 1200 },
-  { month: 'Haz', members: 1234 },
-];
-
-// Dummy data for membership status distribution
-const membershipDistributionData = [
-  { name: 'Aktif', value: 1200 },
-  { name: 'Beklemede', value: 34 },
-  { name: 'Askıda', value: 12 },
-];
+import { associationService } from '../../../services/association/associationService';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-export const AssociationCharts: React.FC = () => {
+interface AssociationChartsProps {
+  associationId?: string;
+}
+
+export const AssociationCharts: React.FC<AssociationChartsProps> = ({ associationId }) => {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!associationId) { setLoading(false); return; }
+    (async () => {
+      try {
+        const data = await associationService.getAssociationStatistics(associationId);
+        setStats(data);
+      } catch { /* silently handle */ }
+      setLoading(false);
+    })();
+  }, [associationId]);
+
+  const memberGrowthData = stats?.memberGrowth || [
+    { month: 'Oca', members: stats?.totalMembers || 0 },
+  ];
+  const membershipDistributionData = [
+    { name: 'Aktif', value: stats?.activeMembers || 0 },
+    { name: 'Beklemede', value: stats?.pendingMembers || 0 },
+    { name: 'Askıda', value: stats?.suspendedMembers || 0 },
+  ].filter(d => d.value > 0);
   const theme = useTheme();
 
   return (

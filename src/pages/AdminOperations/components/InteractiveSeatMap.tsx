@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -36,26 +36,21 @@ export interface Seat {
 
 export interface InteractiveSeatMapProps {
   initialRole?: SeatRole;
+  eventId?: string;
   onSeatAction?: (action: 'block' | 'release' | 'override', seatIds: string[], reason: string) => Promise<void>;
   eventData?: any;
 }
 
-const mockCategories = [
-  { id: '1', name: 'VIP', color: '#9c27b0', total: 12, available: 3 },
-  { id: '2', name: 'A Blok', color: '#1976d2', total: 29, available: 10 },
-  { id: '3', name: 'B Blok', color: '#2e7d32', total: 30, available: 9 },
-  { id: '4', name: 'C Blok', color: '#ed6c02', total: 44, available: 19 },
+const defaultCategories = [
+  { id: '1', name: 'VIP', color: '#9c27b0', total: 0, available: 0 },
+  { id: '2', name: 'A Blok', color: '#1976d2', total: 0, available: 0 },
+  { id: '3', name: 'B Blok', color: '#2e7d32', total: 0, available: 0 },
+  { id: '4', name: 'C Blok', color: '#ed6c02', total: 0, available: 0 },
 ];
 
-const mockRows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+const defaultRows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
-const mockAuditLogs = [
-  { time: '09:42', actor: 'm.gunes', action: 'B-04 bloklandı' },
-  { time: '08:15', actor: 'admin', action: 'kapasite 320->340' },
-  { time: 'Dün', actor: 'm.gunes', action: 'VIP-1,2,3 bloklandı' },
-];
-
-export default function InteractiveSeatMap({ initialRole = 'ADMIN', onSeatAction, eventData }: InteractiveSeatMapProps) {
+export default function InteractiveSeatMap({ initialRole = 'ADMIN', eventId, onSeatAction, eventData }: InteractiveSeatMapProps) {
   const [role, setRole] = useState<SeatRole>(initialRole);
   const [activeTool, setActiveTool] = useState<'select' | 'block' | 'release' | 'override'>('select');
   const [selectedSeats, setSelectedSeats] = useState<Set<string>>(new Set());
@@ -67,29 +62,98 @@ export default function InteractiveSeatMap({ initialRole = 'ADMIN', onSeatAction
   });
   const [reason, setReason] = useState<string>('');
   const [roleAnchorEl, setRoleAnchorEl] = useState<null | HTMLElement>(null);
+  const [categories, setCategories] = useState(defaultCategories);
+  const [auditLogs, setAuditLogs] = useState<{ time: string; actor: string; action: string }[]>([]);
+  const [seatRows, setSeatRows] = useState(defaultRows);
+  const [loading, setLoading] = useState(false);
 
-  // Generate initial mock seats
-  const initialSeats = useMemo(() => {
+  // Generate fallback seats from rows
+  const generateSeats = (rows: string[]): Seat[] => {
     const seats: Seat[] = [];
-    mockRows.forEach((r, rIdx) => {
-      let cat = 'C Blok';
-      if (rIdx < 2) cat = 'VIP';
-      else if (rIdx < 4) cat = 'A Blok';
-      else if (rIdx < 6) cat = 'B Blok';
-
+    rows.forEach((r, rIdx) => {
+      let cat = categories.length > 3 ? categories[Math.min(rIdx < 2 ? 0 : rIdx < 4 ? 1 : rIdx < 6 ? 2 : 3, categories.length - 1)].name : 'Standart';
       for (let c = 1; c <= 16; c++) {
-        const rnd = Math.random();
-        let status: SeatStatus = 'AVAILABLE';
-        if (rnd > 0.8) status = 'RESERVED';
-        else if (rnd > 0.4) status = 'SOLD';
-        else if (rnd > 0.3) status = 'BLOCKED';
-        seats.push({ id: `${r}-${c}`, row: r, col: c, category: cat, status });
+        seats.push({ id: `${r}-${c}`, row: r, col: c, category: cat, status: 'AVAILABLE' });
       }
     });
     return seats;
-  }, []);
+  };
 
-  const [seats, setSeats] = useState<Seat[]>(initialSeats);
+  const [seats, setSeats] = useState<Seat[]>(() => generateSeats(defaultRows));
+
+  // Fetch real seat data if eventId provided
+  useEffect(() => {
+    if (!eventId) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const { api } = await import('../../../services/api');
+        const [seatMapRes, occupiedRes, reservedRes, auditRes] = await Promise.allSettled([
+          api.get(`/tickets/seats/events/${eventId}/map`),
+          api.get(`/tickets/seats/events/${eventId}/occupied`),
+          api.get(`/tickets/seats/events/${eventId}/reserved`),
+          api.get(`/tickets/admin/events/${eventId}/seats/audit`),
+        ]);
+
+        const seatMap = seatMapRes.status === 'fulfilled' ? seatMapRes.value.data?.data : null;
+        const occupied = occupiedRes.status === 'fulfilled' ? (seatMapRes.value.data?.data || []) : [];
+        const reserved = reservedRes.status === 'fulfilled' ? (reservedRes.value.data?.data || []) : [];
+        const auditData = auditRes.status === 'fulfilled' ? (auditRes.value.data?.data || []) : [];
+
+        if (seatMap?.categories?.length > 0) {
+          const cats = seatMap.categories.map((c: any, i: number) => ({
+            id: c.categoryId || String(i),
+            name: c.categoryName || `Kategori ${i + 1}`,
+            color: ['#9c27b0', '#1976d2', '#2e7d32', '#ed6c02', '#d32f2f'][i % 5],
+            total: c.rows?.reduce((sum: number, r: any) => sum + (r.availableSeats?.length || 0) + (r.occupiedSeats?.length || 0), 0) || 0,
+            available: c.rows?.reduce((sum: number, r: any) => sum + (r.availableSeats?.length || 0), 0) || 0,
+          }));
+          setCategories(cats);
+
+          const newSeats: Seat[] = [];
+          seatMap.categories.forEach((cat: any) => {
+            cat.rows?.forEach((row: any) => {
+              (row.availableSeats || []).forEach((seatNum: number) => {
+                const id = `${cat.categoryId}_${row.rowLabel}_${seatNum}`;
+                const isOccupied = occupied.includes(id);
+                const isReserved = reserved.includes(id);
+                newSeats.push({
+                  id,
+                  row: row.rowLabel,
+                  col: seatNum,
+                  category: cat.categoryName,
+                  status: isOccupied ? 'SOLD' : isReserved ? 'RESERVED' : 'AVAILABLE',
+                });
+              });
+              (row.occupiedSeats || []).forEach((seatNum: number) => {
+                newSeats.push({
+                  id: `${cat.categoryId}_${row.rowLabel}_${seatNum}`,
+                  row: row.rowLabel,
+                  col: seatNum,
+                  category: cat.categoryName,
+                  status: 'SOLD',
+                });
+              });
+            });
+          });
+          if (newSeats.length > 0) {
+            setSeats(newSeats);
+            const uniqueRows = [...new Set(newSeats.map(s => s.row))].sort();
+            setSeatRows(uniqueRows);
+          }
+        }
+
+        if (Array.isArray(auditData) && auditData.length > 0) {
+          setAuditLogs(auditData.slice(0, 5).map((e: any) => ({
+            time: e.createdAt ? new Date(e.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '',
+            actor: e.performedBy || e.userEmail || 'sistem',
+            action: e.description || e.action || '',
+          })));
+        }
+      } catch { /* silently handle - keep generated seats */ }
+      setLoading(false);
+    })();
+  }, [eventId]);
 
   const stats = useMemo(() => {
     return {
@@ -212,7 +276,7 @@ export default function InteractiveSeatMap({ initialRole = 'ADMIN', onSeatAction
           <Box>
             <Typography variant="caption" color="text.secondary" fontWeight={600} letterSpacing={1}>KATEGORİLER</Typography>
             <Stack spacing={1.5} sx={{ mt: 2 }}>
-              {mockCategories.map(cat => (
+              {categories.map(cat => (
                 <Box key={cat.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: cat.color }} />
@@ -241,7 +305,7 @@ export default function InteractiveSeatMap({ initialRole = 'ADMIN', onSeatAction
             <Button variant="outlined" size="small" sx={{ borderRadius: 2, color: 'text.primary', borderColor: '#cfd8dc' }} onClick={() => setSelectedSeats(new Set(seats.map(s => s.id)))}>Tümünü seç</Button>
             <Button variant="outlined" size="small" sx={{ borderRadius: 2, color: 'text.primary', borderColor: '#cfd8dc' }} onClick={(e) => setRowMenuAnchor(e.currentTarget)}>Sıra seç (A)</Button>
             <Menu anchorEl={rowMenuAnchor} open={Boolean(rowMenuAnchor)} onClose={() => setRowMenuAnchor(null)}>
-              {mockRows.map(r => (
+              {seatRows.map(r => (
                 <MenuItem key={r} onClick={() => { setSelectedSeats(new Set(seats.filter(s => s.row === r).map(s => s.id))); setRowMenuAnchor(null); }}>Sıra {r}</MenuItem>
               ))}
             </Menu>
@@ -263,7 +327,7 @@ export default function InteractiveSeatMap({ initialRole = 'ADMIN', onSeatAction
 
             {/* Grid */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {mockRows.map(row => {
+              {seatRows.map(row => {
                 const rowSeats = seats.filter(s => s.row === row);
                 const leftSeats = rowSeats.filter(s => s.col <= 8);
                 const rightSeats = rowSeats.filter(s => s.col > 8);
@@ -428,7 +492,7 @@ export default function InteractiveSeatMap({ initialRole = 'ADMIN', onSeatAction
           <Box sx={{ borderTop: '1px solid #e0e0e0', p: 3, bgcolor: '#fafafa' }}>
             <Typography variant="caption" color="text.secondary" fontWeight={600} letterSpacing={1}>SON İŞLEMLER</Typography>
             <Stack spacing={1.5} sx={{ mt: 2 }}>
-              {mockAuditLogs.map((log, i) => (
+              {auditLogs.map((log, i) => (
                  <Box key={i} sx={{ display: 'flex', gap: 2, fontSize: '0.8rem' }}>
                     <Typography sx={{ color: 'text.secondary', width: 40 }}>{log.time}</Typography>
                     <Typography sx={{ fontWeight: 600 }}>{log.actor}</Typography>

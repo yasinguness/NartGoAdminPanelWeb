@@ -41,26 +41,6 @@ const COLORS = {
   background: '#f8fafc',
 };
 
-// Mock Customer Profile & Unified Timeline
-const mockCustomer = {
-  id: 'CUST-8821',
-  name: 'Caner Yalçın',
-  email: 'caner.ylcn@ornek.com',
-  phone: '+90 532 111 22 33',
-  ltv: '₺14,250',
-  joined: 'Ara 2024',
-  eventsAttended: 12,
-  riskStatus: 'LOW',
-  recentOrder: 'ORD-991A',
-};
-
-const mockTimeline = [
-  { id: 1, type: 'CALL', time: 'Bugün 14:15', title: 'Çağrı Merkezi İletişimi', desc: 'Müşteri bilet barkodu gelmediği için aradı. SMS ve Email tekrar tetiklendi.', actor: 'Destek - Ayşe', color: COLORS.warning, icon: <PhoneIcon fontSize="small"/> },
-  { id: 2, type: 'MANUAL_ACTION', time: 'Bugün 14:14', title: 'Bilet Yeniden Gönderimi', desc: 'TCK-9921 numaralı bilet email ve SMS kanallarından tekrar yollandı.', actor: 'Destek - Ayşe', color: COLORS.primary, icon: <SendIcon fontSize="small"/> },
-  { id: 3, type: 'FRAUD_ALERT', time: '28 Haz 19:45', title: 'Şüpheli Kapı Giriş Denemesi', desc: 'TCK-9921 barkodu VIP Kapısında art arda 3 kez okutuldu. Müşteri girişi reddedildi.', actor: 'Kapı - VIP1', color: COLORS.error, icon: <WarningIcon fontSize="small"/> },
-  { id: 4, type: 'CHECKIN', time: '28 Haz 19:40', title: 'Başarılı Giriş', desc: 'TCK-9921 bilet Zemin Kapısında onaylandı.', actor: 'Kapı - Zemin', color: COLORS.success, icon: <CheckCircleIcon fontSize="small"/> },
-  { id: 5, type: 'ORDER', time: '15 Haz 10:20', title: 'Sipariş Tamamlandı', desc: 'ORD-991A numaralı sipariş başarıyla ödendi (2x VIP Bilet, Toplam ₺900).', actor: 'Web', color: COLORS.primary, icon: <OrderIcon fontSize="small"/> },
-];
 
 export default function CustomerSupportConsole() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,16 +59,15 @@ export default function CustomerSupportConsole() {
       if (results && results.length > 0) {
         setCustomer(results[0]);
         const tl = await customerSupportService.getCustomerTimeline(results[0].id);
-        setTimeline(tl);
+        setTimeline(tl || []);
       } else {
-        // Fallback to mock for demo
-        setCustomer(mockCustomer);
-        setTimeline(mockTimeline);
+        setCustomer(null);
+        setTimeline([]);
       }
     } catch (err) {
-      console.error("Search failed, using mock data", err);
-      setCustomer(mockCustomer);
-      setTimeline(mockTimeline);
+      console.error('Customer search failed', err);
+      setCustomer(null);
+      setTimeline([]);
     } finally {
       setLoading(false);
     }
@@ -136,7 +115,7 @@ export default function CustomerSupportConsole() {
             <Typography variant="h6" color="text.secondary" fontWeight={700}>Aranıyor...</Typography>
             <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </Box>
-      ) : hasSearched ? (
+      ) : hasSearched && customer ? (
           <Box sx={{ display: 'flex', flex: 1, p: 3, gap: 3, overflow: 'hidden' }}>
             
             {/* LEFT PANEL: 360 Profile & Timeline */}
@@ -145,18 +124,18 @@ export default function CustomerSupportConsole() {
                 {/* 360 Customer Profile Header */}
                 <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                     <Avatar sx={{ width: 80, height: 80, bgcolor: '#eff6ff', color: '#1e3a8a', fontSize: '2rem', fontWeight: 800 }}>
-                        {customer?.name?.charAt(0) || 'C'}
+                        {customer?.name?.charAt(0) || '?'}
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="h4" fontWeight={800} color="#0f172a">{customer?.name || mockCustomer.name}</Typography>
+                        <Typography variant="h4" fontWeight={800} color="#0f172a">{customer?.name || ''}</Typography>
                         <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', color: '#64748b' }}>
-                                <EmailIcon sx={{ fontSize: 18, mr: 0.5 }} /> <Typography variant="body2" fontWeight={600}>{customer?.email || mockCustomer.email}</Typography>
+                                <EmailIcon sx={{ fontSize: 18, mr: 0.5 }} /> <Typography variant="body2" fontWeight={600}>{customer?.email || ''}</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', color: '#64748b' }}>
-                                <PhoneIcon sx={{ fontSize: 18, mr: 0.5 }} /> <Typography variant="body2" fontWeight={600}>{customer?.phone || mockCustomer.phone}</Typography>
+                                <PhoneIcon sx={{ fontSize: 18, mr: 0.5 }} /> <Typography variant="body2" fontWeight={600}>{customer?.phone || ''}</Typography>
                             </Box>
-                            <Typography variant="body2" fontWeight={600} color="#94a3b8">Biletix ID: {customer?.id || mockCustomer.id}</Typography>
+                            <Typography variant="body2" fontWeight={600} color="#94a3b8">Biletix ID: {customer?.id || ''}</Typography>
                         </Stack>
                     </Box>
 
@@ -164,15 +143,15 @@ export default function CustomerSupportConsole() {
 
                     <Box sx={{ textAlign: 'center', px: 2 }}>
                        <Typography variant="caption" color="text.secondary" fontWeight={700}>YAŞAM BOYU DEĞER</Typography>
-                       <Typography variant="h5" fontWeight={800} color={COLORS.success}>{customer?.ltv || mockCustomer.ltv}</Typography>
+                       <Typography variant="h5" fontWeight={800} color={COLORS.success}>{customer?.ltv || '-'}</Typography>
                     </Box>
                     <Box sx={{ textAlign: 'center', px: 2 }}>
                        <Typography variant="caption" color="text.secondary" fontWeight={700}>KATILIM</Typography>
-                       <Typography variant="h5" fontWeight={800}>{customer?.eventsAttended || mockCustomer.eventsAttended} <Typography component="span" variant="body2" color="text.secondary" fontWeight={600}>Etkinlik</Typography></Typography>
+                       <Typography variant="h5" fontWeight={800}>{customer?.eventsAttended || 0} <Typography component="span" variant="body2" color="text.secondary" fontWeight={600}>Etkinlik</Typography></Typography>
                     </Box>
                     <Box sx={{ textAlign: 'center', pl: 2 }}>
                        <Typography variant="caption" color="text.secondary" fontWeight={700}>RİSK SKORU</Typography>
-                       <Chip label={(customer?.riskStatus || 'LOW') === 'LOW' ? 'GÜVENİLİR' : 'RİSKLİ'} color={(customer?.riskStatus || 'LOW') === 'LOW' ? 'success' : 'error'} size="small" sx={{ display: 'flex', fontWeight: 800, mt: 0.5 }} />
+                       <Chip label={customer?.riskStatus === 'LOW' ? 'GÜVENİLİR' : customer?.riskStatus ? 'RİSKLİ' : '-'} color={customer?.riskStatus === 'LOW' ? 'success' : 'error'} size="small" sx={{ display: 'flex', fontWeight: 800, mt: 0.5 }} />
                     </Box>
                 </Paper>
 
@@ -233,7 +212,7 @@ export default function CustomerSupportConsole() {
                 <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid #e2e8f0' }}>
                     <Typography variant="caption" fontWeight={700} color="text.secondary">AKTİF SİPARİŞ BAĞLAMI</Typography>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, mb: 3 }}>
-                        <Typography variant="h5" fontWeight={800} sx={{ fontFamily: 'monospace' }}>{customer?.recentOrder || mockCustomer.recentOrder}</Typography>
+                        <Typography variant="h5" fontWeight={800} sx={{ fontFamily: 'monospace' }}>{customer?.recentOrder || '-'}</Typography>
                         <Chip label="ÖDENDİ" size="small" sx={{ bgcolor: 'rgba(16,185,129,0.1)', color: COLORS.success, fontWeight: 800 }} />
                     </Box>
                     <Divider sx={{ mb: 3 }} />
@@ -285,6 +264,12 @@ export default function CustomerSupportConsole() {
                 </Paper>
 
             </Box>
+          </Box>
+      ) : hasSearched && !customer ? (
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+              <SearchIcon sx={{ fontSize: 80, color: '#94a3b8', mb: 3 }} />
+              <Typography variant="h5" fontWeight={700} color="text.secondary">Sonuç Bulunamadı</Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>Arama kriterlerinize uygun müşteri bulunamadı. Farklı bir sorgu deneyin.</Typography>
           </Box>
       ) : (
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>

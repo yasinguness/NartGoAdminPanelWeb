@@ -5,22 +5,10 @@ import { campaignService } from '../../services/notification/campaignService';
 import { audienceService } from '../../services/notification/audienceService';
 import { analyticsService } from '../../services/notification/analyticsService';
 import { schedulingService } from '../../services/notification/schedulingService';
-import { mockCampaigns, mockDashboardData, mockSegments, mockRateLimit } from './mockData';
-
 export const useCampaigns = (type?: CampaignType, page = 0, search?: string) => {
     return useQuery({
         queryKey: ['campaigns', type, page, search],
-        queryFn: async () => {
-            try {
-                return await campaignService.getCampaigns(type, page, 20, search);
-            } catch (err) {
-                // Fallback dummy veriler
-                console.warn('Backend hatası, fallback veri gösteriliyor', err);
-                const filtered = mockCampaigns.filter(c => type ? c.type === type : true)
-                    .filter(c => search ? c.name.toLowerCase().includes(search.toLowerCase()) : true);
-                return { campaigns: filtered, totalPages: 1, totalElements: filtered.length };
-            }
-        },
+        queryFn: () => campaignService.getCampaigns(type, page, 20, search),
         staleTime: 2 * 60 * 1000,
     });
 };
@@ -28,14 +16,7 @@ export const useCampaigns = (type?: CampaignType, page = 0, search?: string) => 
 export const useAudienceSegments = () => {
     return useQuery({
         queryKey: ['audience-segments'],
-        queryFn: async () => {
-            try {
-                return await audienceService.getPresetSegments();
-            } catch (err) {
-                console.warn('Backend hatası, fallback segmentler', err);
-                return mockSegments;
-            }
-        },
+        queryFn: () => audienceService.getPresetSegments(),
         staleTime: 5 * 60 * 1000,
     });
 };
@@ -46,7 +27,7 @@ export const useAvailableFilters = () => {
         queryFn: async () => {
             try {
                 return await audienceService.getAvailableFilters();
-            } catch (err) {
+            } catch {
                 return [];
             }
         },
@@ -57,14 +38,7 @@ export const useAvailableFilters = () => {
 export const useAnalyticsDashboard = (timeframe: AnalyticsTimeframe = AnalyticsTimeframe.LAST_7D) => {
     return useQuery({
         queryKey: ['analytics-dashboard', timeframe],
-        queryFn: async () => {
-            try {
-                return await analyticsService.getDashboardOverview(timeframe);
-            } catch (err) {
-                console.warn('Backend hatası, fallback analitik', err);
-                return mockDashboardData;
-            }
-        },
+        queryFn: () => analyticsService.getDashboardOverview(timeframe),
         staleTime: 2 * 60 * 1000,
     });
 };
@@ -72,14 +46,7 @@ export const useAnalyticsDashboard = (timeframe: AnalyticsTimeframe = AnalyticsT
 export const useRateLimitConfig = () => {
     return useQuery({
         queryKey: ['rate-limit-config'],
-        queryFn: async () => {
-            try {
-                return await schedulingService.getRateLimitConfig();
-            } catch (err) {
-                console.warn('Backend hatası, fallback rate limit', err);
-                return mockRateLimit;
-            }
-        },
+        queryFn: () => schedulingService.getRateLimitConfig(),
         staleTime: 5 * 60 * 1000,
     });
 };
