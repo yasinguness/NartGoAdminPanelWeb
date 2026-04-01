@@ -435,10 +435,10 @@ export default function Layout() {
                     flexGrow: 1,
                     p: location.pathname.includes('seat-map') ? 0 : 3,
                     width: isZenMode ? '100vw' : { sm: `calc(100% - ${drawerWidth}px)` },
-                    height: isZenMode ? '100vh' : 'calc(100vh - 64px)',
+                    minHeight: isZenMode ? '100vh' : 'calc(100vh - 64px)',
                     mt: isZenMode ? 0 : '64px',
                     maxWidth: location.pathname.includes('seat-map') ? 'none' : '1600px',
-                    overflow: 'hidden', 
+                    overflowX: 'hidden',
                 }}
             >
                 <Outlet />
