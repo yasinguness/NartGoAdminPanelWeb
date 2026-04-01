@@ -222,7 +222,7 @@ export default function InteractiveSeatMap({ initialRole = 'ADMIN', eventId, onS
   const [rowMenuAnchor, setRowMenuAnchor] = useState<null|HTMLElement>(null);
   
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '800px', backgroundColor: '#f9fafb' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '800px', backgroundColor: 'background.default' }}>
       {/* Top Meta Bar */}
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e0e0e0', bgcolor: 'white' }}>
         <Typography variant="body2" color="text.secondary">

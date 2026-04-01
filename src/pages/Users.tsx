@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -12,6 +12,10 @@ import {
   ListItemIcon,
   ListItemText,
   TextField,
+  Checkbox,
+  Tooltip,
+  IconButton,
+  Collapse,
 } from '@mui/material';
 import {
   Block as BlockIcon,
@@ -20,13 +24,31 @@ import {
   Refresh as RefreshIcon,
   History as HistoryIcon,
   Delete as DeleteIcon,
+  FilterList as FilterIcon,
+  Search as SearchIcon,
+  MoreVert as MoreIcon,
+  GetApp as ExportIcon,
+  PersonAdd as AddIcon,
+  Group as GroupIcon,
+  VerifiedUser as VerifiedIcon,
+  Warning as WarningIcon,
+  AttachMoney as PremiumIcon,
 } from '@mui/icons-material';
 import { useUsers } from '../hooks/useUsers';
 import { useSnackbar } from 'notistack';
-import { UserDTO, UserStatusEnum, AccountType, Language, LanguageDisplayNames } from '../types/users/userModel';
+import { 
+    UserDTO, 
+    UserStatusEnum, 
+    AccountType, 
+    Language, 
+    LanguageDisplayNames,
+    AdminUserStats 
+} from '../types/users/userModel';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 
 // New components
 import { PageContainer, PageHeader } from '../components/Page';
@@ -35,38 +57,41 @@ import { FilterBar, FilterSelect } from '../components/Filter';
 import { ConfirmDialog } from '../components/Feedback';
 import { FormGrid } from '../components/Form';
 import { ActionMenu } from '../components/Actions';
+import { userService } from '../services/user/userService';
 
 export default function Users() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { enqueueSnackbar } = useSnackbar();
   
-  // State
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [rowsPerPage] = useState(10);
-  
-  // Filters
-  const [accountTypeFilter, setAccountTypeFilter] = useState<AccountType | ''>('');
-  const [statusFilter, setStatusFilter] = useState<UserStatusEnum | ''>('');
-  const [languageFilter, setLanguageFilter] = useState<Language | ''>('');
-  const [countryCodeFilter, setCountryCodeFilter] = useState('');
-  const [currentCityFilter, setCurrentCityFilter] = useState('');
-  const [currentDistrictFilter, setCurrentDistrictFilter] = useState('');
-  const [hometownCityFilter, setHometownCityFilter] = useState('');
-  const [hometownVillageFilter, setHometownVillageFilter] = useState('');
-  const [birthDateFrom, setBirthDateFrom] = useState<Date | null>(null);
-  const [birthDateTo, setBirthDateTo] = useState<Date | null>(null);
+  // URL to State
+  const page = Number(searchParams.get('page')) || 1;
+  const keyword = searchParams.get('keyword') || '';
+  const status = searchParams.get('status') as UserStatusEnum || '';
+  const accountType = searchParams.get('accountType') as AccountType || '';
+  const currentCity = searchParams.get('currentCity') || '';
+  const currentDistrict = searchParams.get('currentDistrict') || '';
+  const language = searchParams.get('language') as Language || '';
+
+  // Local state for UI
+  const [search, setSearch] = useState(keyword);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [stats, setStats] = useState<AdminUserStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   // Dialogs
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteUser, setDeleteUser] = useState<UserDTO | null>(null);
 
-  // Debounce search
+  // Stats Fetch
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 500);
-    return () => clearTimeout(timer);
-  }, [search]);
+    setLoadingStats(true);
+    userService.getUserStats()
+      .then(res => setStats(res.data))
+      .catch(err => console.error('Failed to fetch stats', err))
+      .finally(() => setLoadingStats(false));
+  }, []);
 
   // Hook
   const {
@@ -77,28 +102,46 @@ export default function Users() {
     deleteAccount,
   } = useUsers({
     page: page - 1,
-    size: rowsPerPage,
-    keyword: debouncedSearch.length >= 2 ? debouncedSearch : undefined,
-    accountType: accountTypeFilter || undefined,
-    status: statusFilter || undefined,
-    language: languageFilter || undefined,
-    countryCode: countryCodeFilter || undefined,
-    currentCity: currentCityFilter || undefined,
-    currentDistrict: currentDistrictFilter || undefined,
-    hometownCity: hometownCityFilter || undefined,
-    hometownVillage: hometownVillageFilter || undefined,
-    birthDateFrom: birthDateFrom ? birthDateFrom.toISOString().split('T')[0] : undefined,
-    birthDateTo: birthDateTo ? birthDateTo.toISOString().split('T')[0] : undefined
+    size: 10,
+    keyword: keyword || undefined,
+    accountType: accountType || undefined,
+    status: status || undefined,
+    language: language || undefined,
+    currentCity: currentCity || undefined,
+    currentDistrict: currentDistrict || undefined,
   });
 
+  // Sync Search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (search !== keyword) {
+        updateFilter({ keyword: search, page: 1 });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search, keyword]);
+
   // Handlers
-  const handleUserAction = async (userId: string, action: 'block' | 'unblock') => {
+  const updateFilter = useCallback((newParams: Record<string, any>) => {
+    const current = Object.fromEntries(searchParams.entries());
+    const merged = { ...current, ...newParams };
+    
+    // Remove empty values
+    Object.keys(merged).forEach(key => {
+      if (merged[key] === '' || merged[key] === null || merged[key] === undefined) {
+        delete merged[key];
+      }
+    });
+
+    setSearchParams(merged);
+  }, [searchParams, setSearchParams]);
+
+  const handleUserAction = async (userId: string, targetStatus: UserStatusEnum) => {
     try {
-      const status = action === 'block' ? UserStatusEnum.BLOCKED : UserStatusEnum.ACTIVE;
-      await toggleUserStatus({ userId, status });
-      enqueueSnackbar(`Kullanıcı başarıyla ${action === 'block' ? 'engellendi' : 'engeli kaldırıldı'}`, { variant: 'success' });
+      await toggleUserStatus({ userId, status: targetStatus });
+      enqueueSnackbar('Durum başarıyla güncellendi', { variant: 'success' });
     } catch (error) {
-      enqueueSnackbar(`Kullanıcı ${action === 'block' ? 'engellenemedi' : 'engeli kaldırılamadı'}`, { variant: 'error' });
+      enqueueSnackbar('Durum güncellenemedi', { variant: 'error' });
     }
   };
 
@@ -108,46 +151,44 @@ export default function Users() {
       await deleteAccount(deleteUser.id);
       enqueueSnackbar('Hesap başarıyla silindi', { variant: 'success' });
       setDeleteDialogOpen(false);
-      await refetch();
+      refetch();
     } catch (error) {
       enqueueSnackbar('Hesap silinemedi', { variant: 'error' });
     }
   };
 
-  const clearFilters = () => {
-    setAccountTypeFilter('');
-    setStatusFilter('');
-    setLanguageFilter('');
-    setCountryCodeFilter('');
-    setCurrentCityFilter('');
-    setCurrentDistrictFilter('');
-    setHometownCityFilter('');
-    setHometownVillageFilter('');
-    setBirthDateFrom(null);
-    setBirthDateTo(null);
+  const handleSelectUser = (id: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && data?.content) {
+      setSelectedUsers(data.content.map(u => u.id));
+    } else {
+      setSelectedUsers([]);
+    }
   };
 
   const getDisplayName = (user: UserDTO) => {
-    const explicitDisplayName = (user.displayName ?? '').trim();
-    if (explicitDisplayName) {
-      return explicitDisplayName;
-    }
-    const firstName = (user.firstName ?? '').trim();
-    const lastName = (user.lastName ?? '').trim();
-    const fullName = `${firstName} ${lastName}`.trim();
-    return fullName || user.email || 'Bilinmeyen Kullanıcı';
-  };
-
-  const getAvatarInitial = (user: UserDTO) => {
-    const firstName = (user.firstName ?? '').trim();
-    if (firstName.length > 0) {
-      return firstName[0]?.toUpperCase();
-    }
-    const email = (user.email ?? '').trim();
-    return email.length > 0 ? email[0]?.toUpperCase() : '?';
+    return user.displayName || `${user.firstName} ${user.lastName}`.trim() || user.email || 'Bilinmeyen';
   };
 
   const columns = [
+    {
+      id: 'selection',
+      label: <Checkbox size="small" onChange={(e) => handleSelectAll(e.target.checked)} checked={selectedUsers.length > 0 && selectedUsers.length === data?.content.length} />,
+      render: (user: UserDTO) => (
+        <Checkbox 
+          size="small" 
+          checked={selectedUsers.includes(user.id)} 
+          onChange={() => handleSelectUser(user.id)}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      width: 50
+    },
     {
       id: 'user',
       label: 'Kullanıcı',
@@ -156,165 +197,249 @@ export default function Users() {
           <Avatar
             src={user.imageUrl}
             variant="rounded"
-            sx={{ width: 40, height: 40, bgcolor: 'primary.light', border: 1, borderColor: 'divider' }}
+            sx={{ width: 42, height: 42, borderRadius: 1.5, border: '2px solid', borderColor: 'divider' }}
           >
-            {getAvatarInitial(user)}
+            {user.firstName ? user.firstName[0] : '?'}
           </Avatar>
           <Box>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
               {getDisplayName(user)}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {user.phoneCode} {user.gsmNo}
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {user.email}
+              {(user.role || []).includes('ADMIN') && <VerifiedIcon sx={{ fontSize: 14, color: 'primary.main' }} />}
             </Typography>
           </Box>
         </Stack>
       )
     },
-    { id: 'email', label: 'E-posta' },
     {
-      id: 'userStatus',
+      id: 'status',
       label: 'Durum',
       render: (user: UserDTO) => <StatusChip status={user.userStatus} />
     },
     {
-      id: 'accountType',
-      label: 'Hesap',
+      id: 'account',
+      label: 'Hesap Türü',
       render: (user: UserDTO) => (
-        <StatusChip
-          status={user.accountType === AccountType.BUSINESS ? 'İşletme' : 'Bireysel'}
-          color={user.accountType === AccountType.BUSINESS ? 'secondary' : 'default'}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box 
+            sx={{ 
+                width: 8, 
+                height: 8, 
+                borderRadius: '50%', 
+                bgcolor: user.accountType === AccountType.BUSINESS ? 'secondary.main' : 'info.main' 
+            }} 
+          />
+          <Typography variant="body2" color="text.secondary">
+            {user.accountType === AccountType.BUSINESS ? 'İşletme' : 'Bireysel'}
+          </Typography>
+        </Box>
       )
     },
     {
-      id: 'location',
-      label: 'Şehir',
-      render: (user: UserDTO) => user.currentAddress?.city || '-'
+      id: 'registration',
+      label: 'Kayıt Tarihi',
+      render: (user: UserDTO) => (
+        <Typography variant="body2" color="text.secondary">
+          {user.createdAt ? format(new Date(user.createdAt), 'dd MMM yyyy', { locale: tr }) : '-'}
+        </Typography>
+      )
+    },
+    {
+        id: 'location',
+        label: 'Konum',
+        render: (user: UserDTO) => (
+            <Typography variant="body2" color="text.secondary">
+                {user.currentCity || '-'}
+            </Typography>
+        )
     }
   ];
 
   return (
     <PageContainer>
       <PageHeader
-        title="Kullanıcılar"
-        subtitle="Kullanıcı hesaplarını yönetin, durumları izleyin ve yetkileri güncelleyin"
+        title="Kullanıcı Yönetimi"
+        subtitle="Platformdaki tüm kullanıcıları izleyin, rollerini ve durumlarını yönetin."
         breadcrumbs={[
-          { label: 'Kontrol Paneli', href: '/dashboard' },
+          { label: 'Panel', href: '/dashboard' },
           { label: 'Kullanıcılar' }
         ]}
         actions={
-          <Button variant="contained" startIcon={<RefreshIcon />} onClick={() => refetch()}>
-            Listeyi Yenile
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button variant="outlined" startIcon={<ExportIcon />}>Dışa Aktar</Button>
+            <Button variant="contained" startIcon={<AddIcon />}>Yeni Kullanıcı</Button>
+          </Stack>
         }
       />
 
-      {/* Stats Summary */}
+      {/* Stats Row */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard title="Toplam Kullanıcı" value={data?.totalElements ?? 0} color="primary" />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <StatCard 
-            title="Aktif"
-            value={data?.content?.filter(u => u.userStatus === UserStatusEnum.ACTIVE).length ?? 0} 
-            color="success" 
+            title="Toplam Kullanıcı" 
+            value={stats?.total ?? 0} 
+            icon={<GroupIcon sx={{ color: 'primary.main' }} />}
+            loading={loadingStats}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <StatCard 
-            title="Engelli"
-            value={data?.content?.filter(u => u.userStatus === UserStatusEnum.BLOCKED).length ?? 0} 
-            color="error" 
+            title="Aktif" 
+            value={stats?.active ?? 0} 
+            color="success"
+            icon={<ActiveIcon sx={{ color: 'success.main' }} />}
+            loading={loadingStats}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <StatCard 
-            title="Yöneticiler"
-            value={data?.content?.filter(u => (u.role ?? []).some(r => r === 'ADMIN')).length ?? 0} 
-            color="warning" 
+            title="Bekleyen" 
+            value={stats?.pending ?? 0} 
+            color="warning"
+            icon={<HistoryIcon sx={{ color: 'warning.main' }} />}
+            loading={loadingStats}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <StatCard 
+            title="Engellenen" 
+            value={stats?.banned ?? 0} 
+            color="error"
+            icon={<BlockIcon sx={{ color: 'error.main' }} />}
+            loading={loadingStats}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <StatCard 
+            title="Bu Ay Yeni" 
+            value={stats?.newThisMonth ?? 0} 
+            color="info"
+            trend={{ value: 12, label: 'geçen aya göre' }}
+            loading={loadingStats}
           />
         </Grid>
       </Grid>
 
-      {/* Enhanced Filter Bar */}
-      <FilterBar
-        search={{
-          value: search,
-          onChange: setSearch,
-          placeholder: 'Ad, E-posta veya Telefon ile ara...'
-        }}
-        filters={
-          <>
-            <FilterSelect
-              label="Tür"
-              value={accountTypeFilter}
-              onChange={(v) => setAccountTypeFilter(v as AccountType | '')}
-              options={[
-                { value: AccountType.INDIVIDUAL, label: 'Bireysel' },
-                { value: AccountType.BUSINESS, label: 'İşletme' }
-              ]}
-              showAllOption
-              allOptionLabel="Tüm Türler"
-            />
-            <FilterSelect
-              label="Durum"
-              value={statusFilter}
-              onChange={(v) => setStatusFilter(v as UserStatusEnum | '')}
-              options={Object.values(UserStatusEnum).map(s => ({ value: s, label: s }))}
-              showAllOption
-              allOptionLabel="Tüm Durumlar"
-            />
-          </>
-        }
-        advancedFilters={
-          <FormGrid spacing={2}>
-            <FilterSelect
-              label="Dil"
-              value={languageFilter}
-              onChange={(v) => setLanguageFilter(v as Language)}
-              options={Object.entries(LanguageDisplayNames).map(([v, l]) => ({ value: v, label: l }))}
-            />
-            <Stack direction="row" spacing={2} sx={{ width: '100%' }}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker 
-                  label="Doğum Tarihi Başlangıç"
-                  value={birthDateFrom} 
-                  onChange={setBirthDateFrom} 
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }} 
-                />
-                <DatePicker 
-                  label="Doğum Tarihi Bitiş"
-                  value={birthDateTo} 
-                  onChange={setBirthDateTo} 
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }} 
-                />
-              </LocalizationProvider>
-            </Stack>
-            <Stack direction="row" spacing={2} sx={{ width: '100%' }}>
-              <TextField
-                placeholder="Şehir"
-                value={currentCityFilter} 
-                onChange={(e) => setCurrentCityFilter(e.target.value)}
-                size="small"
-                fullWidth
-              />
-              <TextField
-                placeholder="İlçe"
-                value={currentDistrictFilter} 
-                onChange={(e) => setCurrentDistrictFilter(e.target.value)}
-                size="small"
-                fullWidth
-              />
-            </Stack>
-          </FormGrid>
-        }
-        onClearFilters={clearFilters}
-        activeFilterCount={[accountTypeFilter, statusFilter, languageFilter].filter(Boolean).length}
-      />
+      {/* Filter and Actions Bar */}
+      <Box sx={{ mb: 3, position: 'relative' }}>
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+          <TextField
+            placeholder="İsim, e-posta veya telefon ile ara..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            size="small"
+            sx={{ flexGrow: 1, '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: 'background.paper' } }}
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1, fontSize: 20 }} />,
+            }}
+          />
+          <FilterSelect
+            label="Hesap Türü"
+            value={accountType}
+            onChange={(v) => updateFilter({ accountType: v, page: 1 })}
+            options={[
+              { value: AccountType.INDIVIDUAL, label: 'Bireysel' },
+              { value: AccountType.BUSINESS, label: 'İşletme' }
+            ]}
+            showAllOption
+          />
+          <FilterSelect
+            label="Durum"
+            value={status}
+            onChange={(v) => updateFilter({ status: v, page: 1 })}
+            options={Object.values(UserStatusEnum).map(s => ({ value: s, label: s }))}
+            showAllOption
+          />
+          <IconButton 
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            sx={{ 
+                bgcolor: showAdvancedFilters ? 'primary.light' : 'background.paper',
+                color: showAdvancedFilters ? 'primary.main' : 'text.secondary',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 2
+            }}
+          >
+            <FilterIcon fontSize="small" />
+          </IconButton>
+        </Stack>
 
-      {/* Data Table */}
+        <Collapse in={showAdvancedFilters}>
+            <Box sx={{ p: 2, mb: 2, bgcolor: 'background.default', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} md={3}>
+                        <TextField 
+                            fullWidth 
+                            size="small" 
+                            label="Şehir" 
+                            value={currentCity} 
+                            onChange={(e) => updateFilter({ currentCity: e.target.value, page: 1 })} 
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                        <TextField 
+                            fullWidth 
+                            size="small" 
+                            label="İlçe" 
+                            value={currentDistrict} 
+                            onChange={(e) => updateFilter({ currentDistrict: e.target.value, page: 1 })} 
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                        <FilterSelect
+                            label="Dil"
+                            value={language}
+                            onChange={(v) => updateFilter({ language: v, page: 1 })}
+                            options={Object.entries(LanguageDisplayNames).map(([v, l]) => ({ value: v, label: l }))}
+                            showAllOption
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                        <Button 
+                            fullWidth 
+                            variant="text" 
+                            color="inherit" 
+                            onClick={() => updateFilter({ currentCity: '', currentDistrict: '', language: '', page: 1 })}
+                        >
+                            Filtreleri Temizle
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Box>
+        </Collapse>
+
+        {/* Bulk Actions Floating Bar */}
+        <Collapse in={selectedUsers.length > 0}>
+            <Box 
+              sx={{ 
+                position: 'sticky', 
+                top: 0, 
+                zIndex: 10, 
+                bgcolor: 'primary.dark', 
+                color: 'white', 
+                p: 1.5, 
+                borderRadius: 2, 
+                mb: 2, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.3)'
+              }}
+            >
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedUsers.length} Kullanıcı Seçildi</Typography>
+                <Divider orientation="vertical" flexItem sx={{ bgcolor: 'rgba(255,255,255,0.2)' }} />
+                <Button size="small" color="inherit" startIcon={<BlockIcon />}>Engelle</Button>
+                <Button size="small" color="inherit" startIcon={<DeleteIcon />}>Sil</Button>
+              </Stack>
+              <Button size="small" color="inherit" onClick={() => setSelectedUsers([])}>İptal</Button>
+            </Box>
+        </Collapse>
+      </Box>
+
+      {/* Main Table */}
       <DataTable
         columns={columns}
         data={data?.content || []}
@@ -322,27 +447,22 @@ export default function Users() {
         onRowClick={(user) => navigate(`/users/${user.id}`)}
         pagination={{
             page: page,
-            pageSize: rowsPerPage,
+            pageSize: 10,
             total: data?.totalElements || 0,
-            onPageChange: setPage,
+            onPageChange: (p) => updateFilter({ page: p }),
         }}
         renderRowActions={(user: UserDTO) => (
           <ActionMenu>
             <MenuItem onClick={() => navigate(`/users/${user.id}`)}>
               <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
-              <ListItemText>Detayları Düzenle</ListItemText>
+              <ListItemText>Düzenle / Görüntüle</ListItemText>
             </MenuItem>
-            <MenuItem onClick={() => handleUserAction(user.id, user.userStatus === UserStatusEnum.ACTIVE ? 'block' : 'unblock')}>
+            <MenuItem onClick={() => handleUserAction(user.id, user.userStatus === UserStatusEnum.ACTIVE ? UserStatusEnum.BLOCKED : UserStatusEnum.ACTIVE)}>
               <ListItemIcon>
                 {user.userStatus === UserStatusEnum.ACTIVE ? <BlockIcon fontSize="small" color="error" /> : <ActiveIcon fontSize="small" color="success" />}
               </ListItemIcon>
               <ListItemText>{user.userStatus === UserStatusEnum.ACTIVE ? 'Kullanıcıyı Engelle' : 'Engeli Kaldır'}</ListItemText>
             </MenuItem>
-            <MenuItem>
-                <ListItemIcon><HistoryIcon fontSize="small" /></ListItemIcon>
-                <ListItemText>Geçmişi Görüntüle</ListItemText>
-            </MenuItem>
-            <Divider />
             <MenuItem onClick={() => { setDeleteUser(user); setDeleteDialogOpen(true); }} sx={{ color: 'error.main' }}>
               <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
               <ListItemText>Hesabı Sil</ListItemText>
@@ -356,10 +476,10 @@ export default function Users() {
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Kullanıcı Hesabını Sil"
-        message={`${deleteUser?.firstName} adlı kullanıcının hesabını kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+        title="Hesabı Kalıcı Olarak Sil"
+        message={`${deleteUser?.firstName} ${deleteUser?.lastName} kullanıcısının hesabı silinecektir. Bu işlem geri alınamaz.`}
         severity="error"
-        confirmLabel="Hesabı Sil"
+        confirmLabel="Evet, Sil"
       />
     </PageContainer>
   );

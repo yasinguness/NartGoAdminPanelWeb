@@ -67,19 +67,44 @@ export interface User {
     lastLoginAt: string;
 }
 
-export interface UserStats {
+export interface AdminUserStats {
     total: number;
     active: number;
-    blocked: number;
-    newToday: number;
-    activeToday: number;
+    pending: number;
+    banned: number;
+    sellers: number;
+    premiums: number;
+    newThisMonth: number;
 }
 
-export interface UserActivity {
-    id: string;
+export interface UserActivitySummary {
+    totalOrders: number;
+    totalSpent: number;
+    gamificationPoints: number;
+    badges: number;
+    eventsJoined: number;
+    totalLogins: number;
+    lastLoginAt?: string;
+    lastLoginIp?: string;
+    lastLoginDevice?: string;
+    profileCompletionPercent: number;
+}
+
+export interface ActivityLogItem {
     userId: string;
-    action: string;
-    details: string;
-    timestamp: string;
-    ipAddress: string;
-} 
+    userEmail: string;
+    status: 'SUCCESS' | 'FAILED' | 'SUSPICIOUS';
+    failureReason?: string;
+    ipAddress?: string;
+    device?: string;
+    city?: string;
+    country?: string;
+    createdAt: string;
+}
+
+export interface AdminNote {
+    id: string;
+    content: string;
+    createdBy: string;
+    createdAt: string;
+}

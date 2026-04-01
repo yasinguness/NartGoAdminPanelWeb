@@ -120,17 +120,17 @@ export const shadows = {
   /** No shadow */
   none: 'none',
   
-  /** Subtle shadow for cards */
-  card: '0px 2px 8px rgba(0, 0, 0, 0.05)',
+  /** Flat subtle shadow, practically just a border in this design */
+  card: 'none', 
   
   /** Medium shadow for dropdowns */
-  dropdown: '0px 4px 16px rgba(0, 0, 0, 0.08)',
+  dropdown: '0px 4px 16px rgba(15, 23, 42, 0.08)',
   
   /** Drawer shadow */
-  drawer: '0px 0px 20px rgba(0, 0, 0, 0.05)',
+  drawer: 'none',
   
   /** Elevated shadow for modals */
-  modal: '0px 8px 32px rgba(0, 0, 0, 0.12)',
+  modal: '0px 10px 40px rgba(15, 23, 42, 0.1)',
 } as const;
 
 // =============================================================================

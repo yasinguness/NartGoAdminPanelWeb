@@ -13,6 +13,7 @@ interface ArticleStore {
     category?: ArticleCategory;
     page?: number;
     size?: number;
+    keyword?: string;
   }) => Promise<void>;
   createArticle: (payload: ArticleCreateRequest) => Promise<ArticleDto>;
   updateArticle: (id: string, payload: ArticleCreateRequest) => Promise<ArticleDto>;

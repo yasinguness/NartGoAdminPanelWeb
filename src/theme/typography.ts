@@ -65,7 +65,7 @@ export const muiTypography = {
   h4: {
     fontSize: '1.5rem',      // 24px
     fontWeight: fontWeight.semibold,
-    letterSpacing: '0.5px',
+    letterSpacing: '-0.02em',
     lineHeight: 1.35,
   },
   
@@ -73,7 +73,7 @@ export const muiTypography = {
   h5: {
     fontSize: '1.25rem',     // 20px
     fontWeight: fontWeight.semibold,
-    letterSpacing: '0.5px',
+    letterSpacing: '-0.01em',
     lineHeight: 1.4,
   },
   

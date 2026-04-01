@@ -1,7 +1,15 @@
 import { api } from '../api';
-import { UserDTO, UserStatusEnum, AccountType, Language } from '../../types/users/userModel';
+import { 
+    UserDTO, 
+    UserStatusEnum, 
+    AccountType, 
+    Language,
+    AdminUserStats,
+    UserActivitySummary,
+    ActivityLogItem,
+    AdminNote
+} from '../../types/users/userModel';
 import { PageResponseDto } from '../../types/common/pageResponse';
-import { UserActivity } from '../../types/users/userModel';
 import { AddressDTO } from '../../types/businesses/addressModel';
 import {
     AdminUserGamificationRewardDetailDto,
@@ -126,4 +134,42 @@ export const userService = {
         );
         return response.data;
     },
-}; 
+
+    // Admin - Get user stats for dashboard
+    getUserStats: async () => {
+        const response = await api.get<ApiResponse<AdminUserStats>>('/auth/admin/login-stats/users/stats');
+        return response.data;
+    },
+
+    // Admin - Get user activity summary
+    getActivitySummary: async (userId: string) => {
+        const response = await api.get<ApiResponse<UserActivitySummary>>(`/auth/admin/login-stats/users/${userId}/activity-summary`);
+        return response.data;
+    },
+
+    // Admin - Get user activity log
+    getActivityLog: async (userId: string, limit = 100) => {
+        const response = await api.get<ApiResponse<ActivityLogItem[]>>(`/auth/admin/login-stats/users/${userId}/activity-log`, {
+            params: { limit }
+        });
+        return response.data;
+    },
+
+    // Admin - Get admin notes for user
+    getAdminNotes: async (userId: string) => {
+        const response = await api.get<ApiResponse<AdminNote[]>>(`/auth/admin/users/${userId}/notes`);
+        return response.data;
+    },
+
+    // Admin - Add admin note for user
+    addAdminNote: async (userId: string, content: string) => {
+        const response = await api.post<ApiResponse<AdminNote>>(`/auth/admin/users/${userId}/notes`, { content });
+        return response.data;
+    },
+
+    // Admin - Delete admin note
+    deleteAdminNote: async (noteId: string) => {
+        const response = await api.delete<ApiResponse<void>>(`/auth/admin/users/notes/${noteId}`);
+        return response.data;
+    },
+};

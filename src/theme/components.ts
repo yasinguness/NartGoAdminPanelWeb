@@ -34,9 +34,10 @@ export const muiComponents: Components<Omit<Theme, 'components'>> = {
   MuiAppBar: {
     styleOverrides: {
       root: {
-        backgroundColor: brand.primary,
+        backgroundColor: neutral.surface,
+        color: text.primary,
         boxShadow: 'none',
-        borderBottom: 'none',
+        borderBottom: `1px solid ${neutral.border}`,
       },
     },
   },
@@ -94,8 +95,9 @@ export const muiComponents: Components<Omit<Theme, 'components'>> = {
     styleOverrides: {
       root: {
         borderRadius: borderRadius.lg,
-        boxShadow: shadows.card,
-        border: `1px solid ${neutral.border}`,
+        boxShadow: 'none',
+        border: `1px solid ${neutral.borderLight}`,
+        backgroundColor: neutral.surface,
       },
     },
     defaultProps: {
@@ -107,9 +109,13 @@ export const muiComponents: Components<Omit<Theme, 'components'>> = {
     styleOverrides: {
       root: {
         borderRadius: borderRadius.lg,
+        backgroundColor: neutral.surface,
       },
       elevation0: {
-        border: `1px solid ${neutral.border}`,
+        border: `1px solid ${neutral.borderLight}`,
+      },
+      elevation1: {
+        boxShadow: shadows.dropdown,
       },
     },
   },
@@ -193,12 +199,18 @@ export const muiComponents: Components<Omit<Theme, 'components'>> = {
   MuiTableCell: {
     styleOverrides: {
       root: {
-        borderBottom: `1px solid ${neutral.border}`,
-        padding: '12px 16px',
+        borderBottom: `1px solid ${neutral.borderLight}`,
+        padding: '16px 20px',
+        color: text.primary,
       },
       head: {
         fontWeight: 600,
-        backgroundColor: `rgba(22, 70, 28, 0.04)`,
+        backgroundColor: neutral.surface,
+        color: text.secondary,
+        textTransform: 'uppercase',
+        fontSize: '0.75rem',
+        letterSpacing: '0.5px',
+        borderBottom: `1px solid ${neutral.borderDark}`,
       },
     },
   },
@@ -401,9 +413,12 @@ export const muiComponents: Components<Omit<Theme, 'components'>> = {
 
   MuiTabs: {
     styleOverrides: {
+      root: {
+        borderBottom: `1px solid ${neutral.borderLight}`,
+      },
       indicator: {
-        height: 3,
-        borderRadius: '3px 3px 0 0',
+        height: 2,
+        borderRadius: '2px 2px 0 0',
       },
     },
   },
@@ -412,9 +427,13 @@ export const muiComponents: Components<Omit<Theme, 'components'>> = {
     styleOverrides: {
       root: {
         textTransform: 'none',
-        fontWeight: 500,
-        fontSize: '0.875rem',
+        fontWeight: 600,
+        fontSize: '0.9rem',
         minHeight: 48,
+        color: text.secondary,
+        '&.Mui-selected': {
+          color: brand.primary,
+        },
       },
     },
   },

@@ -99,7 +99,7 @@ export default function FeedSlideOver({ video, open, onClose, onStatusChange, on
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>{video.description || video.summary || video.content}</Typography>
 
               {/* Stats Bar */}
-              <Stack direction="row" spacing={3} sx={{ mb: 3, p: 2, bgcolor: '#f9fafb', borderRadius: 2.5 }}>
+              <Stack direction="row" spacing={3} sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 2.5 }}>
                 {[
                   { icon: <Eye size={16} />, label: 'Views', value: video.viewCount || 0 },
                   { icon: <Heart size={16} />, label: 'Likes', value: video.likeCount || 0 },
@@ -124,7 +124,7 @@ export default function FeedSlideOver({ video, open, onClose, onStatusChange, on
                     const active = s === video.status;
                     return (
                       <Chip key={s} label={cfg.label} size="small" onClick={() => onStatusChange(video.id, s)}
-                        sx={{ fontSize: '0.7rem', fontWeight: 600, color: active ? cfg.color : '#9ca3af', bgcolor: active ? cfg.bg : '#f9fafb', border: `1.5px solid ${active ? cfg.border : '#e5e7eb'}`, cursor: 'pointer' }} />
+                        sx={{ fontSize: '0.7rem', fontWeight: 600, color: active ? cfg.color : '#9ca3af', bgcolor: active ? cfg.bg : 'background.default', border: `1.5px solid ${active ? cfg.border : '#e5e7eb'}`, cursor: 'pointer' }} />
                     );
                   })}
                 </Stack>

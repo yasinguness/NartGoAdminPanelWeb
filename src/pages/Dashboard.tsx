@@ -324,7 +324,7 @@ export default function Dashboard() {
       <Grid container spacing={2} mb={3}>
         {metricCards.map((card, i) => (
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <Card elevation={0} sx={{ border: `1px solid ${theme.palette.divider}` }}>
+            <Card elevation={0}>
               <CardContent>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                   <Box>
@@ -376,7 +376,7 @@ export default function Dashboard() {
       </Grid>
 
       {/* Son 3 Gün Eklenenler */}
-      <Card elevation={0} sx={{ border: `1px solid ${theme.palette.divider}`, mb: 3 }}>
+      <Card elevation={0} sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" fontWeight={600} mb={2}>
             Son 3 Gün Eklenenler
@@ -439,7 +439,7 @@ export default function Dashboard() {
         <Grid item xs={12} lg={8}>
           <Card
             elevation={0}
-            sx={{ border: `1px solid ${theme.palette.divider}`, height: '100%' }}
+            sx={{ height: '100%' }}
           >
             <CardContent>
               <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
@@ -567,7 +567,7 @@ export default function Dashboard() {
         <Grid item xs={12} lg={4}>
           <Stack spacing={3}>
             {/* Bu Hafta En Çok Giriş */}
-            <Card elevation={0} sx={{ border: `1px solid ${theme.palette.divider}` }}>
+            <Card elevation={0}>
               <CardContent>
                 <Stack direction="row" alignItems="center" spacing={1} mb={2}>
                   <TrophyIcon sx={{ color: 'warning.main', fontSize: 20 }} />
@@ -650,7 +650,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Yaklaşan Bildirimler */}
-            <Card elevation={0} sx={{ border: `1px solid ${theme.palette.divider}` }}>
+            <Card elevation={0}>
               <CardContent>
                 <Stack direction="row" alignItems="center" spacing={1} mb={2}>
                   <ScheduleIcon sx={{ color: 'info.main', fontSize: 20 }} />

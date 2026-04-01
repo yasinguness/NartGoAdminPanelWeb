@@ -10,9 +10,9 @@
 // =============================================================================
 
 export const brand = {
-  primary: '#16461C',      // Main brand color - used for primary actions
-  secondary: '#4C8B53',    // Secondary brand color - lighter accent
-  tertiary: '#2D5A33',     // Tertiary brand color - darker accent
+  primary: '#6366F1',      // Main brand color - Indigo/Purple matching Expinova
+  secondary: '#818CF8',    // Lighter accent
+  tertiary: '#4F46E5',     // Darker accent
 } as const;
 
 // =============================================================================
@@ -21,20 +21,20 @@ export const brand = {
 
 export const neutral = {
   white: '#FFFFFF',
-  black: '#000000',
+  black: '#0F172A',
   
   // Background shades
-  background: '#FFFFFF',
-  surface: '#F8F9FA',
-  surfaceHover: '#F1F3F4',
+  background: '#F4F6F8',   // Light gray app background
+  surface: '#FFFFFF',      // Pure white cards/panels
+  surfaceHover: '#F9FAFB', // Slate gray subtle hover
   
   // Border colors
-  border: '#E0E0E0',
-  borderLight: '#F0F0F0',
-  borderDark: '#BDBDBD',
+  border: '#E2E8F0',       // Soft light borders
+  borderLight: '#F1F5F9',  // Very soft borders
+  borderDark: '#CBD5E1',   // Stronger borders
   
   // Divider
-  divider: 'rgba(0, 0, 0, 0.12)',
+  divider: 'rgba(15, 23, 42, 0.08)',
 } as const;
 
 // =============================================================================
@@ -43,32 +43,32 @@ export const neutral = {
 
 export const semantic = {
   success: {
-    main: '#4CAF50',
-    light: '#81C784',
-    dark: '#388E3C',
-    background: 'rgba(76, 175, 80, 0.08)',
-    border: 'rgba(76, 175, 80, 0.24)',
+    main: '#10B981',       // Emerald Green
+    light: '#34D399',
+    dark: '#059669',       // Deep strong green (for text inside badges)
+    background: 'rgba(16, 185, 129, 0.12)', // Soft badge bg
+    border: 'rgba(16, 185, 129, 0.2)',
   },
   warning: {
-    main: '#FFA000',
-    light: '#FFB74D',
-    dark: '#F57C00',
-    background: 'rgba(255, 160, 0, 0.08)',
-    border: 'rgba(255, 160, 0, 0.24)',
+    main: '#F59E0B',       // Amber
+    light: '#FBBF24',
+    dark: '#D97706',
+    background: 'rgba(245, 158, 11, 0.12)',
+    border: 'rgba(245, 158, 11, 0.2)',
   },
   error: {
-    main: '#E74C3C',
-    light: '#EF5350',
-    dark: '#C62828',
-    background: 'rgba(231, 76, 60, 0.08)',
-    border: 'rgba(231, 76, 60, 0.24)',
+    main: '#EF4444',       // Red
+    light: '#F87171',
+    dark: '#DC2626',
+    background: 'rgba(239, 68, 68, 0.12)',
+    border: 'rgba(239, 68, 68, 0.2)',
   },
   info: {
-    main: '#2196F3',
-    light: '#64B5F6',
-    dark: '#1976D2',
-    background: 'rgba(33, 150, 243, 0.08)',
-    border: 'rgba(33, 150, 243, 0.24)',
+    main: '#3B82F6',       // Blue
+    light: '#60A5FA',
+    dark: '#2563EB',
+    background: 'rgba(59, 130, 246, 0.12)',
+    border: 'rgba(59, 130, 246, 0.2)',
   },
 } as const;
 
@@ -77,10 +77,10 @@ export const semantic = {
 // =============================================================================
 
 export const text = {
-  primary: '#1A1A1A',      // Main text color
-  secondary: '#666666',    // Secondary/muted text
-  tertiary: '#999999',     // Tertiary/hint text
-  disabled: '#CCCCCC',     // Disabled text
+  primary: '#1E293B',      // Slate 800 (very dark blue/gray for primary text)
+  secondary: '#64748B',    // Slate 500 (muted text)
+  tertiary: '#94A3B8',     // Hint text
+  disabled: '#CBD5E1',     // Disabled text
   inverse: '#FFFFFF',      // Text on dark backgrounds
 } as const;
 
@@ -90,10 +90,10 @@ export const text = {
 
 export const status = {
   active: semantic.success.main,
-  inactive: '#9E9E9E',
+  inactive: '#94A3B8',
   pending: semantic.warning.main,
   blocked: semantic.error.main,
-  deleted: '#757575',
+  deleted: '#64748B',
 } as const;
 
 // =============================================================================
@@ -126,8 +126,8 @@ export const muiPalette = {
   },
   secondary: {
     main: brand.secondary,
-    light: '#6BAE72',
-    dark: '#3A7A41',
+    light: '#A5B4FC',
+    dark: brand.tertiary,
     contrastText: neutral.white,
   },
   background: {

@@ -170,7 +170,7 @@ export default function InteractiveOrderManagement({
   };
 
   return (
-    <Box sx={{ p: 1, backgroundColor: '#f9fafb', minHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: 1, backgroundColor: 'background.default', minHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* Top Meta Bar */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, p: 2, bgcolor: 'white', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
