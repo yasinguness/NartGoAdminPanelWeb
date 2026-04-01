@@ -163,7 +163,7 @@ export default function UserSelectionDialog({
             setSelectedUsers([]);
             onSuccess();
         } catch (error) {
-            console.error('Error sending notification:', error);
+            // silently handled
         }
     };
 

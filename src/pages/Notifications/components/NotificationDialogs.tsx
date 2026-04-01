@@ -243,7 +243,7 @@ export default function NotificationDialogs({
                                                     templateVariables: JSON.parse(e.target.value)
                                                 });
                                             } catch (error) {
-                                                console.error('Invalid JSON:', error);
+                                                // silently handled
                                             }
                                         }}
                                         multiline
@@ -548,7 +548,7 @@ export default function NotificationDialogs({
                                                     templateParameters: JSON.parse(e.target.value)
                                                 });
                                             } catch (error) {
-                                                console.error('Invalid JSON:', error);
+                                                // silently handled
                                             }
                                         }}
                                         multiline

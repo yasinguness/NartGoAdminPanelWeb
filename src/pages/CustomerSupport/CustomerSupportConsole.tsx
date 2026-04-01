@@ -65,7 +65,7 @@ export default function CustomerSupportConsole() {
         setTimeline([]);
       }
     } catch (err) {
-      console.error('Customer search failed', err);
+      // silently handled
       setCustomer(null);
       setTimeline([]);
     } finally {

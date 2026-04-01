@@ -135,7 +135,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
         setBenefits(prevBenefits => 
           prevBenefits.map(b => b.id === selectedBenefit.id ? { ...selectedBenefit, ...values } : b)
         );
-        console.log('Updating benefit:', selectedBenefit.id, values);
+        // removed debug log
       } else {
         const newBenefit: MemberBenefit = {
           id: Date.now(),
@@ -143,7 +143,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
           currentUsageCount: 0,
         };
         setBenefits(prevBenefits => [...prevBenefits, newBenefit]);
-        console.log('Adding new benefit:', newBenefit);
+        // removed debug log
       }
       setIsFormOpen(false);
       formik.resetForm();
@@ -196,7 +196,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
   const handleDeleteConfirm = () => {
     if (selectedBenefit) {
       setBenefits(prevBenefits => prevBenefits.filter(b => b.id !== selectedBenefit.id));
-      console.log('Deleting benefit:', selectedBenefit?.id);
+      // removed debug log
     }
     setIsDeleteDialogOpen(false);
     setSelectedBenefit(null);

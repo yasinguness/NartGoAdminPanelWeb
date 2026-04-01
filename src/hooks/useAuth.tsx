@@ -19,20 +19,20 @@ export const useAuth = () => {
     const loginMutation = useMutation<{ data: LoginResponseData; user: UserModel }, Error, LoginCredentials>({
         mutationFn: async (credentials) => {
             loginStart();
-            console.log('User:', credentials);
+            // removed debug log
             const loginResponse = await authService.login(credentials.email, credentials.password);
-            console.log('Login Response:', loginResponse);
+            // removed debug log
             
             // Fetch user profile immediately to ensure we have both token and user data
             // Any error here (e.g. 500) will be caught by onError
             const user = await authService.getCurrentUser();
-            console.log('User:', user);
+            // removed debug log
             
             return { data: loginResponse, user };
         },
         onSuccess: (result) => {
             const { data, user } = result;
-            console.log('Login Flow Complete:', result);
+            // removed debug log
             loginSuccess({
                 user: user,
                 token: data.bearerToken,
@@ -40,7 +40,7 @@ export const useAuth = () => {
             navigate('/dashboard');
         },
         onError: (error) => {
-            console.log('Error:', error);
+            // removed debug log
             // Clear any partial state (e.g. token saved but user fetch failed)
             authService.logout();
             loginFailure(error.message);

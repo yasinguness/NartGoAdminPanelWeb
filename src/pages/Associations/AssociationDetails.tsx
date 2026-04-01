@@ -138,7 +138,7 @@ function AssociationDetails() {
               onAddBenefit={() => setIsBenefitDialogOpen(true)}
               onEditBenefit={(benefit) => { setSelectedBenefit(benefit); setBenefitForm(benefit); setIsBenefitDialogOpen(true); }}
               onDeleteBenefit={(benefit) => { setSelectedBenefit(benefit); setIsDeleteBenefitDialogOpen(true); }}
-              handleRowClick={(item) => console.log('Item clicked:', item)}
+              handleRowClick={() => {}}
               associationId={associationId!}
             />
           </PageSection>

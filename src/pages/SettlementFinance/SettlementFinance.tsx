@@ -105,7 +105,7 @@ export default function SettlementFinance() {
             setLedger(kpis.ledger);
         }
       } catch (err) {
-        console.error('Failed to fetch settlements', err);
+        // silently handled
         setBatches([]);
       } finally {
         setLoading(false);

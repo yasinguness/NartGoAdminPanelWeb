@@ -15,14 +15,12 @@ export class AuthService extends ApiService {
                 email,
                 password,
             });
-            console.log('Response:', response);
             if (response.success && response.data) {
                 await this.saveToken(response.data.bearerToken);
                 return response.data;
             }
-            throw new AuthException(response.message || 'Login failed');
+            throw new AuthException(response.message || 'Giriş başarısız');
         } catch (e) {
-            console.log('Error:', e);
             throw new AuthException(e instanceof Error ? e.message : 'Login failed');
         }
     }
@@ -55,7 +53,7 @@ export class AuthService extends ApiService {
             const decodedPayload = JSON.parse(atob(payload));
             return decodedPayload.exp * 1000;
         } catch (e) {
-            console.error('Error parsing token:', e);
+            // token parse error
             return null;
         }
     }
@@ -92,7 +90,7 @@ export class AuthService extends ApiService {
             try {
                 return JSON.parse(userData);
             } catch (e) {
-                console.error('Error parsing cached user data:', e);
+                // cached user data parse error
                 return null;
             }
         }

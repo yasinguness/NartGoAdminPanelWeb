@@ -72,7 +72,7 @@ const FederationDetails: React.FC = () => {
 
   const handleEdit = () => {
     // This would typically open the edit form or navigate to an edit page
-    console.log('Edit federation:', id);
+    // removed debug log
   };
 
   const handleDeleteConfirm = () => {

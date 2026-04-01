@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { RaffleState, Participant, TicketSale, Winner, RaffleStats } from '../../types/raffle';
-import { mockParticipants, mockPrizes } from '../../data/raffle/mockParticipants';
+import { api } from '../../services/api';
 
 interface RaffleStore {
     // State
@@ -10,8 +10,10 @@ interface RaffleStore {
     winners: Winner[];
     stats: RaffleStats;
     currentWinner: Winner | null;
+    raffleEventId: string | null;
 
     // Actions
+    loadRaffleData: (raffleEventId: string) => Promise<void>;
     startDrawing: () => void;
     selectWinner: () => void;
     resetRaffle: () => void;
@@ -27,15 +29,59 @@ let simulationInterval: NodeJS.Timeout | null = null;
 export const useRaffleStore = create<RaffleStore>((set, get) => ({
     // Initial state
     raffleState: RaffleState.IDLE,
-    participants: mockParticipants,
+    participants: [],
     ticketSales: [],
     winners: [],
     currentWinner: null,
+    raffleEventId: null,
     stats: {
         totalRevenue: 0,
         totalTickets: 0,
-        participantCount: mockParticipants.length,
-        nextDrawTime: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes from now
+        participantCount: 0,
+        nextDrawTime: new Date(Date.now() + 15 * 60 * 1000),
+    },
+
+    // Load raffle data from API
+    loadRaffleData: async (raffleEventId: string) => {
+        set({ raffleEventId });
+        try {
+            const [participantsRes, winnersRes] = await Promise.allSettled([
+                api.get(`/raffle/events/${raffleEventId}/participants`),
+                api.get(`/raffle/events/${raffleEventId}/winners`),
+            ]);
+            const participants = participantsRes.status === 'fulfilled'
+                ? (participantsRes.value.data?.data || []).map((p: any) => ({
+                    id: p.id || p.userId || String(Math.random()),
+                    name: p.name || p.displayName || p.email || 'Katılımcı',
+                    ticketCount: p.ticketCount || 1,
+                    avatarUrl: p.avatarUrl || p.imageUrl,
+                    joinedAt: p.joinedAt || p.createdAt,
+                  }))
+                : [];
+            const winners = winnersRes.status === 'fulfilled'
+                ? (winnersRes.value.data?.data || []).map((w: any) => ({
+                    participant: {
+                      id: w.participantId || w.userId || '',
+                      name: w.participantName || w.name || '',
+                      ticketCount: w.ticketCount || 1,
+                    },
+                    prize: w.prize || w.prizeName || '',
+                    timestamp: w.timestamp || w.drawnAt || new Date().toISOString(),
+                    emoji: emojis[Math.floor(Math.random() * emojis.length)],
+                  }))
+                : [];
+            set({
+                participants,
+                winners,
+                stats: {
+                    ...get().stats,
+                    participantCount: participants.length,
+                    totalTickets: participants.reduce((sum: number, p: any) => sum + (p.ticketCount || 1), 0),
+                },
+            });
+        } catch {
+            // silently handle — keep empty state
+        }
     },
 
     // Start the raffle drawing animation
@@ -64,8 +110,9 @@ export const useRaffleStore = create<RaffleStore>((set, get) => ({
         const randomIndex = Math.floor(Math.random() * weightedParticipants.length);
         const selectedParticipant = weightedParticipants[randomIndex];
 
-        // Select a random prize
-        const availablePrizes = mockPrizes.filter(
+        // Select a random prize from defaults
+        const defaultPrizes = ['Büyük Ödül', 'VIP Bilet', 'Hediye Çeki', 'Özel Paket', 'Sürpriz Hediye'];
+        const availablePrizes = defaultPrizes.filter(
             prize => !winners.find(w => w.prize === prize)
         );
         const randomPrize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)] || 'Özel Hediye';

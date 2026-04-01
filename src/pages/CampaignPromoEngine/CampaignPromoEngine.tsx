@@ -87,7 +87,7 @@ export default function CampaignPromoEngine() {
         }
         setEvaluationResult(null);
       } catch (err) {
-        console.error('Failed to fetch campaigns', err);
+        // silently handled
         setCampaigns([]);
         setSelectedCamp(null);
         setEvaluationResult(null);
@@ -134,7 +134,7 @@ export default function CampaignPromoEngine() {
       setEvaluationResult(result);
       enqueueSnackbar('Kampanya değerlendirmesi tamamlandı', { variant: 'success' });
     } catch (error) {
-      console.error('Campaign evaluation failed, falling back to local simulation', error);
+      // silently handled
       setEvaluationResult(null);
       enqueueSnackbar('Sunucu değerlendirmesi kullanılamıyor, yerel simülasyon gösteriliyor', { variant: 'warning' });
     } finally {

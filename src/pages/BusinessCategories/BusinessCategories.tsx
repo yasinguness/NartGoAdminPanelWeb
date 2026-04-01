@@ -93,7 +93,7 @@ const BusinessCategories = () => {
       }
       handleCloseDialog();
     } catch (error) {
-      console.error('Error submitting form:', error);
+      // silently handled
     }
   };
 
@@ -103,7 +103,7 @@ const BusinessCategories = () => {
         await deleteCategory(deleteId);
         setDeleteId(null);
       } catch (error) {
-        console.error('Error deleting category:', error);
+        // silently handled
       }
     }
   };

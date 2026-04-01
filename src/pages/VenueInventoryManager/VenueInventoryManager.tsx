@@ -61,7 +61,7 @@ export default function VenueInventoryManager() {
         const inv = await venueInventoryService.getVenueTopology('v-zpsm');
         setData(inv || []);
       } catch (err) {
-        console.error('Failed to fetch venue inventory', err);
+        // silently handled
         setData([]);
       } finally {
         setLoading(false);

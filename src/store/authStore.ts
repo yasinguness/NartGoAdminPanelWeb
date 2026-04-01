@@ -24,13 +24,13 @@ export const useAuthStore = create<AuthState>()(
             loading: false,
             error: null,
             loginStart: () => {
-                console.log('=== AUTH STORE: loginStart ===');
+                
                 set({ loading: true, error: null });
             },
             loginSuccess: ({ user, token }) => {
-                console.log('=== AUTH STORE: loginSuccess ===');
-                console.log('User stored:', user);
-                console.log('Token stored length:', token?.length || 0);
+                
+                // removed debug log
+                // removed debug log
                 set({
                     loading: false,
                     isAuthenticated: true,
@@ -40,8 +40,8 @@ export const useAuthStore = create<AuthState>()(
                 });
             },
             loginFailure: (error) => {
-                console.log('=== AUTH STORE: loginFailure ===');
-                console.log('Error stored:', error);
+                
+                // removed debug log
                 set({
                     loading: false,
                     error,
@@ -51,7 +51,7 @@ export const useAuthStore = create<AuthState>()(
                 });
             },
             logout: () => {
-                console.log('=== AUTH STORE: logout ===');
+                
                 set({
                     user: null,
                     token: null,

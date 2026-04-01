@@ -60,7 +60,7 @@ export default function UserDetails() {
             setUser(response.data);
             setFormData(response.data);
         } catch (error) {
-            console.error('Error fetching user:', error);
+            // silently handled
             enqueueSnackbar('Kullanıcı detayları alınamadı', { variant: 'error' });
         } finally {
             setLoading(false);
@@ -95,7 +95,7 @@ export default function UserDetails() {
             setEditing(false);
             enqueueSnackbar('Kullanıcı başarıyla güncellendi', { variant: 'success' });
         } catch (error) {
-            console.error('Error updating user:', error);
+            // silently handled
             enqueueSnackbar('Kullanıcı güncellenemedi', { variant: 'error' });
         } finally {
             setSaving(false);

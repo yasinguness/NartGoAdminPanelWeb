@@ -96,7 +96,7 @@ export default function AudienceBuilder({ filters, onFiltersChange, onReachChang
                 setEstimate(result);
                 onReachChange(result.totalEstimatedReach);
             } catch (error) {
-                console.error('Reach estimation error:', error);
+                // silently handled
             } finally {
                 setLoading(false);
             }

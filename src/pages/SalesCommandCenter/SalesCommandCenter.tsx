@@ -70,7 +70,7 @@ export default function SalesCommandCenter() {
         const data = await salesCommandService.getOrderFeed('e-28haz');
         setOrders(data || []);
       } catch (err) {
-        console.error('Failed to fetch sales data', err);
+        // silently handled
         setOrders([]);
       } finally {
         setLoading(false);

@@ -55,7 +55,7 @@ const AssociationsTab: React.FC<AssociationsTabProps> = ({ federationId }) => {
 
   const handleDeleteAssociation = (id: number) => {
     // Implement delete functionality
-    console.log('Delete association:', id);
+    // removed debug log
   };
 
   const handleViewDetails = (id: number) => {

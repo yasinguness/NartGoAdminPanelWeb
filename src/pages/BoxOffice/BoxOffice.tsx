@@ -56,7 +56,7 @@ export default function BoxOffice() {
         const data = await boxOfficeService.getAvailableCategories('e-28haz');
         setCategories(data || []);
       } catch (err) {
-        console.error('Failed to fetch categories', err);
+        // silently handled
         setCategories([]);
       } finally {
         setLoading(false);

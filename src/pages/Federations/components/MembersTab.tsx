@@ -127,7 +127,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
 
   const handleDeleteMember = (id: number) => {
     // Implement delete functionality
-    console.log('Delete member:', id);
+    // removed debug log
   };
 
   const handleViewDetails = (id: number) => {
@@ -159,7 +159,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
 
   const handleDeleteConfirm = () => {
     // Handle member deletion
-    console.log('Deleting member:', memberToDelete);
+    // removed debug log
     setIsDeleteDialogOpen(false);
     setMemberToDelete(null);
   };
@@ -171,7 +171,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
 
   const handleStatusConfirm = (newStatus: string) => {
     // Handle status update
-    console.log('Updating member status:', memberToUpdate, 'to', newStatus);
+    // removed debug log
     setIsStatusDialogOpen(false);
     setMemberToUpdate(null);
   };
@@ -221,7 +221,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
 
   const handleFormSubmit = (values: MemberFormValues) => {
     // Handle form submission
-    console.log('Form submitted:', values);
+    // removed debug log
     setIsFormOpen(false);
   };
 
@@ -237,19 +237,19 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
 
   const handleDownloadReceipt = (payment: any) => {
     // Implement receipt download logic
-    console.log('Downloading receipt for payment:', payment);
+    // removed debug log
     handlePaymentMenuClose();
   };
 
   const handlePrintReceipt = (payment: any) => {
     // Implement receipt print logic
-    console.log('Printing receipt for payment:', payment);
+    // removed debug log
     handlePaymentMenuClose();
   };
 
   const handleEmailReceipt = (payment: any) => {
     // Implement email receipt logic
-    console.log('Emailing receipt for payment:', payment);
+    // removed debug log
     handlePaymentMenuClose();
   };
 
@@ -261,7 +261,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ federationId }) => {
 
   const handlePaymentStatusConfirm = (newStatus: string) => {
     // Implement payment status update logic
-    console.log('Updating payment status:', selectedPayment.id, 'to', newStatus);
+    // removed debug log
     setIsPaymentStatusDialogOpen(false);
     setSelectedPayment(null);
   };
