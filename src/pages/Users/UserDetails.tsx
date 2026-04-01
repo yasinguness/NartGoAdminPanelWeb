@@ -136,7 +136,7 @@ export default function UserDetails() {
       const res = await userService.getActivityLog(id);
       setActivityLogs(res.data);
     } catch (err) {
-      console.error('Failed to fetch logs', err);
+      // silently handled
     }
   };
 

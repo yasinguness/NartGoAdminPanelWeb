@@ -89,7 +89,7 @@ export default function Users() {
     setLoadingStats(true);
     userService.getUserStats()
       .then(res => setStats(res.data))
-      .catch(err => console.error('Failed to fetch stats', err))
+      .catch(() => { /* silently handled */ })
       .finally(() => setLoadingStats(false));
   }, []);
 

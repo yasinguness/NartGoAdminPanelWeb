@@ -169,13 +169,13 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
             <Divider />
 
             {/* Basic Information */}
-            <FormSection title="Association Details">
+            <FormSection title="Dernek Bilgileri">
               <FormGrid>
                 <TextField
                   fullWidth
                   name="name"
-                  label="Association Name"
-                  placeholder="e.g. Amateur Sports Association"
+                  label="Dernek Adı"
+                  placeholder="örn. Amatör Spor Derneği"
                   value={formik.values.name}
                   onChange={formik.handleChange}
                   error={formik.touched.name && Boolean(formik.errors.name)}
@@ -184,8 +184,8 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
                 <TextField
                   fullWidth
                   name="taxNumber"
-                  label="Tax Number (Optional)"
-                  placeholder="Official tax identification"
+                  label="Vergi Numarası (Opsiyonel)"
+                  placeholder="Resmi vergi kimlik numarası"
                   value={formik.values.taxNumber}
                   onChange={formik.handleChange}
                   error={formik.touched.taxNumber && Boolean(formik.errors.taxNumber)}
@@ -195,8 +195,8 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
                   <TextField
                     fullWidth
                     name="shortDescription"
-                    label="Tagline / Short Description"
-                    placeholder="Briefly describe the association"
+                    label="Kısa Açıklama"
+                    placeholder="Derneği kısaca tanımlayın"
                     value={formik.values.shortDescription}
                     onChange={formik.handleChange}
                     error={formik.touched.shortDescription && Boolean(formik.errors.shortDescription)}
@@ -209,8 +209,8 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
                     multiline
                     rows={3}
                     name="description"
-                    label="Full Description"
-                    placeholder="Detailed information about organization goals, etc."
+                    label="Detaylı Açıklama"
+                    placeholder="Kuruluş amaçları, hedefler ve faaliyetler hakkında bilgi..."
                     value={formik.values.description}
                     onChange={formik.handleChange}
                     error={formik.touched.description && Boolean(formik.errors.description)}
@@ -220,12 +220,12 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
               </FormGrid>
             </FormSection>
 
-            <FormSection title="Contact Information">
+            <FormSection title="İletişim Bilgileri">
               <FormGrid>
                 <TextField
                   fullWidth
                   name="email"
-                  label="Public Email"
+                  label="Genel E-posta"
                   value={formik.values.email}
                   onChange={formik.handleChange}
                   error={formik.touched.email && Boolean(formik.errors.email)}
@@ -234,7 +234,7 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
                 <TextField
                   fullWidth
                   name="phoneNumber"
-                  label="Phone Number"
+                  label="Telefon Numarası"
                   value={formik.values.phoneNumber}
                   onChange={formik.handleChange}
                   error={formik.touched.phoneNumber && Boolean(formik.errors.phoneNumber)}
@@ -261,7 +261,7 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
               </FormGrid>
             </FormSection>
 
-            <FormSection title="Membership Settings">
+            <FormSection title="Üyelik Ayarları">
               <FormGrid>
                 <TextField
                   fullWidth

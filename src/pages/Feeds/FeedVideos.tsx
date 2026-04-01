@@ -372,7 +372,7 @@ export default function FeedVideos() {
       <Box sx={{ mb: 2.5 }}>
         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
           <TextField
-            placeholder="Search videos…"
+            placeholder="Video ara..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             size="small"
@@ -632,15 +632,15 @@ export default function FeedVideos() {
             />
             <TextField
               fullWidth
-              label="Creator Email (opsiyonel)"
+              label="Oluşturucu E-postası (opsiyonel)"
               placeholder="creator@nartgo.com"
               value={instagramCreatorEmail}
               onChange={(e) => setInstagramCreatorEmail(e.target.value)}
             />
             <TextField
               fullWidth
-              label="Video Basligi"
-              placeholder="Video basligi"
+              label="Video Başlığı"
+              placeholder="Video başlığı"
               value={instagramTitle}
               onChange={(e) => setInstagramTitle(e.target.value)}
             />
@@ -648,8 +648,8 @@ export default function FeedVideos() {
               fullWidth
               multiline
               minRows={2}
-              label="Video Aciklamasi (opsiyonel)"
-              placeholder="Video aciklamasi"
+              label="Video Açıklaması (opsiyonel)"
+              placeholder="Video açıklaması"
               value={instagramDescription}
               onChange={(e) => setInstagramDescription(e.target.value)}
             />

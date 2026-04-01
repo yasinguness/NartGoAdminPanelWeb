@@ -10,9 +10,9 @@
 // =============================================================================
 
 export const brand = {
-  primary: '#6366F1',      // Main brand color - Indigo/Purple matching Expinova
-  secondary: '#818CF8',    // Lighter accent
-  tertiary: '#4F46E5',     // Darker accent
+  primary: '#1A5C28',      // NartGo Green - Main brand color
+  secondary: '#34A853',    // Vibrant green accent
+  tertiary: '#0F3D1A',     // Deep forest green
 } as const;
 
 // =============================================================================
@@ -126,7 +126,7 @@ export const muiPalette = {
   },
   secondary: {
     main: brand.secondary,
-    light: '#A5B4FC',
+    light: '#86EFAC',       // Light green accent
     dark: brand.tertiary,
     contrastText: neutral.white,
   },

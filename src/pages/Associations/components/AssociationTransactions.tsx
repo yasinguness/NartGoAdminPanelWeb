@@ -451,8 +451,8 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Quick Search"
-                placeholder="Search member name, email, transaction ID..."
+                label="Hızlı Arama"
+                placeholder="Üye adı, e-posta veya işlem numarası ara..."
                 value={currentFilter.searchTerm || ''}
                 onChange={e => onFilterChange('searchTerm', e.target.value)}
                 InputProps={{
@@ -648,8 +648,8 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
             <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
-                label="Member Name"
-                placeholder="Search by member name..."
+                label="Üye Adı"
+                placeholder="Üye adına göre ara..."
                 value={currentFilter.memberName || ''}
                 onChange={e => onFilterChange('memberName', e.target.value)}
               />
@@ -657,8 +657,8 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
             <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
-                label="Member Email"
-                placeholder="Search by email..."
+                label="Üye E-postası"
+                placeholder="E-posta ile ara..."
                 value={currentFilter.memberEmail || ''}
                 onChange={e => onFilterChange('memberEmail', e.target.value)}
               />
@@ -839,7 +839,7 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
                         <Chip label={tx.platform || 'N/A'} size="small" variant="outlined" />
                       </TableCell>
                       <TableCell align="center">
-                        <Tooltip title="View Details">
+                        <Tooltip title="Detayları Gör">
                           <IconButton size="small" onClick={() => handleViewDetail(tx)}>
                             <VisibilityIcon />
                           </IconButton>

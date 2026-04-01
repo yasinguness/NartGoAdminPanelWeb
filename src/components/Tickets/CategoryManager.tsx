@@ -124,7 +124,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <TextField
                     variant="standard"
-                    placeholder="Category Name"
+                    placeholder="Kategori Adı"
                     value={category.name}
                     onChange={(e) => handleUpdateCategory(category.id, { name: e.target.value })}
                     InputProps={{

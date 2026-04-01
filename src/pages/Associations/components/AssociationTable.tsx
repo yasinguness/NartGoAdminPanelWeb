@@ -114,7 +114,7 @@ export const AssociationTable: React.FC<AssociationTableProps> = ({
       <Box sx={{ p: 3, borderBottom: `1px solid ${alpha('#667eea', 0.1)}` }}>
         <TextField
           fullWidth
-          placeholder="Search associations..."
+          placeholder="Dernek ara..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           sx={{

@@ -240,11 +240,11 @@ const FederationForm: React.FC<FederationFormProps> = ({
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Description"
+                    label="Açıklama"
                     name="description"
                     multiline
                     rows={3}
-                    placeholder="Tell us about the federation..."
+                    placeholder="Federasyon hakkında bilgi verin..."
                     value={formik.values.description}
                     onChange={formik.handleChange}
                     error={formik.touched.description && Boolean(formik.errors.description)}

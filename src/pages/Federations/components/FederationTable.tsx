@@ -105,7 +105,7 @@ export const FederationTable: React.FC<FederationTableProps> = ({
           }}
         >
           <TextField
-            placeholder="Search federations by name or code..."
+            placeholder="Federasyon adı veya kodu ile ara..."
             variant="outlined"
             size="small"
             value={searchTerm}
