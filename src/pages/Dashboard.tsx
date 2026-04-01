@@ -56,6 +56,7 @@ import { useSnackbar } from 'notistack';
 import { PageContainer } from '../components/Page';
 import { adminLoginStatsService } from '../services/auth/adminLoginStatsService';
 import { campaignService } from '../services/notification/campaignService';
+import { api } from '../services/api';
 import type {
   LoginStatsOverviewDto,
   RecentLoggedInUserDto,
@@ -128,6 +129,9 @@ export default function Dashboard() {
   const [selectedAlert, setSelectedAlert] = useState<ActiveAlertDto | null>(null);
   const [upcomingNotifications, setUpcomingNotifications] = useState<UpcomingNotification[]>([]);
 
+  // Real entity counts
+  const [entityCounts, setEntityCounts] = useState({ businesses: 0, users: 0, events: 0, activeSessions: 0 });
+
   const query = useMemo(() => {
     const end = new Date();
     const start = new Date();
@@ -148,6 +152,10 @@ export default function Dashboard() {
       adminLoginStatsService.getActiveAlerts(query),
       adminLoginStatsService.getRecentLogs({ ...query, limit: 10 }),
       campaignService.getCampaigns(undefined, 0, 5),
+      // Real entity counts
+      api.get('/businesses', { params: { page: 0, size: 1 } }).catch(() => null),
+      api.get('/auth/all-users', { params: { page: 0, size: 1 } }).catch(() => null),
+      api.get('/events/popular/all', { params: { page: 0, size: 1 } }).catch(() => null),
     ]);
 
     if (results[0].status === 'fulfilled') setOverview(results[0].value);
@@ -169,6 +177,23 @@ export default function Dashboard() {
         }));
       if (scheduled.length > 0) setUpcomingNotifications(scheduled);
     }
+
+    // Parse real entity counts
+    const counts = { businesses: 0, users: 0, events: 0, activeSessions: engagement?.dailyActiveUsers ?? 0 };
+    if (results[7]?.status === 'fulfilled') {
+      const d = (results[7] as any).value?.data?.data;
+      counts.businesses = d?.totalElements ?? d?.total ?? 0;
+    }
+    if (results[8]?.status === 'fulfilled') {
+      const d = (results[8] as any).value?.data?.data;
+      counts.users = d?.totalElements ?? d?.total ?? 0;
+    }
+    if (results[9]?.status === 'fulfilled') {
+      const d = (results[9] as any).value?.data?.data;
+      counts.events = d?.totalElements ?? d?.total ?? 0;
+    }
+    counts.activeSessions = engagement?.dailyActiveUsers ?? 0;
+    setEntityCounts(counts);
 
     const failCount = results.filter((r) => r.status === 'rejected').length;
     if (failCount > 0) {
@@ -208,34 +233,34 @@ export default function Dashboard() {
   const metricCards = [
     {
       label: 'Toplam İşletme',
-      value: overview?.uniqueUsers ?? 0,
+      value: entityCounts.businesses,
       icon: <BusinessIcon />,
       color: theme.palette.primary.main,
-      delta: '+12%',
+      delta: entityCounts.businesses > 0 ? `${entityCounts.businesses}` : '—',
       newLast3: engagement?.dailyActiveUsers ?? 0,
     },
     {
       label: 'Toplam Kullanıcı',
-      value: overview?.uniqueUsers ?? 0,
+      value: entityCounts.users,
       icon: <PeopleIcon />,
       color: theme.palette.success.main,
-      delta: '+8%',
+      delta: entityCounts.users > 0 ? `${entityCounts.users}` : '—',
       newLast3: engagement?.weeklyActiveUsers ?? 0,
     },
     {
       label: 'Toplam Etkinlik',
-      value: overview?.totalAttempts ?? 0,
+      value: entityCounts.events,
       icon: <EventIcon />,
       color: theme.palette.warning.main,
-      delta: '+15%',
+      delta: entityCounts.events > 0 ? `${entityCounts.events}` : '—',
       newLast3: engagement?.dailyLoginCount ?? 0,
     },
     {
       label: 'Aktif Oturum',
-      value: engagement?.dailyActiveUsers ?? 0,
+      value: entityCounts.activeSessions,
       icon: <SessionIcon />,
       color: theme.palette.info.main,
-      delta: `${((engagement?.dauWauRatio ?? 0) * 100).toFixed(0)}%`,
+      delta: entityCounts.activeSessions > 0 ? `${entityCounts.activeSessions}` : '—',
       newLast3: engagement?.dailyLoginCount ?? 0,
     },
   ];
@@ -392,8 +417,8 @@ export default function Dashboard() {
               },
               {
                 label: 'Yeni Kullanıcı',
-                value: engagement?.weeklyActiveUsers ?? 0,
-                avg: ((engagement?.weeklyActiveUsers ?? 0) / 3).toFixed(1),
+                value: overview?.uniqueUsers ?? engagement?.weeklyActiveUsers ?? 0,
+                avg: ((overview?.uniqueUsers ?? engagement?.weeklyActiveUsers ?? 0) / 3).toFixed(1),
                 color: theme.palette.success.main,
                 icon: <PeopleIcon />,
               },
@@ -423,7 +448,7 @@ export default function Dashboard() {
                       {item.value}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Gunluk ort: {item.avg}
+                      Günlük ort: {item.avg}
                     </Typography>
                   </Box>
                 </Stack>
@@ -447,7 +472,7 @@ export default function Dashboard() {
                   Son Giriş Yapan Kullanıcılar
                 </Typography>
                 <Chip
-                  label={`${recentUsersData?.totalElements ?? 0} kullanici`}
+                  label={`${recentUsersData?.totalElements ?? 0} kullanıcı`}
                   size="small"
                 />
               </Stack>
@@ -527,7 +552,7 @@ export default function Dashboard() {
                           <TableCell align="center">
                             <Chip
                               size="small"
-                              label={isRecent ? 'Aktif' : 'Cevrimdisi'}
+                              label={isRecent ? 'Aktif' : 'Çevrimdışı'}
                               color={isRecent ? 'success' : 'default'}
                               variant={isRecent ? 'filled' : 'outlined'}
                               sx={{ fontSize: 11, height: 24 }}
