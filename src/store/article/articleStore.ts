@@ -4,6 +4,7 @@ import type { ArticleDto, ArticleCreateRequest, ArticleCategory, ArticleStatus, 
 
 interface ArticleStore {
   articles: ArticleDto[];
+  currentArticle: ArticleDto | null;
   totalElements: number;
   loading: boolean;
   error: string | null;
@@ -17,6 +18,7 @@ interface ArticleStore {
     size?: number;
     keyword?: string;
   }) => Promise<void>;
+  fetchArticle: (id: string) => Promise<ArticleDto | null>;
   createArticle: (payload: ArticleCreateRequest) => Promise<ArticleDto>;
   updateArticle: (id: string, payload: ArticleCreateRequest) => Promise<ArticleDto>;
   deleteArticle: (id: string) => Promise<void>;
@@ -28,9 +30,24 @@ interface ArticleStore {
 
 export const useArticleStore = create<ArticleStore>((set) => ({
   articles: [],
+  currentArticle: null,
   totalElements: 0,
   loading: false,
   error: null,
+
+  fetchArticle: async (id: string) => {
+    try {
+      set({ loading: true, error: null, currentArticle: null });
+      const data = await articleService.getArticle(id);
+      set({ currentArticle: data });
+      return data;
+    } catch (error: any) {
+      set({ error: error.message });
+      return null;
+    } finally {
+      set({ loading: false });
+    }
+  },
 
   fetchArticles: async (params = {}) => {
     try {

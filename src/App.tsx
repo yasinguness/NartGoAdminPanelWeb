@@ -28,6 +28,7 @@ import RaffleLivePage from './pages/Event/RaffleLivePage';
 import FeedVideos from './pages/Feeds/FeedVideos';
 import Bulletins from './pages/Bulletins/Bulletins';
 import ContentList from './pages/Content/ContentList';
+import ContentDetail from './pages/Content/ContentDetail';
 import ContentEditor from './pages/Content/ContentEditor';
 import GamificationSettings from './pages/Gamification/GamificationSettings';
 import SubMerchants from './pages/SubMerchants/SubMerchants';
@@ -72,6 +73,7 @@ function App() {
                 <Route path="bulletins" element={<Bulletins />} />
                 <Route path="content" element={<ContentList />} />
                 <Route path="content/new" element={<ContentEditor />} />
+                <Route path="content/:id" element={<ContentDetail />} />
                 <Route path="content/:id/edit" element={<ContentEditor />} />
                 <Route path="users" element={<Users />} />
                 <Route path="users/:id" element={<UserDetails />} />

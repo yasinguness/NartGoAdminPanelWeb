@@ -370,7 +370,7 @@ export default function ContentList() {
                   '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.03) },
                   '&:last-child td': { border: 0 },
                 }}
-                onClick={() => navigate(`/content/${article.id}/edit`, { state: { article } })}
+                onClick={() => navigate(`/content/${article.id}`)}
               >
                 <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
