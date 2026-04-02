@@ -21,6 +21,7 @@ interface ArticleQueryParams {
   size?: number;
   keyword?: string;
   contentType?: string;
+  author?: string;
 }
 
 function unwrapArticleResponse<T>(payload: T | ApiResponse<T>): T {

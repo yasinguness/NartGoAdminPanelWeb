@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { articleService } from '../../services/article/articleService';
-import type { ArticleDto, ArticleCreateRequest, ArticleCategory, ArticleStatus } from '../../types/article/articleModel';
+import type { ArticleDto, ArticleCreateRequest, ArticleCategory, ArticleStatus, ArticleType } from '../../types/article/articleModel';
 
 interface ArticleStore {
   articles: ArticleDto[];
@@ -11,6 +11,8 @@ interface ArticleStore {
   fetchArticles: (params?: {
     status?: ArticleStatus;
     category?: ArticleCategory;
+    contentType?: ArticleType;
+    author?: string;
     page?: number;
     size?: number;
     keyword?: string;

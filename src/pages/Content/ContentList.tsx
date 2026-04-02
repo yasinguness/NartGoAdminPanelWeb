@@ -46,12 +46,9 @@ export default function ContentList() {
     articles, totalElements, loading, fetchArticles,
     deleteArticle, publishArticle, archiveArticle,
   } = useArticleStore();
-  const { isEditorOnly, isOwner } = useRole();
+  const { isEditorOnly, userName, userEmail } = useRole();
 
-  const visibleArticles = useMemo(() => {
-    if (!isEditorOnly) return articles;
-    return articles.filter((article) => !article.author || isOwner(article.author));
-  }, [articles, isEditorOnly, isOwner]);
+  const visibleArticles = useMemo(() => articles, [articles]);
 
   const [page, setPage] = useState(0);
   const [pageSize] = useState(10);
@@ -69,12 +66,13 @@ export default function ContentList() {
         size: pageSize,
         ...(filterCategory && { category: filterCategory as ArticleCategory }),
         ...(filterStatus && { status: filterStatus as ArticleStatus }),
-        ...(filterType && { contentType: filterType }),
+        ...(filterType && { contentType: filterType as ArticleType }),
+        ...(isEditorOnly && { author: userName || userEmail }),
         ...(search && { keyword: search }),
       });
     }, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [page, pageSize, filterCategory, filterStatus, filterType, search, fetchArticles]);
+  }, [page, pageSize, filterCategory, filterStatus, filterType, search, fetchArticles, isEditorOnly, userName, userEmail]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -99,11 +97,11 @@ export default function ContentList() {
       }
       enqueueSnackbar(`${selectedIds.length} icerik güncellendi`, { variant: 'success' });
       setSelectedIds([]);
-      fetchArticles({ page, size: pageSize });
+      fetchArticles({ page, size: pageSize, ...(isEditorOnly && { author: userName || userEmail }) });
     } catch {
       enqueueSnackbar('İşlem sırasında hata oluştu', { variant: 'error' });
     }
-  }, [selectedIds, page, pageSize, publishArticle, archiveArticle, deleteArticle, fetchArticles, enqueueSnackbar]);
+  }, [selectedIds, page, pageSize, publishArticle, archiveArticle, deleteArticle, fetchArticles, enqueueSnackbar, isEditorOnly, userName, userEmail]);
 
   const stats = useMemo(() => [
     { label: 'Toplam İçerik', value: totalElements, detail: '+6 bu ay', color: theme.palette.primary.main, icon: <ArticleIcon /> },
