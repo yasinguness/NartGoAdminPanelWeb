@@ -1,805 +1,533 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  Grid,
-  InputAdornment,
-  Stack,
-  Switch,
-  TextField,
-  Typography,
-  useTheme,
-  Alert,
+  Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent,
+  DialogTitle, FormControlLabel, Grid, InputAdornment, Stack, Switch, TextField,
+  Typography, useTheme, Avatar, LinearProgress, Tooltip, IconButton, Tabs, Tab,
+  alpha, Divider,
 } from '@mui/material';
 import {
-  Edit as EditIcon,
-  Refresh as RefreshIcon,
-  Save as SaveIcon,
-  Star as StarIcon,
-  EmojiEvents as TrophyIcon,
-  AccessTime as TimeIcon,
-  Block as BlockIcon,
-  LooksOne as RankOneIcon,
-  LooksTwo as RankTwoIcon,
-  Looks3 as RankThreeIcon,
-  Category as CategoryIcon,
-  Delete as DeleteIcon,
-  Add as AddIcon,
-  Settings as SettingsIcon,
+  Edit as EditIcon, Refresh as RefreshIcon, Save as SaveIcon,
+  Star as StarIcon, EmojiEvents as TrophyIcon, AccessTime as TimeIcon,
+  Block as BlockIcon, LooksOne as RankOneIcon, LooksTwo as RankTwoIcon,
+  Looks3 as RankThreeIcon, Category as CategoryIcon, Delete as DeleteIcon,
+  Add as AddIcon, Bolt as BoltIcon, Shield as ShieldIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { AxiosError } from 'axios';
-import { PageContainer, PageHeader, PageSection } from '../../components/Page';
-import { DataTable } from '../../components/Data';
-import { ErrorState, LoadingState } from '../../components/Feedback';
+import { PageContainer, PageHeader } from '../../components/Page';
 import {
-  GamificationActionAdminDto,
-  GamificationConfigDto,
-  GamificationDailySocialCapDto,
-  GamificationMonthlyRewardsDto,
-  MonthlyRewardItemDto,
-  GamificationConfigRecordDto,
+  GamificationActionAdminDto, GamificationConfigDto, GamificationDailySocialCapDto,
+  GamificationMonthlyRewardsDto, MonthlyRewardItemDto, GamificationConfigRecordDto,
 } from '../../types/gamification/gamificationAdmin';
 import { gamificationAdminService } from '../../services/gamification/gamificationAdminService';
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
 const colorRegex = /^[A-Fa-f0-9]{6}$/;
 const resetTimeRegex = /^([01]\d|2[0-3]):[0-5]\d UTC$/;
 
-
-const getErrorMessage = (error: unknown): string => {
-  const axiosError = error as AxiosError<{ message?: string }>;
-  return axiosError?.response?.data?.message || (error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu');
+const getErr = (e: unknown): string => {
+  const ax = e as AxiosError<{ message?: string }>;
+  return ax?.response?.data?.message || (e instanceof Error ? e.message : 'Bilinmeyen hata');
 };
 
-const validateDailySocialCap = (dailySocialCap: GamificationDailySocialCapDto): string | null => {
-  if (dailySocialCap.maxXp < 0) return 'Günlük maksimum sosyal puan 0 veya daha büyük olmalıdır.';
-  if (!resetTimeRegex.test(dailySocialCap.resetTime)) return 'Sıfırlanma saati "HH:mm UTC" formatında olmalıdır (Örn: 00:00 UTC).';
-  if (!Array.isArray(dailySocialCap.affectedCategories) || dailySocialCap.affectedCategories.length === 0) {
-    return 'Lütfen limite dahil olacak en az bir kategori girin.';
+const validateCap = (c: GamificationDailySocialCapDto): string | null => {
+  if (c.maxXp < 0) return 'Günlük maks sosyal puan 0+ olmalı.';
+  if (!resetTimeRegex.test(c.resetTime)) return 'Sıfırlanma saati "HH:mm UTC" formatında olmalı.';
+  if (!c.affectedCategories.length) return 'En az bir kategori seçilmeli.';
+  return null;
+};
+
+const validateAction = (a: GamificationActionAdminDto, max: number): string | null => {
+  if (a.xp < 0 || a.xp > 500) return `${a.label || a.reason}: puan 0-500 arası olmalı.`;
+  if (a.xp > max) return `${a.label || a.reason}: genel barajı aşıyor.`;
+  return null;
+};
+
+const validateRewards = (m: GamificationMonthlyRewardsDto): string | null => {
+  const rewards = Array.isArray(m.rewards) ? m.rewards : [];
+  if (rewards.length < 3) return 'İlk 3 derece tanımlanmalı.';
+  for (const r of rewards) {
+    if (!r.title.trim()) return `${r.rank}. derece başlığı zorunlu.`;
+    if (!r.description.trim()) return `${r.rank}. derece açıklaması zorunlu.`;
+    if (!colorRegex.test(r.color)) return `${r.rank}. derece renk kodu geçersiz.`;
   }
   return null;
 };
 
-const validateAction = (action: GamificationActionAdminDto, maxXpPerAction: number): string | null => {
-  if (action.xp < 0 || action.xp > 500) return `${action.label || action.reason} için puan 0 ile 500 arasında olmalıdır.`;
-  if (action.xp > maxXpPerAction) return `${action.label || action.reason} işleminden kazanılacak puan, genel barajı aşamaz.`;
-  return null;
+const RANK_COLORS: Record<number, string> = { 1: '#f59e0b', 2: '#94a3b8', 3: '#cd7f32' };
+const RANK_LABELS: Record<number, string> = { 1: 'Altın', 2: 'Gümüş', 3: 'Bronz' };
+const RANK_ICONS: Record<number, React.ReactNode> = {
+  1: <RankOneIcon sx={{ fontSize: 28 }} />,
+  2: <RankTwoIcon sx={{ fontSize: 28 }} />,
+  3: <RankThreeIcon sx={{ fontSize: 28 }} />,
 };
 
-const validateMonthlyRewards = (monthlyRewards: GamificationMonthlyRewardsDto): string | null => {
-  const rewards = Array.isArray(monthlyRewards.rewards) ? monthlyRewards.rewards : [];
-  if (rewards.length < 3) return 'Aylık ödüller, sıralamadaki ilk 3 dereceyi içermelidir.';
-
-  for (const reward of rewards) {
-    if (!reward.title.trim()) return `${reward.rank}. derece için ödül başlığı zorunludur.`;
-    if (!reward.description.trim()) return `${reward.rank}. derece için ödül açıklaması zorunludur.`;
-    if (!reward.icon.trim()) return `${reward.rank}. derece için ikon kodu zorunludur.`;
-    if (!colorRegex.test(reward.color)) return `${reward.rank}. derece için geçerli bir renk kodu girmelisiniz (örn: FFD700).`;
-  }
-  return null;
-};
-
+// ─── Component ──────────────────────────────────────────────────────────────
 export default function GamificationSettings() {
   const { enqueueSnackbar } = useSnackbar();
   const theme = useTheme();
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [allConfigs, setAllConfigs] = useState<GamificationConfigRecordDto[]>([]);
-  const [selectedConfigKey, setSelectedConfigKey] = useState<string>('DEFAULT');
+  const [selectedKey, setSelectedKey] = useState('DEFAULT');
   const [config, setConfig] = useState<GamificationConfigDto | null>(null);
   const [editingAction, setEditingAction] = useState<GamificationActionAdminDto | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newConfigKey, setNewConfigKey] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newKey, setNewKey] = useState('');
+  const [activeTab, setActiveTab] = useState(0); // 0: Actions, 1: Limits, 2: Rewards
 
-  const loadConfigData = useCallback(async (key: string) => {
+  // ─── Data loading ─────────────────────────────────────────────────────────
+  const loadAll = useCallback(async () => {
+    try {
+      setLoading(true);
+      const records = await gamificationAdminService.getConfigs();
+      setAllConfigs(records);
+      const current = records.find(r => r.configKey === selectedKey) || records[0];
+      if (current) { setSelectedKey(current.configKey); setConfig(current.config); }
+    } catch (e) {
+      enqueueSnackbar(getErr(e), { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedKey, enqueueSnackbar]);
+
+  useEffect(() => { loadAll(); }, []);
+
+  const loadConfig = useCallback(async (key: string) => {
     try {
       setLoading(true);
       const data = await gamificationAdminService.getConfigByKey(key);
       setConfig(data.config);
-      setSelectedConfigKey(data.configKey);
+      setSelectedKey(data.configKey);
     } catch (e) {
-      enqueueSnackbar('Konfigürasyon yüklenemedi: ' + getErrorMessage(e), { variant: 'error' });
+      enqueueSnackbar('Yüklenemedi: ' + getErr(e), { variant: 'error' });
     } finally {
       setLoading(false);
     }
   }, [enqueueSnackbar]);
 
-  const loadAll = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const records = await gamificationAdminService.getConfigs();
-      setAllConfigs(records);
-      
-      const current = records.find(r => r.configKey === selectedConfigKey) || records.find(r => r.configKey === 'DEFAULT') || records[0];
-      if (current) {
-        setSelectedConfigKey(current.configKey);
-        setConfig(current.config);
-      }
-    } catch (e) {
-      setError(getErrorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedConfigKey]);
-
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  const handleConfigChange = (key: string) => {
-    loadConfigData(key);
-  };
-
-  const handleSaveAll = async () => {
-    if (!config || !selectedConfigKey) return;
-
-    if (config.maxXpPerAction < 0 || config.maxXpPerAction > 500) {
-      enqueueSnackbar('Tek işlemde kazanılabilecek maksimum puan 0 ile 500 arasında olmalıdır.', { variant: 'error' });
-      return;
-    }
-
-    const capError = validateDailySocialCap(config.dailySocialCap);
-    if (capError) {
-      enqueueSnackbar(capError, { variant: 'error' });
-      return;
-    }
-
-    const rewardsError = validateMonthlyRewards(config.monthlyRewards);
-    if (rewardsError) {
-      enqueueSnackbar(rewardsError, { variant: 'error' });
-      return;
-    }
-
-    const actionError = config.actions
-      .map((action) => validateAction(action, config.maxXpPerAction))
-      .find((message): message is string => Boolean(message));
-    if (actionError) {
-      enqueueSnackbar(actionError, { variant: 'error' });
-      return;
-    }
-
+  // ─── Save ─────────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!config) return;
+    if (config.maxXpPerAction < 0 || config.maxXpPerAction > 500) { enqueueSnackbar('Maks puan 0-500 arası olmalı.', { variant: 'error' }); return; }
+    const capErr = validateCap(config.dailySocialCap);
+    if (capErr) { enqueueSnackbar(capErr, { variant: 'error' }); return; }
+    const rewErr = validateRewards(config.monthlyRewards);
+    if (rewErr) { enqueueSnackbar(rewErr, { variant: 'error' }); return; }
+    const actErr = config.actions.map(a => validateAction(a, config.maxXpPerAction)).find(Boolean);
+    if (actErr) { enqueueSnackbar(actErr, { variant: 'error' }); return; }
 
     try {
       setSaving(true);
-      await gamificationAdminService.updateConfigByKey(selectedConfigKey, config);
-      enqueueSnackbar(`${selectedConfigKey} ayarları başarıyla kaydedildi!`, { variant: 'success' });
+      await gamificationAdminService.updateConfigByKey(selectedKey, config);
+      enqueueSnackbar(`${selectedKey} kaydedildi`, { variant: 'success' });
       loadAll();
-    } catch (e) {
-      enqueueSnackbar(getErrorMessage(e), { variant: 'error' });
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { enqueueSnackbar(getErr(e), { variant: 'error' }); }
+    finally { setSaving(false); }
   };
 
-  const handleCreateConfig = async () => {
-    if (!newConfigKey.trim() || !config) return;
-    
+  const handleCreate = async () => {
+    if (!newKey.trim() || !config) return;
     try {
       setSaving(true);
-      const key = newConfigKey.trim().toUpperCase();
-      await gamificationAdminService.createConfig({
-        configKey: key,
-        config: config
-      });
-      enqueueSnackbar('Yeni konfigürasyon oluşturuldu: ' + key, { variant: 'success' });
-      setIsCreateDialogOpen(false);
-      setNewConfigKey('');
-      setSelectedConfigKey(key);
-      loadAll();
-    } catch (e) {
-      enqueueSnackbar(getErrorMessage(e), { variant: 'error' });
-    } finally {
-      setSaving(false);
-    }
+      const key = newKey.trim().toUpperCase();
+      await gamificationAdminService.createConfig({ configKey: key, config });
+      enqueueSnackbar('Oluşturuldu: ' + key, { variant: 'success' });
+      setCreateOpen(false); setNewKey(''); setSelectedKey(key); loadAll();
+    } catch (e) { enqueueSnackbar(getErr(e), { variant: 'error' }); }
+    finally { setSaving(false); }
   };
 
-  const handleDeleteConfig = async (key: string) => {
-    if (key === 'DEFAULT') return;
-    
-    if (!window.confirm(`${key} konfigürasyonunu silmek istediğinize emin misiniz?`)) return;
-
+  const handleDelete = async (key: string) => {
+    if (key === 'DEFAULT' || !window.confirm(`${key} silinecek?`)) return;
     try {
       setSaving(true);
       await gamificationAdminService.deleteConfig(key);
-      enqueueSnackbar('Konfigürasyon silindi: ' + key, { variant: 'success' });
-      if (selectedConfigKey === key) {
-        setSelectedConfigKey('DEFAULT');
-      }
+      enqueueSnackbar('Silindi: ' + key, { variant: 'success' });
+      if (selectedKey === key) setSelectedKey('DEFAULT');
       loadAll();
-    } catch (e) {
-      enqueueSnackbar(getErrorMessage(e), { variant: 'error' });
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { enqueueSnackbar(getErr(e), { variant: 'error' }); }
+    finally { setSaving(false); }
   };
 
-
-  const handleEditActionSave = () => {
+  const handleEditSave = () => {
     if (!config || !editingAction) return;
-
-    const validationError = validateAction(editingAction, config.maxXpPerAction);
-    if (validationError) {
-      enqueueSnackbar(validationError, { variant: 'error' });
-      return;
-    }
-
-    setConfig((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        actions: prev.actions.map((action) => (action.reason === editingAction.reason ? editingAction : action)),
-      };
-    });
-
+    const err = validateAction(editingAction, config.maxXpPerAction);
+    if (err) { enqueueSnackbar(err, { variant: 'error' }); return; }
+    setConfig(prev => prev ? { ...prev, actions: prev.actions.map(a => a.reason === editingAction.reason ? editingAction : a) } : prev);
     setEditingAction(null);
   };
 
-  const updateReward = (rank: number, updater: (reward: MonthlyRewardItemDto) => MonthlyRewardItemDto) => {
-    setConfig((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        monthlyRewards: {
-          ...prev.monthlyRewards,
-          rewards: prev.monthlyRewards.rewards.map((reward) => (reward.rank === rank ? updater(reward) : reward)),
-        },
-      };
-    });
+  const updateReward = (rank: number, fn: (r: MonthlyRewardItemDto) => MonthlyRewardItemDto) => {
+    setConfig(prev => prev ? { ...prev, monthlyRewards: { ...prev.monthlyRewards, rewards: prev.monthlyRewards.rewards.map(r => r.rank === rank ? fn(r) : r) } } : prev);
   };
 
-  const actionColumns = useMemo(() => [
-    { id: 'reason', label: 'Sistem Kodu (Reason)' },
-    { 
-      id: 'xp', 
-      label: 'Ödül Puanı', 
-      align: 'center' as const,
-      render: (row: GamificationActionAdminDto) => (
-        <Chip
-          icon={<StarIcon sx={{ fontSize: 16 }} />}
-          label={`+${row.xp} XP`}
-          color="primary"
-          variant="outlined"
-          size="small"
-          sx={{ fontWeight: 'bold' }}
-        />
-      ),
-    },
-    { id: 'label', label: 'Görünen Etiket (Uygulama İçi)' },
-    { 
-      id: 'category', 
-      label: 'Kategori',
-      render: (row: GamificationActionAdminDto) => (
-        <Chip label={row.category} size="small" sx={{ textTransform: 'capitalize' }} />
-      ),
-    },
-    {
-      id: 'dailyCap',
-      label: 'Günlük Sınıra Tabi Mi?',
-      align: 'center' as const,
-      render: (row: GamificationActionAdminDto) => (
-        <Chip 
-          label={row.dailyCap ? 'Evet' : 'Hayır'} 
-          color={row.dailyCap ? 'warning' : 'default'} 
-          size="small" 
-          variant={row.dailyCap ? 'filled' : 'outlined'}
-        />
-      ),
-    },
-  ], []);
+  // ─── Stats ────────────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    if (!config) return { totalActions: 0, avgXp: 0, maxXp: 0, categories: 0, dailyCapped: 0 };
+    const xps = config.actions.map(a => a.xp);
+    const cats = new Set(config.actions.map(a => a.category));
+    return {
+      totalActions: config.actions.length,
+      avgXp: xps.length ? Math.round(xps.reduce((a, b) => a + b, 0) / xps.length) : 0,
+      maxXp: Math.max(...xps, 0),
+      categories: cats.size,
+      dailyCapped: config.actions.filter(a => a.dailyCap).length,
+    };
+  }, [config]);
 
-  if (loading) {
-    return <LoadingState message="Oyunlaştırma ayarları yükleniyor..." />;
-  }
-
-  if (error || !config) {
+  if (loading && !config) {
     return (
       <PageContainer>
-        <ErrorState
-          title="Ayarlar Yüklenemedi"
-          message={error ?? 'Oyunlaştırma ayarları alınırken beklenmeyen bir hata oluştu.'}
-          onRetry={loadConfig}
-        />
+        <Box sx={{ py: 20, textAlign: 'center' }}>
+          <LinearProgress sx={{ maxWidth: 300, mx: 'auto', mb: 2 }} />
+          <Typography color="text.secondary">Oyunlaştırma ayarları yükleniyor...</Typography>
+        </Box>
       </PageContainer>
     );
   }
 
-  const sortedRewards = [...config.monthlyRewards.rewards].sort((a, b) => a.rank - b.rank);
+  if (!config) return null;
 
-  const getRankIcon = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return <RankOneIcon sx={{ fontSize: 32, color: '#FFD700' }} />;
-      case 2:
-        return <RankTwoIcon sx={{ fontSize: 32, color: '#C0C0C0' }} />;
-      case 3:
-        return <RankThreeIcon sx={{ fontSize: 32, color: '#CD7F32' }} />;
-      default:
-        return <TrophyIcon sx={{ fontSize: 32 }} />;
-    }
-  };
+  const sortedRewards = [...config.monthlyRewards.rewards].sort((a, b) => a.rank - b.rank);
 
   return (
     <PageContainer>
+      {saving && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1300, height: 3 }} />}
+
       <PageHeader
         title="Oyunlaştırma Ayarları"
-        subtitle={`Uygulama içi kullanıcı aksiyonları ve ödül periyotlarını "${selectedConfigKey}" üzerinden yönetin.`}
-        breadcrumbs={[
-          { label: 'Gösterge Paneli', href: '/dashboard' },
-          { label: 'Oyunlaştırma', active: true },
-        ]}
+        subtitle={`"${selectedKey}" konfigürasyonu üzerinde düzenleme yapıyorsunuz`}
+        breadcrumbs={[{ label: 'Panel', href: '/dashboard' }, { label: 'Oyunlaştırma' }]}
         actions={
-          <Stack direction="row" spacing={2} alignItems="center">
-            <TextField
-              select
-              size="small"
-              label="Aktif Konfigürasyon"
-              value={selectedConfigKey}
-              onChange={(e) => handleConfigChange(e.target.value)}
-              SelectProps={{ native: true }}
-              sx={{ minWidth: 200, bgcolor: 'background.paper' }}
-            >
-              {allConfigs.map((r) => (
-                <option key={r.configKey} value={r.configKey}>
-                  {r.configKey}
-                </option>
-              ))}
-            </TextField>
-
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={() => setIsCreateDialogOpen(true)}
-              sx={{ bgcolor: 'background.paper' }}
-            >
-              Yeni Ekle
-            </Button>
-
-            {selectedConfigKey !== 'DEFAULT' && (
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={() => handleDeleteConfig(selectedConfigKey)}
-                sx={{ bgcolor: 'background.paper' }}
-              >
-                Sil
-              </Button>
-            )}
-
-            <Button 
-              variant="outlined" 
-              startIcon={<RefreshIcon />} 
-              onClick={loadAll}
-              sx={{ bgcolor: 'background.paper' }}
-            >
+          <Stack direction="row" spacing={1}>
+            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadAll}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
               Yenile
             </Button>
-
-            <Button 
-              variant="contained" 
-              startIcon={<SaveIcon />} 
-              onClick={handleSaveAll} 
-              disabled={saving}
-            >
-              Değişiklikleri Kaydet
+            <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave} disabled={saving}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}>
+              Kaydet
             </Button>
           </Stack>
         }
       />
 
+      {/* ─── Summary Cards ─── */}
+      <Grid container spacing={2} mb={3}>
+        {[
+          { label: 'Toplam Aksiyon', value: stats.totalActions, color: theme.palette.primary.main, icon: <BoltIcon /> },
+          { label: 'Ort. XP', value: stats.avgXp, color: '#f59e0b', icon: <StarIcon /> },
+          { label: 'Maks XP / İşlem', value: config.maxXpPerAction, color: '#3b82f6', icon: <ShieldIcon /> },
+          { label: 'Günlük Limit', value: `${config.dailySocialCap.maxXp} XP`, color: '#ef4444', icon: <BlockIcon /> },
+          { label: 'Kalan Süre', value: `${config.monthlyRewards.daysRemaining || 0} gün`, color: '#8b5cf6', icon: <TimeIcon /> },
+        ].map((s, i) => (
+          <Grid item xs={6} sm={4} md={2.4} key={i}>
+            <Card elevation={0} sx={{
+              p: 2, borderRadius: 3,
+              background: `linear-gradient(135deg, ${alpha(s.color, 0.08)} 0%, ${alpha(s.color, 0.03)} 100%)`,
+              border: `1px solid ${alpha(s.color, 0.12)}`,
+            }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                <Box>
+                  <Typography sx={{ fontSize: 10.5, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</Typography>
+                  <Typography sx={{ fontSize: 22, fontWeight: 800, color: s.color, mt: 0.5 }}>{s.value}</Typography>
+                </Box>
+                <Avatar sx={{ width: 36, height: 36, bgcolor: alpha(s.color, 0.12), color: s.color, borderRadius: 2 }}>
+                  {s.icon}
+                </Avatar>
+              </Stack>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
-      <PageSection 
-        title="Puan Kazandıran Aksiyonlar" 
-        subtitle="Kullanıcıların hangi işlemler sonucu ne kadar puan (XP) kazanacağını belirleyin."
-      >
-        <Card variant="outlined">
-          <DataTable
-            columns={actionColumns}
-            data={config.actions}
-            renderRowActions={(row: GamificationActionAdminDto) => (
-              <Button size="small" startIcon={<EditIcon />} onClick={() => setEditingAction({ ...row })}>
-                Düzenle
-              </Button>
-            )}
-          />
-        </Card>
-      </PageSection>
+      {/* ─── Config Selector + Tabs ─── */}
+      <Card elevation={0} sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: 3, mb: 3 }}>
+        <Box sx={{ px: 2.5, pt: 2, pb: 0, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          {/* Config chips */}
+          <Stack direction="row" spacing={0.75} sx={{ flex: 1, flexWrap: 'wrap', gap: 0.5 }}>
+            {allConfigs.map(r => (
+              <Chip
+                key={r.configKey}
+                label={r.configKey}
+                onClick={() => loadConfig(r.configKey)}
+                onDelete={r.configKey !== 'DEFAULT' ? () => handleDelete(r.configKey) : undefined}
+                color={selectedKey === r.configKey ? 'primary' : 'default'}
+                variant={selectedKey === r.configKey ? 'filled' : 'outlined'}
+                sx={{ fontWeight: 600, borderRadius: 2 }}
+              />
+            ))}
+            <Chip
+              icon={<AddIcon />}
+              label="Yeni"
+              onClick={() => setCreateOpen(true)}
+              variant="outlined"
+              sx={{ fontWeight: 600, borderRadius: 2, borderStyle: 'dashed' }}
+            />
+          </Stack>
+        </Box>
 
-      <PageSection 
-        title="Günlük Limit (Social Cap) ve Genel Kısıtlamalar" 
-        subtitle="Suistimalları önlemek için kullanıcıların günlük bazda sosyal etkileşimlerden alabileceği maksimum tecrübe puanlarını yapılandırın."
-      >
-        <Card variant="outlined">
-          <CardContent sx={{ p: 4 }}>
-            <Grid container spacing={4}>
-              <Grid item xs={12} md={4}>
-                <Stack spacing={3}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <BlockIcon color="primary" />
-                    <Typography variant="h6">Limit Değerleri</Typography>
-                  </Box>
-                  <TextField
-                    type="number"
-                    label="Günlük Maksimum Sosyal Puan"
-                    helperText="Bir kullanıcının sosyal etkileşimlerle günlük kazanabileceği en fazla XP"
-                    fullWidth
-                    value={config.dailySocialCap.maxXp}
-                    onChange={(e) => setConfig((prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        dailySocialCap: { ...prev.dailySocialCap, maxXp: Number(e.target.value) || 0 },
-                      };
-                    })}
-                  />
-                  <TextField
-                    type="number"
-                    label="Tek İşlemde Maksimum Puan"
-                    helperText="Herhangi bir uygulama içi aksiyonda alınabilecek limit değer"
-                    fullWidth
-                    value={config.maxXpPerAction}
-                    onChange={(e) => setConfig((prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        maxXpPerAction: Number(e.target.value) || 0,
-                      };
-                    })}
-                  />
-                </Stack>
-              </Grid>
+        {/* Tabs */}
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          sx={{ px: 2.5, borderBottom: `1px solid ${theme.palette.divider}`, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 13 } }}
+        >
+          <Tab icon={<BoltIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Puan Aksiyonları" />
+          <Tab icon={<ShieldIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Limitler & Sıfırlama" />
+          <Tab icon={<TrophyIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Aylık Ödüller" />
+        </Tabs>
 
-              <Grid item xs={12} md={4}>
-                <Stack spacing={3}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <TimeIcon color="primary" />
-                    <Typography variant="h6">Sıfırlanma Periyodu</Typography>
-                  </Box>
-                  <TextField
-                    type="text"
-                    label="Günlük Sıfırlanma Saati (UTC)"
-                    helperText='Zamanı "HH:mm UTC" formatında belirtin (Örn: "00:00 UTC")'
-                    fullWidth
-                    value={config.dailySocialCap.resetTime}
-                    onChange={(e) => setConfig((prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        dailySocialCap: { ...prev.dailySocialCap, resetTime: e.target.value },
-                      };
-                    })}
-                  />
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <Stack spacing={3}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <CategoryIcon color="primary" />
-                    <Typography variant="h6">Etkilenen Kategoriler</Typography>
-                  </Box>
-                  <TextField
-                    type="text"
-                    label="Kategoriler"
-                    helperText="Günlük limitten etkilenecek kategorileri aralarına virgül koyarak yazın (örn: social,community)"
-                    fullWidth
-                    value={config.dailySocialCap.affectedCategories.join(', ')}
-                    onChange={(e) => setConfig((prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        dailySocialCap: {
-                          ...prev.dailySocialCap,
-                          affectedCategories: e.target.value
-                            .split(',')
-                            .map((value) => value.trim())
-                            .filter(Boolean),
-                        },
-                      };
-                    })}
-                  />
-                  {config.dailySocialCap.affectedCategories.length > 0 && (
-                    <Box display="flex" gap={1} flexWrap="wrap">
-                      {config.dailySocialCap.affectedCategories.map((cat, i) => (
-                        <Chip key={i} label={cat} size="small" color="primary" variant="outlined" />
-                      ))}
+        <Box sx={{ p: 3 }}>
+          {/* ── TAB 0: Actions ── */}
+          {activeTab === 0 && (
+            <Stack spacing={1}>
+              {config.actions.map((action) => {
+                const maxXp = Math.max(...config.actions.map(a => a.xp), 1);
+                const pct = (action.xp / maxXp) * 100;
+                return (
+                  <Box key={action.reason} sx={{
+                    display: 'flex', alignItems: 'center', gap: 2,
+                    p: 1.5, borderRadius: 2, border: `1px solid ${theme.palette.divider}`,
+                    transition: 'all 0.15s',
+                    '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.3), bgcolor: alpha(theme.palette.primary.main, 0.02) },
+                  }}>
+                    <Avatar sx={{
+                      width: 36, height: 36, borderRadius: 2,
+                      bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main', fontSize: 14,
+                    }}>
+                      <StarIcon sx={{ fontSize: 18 }} />
+                    </Avatar>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <Typography sx={{ fontSize: 13, fontWeight: 700 }} noWrap>{action.label || action.reason}</Typography>
+                        <Chip label={action.category} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 600 }} />
+                        {action.dailyCap && (
+                          <Chip label="Günlük Limit" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: 10, fontWeight: 600 }} />
+                        )}
+                      </Stack>
+                      <Typography sx={{ fontSize: 11, color: 'text.secondary' }} noWrap>{action.description || action.reason}</Typography>
                     </Box>
+                    <Box sx={{ width: 120, mr: 1 }}>
+                      <Stack direction="row" justifyContent="space-between" mb={0.25}>
+                        <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>XP</Typography>
+                        <Typography sx={{ fontSize: 12, fontWeight: 800, color: 'primary.main', fontFamily: 'monospace' }}>+{action.xp}</Typography>
+                      </Stack>
+                      <LinearProgress variant="determinate" value={pct} sx={{
+                        height: 4, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.08),
+                        '& .MuiLinearProgress-bar': { borderRadius: 2, background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})` },
+                      }} />
+                    </Box>
+                    <Tooltip title="Düzenle">
+                      <IconButton size="small" onClick={() => setEditingAction({ ...action })} sx={{ color: 'text.secondary' }}>
+                        <EditIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+
+          {/* ── TAB 1: Limits ── */}
+          {activeTab === 1 && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={4}>
+                <Stack spacing={2.5}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Avatar sx={{ width: 28, height: 28, bgcolor: alpha('#ef4444', 0.1), color: '#ef4444', borderRadius: 1.5 }}>
+                      <BlockIcon sx={{ fontSize: 16 }} />
+                    </Avatar>
+                    <Typography variant="subtitle1" fontWeight={700}>Limit Değerleri</Typography>
+                  </Stack>
+                  <TextField type="number" label="Günlük Maks Sosyal Puan" size="small" fullWidth
+                    value={config.dailySocialCap.maxXp}
+                    onChange={(e) => setConfig(prev => prev ? { ...prev, dailySocialCap: { ...prev.dailySocialCap, maxXp: Number(e.target.value) || 0 } } : prev)}
+                    helperText="Sosyal etkileşimlerle günlük kazanılacak maks XP" />
+                  <TextField type="number" label="Tek İşlemde Maks Puan" size="small" fullWidth
+                    value={config.maxXpPerAction}
+                    onChange={(e) => setConfig(prev => prev ? { ...prev, maxXpPerAction: Number(e.target.value) || 0 } : prev)}
+                    helperText="Herhangi bir aksiyonda alınabilecek limit" />
+                </Stack>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Stack spacing={2.5}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Avatar sx={{ width: 28, height: 28, bgcolor: alpha('#3b82f6', 0.1), color: '#3b82f6', borderRadius: 1.5 }}>
+                      <TimeIcon sx={{ fontSize: 16 }} />
+                    </Avatar>
+                    <Typography variant="subtitle1" fontWeight={700}>Sıfırlanma</Typography>
+                  </Stack>
+                  <TextField label="Günlük Sıfırlanma Saati (UTC)" size="small" fullWidth
+                    value={config.dailySocialCap.resetTime}
+                    onChange={(e) => setConfig(prev => prev ? { ...prev, dailySocialCap: { ...prev.dailySocialCap, resetTime: e.target.value } } : prev)}
+                    helperText='Format: "HH:mm UTC" (Örn: 00:00 UTC)' />
+                </Stack>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Stack spacing={2.5}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Avatar sx={{ width: 28, height: 28, bgcolor: alpha('#8b5cf6', 0.1), color: '#8b5cf6', borderRadius: 1.5 }}>
+                      <CategoryIcon sx={{ fontSize: 16 }} />
+                    </Avatar>
+                    <Typography variant="subtitle1" fontWeight={700}>Etkilenen Kategoriler</Typography>
+                  </Stack>
+                  <TextField label="Kategoriler (virgülle ayır)" size="small" fullWidth
+                    value={config.dailySocialCap.affectedCategories.join(', ')}
+                    onChange={(e) => setConfig(prev => prev ? { ...prev, dailySocialCap: { ...prev.dailySocialCap, affectedCategories: e.target.value.split(',').map(v => v.trim()).filter(Boolean) } } : prev)}
+                    helperText="Örn: social, community" />
+                  {config.dailySocialCap.affectedCategories.length > 0 && (
+                    <Stack direction="row" gap={0.75} flexWrap="wrap">
+                      {config.dailySocialCap.affectedCategories.map((c, i) => (
+                        <Chip key={i} label={c} size="small" color="primary" variant="outlined" sx={{ borderRadius: 1.5 }} />
+                      ))}
+                    </Stack>
                   )}
                 </Stack>
               </Grid>
             </Grid>
-          </CardContent>
-        </Card>
-      </PageSection>
+          )}
 
-      <PageSection 
-        title="Aylık Liderlik Tablosu Ödülleri" 
-        subtitle="Aylık periyotlardaki liderlik sıralamasında dereceye giren ilk 3 kullanıcıya verilecek ödülleri belirleyin."
-      >
-        <Card variant="outlined" sx={{ mb: 3 }}>
-          <CardContent sx={{ p: 4 }}>
-            <Grid container spacing={4}>
-              <Grid item xs={12} md={6}>
-                <Stack spacing={3}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <TrophyIcon color="primary" />
-                    <Typography variant="h6">Dönem Bilgileri</Typography>
-                  </Box>
-                  <TextField
-                    label="Peryot Başlığı"
-                    placeholder="Örn: 14 Günlük Dönem"
-                    fullWidth
-                    value={config.monthlyRewards.month}
-                    onChange={(e) => setConfig((prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        monthlyRewards: { ...prev.monthlyRewards, month: e.target.value },
-                      };
-                    })}
-                  />
-                  <TextField
-                    label="Kampanya Başlığı"
-                    placeholder="Örn: 14 Günlük Ödüller"
-                    fullWidth
-                    value={config.monthlyRewards.title}
-                    onChange={(e) => setConfig((prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        monthlyRewards: { ...prev.monthlyRewards, title: e.target.value },
-                      };
-                    })}
-                  />
-                  <TextField
-                    label="Kampanya Açıklaması"
-                    placeholder="Kullanıcılara gösterilecek genel kampanya açıklaması"
-                    fullWidth
-                    multiline
-                    rows={2}
-                    value={config.monthlyRewards.description}
-                    onChange={(e) => setConfig((prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        monthlyRewards: { ...prev.monthlyRewards, description: e.target.value },
-                      };
-                    })}
-                  />
-                </Stack>
+          {/* ── TAB 2: Rewards ── */}
+          {activeTab === 2 && (
+            <Stack spacing={3}>
+              {/* Period info */}
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={3}>
+                  <TextField label="Periyot Başlığı" size="small" fullWidth value={config.monthlyRewards.month || ''}
+                    onChange={(e) => setConfig(prev => prev ? { ...prev, monthlyRewards: { ...prev.monthlyRewards, month: e.target.value } } : prev)} />
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <TextField label="Kampanya Başlığı" size="small" fullWidth value={config.monthlyRewards.title || ''}
+                    onChange={(e) => setConfig(prev => prev ? { ...prev, monthlyRewards: { ...prev.monthlyRewards, title: e.target.value } } : prev)} />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <TextField type="number" label="Dönem (Gün)" size="small" fullWidth value={config.monthlyRewards.periodDays || 0}
+                    onChange={(e) => setConfig(prev => prev ? { ...prev, monthlyRewards: { ...prev.monthlyRewards, periodDays: Number(e.target.value) || 0 } } : prev)} />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <TextField type="number" label="Sıfırlama (Gün)" size="small" fullWidth value={config.monthlyRewards.resetEveryDays || 0}
+                    onChange={(e) => setConfig(prev => prev ? { ...prev, monthlyRewards: { ...prev.monthlyRewards, resetEveryDays: Number(e.target.value) || 0 } } : prev)} />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <TextField label="Kalan" size="small" fullWidth value={`${config.monthlyRewards.daysRemaining || 0} gün`} disabled />
+                </Grid>
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <Stack spacing={3}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <TimeIcon color="primary" />
-                    <Typography variant="h6">Zamanlama ve Sıfırlama</Typography>
-                  </Box>
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <TextField
-                        type="number"
-                        label="Dönem Süresi (Gün)"
-                        helperText="Toplam periyot süresi"
-                        fullWidth
-                        value={config.monthlyRewards.periodDays}
-                        onChange={(e) => setConfig((prev) => {
-                          if (!prev) return prev;
-                          return {
-                            ...prev,
-                            monthlyRewards: { ...prev.monthlyRewards, periodDays: Number(e.target.value) || 0 },
-                          };
-                        })}
-                      />
+              <TextField label="Kampanya Açıklaması" size="small" fullWidth multiline rows={2}
+                value={config.monthlyRewards.description || ''}
+                onChange={(e) => setConfig(prev => prev ? { ...prev, monthlyRewards: { ...prev.monthlyRewards, description: e.target.value } } : prev)} />
+
+              <Divider />
+
+              {/* Reward cards */}
+              <Grid container spacing={2.5}>
+                {sortedRewards.map((reward) => {
+                  const rc = RANK_COLORS[reward.rank] || '#6b7280';
+                  return (
+                    <Grid item xs={12} md={4} key={reward.rank}>
+                      <Card elevation={0} sx={{
+                        height: '100%', borderRadius: 3,
+                        border: `1px solid ${alpha(rc, 0.2)}`,
+                        background: `linear-gradient(180deg, ${alpha(rc, 0.06)} 0%, transparent 40%)`,
+                        overflow: 'visible',
+                      }}>
+                        {/* Medal header */}
+                        <Box sx={{
+                          px: 2.5, py: 2, display: 'flex', alignItems: 'center', gap: 1.5,
+                          borderBottom: `1px solid ${alpha(rc, 0.12)}`,
+                        }}>
+                          <Avatar sx={{
+                            width: 44, height: 44, borderRadius: 2.5,
+                            bgcolor: alpha(rc, 0.15), color: rc,
+                          }}>
+                            {RANK_ICONS[reward.rank] || <TrophyIcon />}
+                          </Avatar>
+                          <Box>
+                            <Typography sx={{ fontSize: 15, fontWeight: 800, color: rc }}>
+                              {reward.rank}. Sıra — {RANK_LABELS[reward.rank] || 'Ödül'}
+                            </Typography>
+                            <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>
+                              Liderlik tablosu ödülü
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <CardContent sx={{ p: 2.5 }}>
+                          <Stack spacing={2}>
+                            <TextField label="Ödül Başlığı" size="small" fullWidth value={reward.title} placeholder="200₺ Hediye Çeki"
+                              onChange={(e) => updateReward(reward.rank, r => ({ ...r, title: e.target.value }))} />
+                            <TextField label="Açıklama" size="small" fullWidth multiline rows={2} value={reward.description}
+                              onChange={(e) => updateReward(reward.rank, r => ({ ...r, description: e.target.value }))} />
+                            <Stack direction="row" spacing={1.5}>
+                              <TextField label="İkon" size="small" fullWidth value={reward.icon} placeholder="local_activity"
+                                onChange={(e) => updateReward(reward.rank, r => ({ ...r, icon: e.target.value }))} />
+                              <TextField label="Renk (HEX)" size="small" fullWidth value={reward.color} placeholder="FFD700"
+                                onChange={(e) => updateReward(reward.rank, r => ({ ...r, color: e.target.value.toUpperCase().replace(/^#/, '') }))}
+                                InputProps={{
+                                  startAdornment: (
+                                    <InputAdornment position="start">
+                                      <Box sx={{
+                                        width: 20, height: 20, borderRadius: '50%',
+                                        backgroundColor: colorRegex.test(reward.color) ? `#${reward.color}` : '#ddd',
+                                        border: `1px solid ${theme.palette.divider}`,
+                                      }} />
+                                    </InputAdornment>
+                                  ),
+                                }} />
+                            </Stack>
+                          </Stack>
+                        </CardContent>
+                      </Card>
                     </Grid>
-                    <Grid item xs={6}>
-                      <TextField
-                        type="number"
-                        label="Sıfırlama Periyodu (Gün)"
-                        helperText="Kaç günde bir sıfırlanacak?"
-                        fullWidth
-                        value={config.monthlyRewards.resetEveryDays}
-                        onChange={(e) => setConfig((prev) => {
-                          if (!prev) return prev;
-                          return {
-                            ...prev,
-                            monthlyRewards: { ...prev.monthlyRewards, resetEveryDays: Number(e.target.value) || 0 },
-                          };
-                        })}
-                      />
-                    </Grid>
-                  </Grid>
-                  <TextField
-                    label="Sıfırlanma Tarihi (Gözlem)"
-                    value={config.monthlyRewards.resetAt || ''}
-                    disabled
-                    fullWidth
-                    helperText="Backend tarafından hesaplanan bir sonraki sıfırlanma zamanı"
-                  />
-                  <Alert severity="info" sx={{ mt: 1 }}>
-                    <strong>Kalan Süre:</strong> {config.monthlyRewards.daysRemaining || 0} gün kaldı
-                  </Alert>
-                </Stack>
+                  );
+                })}
               </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
+            </Stack>
+          )}
+        </Box>
+      </Card>
 
-        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <StarIcon color="warning" fontSize="small" /> Derece Bazlı Ödül Tanımları
-        </Typography>
-
-        <Grid container spacing={3}>
-          {sortedRewards.map((reward) => (
-            <Grid item xs={12} md={4} key={reward.rank}>
-              <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Box 
-                  sx={{ 
-                    px: 3, 
-                    py: 2, 
-                    bgcolor: 'background.default', 
-                    borderBottom: '1px solid', 
-                    borderColor: 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5
-                  }}
-                >
-                  {getRankIcon(reward.rank)}
-                  <Typography variant="h6" fontWeight="bold">
-                    {reward.rank}. Sıra Ödülü
-                  </Typography>
-                </Box>
-                <CardContent sx={{ p: 3, flexGrow: 1 }}>
-                  <Stack spacing={2.5}>
-                    <TextField
-                      label="Ödül Başlığı"
-                      value={reward.title}
-                      placeholder="Örn: 200₺ Hediye Çeki"
-                      onChange={(e) => updateReward(reward.rank, (prev) => ({ ...prev, title: e.target.value }))}
-                      fullWidth
-                    />
-                    <TextField
-                      label="Ödül Açıklaması"
-                      value={reward.description}
-                      placeholder="Ödül detayları, nasıl kullanılacağı vb."
-                      onChange={(e) => updateReward(reward.rank, (prev) => ({ ...prev, description: e.target.value }))}
-                      fullWidth
-                      multiline
-                      rows={3}
-                    />
-                    <Stack direction="row" spacing={2}>
-                      <TextField
-                        label="İkon Sınıfı"
-                        value={reward.icon}
-                        placeholder="Örn: local_activity"
-                        onChange={(e) => updateReward(reward.rank, (prev) => ({ ...prev, icon: e.target.value }))}
-                        fullWidth
-                      />
-                      <TextField
-                        label="Tema Rengi (HEX)"
-                        value={reward.color}
-                        placeholder="FFD700"
-                        onChange={(e) => updateReward(reward.rank, (prev) => ({ ...prev, color: e.target.value.toUpperCase().replace(/^#/, '') }))}
-                        fullWidth
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Box
-                                sx={{
-                                  width: 24,
-                                  height: 24,
-                                  borderRadius: '50%',
-                                  backgroundColor: colorRegex.test(reward.color) ? `#${reward.color}` : 'transparent',
-                                  border: '1px solid',
-                                  borderColor: theme.palette.divider,
-                                }}
-                              />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                    </Stack>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </PageSection>
-
-
-      <Dialog open={Boolean(editingAction)} onClose={() => setEditingAction(null)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>Aksiyon Puanlamasını Düzenle</DialogTitle>
-        <DialogContent dividers sx={{ p: 4 }}>
+      {/* ─── Edit Action Dialog ─── */}
+      <Dialog open={!!editingAction} onClose={() => setEditingAction(null)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Aksiyon Puanlamasını Düzenle</DialogTitle>
+        <DialogContent dividers sx={{ p: 3 }}>
           {editingAction && (
-            <Grid container spacing={3}>
+            <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
-                <TextField 
-                  label="Sistem Kodu (Değiştirilemez)" 
-                  value={editingAction.reason} 
-                  disabled 
-                  fullWidth 
-                  helperText="Bu değer arka planda işlem eşleştirmesi için kullanılır."
-                />
+                <TextField label="Sistem Kodu" value={editingAction.reason} disabled fullWidth size="small" helperText="Değiştirilemez" />
               </Grid>
               <Grid item xs={12} md={6}>
-                <TextField
-                  type="number"
-                  label="Kazanılacak Puan (XP)"
-                  value={editingAction.xp}
-                  onChange={(e) => setEditingAction((prev) => (prev ? { ...prev, xp: Number(e.target.value) || 0 } : prev))}
-                  fullWidth
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start"><StarIcon color="primary" fontSize="small" /></InputAdornment>,
-                  }}
-                />
+                <TextField type="number" label="Kazanılacak Puan (XP)" value={editingAction.xp} fullWidth size="small"
+                  onChange={(e) => setEditingAction(prev => prev ? { ...prev, xp: Number(e.target.value) || 0 } : prev)}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><StarIcon color="primary" sx={{ fontSize: 18 }} /></InputAdornment> }} />
               </Grid>
               <Grid item xs={12}>
-                <TextField
-                  label="Kullanıcıya Gösterilecek Etiket"
-                  value={editingAction.label}
-                  placeholder="Örn: İlk İşletme Yorumu"
-                  onChange={(e) => setEditingAction((prev) => (prev ? { ...prev, label: e.target.value } : prev))}
-                  fullWidth
-                />
+                <TextField label="Kullanıcıya Gösterilecek Etiket" value={editingAction.label} fullWidth size="small"
+                  onChange={(e) => setEditingAction(prev => prev ? { ...prev, label: e.target.value } : prev)} />
               </Grid>
               <Grid item xs={12}>
-                <TextField
-                  label="Detaylı Açıklama"
-                  value={editingAction.description}
-                  placeholder="Kullanıcı bu puanı nasıl kazandığını açıklayan metin"
-                  onChange={(e) => setEditingAction((prev) => (prev ? { ...prev, description: e.target.value } : prev))}
-                  fullWidth
-                  multiline
-                  rows={2}
-                />
+                <TextField label="Detaylı Açıklama" value={editingAction.description} fullWidth size="small" multiline rows={2}
+                  onChange={(e) => setEditingAction(prev => prev ? { ...prev, description: e.target.value } : prev)} />
               </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Kategori"
-                  value={editingAction.category}
-                  placeholder="Örn: social, contribution"
-                  onChange={(e) => setEditingAction((prev) => (prev ? { ...prev, category: e.target.value } : prev))}
-                  fullWidth
-                />
+              <Grid item xs={6}>
+                <TextField label="Kategori" value={editingAction.category} fullWidth size="small"
+                  onChange={(e) => setEditingAction(prev => prev ? { ...prev, category: e.target.value } : prev)} />
               </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="İlgili İkon"
-                  value={editingAction.icon}
-                  placeholder="Material icon adı, örn: rate_review"
-                  onChange={(e) => setEditingAction((prev) => (prev ? { ...prev, icon: e.target.value } : prev))}
-                  fullWidth
-                />
+              <Grid item xs={6}>
+                <TextField label="İkon" value={editingAction.icon} fullWidth size="small"
+                  onChange={(e) => setEditingAction(prev => prev ? { ...prev, icon: e.target.value } : prev)} />
               </Grid>
               <Grid item xs={12}>
-                <Box p={2} border="1px solid" borderColor="divider" borderRadius={1} bgcolor="background.default">
+                <Box sx={{ p: 2, border: `1px solid ${theme.palette.divider}`, borderRadius: 2, bgcolor: 'background.default' }}>
                   <FormControlLabel
-                    control={
-                      <Switch
-                        checked={Boolean(editingAction.dailyCap)}
-                        color="primary"
-                        onChange={(e) => setEditingAction((prev) => (prev ? { ...prev, dailyCap: e.target.checked } : prev))}
-                      />
-                    }
+                    control={<Switch checked={!!editingAction.dailyCap} onChange={(e) => setEditingAction(prev => prev ? { ...prev, dailyCap: e.target.checked } : prev)} />}
                     label={
                       <Box>
-                        <Typography variant="subtitle1" fontWeight="medium">Günlük Sosyal Limite Tabi Kıl</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Eğer aktifse, bu işlem "Günlük Maksimum Sosyal Puan" kotasından harcar. Belirtilen kotayı dolduran kullanıcı bu işlemden puan alamaz.
-                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>Günlük Sosyal Limite Tabi</Typography>
+                        <Typography variant="caption" color="text.secondary">Aktifse, günlük sosyal XP kotasından harcar</Typography>
                       </Box>
                     }
                   />
@@ -808,42 +536,28 @@ export default function GamificationSettings() {
             </Grid>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setEditingAction(null)} color="inherit">
-            İptal Et
-          </Button>
-          <Button variant="contained" onClick={handleEditActionSave} startIcon={<SaveIcon />}>
-            Aksiyonu Kaydet
-          </Button>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setEditingAction(null)} sx={{ textTransform: 'none', borderRadius: 2 }}>İptal</Button>
+          <Button variant="contained" onClick={handleEditSave} startIcon={<SaveIcon />} sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}>Kaydet</Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={isCreateDialogOpen} onClose={() => setIsCreateDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>Yeni Konfigürasyon Oluştur</DialogTitle>
-        <DialogContent dividers>
+
+      {/* ─── Create Config Dialog ─── */}
+      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Yeni Konfigürasyon</DialogTitle>
+        <DialogContent>
           <Box py={2}>
-            <TextField
-              label="Konfigürasyon Anahtarı"
-              placeholder="Örn: RAMAZAN_PAKETI"
-              fullWidth
-              value={newConfigKey}
-              onChange={(e) => setNewConfigKey(e.target.value.toUpperCase().trim())}
-              helperText="Bosluk bırakmayın. Mevcut ayarlarınız yeni kayda kopyalanacaktır."
-            />
+            <TextField label="Konfigürasyon Anahtarı" placeholder="RAMAZAN_PAKETI" fullWidth size="small"
+              value={newKey} onChange={(e) => setNewKey(e.target.value.toUpperCase().trim())}
+              helperText="Boşluk bırakmayın. Mevcut ayarlar kopyalanacak." />
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setIsCreateDialogOpen(false)}>İptal</Button>
-          <Button
-            variant="contained"
-            onClick={handleCreateConfig}
-            disabled={!newConfigKey.trim() || saving}
-            startIcon={<SaveIcon />}
-          >
-            Oluştur ve Düzenle
-          </Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setCreateOpen(false)} sx={{ textTransform: 'none', borderRadius: 2 }}>İptal</Button>
+          <Button variant="contained" onClick={handleCreate} disabled={!newKey.trim() || saving} startIcon={<SaveIcon />}
+            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}>Oluştur</Button>
         </DialogActions>
       </Dialog>
     </PageContainer>
   );
 }
-
