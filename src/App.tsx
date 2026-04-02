@@ -13,6 +13,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Businesses from './pages/Businesses/Businesses';
 import BusinessDetails from './pages/Businesses/BusinessDetails';
+import BusinessCreate from './pages/Businesses/BusinessCreate';
 import BusinessClaims from './pages/Businesses/BusinessClaims';
 import BusinessCategories from './pages/BusinessCategories/BusinessCategories';
 import Events from './pages/Events/Events';
@@ -75,6 +76,7 @@ function App() {
                 <Route path="users" element={<Users />} />
                 <Route path="users/:id" element={<UserDetails />} />
                 <Route path="businesses" element={<Businesses />} />
+                <Route path="businesses/new" element={<BusinessCreate />} />
                 <Route path="businesses/:id" element={<BusinessDetails />} />
                 <Route path="business-claims" element={<BusinessClaims />} />
                 <Route path="business-categories" element={<BusinessCategories />} />

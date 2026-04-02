@@ -7,6 +7,7 @@ interface BusinessStore {
     loading: boolean;
     error: string | null;
     fetchBusinesses: (params?: any) => Promise<void>;
+    createBusinessAsAdmin: (ownerId: string, businessData: Partial<BusinessDto>, profileImage?: File, coverImage?: File) => Promise<BusinessDto>;
     setBusinessAsGloballyFeatured: (userId: string, businessId: string, durationInDays: number) => Promise<BusinessDto>;
     setBusinessAsLocallyFeatured: (userId: string, businessId: string, durationInDays: number, radiusInKm: number) => Promise<BusinessDto>;
     removeFeaturedStatus: (businessId: string) => Promise<BusinessDto>;
@@ -38,6 +39,22 @@ export const useBusinessStore = create<BusinessStore>((set, get) => ({
             set({ businesses: response.data.content });
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to fetch businesses' });
+        } finally {
+            set({ loading: false });
+        }
+    },
+
+    createBusinessAsAdmin: async (ownerId, businessData, profileImage, coverImage) => {
+        try {
+            set({ loading: true, error: null });
+            const response = await businessService.createBusinessAsAdmin(ownerId, businessData, profileImage, coverImage);
+            set((state) => ({
+                businesses: [response.data, ...state.businesses],
+            }));
+            return response.data;
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : 'Failed to create business' });
+            throw error;
         } finally {
             set({ loading: false });
         }

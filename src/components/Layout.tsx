@@ -1,27 +1,19 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
-    AppBar,
     Box,
     CssBaseline,
-    Collapse,
     Drawer,
-    IconButton,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-    ListSubheader,
-    Toolbar,
     Typography,
     useTheme,
     Avatar,
     Divider,
-    ListItemButton,
     alpha,
+    Tooltip,
+    IconButton,
+    Stack,
 } from '@mui/material';
 import {
-    Menu as MenuIcon,
     Dashboard as DashboardIcon,
     Devices as DevicesIcon,
     Notifications as NotificationsIcon,
@@ -32,7 +24,6 @@ import {
     Settings as SettingsIcon,
     Event as EventIcon,
     EventNote as EventCategoryIcon,
-    AdminPanelSettings as AdminPanelSettingsIcon,
     HomeWork,
     Feed as FeedIcon,
     EmojiEvents as EmojiEventsIcon,
@@ -43,43 +34,40 @@ import {
     Sensors as SensorsIcon,
     SupportAgent as SupportIcon,
     LocalActivity as LocalActivityIcon,
-    ExpandMore as ExpandMoreIcon,
-    ExpandLess as ExpandLessIcon,
     ConfirmationNumber as TicketIcon,
     Campaign as CampaignIcon,
     EventSeat as EventSeatIcon,
     Article as ArticleIcon,
+    Menu as MenuIcon,
+    Search as SearchIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { useRole } from '../hooks/useRole';
+import { useState } from 'react';
 
-const drawerWidth = 272;
+const DRAWER_W = 260;
 
-interface MenuItem {
+interface NavItem {
     text: string;
     icon: React.ReactNode;
     path: string;
 }
 
-interface MenuSection {
+interface NavSection {
     title: string;
-    items: MenuItem[];
-    defaultOpen?: boolean;
-    /** If set, section only visible to these roles. Empty = all roles */
+    items: NavItem[];
     allowedRoles?: string[];
 }
 
-const menuSections: MenuSection[] = [
+const navSections: NavSection[] = [
     {
         title: 'Genel',
-        defaultOpen: true,
         items: [
             { text: 'Kontrol Paneli', icon: <DashboardIcon />, path: '/dashboard' },
         ],
     },
     {
         title: 'Etkinlik Yönetimi',
-        defaultOpen: true,
         allowedRoles: ['ADMIN'],
         items: [
             { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
@@ -90,7 +78,6 @@ const menuSections: MenuSection[] = [
     },
     {
         title: 'İşletme Yönetimi',
-        defaultOpen: true,
         allowedRoles: ['ADMIN'],
         items: [
             { text: 'İşletmeler', icon: <BusinessIcon />, path: '/businesses' },
@@ -110,7 +97,7 @@ const menuSections: MenuSection[] = [
         ],
     },
     {
-        title: 'Kullanıcılar & Topluluk',
+        title: 'Kullanıcılar',
         allowedRoles: ['ADMIN'],
         items: [
             { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users' },
@@ -119,21 +106,14 @@ const menuSections: MenuSection[] = [
         ],
     },
     {
-        title: 'İçerik & İletişim',
-        allowedRoles: ['ADMIN', 'MODERATOR'],
+        title: 'İçerik',
+        allowedRoles: ['ADMIN', 'MODERATOR', 'EDITOR'],
         items: [
+            { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
             { text: 'Bildirimler', icon: <NotificationsIcon />, path: '/notifications' },
             { text: 'Video Akışı', icon: <FeedIcon />, path: '/feeds' },
             { text: 'Bültenler', icon: <CampaignIcon />, path: '/bulletins' },
             { text: 'Kampanya Motoru', icon: <LocalActivityIcon />, path: '/campaign-engine' },
-        ],
-    },
-    {
-        title: 'İçerik Yönetimi',
-        defaultOpen: true,
-        allowedRoles: ['ADMIN', 'EDITOR', 'MODERATOR'],
-        items: [
-            { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
         ],
     },
     {
@@ -160,270 +140,246 @@ export default function Layout() {
     const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
-    const { roles, isAdmin, isEditorOnly } = useRole();
+    const { roles, userName } = useRole();
+    const { logout } = useAuth();
 
-    // Filter menu sections by user role
     const visibleSections = useMemo(() => {
-        return menuSections.filter((section) => {
-            if (!section.allowedRoles || section.allowedRoles.length === 0) return true;
-            return section.allowedRoles.some((r) => roles.includes(r));
+        return navSections.filter((s) => {
+            if (!s.allowedRoles || s.allowedRoles.length === 0) return true;
+            return s.allowedRoles.some((r) => roles.includes(r));
         });
     }, [roles]);
-    const { logout } = useAuth();
-    
-    // Check if we are in Zen mode (for SeatMap Designer)
+
     const isZenMode = location.pathname.includes('seat-map') && new URLSearchParams(location.search).get('zen') === 'true';
 
-    // Initialize expanded sections
-    const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
-        const initial: Record<string, boolean> = {};
-        menuSections.forEach((section) => {
-            initial[section.title] = section.defaultOpen ?? false;
-        });
-        // Auto-expand the section containing the current route
-        menuSections.forEach((section) => {
-            if (section.items.some((item) => location.pathname === item.path)) {
-                initial[section.title] = true;
-            }
-        });
-        return initial;
-    });
-
-    const toggleSection = (title: string) => {
-        setExpandedSections((prev) => ({ ...prev, [title]: !prev[title] }));
-    };
-
-    const handleNavigation = (path: string) => {
-        navigate(path);
-        setMobileOpen(false);
-    };
-
-    const handleLogout = async () => {
-        try {
-            await logout();
-        } catch {
-            // silently handle
-        }
-    };
-
-    // Memoize current page title
     const currentPageTitle = useMemo(() => {
-        for (const section of menuSections) {
-            const found = section.items.find((item) => location.pathname === item.path);
+        for (const s of navSections) {
+            const found = s.items.find((i) => location.pathname === i.path);
             if (found) return found.text;
         }
         return 'Kontrol Paneli';
     }, [location.pathname]);
 
-    const drawer = (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Brand Header */}
-            <Toolbar
-                sx={{
-                    px: 2.5,
-                    py: 2.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    background: theme.palette.primary.main,
-                    color: theme.palette.primary.contrastText,
-                    minHeight: '72px !important',
-                }}
-            >
-                <Avatar
-                    sx={{
-                        width: 38,
-                        height: 38,
-                        bgcolor: alpha(theme.palette.primary.contrastText, 0.2),
-                        color: theme.palette.primary.contrastText,
-                        fontWeight: 800,
-                        fontSize: '1rem',
-                    }}
-                >
+    const initials = userName
+        ? userName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+        : 'N';
+
+    const handleNav = (path: string) => {
+        navigate(path);
+        setMobileOpen(false);
+    };
+
+    const handleLogout = async () => {
+        try { await logout(); } catch { /* */ }
+    };
+
+    // ─── Sidebar content ─────────────────────────────
+    const sidebar = (
+        <Box sx={{
+            height: '100%', display: 'flex', flexDirection: 'column',
+            background: '#fafbfc',
+        }}>
+            {/* Brand */}
+            <Box sx={{
+                px: 2.5, py: 2, display: 'flex', alignItems: 'center', gap: 1.5,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+            }}>
+                <Box sx={{
+                    width: 34, height: 34, borderRadius: 2,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontWeight: 900, fontSize: 15,
+                }}>
                     N
-                </Avatar>
+                </Box>
                 <Box>
-                    <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-                        Nartgo
+                    <Typography sx={{ fontWeight: 800, fontSize: 15, lineHeight: 1.2, color: theme.palette.text.primary }}>
+                        NartGo
                     </Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.7, fontSize: '0.7rem' }}>
+                    <Typography sx={{ fontSize: 10.5, color: theme.palette.text.secondary, fontWeight: 500 }}>
                         Yönetim Paneli
                     </Typography>
                 </Box>
-            </Toolbar>
-            <Divider />
-
-            {/* Navigation Sections */}
-            <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
-                {visibleSections.map((section) => {
-                    const isExpanded = expandedSections[section.title] ?? false;
-                    const hasActiveItem = section.items.some((item) => location.pathname === item.path);
-
-                    return (
-                        <Box key={section.title}>
-                            {/* Section Header */}
-                            <ListItemButton
-                                onClick={() => toggleSection(section.title)}
-                                sx={{
-                                    px: 2.5,
-                                    py: 0.75,
-                                    minHeight: 36,
-                                    '&:hover': {
-                                        bgcolor: alpha(theme.palette.primary.main, 0.04),
-                                    },
-                                }}
-                            >
-                                <Typography
-                                    variant="overline"
-                                    sx={{
-                                        flex: 1,
-                                        fontSize: '0.68rem',
-                                        fontWeight: 700,
-                                        letterSpacing: 1,
-                                        color: hasActiveItem
-                                            ? theme.palette.primary.main
-                                            : theme.palette.text.secondary,
-                                    }}
-                                >
-                                    {section.title}
-                                </Typography>
-                                {isExpanded ? (
-                                    <ExpandLessIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
-                                ) : (
-                                    <ExpandMoreIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
-                                )}
-                            </ListItemButton>
-
-                            {/* Section Items */}
-                            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                                <List disablePadding sx={{ px: 1 }}>
-                                    {section.items.map((item) => {
-                                        const isActive = location.pathname === item.path;
-                                        return (
-                                            <ListItem key={item.path} disablePadding sx={{ mb: 0.25 }}>
-                                                <ListItemButton
-                                                    selected={isActive}
-                                                    onClick={() => handleNavigation(item.path)}
-                                                    sx={{
-                                                        borderRadius: 1.5,
-                                                        py: 0.75,
-                                                        pl: 2.5,
-                                                        minHeight: 40,
-                                                        '&.Mui-selected': {
-                                                            backgroundColor: theme.palette.primary.main,
-                                                            color: theme.palette.primary.contrastText,
-                                                            '&:hover': {
-                                                                backgroundColor: theme.palette.primary.dark,
-                                                            },
-                                                            '& .MuiListItemIcon-root': {
-                                                                color: theme.palette.primary.contrastText,
-                                                            },
-                                                        },
-                                                    }}
-                                                >
-                                                    <ListItemIcon sx={{ minWidth: 36, '& svg': { fontSize: 20 } }}>
-                                                        {item.icon}
-                                                    </ListItemIcon>
-                                                    <ListItemText
-                                                        primary={item.text}
-                                                        primaryTypographyProps={{
-                                                            fontSize: '0.84rem',
-                                                            fontWeight: isActive ? 600 : 400,
-                                                        }}
-                                                    />
-                                                </ListItemButton>
-                                            </ListItem>
-                                        );
-                                    })}
-                                </List>
-                            </Collapse>
-                        </Box>
-                    );
-                })}
             </Box>
 
-            {/* Logout */}
-            <Divider />
-            <List sx={{ px: 1, py: 1 }}>
-                <ListItem disablePadding>
-                    <ListItemButton
-                        onClick={handleLogout}
-                        sx={{
-                            borderRadius: 1.5,
-                            py: 1,
-                            color: theme.palette.error.main,
-                            '&:hover': {
-                                backgroundColor: alpha(theme.palette.error.main, 0.08),
-                            },
-                        }}
-                    >
-                        <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
-                            <LogoutIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText
-                            primary="Çıkış Yap"
-                            primaryTypographyProps={{
-                                fontSize: '0.84rem',
-                                fontWeight: 500,
+            {/* Navigation */}
+            <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', py: 1 }}>
+                {visibleSections.map((section) => (
+                    <Box key={section.title} sx={{ mb: 0.5 }}>
+                        {/* Section label */}
+                        <Typography sx={{
+                            px: 2.5, pt: 1.5, pb: 0.5,
+                            fontSize: 10, fontWeight: 700, letterSpacing: 1,
+                            textTransform: 'uppercase',
+                            color: theme.palette.text.disabled,
+                            userSelect: 'none',
+                        }}>
+                            {section.title}
+                        </Typography>
+
+                        {/* Items — always visible, no collapse */}
+                        {section.items.map((item) => {
+                            const isActive = location.pathname === item.path
+                                || (item.path !== '/dashboard' && location.pathname.startsWith(item.path + '/'));
+
+                            return (
+                                <Box
+                                    key={item.path}
+                                    onClick={() => handleNav(item.path)}
+                                    sx={{
+                                        mx: 1, mb: '2px', px: 1.5, py: 0.75,
+                                        display: 'flex', alignItems: 'center', gap: 1.25,
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                        position: 'relative',
+                                        ...(isActive ? {
+                                            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                left: 0, top: '20%', bottom: '20%',
+                                                width: 3, borderRadius: 2,
+                                                background: theme.palette.primary.main,
+                                            },
+                                        } : {
+                                            '&:hover': {
+                                                background: alpha(theme.palette.action.hover, 0.5),
+                                            },
+                                        }),
+                                    }}
+                                >
+                                    <Box sx={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        width: 28, height: 28,
+                                        color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
+                                        '& svg': { fontSize: 18 },
+                                    }}>
+                                        {item.icon}
+                                    </Box>
+                                    <Typography sx={{
+                                        fontSize: 13,
+                                        fontWeight: isActive ? 650 : 450,
+                                        color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
+                                        lineHeight: 1.3,
+                                    }}>
+                                        {item.text}
+                                    </Typography>
+                                </Box>
+                            );
+                        })}
+                    </Box>
+                ))}
+            </Box>
+
+            {/* User footer */}
+            <Box sx={{ borderTop: `1px solid ${theme.palette.divider}`, p: 1.5 }}>
+                <Box sx={{
+                    display: 'flex', alignItems: 'center', gap: 1.5,
+                    p: 1, borderRadius: 2,
+                    '&:hover': { background: alpha(theme.palette.action.hover, 0.5) },
+                }}>
+                    <Avatar sx={{
+                        width: 34, height: 34, fontSize: 13, fontWeight: 700,
+                        bgcolor: alpha(theme.palette.primary.main, 0.12),
+                        color: theme.palette.primary.main,
+                    }}>
+                        {initials}
+                    </Avatar>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }} noWrap>
+                            {userName || 'Admin'}
+                        </Typography>
+                        <Typography sx={{ fontSize: 10.5, color: theme.palette.text.secondary }} noWrap>
+                            {roles.join(', ') || 'ADMIN'}
+                        </Typography>
+                    </Box>
+                    <Tooltip title="Çıkış Yap">
+                        <IconButton
+                            size="small"
+                            onClick={handleLogout}
+                            sx={{
+                                color: theme.palette.text.secondary,
+                                '&:hover': { color: theme.palette.error.main, bgcolor: alpha(theme.palette.error.main, 0.08) },
                             }}
-                        />
-                    </ListItemButton>
-                </ListItem>
-            </List>
+                        >
+                            <LogoutIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
+            </Box>
         </Box>
     );
 
+    // ─── Layout ──────────────────────────────────────
     return (
         <Box sx={{ display: 'flex' }}>
             <CssBaseline />
-            <AppBar
-                position="fixed"
-                sx={{
-                    width: isZenMode ? '100%' : { sm: `calc(100% - ${drawerWidth}px)` },
-                    ml: isZenMode ? 0 : { sm: `${drawerWidth}px` },
-                    background: theme.palette.background.paper,
-                    boxShadow: 'none',
-                    borderBottom: `1px solid ${theme.palette.divider}`,
-                    ...(isZenMode && { display: 'none' }) // Hide header completely in Zen mode for extra height
-                }}
-            >
-                <Toolbar>
-                    <IconButton
-                        color="inherit"
-                        aria-label="menüyü aç"
-                        aria-expanded={mobileOpen}
-                        edge="start"
-                        onClick={() => setMobileOpen(!mobileOpen)}
-                        sx={{
-                            mr: 2,
-                            display: { sm: 'none' },
-                            color: theme.palette.text.primary,
-                        }}
-                    >
-                        <MenuIcon />
-                    </IconButton>
-                    <Typography
-                        variant="h6"
-                        noWrap
-                        component="div"
-                        sx={{
-                            color: theme.palette.text.primary,
-                            fontWeight: 600,
-                            fontSize: '1.1rem',
-                        }}
-                    >
-                        {currentPageTitle}
-                    </Typography>
-                </Toolbar>
-            </AppBar>
+
+            {/* Top bar — minimal, no page title duplication */}
             <Box
-                sx={{ 
-                    width: isZenMode ? 0 : { sm: drawerWidth }, 
-                    flexShrink: { sm: 0 },
-                    ...(isZenMode && { display: 'none' }) 
+                component="header"
+                sx={{
+                    position: 'fixed',
+                    top: 0,
+                    left: isZenMode ? 0 : { xs: 0, sm: DRAWER_W },
+                    right: 0,
+                    height: 56,
+                    zIndex: theme.zIndex.appBar,
+                    display: isZenMode ? 'none' : 'flex',
+                    alignItems: 'center',
+                    px: 2.5,
+                    gap: 2,
+                    background: theme.palette.background.paper,
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                 }}
-                aria-label="Ana navigasyon"
             >
+                {/* Mobile hamburger */}
+                <IconButton
+                    onClick={() => setMobileOpen(!mobileOpen)}
+                    sx={{ display: { sm: 'none' }, color: theme.palette.text.primary }}
+                >
+                    <MenuIcon />
+                </IconButton>
+
+                <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', color: theme.palette.text.primary }}>
+                    {currentPageTitle}
+                </Typography>
+
+                <Box sx={{ flex: 1 }} />
+
+                {/* Optional: search shortcut hint */}
+                <Box sx={{
+                    display: { xs: 'none', md: 'flex' },
+                    alignItems: 'center', gap: 1,
+                    px: 1.5, py: 0.5,
+                    borderRadius: 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    cursor: 'pointer',
+                    '&:hover': { borderColor: theme.palette.text.disabled },
+                }}>
+                    <SearchIcon sx={{ fontSize: 16, color: theme.palette.text.disabled }} />
+                    <Typography sx={{ fontSize: 12, color: theme.palette.text.disabled }}>Ara...</Typography>
+                    <Box sx={{
+                        px: 0.75, py: 0.125, borderRadius: 1,
+                        border: `1px solid ${theme.palette.divider}`,
+                        fontSize: 10, fontWeight: 600, fontFamily: 'monospace',
+                        color: theme.palette.text.disabled,
+                    }}>
+                        ⌘K
+                    </Box>
+                </Box>
+            </Box>
+
+            {/* Sidebar */}
+            <Box
+                sx={{
+                    width: isZenMode ? 0 : { sm: DRAWER_W },
+                    flexShrink: { sm: 0 },
+                    ...(isZenMode && { display: 'none' }),
+                }}
+            >
+                {/* Mobile */}
                 <Drawer
                     variant="temporary"
                     open={mobileOpen}
@@ -431,38 +387,34 @@ export default function Layout() {
                     ModalProps={{ keepMounted: true }}
                     sx={{
                         display: { xs: 'block', sm: 'none' },
-                        '& .MuiDrawer-paper': {
-                            boxSizing: 'border-box',
-                            width: drawerWidth,
-                            borderRight: `1px solid ${theme.palette.divider}`,
-                        },
+                        '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_W, borderRight: 'none' },
                     }}
                 >
-                    {drawer}
+                    {sidebar}
                 </Drawer>
+
+                {/* Desktop */}
                 <Drawer
                     variant="permanent"
                     sx={{
                         display: { xs: 'none', sm: 'block' },
-                        '& .MuiDrawer-paper': {
-                            boxSizing: 'border-box',
-                            width: drawerWidth,
-                            borderRight: `1px solid ${theme.palette.divider}`,
-                        },
+                        '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_W, borderRight: `1px solid ${theme.palette.divider}` },
                     }}
                     open
                 >
-                    {drawer}
+                    {sidebar}
                 </Drawer>
             </Box>
+
+            {/* Main content */}
             <Box
                 component="main"
                 sx={{
                     flexGrow: 1,
                     p: location.pathname.includes('seat-map') ? 0 : 3,
-                    width: isZenMode ? '100vw' : { sm: `calc(100% - ${drawerWidth}px)` },
-                    minHeight: isZenMode ? '100vh' : 'calc(100vh - 64px)',
-                    mt: isZenMode ? 0 : '64px',
+                    width: isZenMode ? '100vw' : { sm: `calc(100% - ${DRAWER_W}px)` },
+                    minHeight: isZenMode ? '100vh' : 'calc(100vh - 56px)',
+                    mt: isZenMode ? 0 : '56px',
                     maxWidth: location.pathname.includes('seat-map') ? 'none' : '1600px',
                     overflowX: 'hidden',
                 }}

@@ -192,6 +192,26 @@ export const businessService = {
         return response.data;
     },
 
+    // Create business as admin (on behalf of a user)
+    createBusinessAsAdmin: async (
+        ownerId: string,
+        businessData: Partial<BusinessDto>,
+        profileImage?: File,
+        coverImage?: File,
+    ) => {
+        const formData = new FormData();
+        formData.append('business', new Blob([JSON.stringify({ ...businessData, ownerId })], { type: 'application/json' }));
+        if (profileImage) formData.append('profileImage', profileImage);
+        if (coverImage) formData.append('coverImage', coverImage);
+
+        const response = await api.post<ApiResponse<BusinessDto>>(
+            `/businesses/users/${ownerId}`,
+            formData,
+            { headers: { 'Content-Type': 'multipart/form-data' } },
+        );
+        return response.data;
+    },
+
     // Hard delete business
     hardDeleteBusiness: async (businessId: string) => {
         const response = await api.delete<ApiResponse<void>>(

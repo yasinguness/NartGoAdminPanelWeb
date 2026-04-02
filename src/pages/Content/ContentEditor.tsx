@@ -158,6 +158,8 @@ export default function ContentEditor() {
   const coverFileRef = useRef<HTMLInputElement>(null);
   const initialFormRef = useRef<string>('');
 
+  const useBlockEditor = form.contentType !== ArticleType.GALLERY;
+
   // ─── LIFECYCLE ────────────────────────────────────
   useEffect(() => {
     if (isEdit && id) loadArticle(id);
@@ -314,14 +316,12 @@ export default function ContentEditor() {
     const sourceText = useBlockEditor ? blocksToPlainText(richBlocks) : (form.body || '').replace(/<[^>]*>/g, ' ');
     const text = sourceText.split(/\s+/).filter(w => w.length > 0);
     return text.length;
-  }, [form.body, richBlocks, useBlockEditor]);
+  }, [form.body, richBlocks, form.contentType]);
   const readTime = Math.max(1, Math.ceil(wordCount / 200));
   const titleLen = form.title?.length || 0;
   const summaryLen = form.summary?.length || 0;
   const seoTitleOk = titleLen >= 30 && titleLen <= 60;
   const seoDescOk = summaryLen >= 50 && summaryLen <= 160;
-  const useBlockEditor = form.contentType !== ArticleType.GALLERY;
-
   // ─── RENDER ───────────────────────────────────────
   return (
     <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', pb: 8 }}>

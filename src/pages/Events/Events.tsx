@@ -70,6 +70,8 @@ import { searchPlaces, getPlaceDetails, PlacePrediction, loadGoogleMapsScript } 
 import { PageContainer, PageHeader } from '../../components/Page';
 import { ConfirmDialog } from '../../components/Feedback';
 import { FormSection, FormGrid } from '../../components/Form';
+import UserSearchAutocomplete from '../../components/UserSearchAutocomplete';
+import { UserDTO } from '../../types/users/userModel';
 
 // ─── PREMIUM STYLES ──────────────────────────────────────
 const glassCardSx = {
@@ -122,12 +124,19 @@ export default function Events() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [menuEvent, setMenuEvent] = useState<EventResponseDTO | null>(null);
 
-  // Form & Image States
-  const [formData, setFormData] = useState<Partial<EventResponseDTO>>({});
+  // Admin Create Dialog
+  const [selectedOwner, setSelectedOwner] = useState<UserDTO | null>(null);
+  const [createFormData, setCreateFormData] = useState({
+    name: '',
+    description: '',
+    maxParticipants: 100,
+    ticketPrice: 0,
+    eventTime: '',
+    endTime: '',
+    city: '',
+  });
   const [eventImage, setEventImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [organizerOptions, setOrganizerOptions] = useState<any[]>([]);
-  const [selectedOrganizer, setSelectedOrganizer] = useState<any | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -177,27 +186,48 @@ export default function Events() {
     setPage(0);
   }, 500);
 
-  const handleOpenDialog = (event?: EventResponseDTO) => {
-    if (event) {
-      setSelectedEvent(event);
-      setFormData({ ...event });
-      setImagePreview(event.image || null);
-    } else {
-      setSelectedEvent(undefined);
-      setFormData({ status: EventStatus.ACTIVE, maxParticipants: 100, ticketPrice: 0 });
-      setImagePreview(null);
-    }
+  const handleOpenCreateDialog = () => {
+    setSelectedOwner(null);
+    setCreateFormData({ name: '', description: '', maxParticipants: 100, ticketPrice: 0, eventTime: '', endTime: '', city: '' });
+    setEventImage(null);
+    setImagePreview(null);
     setOpenDialog(true);
   };
 
-  const handleSaveEvent = async () => {
+  const handleCreateAsAdmin = async () => {
+    if (!selectedOwner) {
+      enqueueSnackbar('Lütfen etkinliğin sahibi olacak kullanıcıyı seçin', { variant: 'warning' });
+      return;
+    }
+    if (!createFormData.name.trim()) {
+      enqueueSnackbar('Etkinlik adı zorunludur', { variant: 'warning' });
+      return;
+    }
     try {
-      if (selectedEvent) await updateEvent(selectedEvent.id, formData as any);
-      else await createEvent(formData as any);
+      const eventPayload = {
+        name: createFormData.name,
+        description: createFormData.description,
+        maxParticipants: createFormData.maxParticipants,
+        ticketPrice: createFormData.ticketPrice,
+        eventTime: createFormData.eventTime || undefined,
+        endTime: createFormData.endTime || undefined,
+        status: EventStatus.ACTIVE,
+        address: createFormData.city ? { city: createFormData.city, country: 'Türkiye', district: '', id: '', isDefault: true } as AddressDTO : undefined,
+      } as Omit<EventResponseDTO, 'id'>;
+
+      await createEventAsAdmin(eventPayload, selectedOwner.id, eventImage || undefined);
       setOpenDialog(false);
       fetchEventsData();
-      enqueueSnackbar('Etkinlik başarıyla kaydedildi', { variant: 'success' });
+      enqueueSnackbar(`Etkinlik "${createFormData.name}" ${selectedOwner.firstName || selectedOwner.email} adına oluşturuldu`, { variant: 'success' });
     } catch { /* hook handles */ }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setEventImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
   };
 
   // ─── RENDER HELPERS ───────────────────────────────
@@ -214,22 +244,28 @@ export default function Events() {
           title="Etkinlik Yönetimi"
           subtitle="Topluluk etkinliklerinizi ve biletlerinizi organize edin, takip edin ve yönetin."
           actions={
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => navigate('/ticket-creation')}
-              sx={{
-                borderRadius: 2.5,
-                px: 3,
-                py: 1,
-                textTransform: 'none',
-                fontWeight: 700,
-                boxShadow: '0 4px 14px 0 rgba(30, 107, 60, 0.39)',
-                '&:hover': { boxShadow: '0 6px 20px rgba(30, 107, 60, 0.23)' }
-              }}
-            >
-              Yeni Etkinlik Oluştur
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                startIcon={<PersonIcon />}
+                onClick={handleOpenCreateDialog}
+                sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600 }}
+              >
+                Kullanıcı Adına Oluştur
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => navigate('/ticket-creation')}
+                sx={{
+                  borderRadius: 2.5, px: 3, py: 1, textTransform: 'none', fontWeight: 700,
+                  boxShadow: '0 4px 14px 0 rgba(30, 107, 60, 0.39)',
+                  '&:hover': { boxShadow: '0 6px 20px rgba(30, 107, 60, 0.23)' },
+                }}
+              >
+                Yeni Etkinlik Oluştur
+              </Button>
+            </Stack>
           }
           breadcrumbs={[
             { label: 'Kontrol Paneli', href: '/' },
@@ -422,6 +458,185 @@ export default function Events() {
           )}
         </Stack>
       </PageContainer>
+
+      {/* ═══ ADMIN CREATE DIALOG ═══ */}
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <PersonIcon color="primary" />
+            <Box>
+              <Typography variant="h6" fontWeight={800}>Kullanıcı Adına Etkinlik Oluştur</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Seçtiğiniz kullanıcı etkinliğin organizatörü olarak atanır
+              </Typography>
+            </Box>
+          </Stack>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2.5} sx={{ pt: 1 }}>
+            {/* Owner picker */}
+            <UserSearchAutocomplete
+              value={selectedOwner}
+              onChange={setSelectedOwner}
+              label="Etkinlik Sahibi *"
+              placeholder="Kullanıcı adı veya e-posta ile ara..."
+              helperText="Bu kullanıcı etkinliğin organizatörü olarak görünecek"
+              required
+            />
+
+            {selectedOwner && (
+              <Box sx={{
+                p: 1.5, borderRadius: 2, bgcolor: alpha('#10b981', 0.06),
+                border: `1px solid ${alpha('#10b981', 0.15)}`,
+              }}>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Avatar src={selectedOwner.imageUrl} sx={{ width: 32, height: 32, fontSize: 13, bgcolor: alpha('#10b981', 0.15), color: '#10b981' }}>
+                    {selectedOwner.firstName?.[0]}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body2" fontWeight={700}>
+                      {selectedOwner.displayName || `${selectedOwner.firstName} ${selectedOwner.lastName}`}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">{selectedOwner.email}</Typography>
+                  </Box>
+                </Stack>
+              </Box>
+            )}
+
+            <TextField
+              label="Etkinlik Adı *"
+              value={createFormData.name}
+              onChange={(e) => setCreateFormData(prev => ({ ...prev, name: e.target.value }))}
+              fullWidth
+              size="small"
+            />
+
+            <TextField
+              label="Açıklama"
+              value={createFormData.description}
+              onChange={(e) => setCreateFormData(prev => ({ ...prev, description: e.target.value }))}
+              fullWidth
+              size="small"
+              multiline
+              rows={3}
+            />
+
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField
+                  label="Başlangıç Tarihi"
+                  type="datetime-local"
+                  value={createFormData.eventTime}
+                  onChange={(e) => setCreateFormData(prev => ({ ...prev, eventTime: e.target.value }))}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  label="Bitiş Tarihi"
+                  type="datetime-local"
+                  value={createFormData.endTime}
+                  onChange={(e) => setCreateFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
+              <Grid item xs={4}>
+                <TextField
+                  label="Maks. Katılımcı"
+                  type="number"
+                  value={createFormData.maxParticipants}
+                  onChange={(e) => setCreateFormData(prev => ({ ...prev, maxParticipants: parseInt(e.target.value) || 0 }))}
+                  fullWidth
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={4}>
+                <TextField
+                  label="Bilet Fiyatı (₺)"
+                  type="number"
+                  value={createFormData.ticketPrice}
+                  onChange={(e) => setCreateFormData(prev => ({ ...prev, ticketPrice: parseFloat(e.target.value) || 0 }))}
+                  fullWidth
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={4}>
+                <TextField
+                  label="Şehir"
+                  value={createFormData.city}
+                  onChange={(e) => setCreateFormData(prev => ({ ...prev, city: e.target.value }))}
+                  fullWidth
+                  size="small"
+                  placeholder="İstanbul"
+                />
+              </Grid>
+            </Grid>
+
+            {/* Image upload */}
+            <Box>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleImageSelect}
+                style={{ display: 'none' }}
+              />
+              {imagePreview ? (
+                <Box sx={{ position: 'relative', borderRadius: 2, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                  <Box component="img" src={imagePreview} sx={{ width: '100%', height: 160, objectFit: 'cover' }} />
+                  <IconButton
+                    size="small"
+                    onClick={() => { setEventImage(null); setImagePreview(null); }}
+                    sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.5)', color: 'white', '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' } }}
+                  >
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Box>
+              ) : (
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<CloudUploadIcon />}
+                  onClick={() => fileInputRef.current?.click()}
+                  sx={{
+                    py: 3, borderStyle: 'dashed', borderRadius: 2, textTransform: 'none',
+                    color: 'text.secondary', borderColor: 'divider',
+                  }}
+                >
+                  Etkinlik Görseli Yükle
+                </Button>
+              )}
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setOpenDialog(false)} sx={{ textTransform: 'none', borderRadius: 2 }}>
+            İptal
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateAsAdmin}
+            disabled={!selectedOwner || !createFormData.name.trim()}
+            startIcon={<SaveIcon />}
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+          >
+            Oluştur
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Confirmation Dialogs */}
       <ConfirmDialog
