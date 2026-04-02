@@ -49,7 +49,7 @@ export interface Campaign {
 }
 
 // ─── Rich Content Blocks (Blog-style) ─────────────────
-export type ContentBlockType = 'heading' | 'paragraph' | 'image' | 'divider' | 'callout' | 'quote';
+export type ContentBlockType = 'heading' | 'paragraph' | 'image' | 'divider' | 'callout' | 'quote' | 'bullet_list' | 'ordered_list';
 
 export interface HeadingBlock { type: 'heading'; text: string; level: 1 | 2 | 3; }
 export interface ParagraphBlock { type: 'paragraph'; text: string; }
@@ -57,8 +57,10 @@ export interface ImageBlock { type: 'image'; url: string; caption?: string; widt
 export interface DividerBlock { type: 'divider'; }
 export interface CalloutBlock { type: 'callout'; text: string; variant: 'info' | 'warning' | 'success'; }
 export interface QuoteBlock { type: 'quote'; text: string; author?: string; }
+export interface BulletListBlock { type: 'bullet_list'; items: string[]; }
+export interface OrderedListBlock { type: 'ordered_list'; items: string[]; }
 
-export type ContentBlock = HeadingBlock | ParagraphBlock | ImageBlock | DividerBlock | CalloutBlock | QuoteBlock;
+export type ContentBlock = HeadingBlock | ParagraphBlock | ImageBlock | DividerBlock | CalloutBlock | QuoteBlock | BulletListBlock | OrderedListBlock;
 
 export interface CreateCampaignRequest {
   name: string;

@@ -220,7 +220,7 @@ export function generateVenueSeats(venue: VenueConfig): Seat[] {
 
 // ─── HELPER: Row builder ────────────────────────────────────────────────────
 
-function makeRows(count: number, seatsPerRow: number, opts: {
+export function makeRows(count: number, seatsPerRow: number, opts: {
   seatSpacing?: number;
   rowGap?: number;
   aisleCenter?: boolean;
@@ -739,6 +739,221 @@ export function findStandingZoneAtPoint(zones: StandingZone[], wx: number, wy: n
     }
   }
   return null;
+}
+
+// ─── SECTION / ROW MUTATION HELPERS ─────────────────────────────────────────
+
+/** Update a section's config and regenerate seats */
+export function updateSection(venue: VenueConfig, sectionId: string, updates: Partial<SectionConfig>): VenueConfig {
+  return {
+    ...venue,
+    sections: venue.sections.map(s => s.id === sectionId ? { ...s, ...updates } : s),
+  };
+}
+
+/** Add a row to a section */
+export function addRowToSection(venue: VenueConfig, sectionId: string): VenueConfig {
+  return {
+    ...venue,
+    sections: venue.sections.map(s => {
+      if (s.id !== sectionId) return s;
+      const lastRow = s.rows[s.rows.length - 1];
+      const nextLabel = String.fromCharCode((lastRow?.label || '@').charCodeAt(0) + 1);
+      return {
+        ...s,
+        rows: [...s.rows, {
+          label: nextLabel,
+          seatCount: lastRow?.seatCount ?? 16,
+          seatSpacing: lastRow?.seatSpacing ?? 26,
+          rowGap: lastRow?.rowGap ?? 28,
+          aisleAfter: lastRow?.aisleAfter ?? [],
+          aisleWidth: lastRow?.aisleWidth ?? 20,
+        }],
+      };
+    }),
+  };
+}
+
+/** Remove last row from a section */
+export function removeRowFromSection(venue: VenueConfig, sectionId: string): VenueConfig {
+  return {
+    ...venue,
+    sections: venue.sections.map(s => {
+      if (s.id !== sectionId || s.rows.length <= 1) return s;
+      return { ...s, rows: s.rows.slice(0, -1) };
+    }),
+  };
+}
+
+/** Update a specific row in a section */
+export function updateRow(venue: VenueConfig, sectionId: string, rowIndex: number, updates: Partial<RowConfig>): VenueConfig {
+  return {
+    ...venue,
+    sections: venue.sections.map(s => {
+      if (s.id !== sectionId) return s;
+      return {
+        ...s,
+        rows: s.rows.map((r, i) => i === rowIndex ? { ...r, ...updates } : r),
+      };
+    }),
+  };
+}
+
+/** Update all rows' seatCount in a section at once */
+export function updateSectionSeatCount(venue: VenueConfig, sectionId: string, seatCount: number): VenueConfig {
+  return {
+    ...venue,
+    sections: venue.sections.map(s => {
+      if (s.id !== sectionId) return s;
+      return {
+        ...s,
+        rows: s.rows.map(r => ({
+          ...r,
+          seatCount,
+          aisleAfter: r.aisleAfter.filter(a => a < seatCount),
+        })),
+      };
+    }),
+  };
+}
+
+/** Add a new section to the venue */
+export function addSection(venue: VenueConfig): VenueConfig {
+  const id = `section-${Date.now()}`;
+  const lastSection = venue.sections[venue.sections.length - 1];
+  const newSection: SectionConfig = {
+    id,
+    name: `Bölüm ${venue.sections.length + 1}`,
+    offsetX: 0,
+    offsetY: (lastSection?.offsetY ?? 0) + 200,
+    rotation: 0,
+    curveRadius: 0,
+    arcSpan: 0,
+    defaultCategory: 'standard',
+    rows: makeRows(4, 16, { aisleCenter: true }),
+  };
+  return { ...venue, sections: [...venue.sections, newSection] };
+}
+
+/** Remove a section from the venue */
+export function removeSection(venue: VenueConfig, sectionId: string): VenueConfig {
+  if (venue.sections.length <= 1) return venue;
+  return { ...venue, sections: venue.sections.filter(s => s.id !== sectionId) };
+}
+
+// ─── THEME-AWARE DRAWING CONFIG ────────────────────────────────────────────
+
+export interface DrawTheme {
+  bg: string;
+  gridDot: string;
+  stageGradientStart: string;
+  stageGradientEnd: string;
+  stageStroke: string;
+  stageText: string;
+  seatDisabled: string;
+  seatSold: string;
+  seatSelected: string;
+  seatSelectedGlow: string;
+  sectionLabel: string;
+}
+
+export const DARK_THEME: DrawTheme = {
+  bg: '#0e1117',
+  gridDot: '#1a2035',
+  stageGradientStart: '#2a3a5c',
+  stageGradientEnd: '#1a2540',
+  stageStroke: '#3a4d70',
+  stageText: '#8ba0cc',
+  seatDisabled: '#1e2436',
+  seatSold: '#2a3350',
+  seatSelected: '#10b981',
+  seatSelectedGlow: 'rgba(16,185,129,0.5)',
+  sectionLabel: '#4a5270',
+};
+
+export const LIGHT_THEME: DrawTheme = {
+  bg: '#f8fafc',
+  gridDot: '#e2e8f0',
+  stageGradientStart: '#e2e8f0',
+  stageGradientEnd: '#cbd5e1',
+  stageStroke: '#94a3b8',
+  stageText: '#475569',
+  seatDisabled: '#e2e8f0',
+  seatSold: '#cbd5e1',
+  seatSelected: '#10b981',
+  seatSelectedGlow: 'rgba(16,185,129,0.4)',
+  sectionLabel: '#94a3b8',
+};
+
+export function drawStageThemed(ctx: CanvasRenderingContext2D, stage: StageConfig, t: DrawTheme) {
+  ctx.save();
+  ctx.translate(stage.x, stage.y);
+
+  const gradient = ctx.createLinearGradient(0, -stage.height / 2, 0, stage.height / 2);
+  gradient.addColorStop(0, t.stageGradientStart);
+  gradient.addColorStop(1, t.stageGradientEnd);
+  ctx.fillStyle = gradient;
+  ctx.strokeStyle = t.stageStroke;
+  ctx.lineWidth = 1.5;
+
+  const hw = stage.width / 2;
+  const hh = stage.height / 2;
+
+  switch (stage.shape) {
+    case 'rectangle': roundRect(ctx, -hw, -hh, stage.width, stage.height, 12); ctx.fill(); ctx.stroke(); break;
+    case 'semicircle':
+      ctx.beginPath(); ctx.arc(0, 0, hw, Math.PI, 0, false);
+      ctx.lineTo(hw, hh * 0.3); ctx.quadraticCurveTo(0, hh * 0.6, -hw, hh * 0.3);
+      ctx.closePath(); ctx.fill(); ctx.stroke(); break;
+    case 'circle': ctx.beginPath(); ctx.arc(0, 0, hw, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); break;
+    case 'oval': ctx.beginPath(); ctx.ellipse(0, 0, hw, hh, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); break;
+    case 'thrust':
+      ctx.beginPath(); ctx.moveTo(-hw, -hh); ctx.lineTo(hw, -hh);
+      ctx.lineTo(hw, -hh + 40); ctx.lineTo(hw * 0.4, -hh + 40);
+      ctx.lineTo(hw * 0.4, hh); ctx.quadraticCurveTo(0, hh + 20, -hw * 0.4, hh);
+      ctx.lineTo(-hw * 0.4, -hh + 40); ctx.lineTo(-hw, -hh + 40);
+      ctx.closePath(); ctx.fill(); ctx.stroke(); break;
+  }
+
+  ctx.fillStyle = t.stageText;
+  ctx.font = 'bold 13px "Inter", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(stage.label, 0, stage.shape === 'thrust' ? -hh + 20 : 0);
+  ctx.restore();
+}
+
+export function drawSeatThemed(
+  ctx: CanvasRenderingContext2D, x: number, y: number,
+  color: string, state: 'normal' | 'hover' | 'selected' | 'disabled' | 'sold',
+  t: DrawTheme,
+) {
+  const s = SEAT_SIZE;
+  const hs = s / 2;
+  ctx.save();
+  switch (state) {
+    case 'disabled': ctx.globalAlpha = 0.3; ctx.fillStyle = t.seatDisabled; break;
+    case 'sold': ctx.globalAlpha = 0.4; ctx.fillStyle = t.seatSold; break;
+    case 'selected': ctx.fillStyle = t.seatSelected; ctx.shadowColor = t.seatSelectedGlow; ctx.shadowBlur = 8; break;
+    case 'hover': ctx.fillStyle = color; ctx.shadowColor = `${color}66`; ctx.shadowBlur = 10; break;
+    default: ctx.fillStyle = color; ctx.shadowColor = `${color}33`; ctx.shadowBlur = 3; break;
+  }
+  roundRect(ctx, x - hs, y - hs, s, s, SEAT_RADIUS);
+  ctx.fill();
+  ctx.restore();
+}
+
+export function drawSectionLabelThemed(ctx: CanvasRenderingContext2D, section: SectionConfig, seats: Seat[], t: DrawTheme) {
+  if (seats.length === 0) return;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity;
+  for (const s of seats) { if (s.x < minX) minX = s.x; if (s.x > maxX) maxX = s.x; if (s.y < minY) minY = s.y; }
+  ctx.save();
+  ctx.fillStyle = t.sectionLabel;
+  ctx.font = 'bold 10px "Inter", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(section.name.toUpperCase(), (minX + maxX) / 2, minY - 16);
+  ctx.restore();
 }
 
 // ─── STATS ─────────────────────────────────────────────────────────────────

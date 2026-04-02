@@ -93,6 +93,10 @@ function blocksToHtml(blocks: ContentBlock[]): string {
           return `<h${block.level}>${escapeHtml(block.text || '')}</h${block.level}>`;
         case 'paragraph':
           return `<p>${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</p>`;
+        case 'bullet_list':
+          return `<ul>${block.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+        case 'ordered_list':
+          return `<ol>${block.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ol>`;
         case 'image':
           if (!block.url) return '';
           return `<figure><img src="${escapeHtml(block.url)}" alt="${escapeHtml(block.caption || '')}" />${
@@ -123,6 +127,9 @@ function blocksToPlainText(blocks: ContentBlock[]): string {
         case 'callout':
         case 'quote':
           return [block.text, block.type === 'quote' ? block.author : ''].filter(Boolean).join(' ');
+        case 'bullet_list':
+        case 'ordered_list':
+          return block.items.join(' ');
         case 'image':
           return block.caption || '';
         default:
@@ -370,7 +377,7 @@ export default function ContentEditor() {
       <Box sx={{ p: 4 }}>
         <Grid container spacing={3}>
           {/* ═══ LEFT COLUMN ═══ */}
-          <Grid item xs={12} md={8.5}>
+          <Grid item xs={12} lg={9}>
             <Stack spacing={3}>
               <Paper elevation={0} sx={{ p: 4, borderRadius: 4 }}>
                 {/* Title */}
@@ -470,12 +477,12 @@ export default function ContentEditor() {
                   {useBlockEditor && (
                     <Paper elevation={0} sx={{ mt: 1.5, borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
                       {showPreview ? (
-                        <Box sx={{ p: 3, minHeight: 400, bgcolor: '#FFFFFF' }}>
+                        <Box sx={{ p: 4, minHeight: 500, bgcolor: '#FFFFFF' }}>
                           <RichContentRenderer blocks={richBlocks} />
                         </Box>
                       ) : (
                         <Box>
-                          <Box sx={{ p: 2 }}>
+                          <Box sx={{ p: { xs: 2, md: 4 }, minHeight: 500 }}>
                             <RichContentEditor blocks={richBlocks} onChange={setRichBlocks} />
                           </Box>
                           {/* Word count bar */}
@@ -526,7 +533,7 @@ export default function ContentEditor() {
           </Grid>
 
           {/* ═══ RIGHT SIDEBAR ═══ */}
-          <Grid item xs={12} md={3.5}>
+          <Grid item xs={12} lg={3}>
             <Stack spacing={3} sx={{ position: 'sticky', top: 72 }}>
               {/* Status + Actions */}
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4 }}>

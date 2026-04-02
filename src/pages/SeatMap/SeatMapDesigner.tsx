@@ -1,42 +1,48 @@
 /**
- * SeatMapDesigner — Canvas-based Venue Design Engine
- *
- * 6 venue templates, curved/straight rows, section system,
- * zoom/pan, admin brush tools, preview mode with ticket cart.
+ * SeatMapDesigner — Canvas-based, theme-aware, responsive, fully editable.
  */
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   Box, Typography, Button, IconButton, Tooltip, Dialog, DialogTitle,
-  DialogContent, DialogActions, Stack, Chip, alpha,
+  DialogContent, DialogActions, Stack, Chip, TextField, Slider, Select,
+  MenuItem, Divider, useTheme, alpha, useMediaQuery,
 } from '@mui/material';
 import {
   Edit as EditIcon, Visibility as PreviewIcon, Save as SaveIcon,
   Check as CheckIcon, Add as AddIcon, Remove as RemoveIcon,
   RestartAlt as ResetIcon, Close as CloseIcon, Block as BlockIcon,
   ShoppingCart as CartIcon, ConfirmationNumber as TicketIcon,
+  Delete as DeleteIcon, Settings as SettingsIcon,
+  KeyboardArrowUp as UpIcon, KeyboardArrowDown as DownIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import {
-  VenueConfig, VenueType, Seat, SeatCategory, DEFAULT_CATEGORIES, VENUE_TEMPLATES,
-  generateVenueSeats, drawStage, drawSeat, drawStandingZone, drawSectionLabel,
-  getCategoryColor, findSeatAtPoint, computeStats, SEAT_SIZE,
+  VenueConfig, VenueType, Seat, SeatCategory, SectionConfig, DEFAULT_CATEGORIES,
+  VENUE_TEMPLATES, generateVenueSeats, drawStageThemed, drawSeatThemed,
+  drawStandingZone, drawSectionLabelThemed, getCategoryColor, findSeatAtPoint,
+  computeStats, SEAT_SIZE, DARK_THEME, LIGHT_THEME, DrawTheme,
+  updateSection, addRowToSection, removeRowFromSection, updateRow,
+  updateSectionSeatCount, addSection, removeSection,
 } from './venueEngine';
-
-// ─── Constants ─────────────────────────────────────────────────────────────
-const BG = '#0e1117';
-const SURFACE = '#161b27';
-const SURFACE2 = '#1e2436';
-const SURFACE3 = '#252d42';
-const BORDER = '#2a3350';
-const TEXT = '#e8edf8';
-const TEXT2 = '#8b95b0';
-const TEXT3 = '#4a5270';
-const GREEN = '#10b981';
-const MAX_SELECT = 8;
 
 // ─── Component ─────────────────────────────────────────────────────────────
 const SeatMapDesigner: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
+  const muiTheme = useTheme();
+  const isDark = muiTheme.palette.mode === 'dark';
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
+  const isSmall = useMediaQuery(muiTheme.breakpoints.down('lg'));
+  const drawTheme: DrawTheme = isDark ? DARK_THEME : LIGHT_THEME;
+
+  // Derived colors from MUI theme
+  const bg = muiTheme.palette.background.default;
+  const surface = muiTheme.palette.background.paper;
+  const border = muiTheme.palette.divider;
+  const textPrimary = muiTheme.palette.text.primary;
+  const textSecondary = muiTheme.palette.text.secondary;
+  const textDisabled = muiTheme.palette.text.disabled;
+  const primary = muiTheme.palette.primary.main;
+  const green = '#10b981';
 
   const [mode, setMode] = useState<'edit' | 'preview'>('edit');
   const [venue, setVenue] = useState<VenueConfig>(() => VENUE_TEMPLATES[0].generate());
@@ -56,22 +62,33 @@ const SeatMapDesigner: React.FC = () => {
   const [tip, setTip] = useState<{ x: number; y: number; seat: Seat } | null>(null);
   const [orderOpen, setOrderOpen] = useState(false);
 
+  // Section editor
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [leftTab, setLeftTab] = useState<'templates' | 'sections'>('templates');
+
+  const MAX_SELECT = 8;
+
   // Generate seats when venue changes
   useEffect(() => {
-    setSeats(generateVenueSeats(venue));
+    const gen = generateVenueSeats(venue);
+    // Preserve categories from old seats
+    setSeats(prev => {
+      const oldMap = new Map(prev.map(s => [s.id, s]));
+      return gen.map(s => {
+        const old = oldMap.get(s.id);
+        return old ? { ...s, category: old.category, status: old.status } : s;
+      });
+    });
     setSelectedSeats([]);
-    setSoldSeats(new Set());
   }, [venue]);
 
   const loadTemplate = useCallback((type: VenueType) => {
     const t = VENUE_TEMPLATES.find(v => v.type === type);
-    if (t) { setVenue(t.generate()); setVp({ x: 0, y: 0, zoom: 1 }); }
+    if (t) { setVenue(t.generate()); setVp({ x: 0, y: 0, zoom: 1 }); setEditingSectionId(null); }
   }, []);
 
   const switchMode = useCallback((m: 'edit' | 'preview') => {
-    setMode(m);
-    setSelectedSeats([]);
-    setHoveredSeat(null);
+    setMode(m); setSelectedSeats([]); setHoveredSeat(null); setEditingSectionId(null);
     if (m === 'preview') {
       const sold = new Set<string>();
       seats.forEach(s => { if (s.status !== 'disabled' && Math.random() < 0.15) sold.add(s.id); });
@@ -79,12 +96,16 @@ const SeatMapDesigner: React.FC = () => {
     }
   }, [seats]);
 
-  // Screen → world coordinate
+  // Screen → world
   const s2w = useCallback((sx: number, sy: number): [number, number] => {
     const c = canvasRef.current;
     if (!c) return [0, 0];
     const r = c.getBoundingClientRect();
-    return [(sx - r.left - c.width / 2) / vp.zoom - vp.x, (sy - r.top - c.height / 2) / vp.zoom - vp.y];
+    const dpr = window.devicePixelRatio || 1;
+    return [
+      (sx - r.left - r.width / 2) / vp.zoom - vp.x,
+      (sy - r.top - r.height / 2) / vp.zoom - vp.y,
+    ];
   }, [vp]);
 
   const paintSeat = useCallback((seat: Seat) => {
@@ -132,34 +153,74 @@ const SeatMapDesigner: React.FC = () => {
   }, [isPanning, panStart, vp.zoom, s2w, seats, isPainting, mode, paintSeat]);
 
   const onUp = useCallback(() => { setIsPanning(false); setIsPainting(false); }, []);
-
   const onWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     setVp(v => ({ ...v, zoom: Math.max(0.3, Math.min(3, v.zoom + (e.deltaY > 0 ? -0.1 : 0.1))) }));
   }, []);
 
-  // Canvas render
+  // Touch support for mobile
+  const touchRef = useRef<{ x: number; y: number; dist: number } | null>(null);
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      touchRef.current = { x: t.clientX, y: t.clientY, dist: 0 };
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchRef.current = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2, y: (e.touches[0].clientY + e.touches[1].clientY) / 2, dist: Math.hypot(dx, dy) };
+    }
+  }, []);
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    if (!touchRef.current) return;
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      const dx = (t.clientX - touchRef.current.x) / vp.zoom;
+      const dy = (t.clientY - touchRef.current.y) / vp.zoom;
+      setVp(v => ({ ...v, x: v.x + dx, y: v.y + dy }));
+      touchRef.current = { ...touchRef.current, x: t.clientX, y: t.clientY };
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const scale = dist / (touchRef.current.dist || 1);
+      setVp(v => ({ ...v, zoom: Math.max(0.3, Math.min(3, v.zoom * scale)) }));
+      touchRef.current = { ...touchRef.current, dist };
+    }
+  }, [vp.zoom]);
+
+  // Canvas render with DPR
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const parent = canvas.parentElement;
-    if (parent) { canvas.width = parent.clientWidth; canvas.height = parent.clientHeight; }
+    if (!parent) return;
 
-    ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const dpr = window.devicePixelRatio || 1;
+    const w = parent.clientWidth;
+    const h = parent.clientHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.scale(dpr, dpr);
+
+    const t = drawTheme;
+    ctx.fillStyle = t.bg;
+    ctx.fillRect(0, 0, w, h);
 
     ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.translate(w / 2, h / 2);
     ctx.scale(vp.zoom, vp.zoom);
     ctx.translate(vp.x, vp.y);
 
     // Grid dots
-    ctx.fillStyle = '#1a2035';
+    ctx.fillStyle = t.gridDot;
     const gs = 40;
-    const vw = canvas.width / vp.zoom;
-    const vh = canvas.height / vp.zoom;
+    const vw = w / vp.zoom;
+    const vh = h / vp.zoom;
     const sx = Math.floor((-vp.x - vw / 2) / gs) * gs;
     const sy = Math.floor((-vp.y - vh / 2) / gs) * gs;
     for (let gx = sx; gx < -vp.x + vw / 2; gx += gs) {
@@ -168,20 +229,10 @@ const SeatMapDesigner: React.FC = () => {
       }
     }
 
-    // Stage
-    drawStage(ctx, venue.stage);
+    drawStageThemed(ctx, venue.stage, t);
+    for (const sec of venue.sections) drawSectionLabelThemed(ctx, sec, seats.filter(s => s.sectionId === sec.id), t);
+    for (const z of venue.standingZones) drawStandingZone(ctx, z, getCategoryColor(z.category, categories));
 
-    // Section labels
-    for (const sec of venue.sections) {
-      drawSectionLabel(ctx, sec, seats.filter(s => s.sectionId === sec.id));
-    }
-
-    // Standing zones
-    for (const z of venue.standingZones) {
-      drawStandingZone(ctx, z, getCategoryColor(z.category, categories));
-    }
-
-    // Seats
     for (const seat of seats) {
       const color = getCategoryColor(seat.category, categories);
       let st: 'normal' | 'hover' | 'selected' | 'disabled' | 'sold' = 'normal';
@@ -189,28 +240,43 @@ const SeatMapDesigner: React.FC = () => {
       else if (mode === 'preview' && soldSeats.has(seat.id)) st = 'sold';
       else if (selectedSeats.some(s => s.id === seat.id)) st = 'selected';
       else if (hoveredSeat?.id === seat.id) st = 'hover';
-      drawSeat(ctx, seat.x, seat.y, color, st);
+      drawSeatThemed(ctx, seat.x, seat.y, color, st, t);
     }
 
-    // Row labels (straight sections only)
-    ctx.fillStyle = TEXT3;
+    // Row labels
+    ctx.fillStyle = t.sectionLabel;
     ctx.font = 'bold 9px Inter, monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     for (const sec of venue.sections) {
       if (sec.curveRadius > 0) continue;
-      const secSeats = seats.filter(s => s.sectionId === sec.id);
-      const rows = [...new Set(secSeats.map(s => s.rowLabel))];
+      const ss = seats.filter(s => s.sectionId === sec.id);
+      const rows = [...new Set(ss.map(s => s.rowLabel))];
       for (const rl of rows) {
-        const rs = secSeats.filter(s => s.rowLabel === rl);
+        const rs = ss.filter(s => s.rowLabel === rl);
         if (!rs.length) continue;
         const left = rs.reduce((a, b) => a.x < b.x ? a : b);
         ctx.fillText(rl, left.x - SEAT_SIZE, left.y);
       }
     }
 
+    // Highlight editing section
+    if (editingSectionId) {
+      const secSeats = seats.filter(s => s.sectionId === editingSectionId);
+      if (secSeats.length) {
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const s of secSeats) { if (s.x < minX) minX = s.x; if (s.x > maxX) maxX = s.x; if (s.y < minY) minY = s.y; if (s.y > maxY) maxY = s.y; }
+        ctx.save();
+        ctx.strokeStyle = primary;
+        ctx.lineWidth = 2 / vp.zoom;
+        ctx.setLineDash([6 / vp.zoom, 4 / vp.zoom]);
+        ctx.strokeRect(minX - 16, minY - 24, maxX - minX + 32, maxY - minY + 40);
+        ctx.restore();
+      }
+    }
+
     ctx.restore();
-  }, [venue, seats, vp, hoveredSeat, selectedSeats, soldSeats, mode, categories]);
+  }, [venue, seats, vp, hoveredSeat, selectedSeats, soldSeats, mode, categories, drawTheme, editingSectionId, primary]);
 
   // Resize observer
   useEffect(() => {
@@ -221,21 +287,20 @@ const SeatMapDesigner: React.FC = () => {
     return () => obs.disconnect();
   }, []);
 
-  // Stats
   const stats = useMemo(() => computeStats(seats, categories), [seats, categories]);
-
   const avail = useMemo(() => {
     const c: Record<string, number> = {};
     categories.forEach(cat => { c[cat.id] = 0; });
     seats.forEach(s => { if (s.status !== 'disabled' && !soldSeats.has(s.id)) c[s.category] = (c[s.category] || 0) + 1; });
     return c;
   }, [seats, categories, soldSeats]);
-
   const price = useMemo(() => {
     const sub = selectedSeats.reduce((a, s) => a + (categories.find(c => c.id === s.category)?.price || 0), 0);
     const fee = Math.round(sub * 0.05);
     return { sub, fee, total: sub + fee };
   }, [selectedSeats, categories]);
+
+  const editingSection = editingSectionId ? venue.sections.find(s => s.id === editingSectionId) : null;
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -246,45 +311,154 @@ const SeatMapDesigner: React.FC = () => {
       if (e.key === '3') setCurrentTool('standard');
       if (e.key === '4') setCurrentTool('economy');
       if (e.key === 'e' || e.key === 'E') setCurrentTool('disabled');
+      if (e.key === 'Escape') setEditingSectionId(null);
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [mode]);
 
+  // ── Section editor helper
+  const SectionEditor = () => {
+    if (!editingSection) return null;
+    const sec = editingSection;
+    const secIdx = venue.sections.findIndex(s => s.id === sec.id);
+    return (
+      <Stack spacing={1.5} sx={{ p: 2, borderTop: `1px solid ${border}` }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography sx={{ fontSize: 11, fontWeight: 700, color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            {sec.name}
+          </Typography>
+          <IconButton size="small" onClick={() => setEditingSectionId(null)}><CloseIcon sx={{ fontSize: 14 }} /></IconButton>
+        </Stack>
+
+        <TextField size="small" label="Bölüm Adı" value={sec.name}
+          onChange={e => setVenue(updateSection(venue, sec.id, { name: e.target.value }))} />
+
+        <Stack direction="row" spacing={1}>
+          <TextField size="small" label="Sıra Sayısı" type="number" value={sec.rows.length}
+            onChange={e => {
+              const n = parseInt(e.target.value) || 1;
+              let v = venue;
+              while (v.sections.find(s => s.id === sec.id)!.rows.length < n) v = addRowToSection(v, sec.id);
+              while (v.sections.find(s => s.id === sec.id)!.rows.length > n && v.sections.find(s => s.id === sec.id)!.rows.length > 1) v = removeRowFromSection(v, sec.id);
+              setVenue(v);
+            }}
+            inputProps={{ min: 1, max: 30 }}
+            sx={{ flex: 1 }} />
+          <TextField size="small" label="Koltuk/Sıra" type="number"
+            value={sec.rows[0]?.seatCount ?? 16}
+            onChange={e => setVenue(updateSectionSeatCount(venue, sec.id, parseInt(e.target.value) || 1))}
+            inputProps={{ min: 1, max: 60 }}
+            sx={{ flex: 1 }} />
+        </Stack>
+
+        <Stack direction="row" spacing={1}>
+          <TextField size="small" label="Koltuk Aralık" type="number"
+            value={sec.rows[0]?.seatSpacing ?? 26}
+            onChange={e => {
+              const sp = parseInt(e.target.value) || 20;
+              let v = venue;
+              sec.rows.forEach((_, i) => { v = updateRow(v, sec.id, i, { seatSpacing: sp }); });
+              setVenue(v);
+            }}
+            inputProps={{ min: 14, max: 50 }}
+            sx={{ flex: 1 }} />
+          <TextField size="small" label="Sıra Aralık" type="number"
+            value={sec.rows[1]?.rowGap ?? sec.rows[0]?.rowGap ?? 28}
+            onChange={e => {
+              const rg = parseInt(e.target.value) || 20;
+              let v = venue;
+              sec.rows.forEach((_, i) => { if (i > 0) v = updateRow(v, sec.id, i, { rowGap: rg }); });
+              setVenue(v);
+            }}
+            inputProps={{ min: 16, max: 60 }}
+            sx={{ flex: 1 }} />
+        </Stack>
+
+        {sec.curveRadius > 0 && (
+          <Stack direction="row" spacing={1}>
+            <TextField size="small" label="Eğri Yarıçap" type="number" value={sec.curveRadius}
+              onChange={e => setVenue(updateSection(venue, sec.id, { curveRadius: parseInt(e.target.value) || 100 }))}
+              inputProps={{ min: 50, max: 1000 }}
+              sx={{ flex: 1 }} />
+            <TextField size="small" label="Ark Açısı (°)" type="number" value={sec.arcSpan}
+              onChange={e => setVenue(updateSection(venue, sec.id, { arcSpan: parseInt(e.target.value) || 60 }))}
+              inputProps={{ min: 20, max: 350 }}
+              sx={{ flex: 1 }} />
+          </Stack>
+        )}
+
+        <Stack direction="row" spacing={1}>
+          <TextField size="small" label="Döndürme (°)" type="number" value={sec.rotation}
+            onChange={e => setVenue(updateSection(venue, sec.id, { rotation: parseInt(e.target.value) || 0 }))}
+            inputProps={{ min: -180, max: 180 }}
+            sx={{ flex: 1 }} />
+          <Select size="small" value={sec.defaultCategory}
+            onChange={e => setVenue(updateSection(venue, sec.id, { defaultCategory: e.target.value }))}
+            sx={{ flex: 1 }}>
+            {categories.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+          </Select>
+        </Stack>
+
+        {venue.sections.length > 1 && (
+          <Button size="small" color="error" variant="outlined" startIcon={<DeleteIcon />}
+            onClick={() => { setVenue(removeSection(venue, sec.id)); setEditingSectionId(null); }}
+            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}>
+            Bölümü Sil
+          </Button>
+        )}
+      </Stack>
+    );
+  };
+
   // ─── RENDER ───────────────────────────────────────────────────────────────
+  const LEFT_W = isMobile ? 0 : isSmall ? 200 : 240;
+  const RIGHT_W = mode === 'preview' && !isMobile ? 260 : 0;
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', background: BG, mx: -3, mt: -3, mb: -3 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', background: bg, mx: -3, mt: -3, mb: -3 }}>
 
       {/* TOP BAR */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, height: 52, background: SURFACE, borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography sx={{ fontSize: 17, fontWeight: 800, color: TEXT }}>Nart<Box component="span" sx={{ color: GREEN }}>Go</Box></Typography>
-          <Box sx={{ width: 1, height: 18, background: BORDER }} />
-          <Typography sx={{ fontSize: 13, color: TEXT2 }}><b style={{ color: TEXT }}>{venue.name}</b> — Oturma Düzeni</Typography>
-          <Chip label={`${stats.total} koltuk · ${venue.sections.length} bölüm`} size="small" sx={{ height: 22, fontSize: 10, fontWeight: 700, bgcolor: alpha(GREEN, 0.1), color: GREEN }} />
+      <Box sx={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        px: { xs: 1.5, md: 3 }, height: 48, background: surface,
+        borderBottom: `1px solid ${border}`, flexShrink: 0, gap: 1,
+        flexWrap: 'wrap', minHeight: 48,
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+          <Typography sx={{ fontSize: 15, fontWeight: 800, color: textPrimary, flexShrink: 0 }}>
+            Nart<Box component="span" sx={{ color: green }}>Go</Box>
+          </Typography>
+          {!isMobile && <>
+            <Box sx={{ width: 1, height: 16, background: border }} />
+            <Typography sx={{ fontSize: 12, color: textSecondary }} noWrap>
+              <b style={{ color: textPrimary }}>{venue.name}</b>
+            </Typography>
+          </>}
+          <Chip label={`${stats.total}`} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: alpha(green, 0.1), color: green }} />
         </Box>
 
-        <Box sx={{ display: 'flex', background: SURFACE2, border: `1px solid ${BORDER}`, borderRadius: 2, p: '3px', gap: '2px' }}>
+        <Box sx={{ display: 'flex', background: alpha(border, 0.3), border: `1px solid ${border}`, borderRadius: 2, p: '2px', gap: '2px' }}>
           {(['edit', 'preview'] as const).map(m => (
             <Button key={m} size="small"
-              startIcon={m === 'edit' ? <EditIcon sx={{ fontSize: '14px !important' }} /> : <PreviewIcon sx={{ fontSize: '14px !important' }} />}
+              startIcon={!isMobile ? (m === 'edit' ? <EditIcon sx={{ fontSize: '13px !important' }} /> : <PreviewIcon sx={{ fontSize: '13px !important' }} />) : undefined}
               onClick={() => switchMode(m)}
-              sx={{ px: 1.75, py: 0.5, borderRadius: 1.5, fontSize: 12, fontWeight: 600, textTransform: 'none', minWidth: 'auto', color: mode === m ? TEXT : TEXT3, background: mode === m ? SURFACE3 : 'transparent', '&:hover': { background: mode === m ? SURFACE3 : alpha(SURFACE3, 0.5) } }}>
-              {m === 'edit' ? 'Düzenleme' : 'Önizleme'}
+              sx={{ px: isMobile ? 1 : 1.5, py: 0.375, borderRadius: 1.5, fontSize: 11, fontWeight: 600, textTransform: 'none', minWidth: 'auto', color: mode === m ? textPrimary : textDisabled, background: mode === m ? surface : 'transparent', boxShadow: mode === m ? muiTheme.shadows[1] : 'none', '&:hover': { background: mode === m ? surface : alpha(surface, 0.5) } }}>
+              {m === 'edit' ? (isMobile ? '✏️' : 'Düzenle') : (isMobile ? '👁' : 'Önizle')}
             </Button>
           ))}
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Button size="small" startIcon={<SaveIcon sx={{ fontSize: '14px !important' }} />}
-            onClick={() => enqueueSnackbar('Taslak kaydedildi', { variant: 'info' })}
-            sx={{ px: 1.5, py: 0.75, borderRadius: 2, fontSize: 12, fontWeight: 600, textTransform: 'none', color: TEXT2, background: SURFACE2, border: `1px solid ${BORDER}`, '&:hover': { background: SURFACE3 } }}>
-            Kaydet
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <Button size="small" startIcon={!isMobile ? <SaveIcon sx={{ fontSize: '13px !important' }} /> : undefined}
+            onClick={() => enqueueSnackbar('Kaydedildi', { variant: 'info' })}
+            sx={{ px: 1.25, py: 0.5, borderRadius: 2, fontSize: 11, fontWeight: 600, textTransform: 'none', color: textSecondary, background: alpha(border, 0.3), border: `1px solid ${border}`, '&:hover': { background: alpha(border, 0.5) } }}>
+            {isMobile ? '💾' : 'Kaydet'}
           </Button>
-          <Button size="small" startIcon={<CheckIcon sx={{ fontSize: '14px !important' }} />}
-            onClick={() => enqueueSnackbar('Oturma düzeni onaylandı', { variant: 'success' })}
-            sx={{ px: 1.5, py: 0.75, borderRadius: 2, fontSize: 12, fontWeight: 600, textTransform: 'none', color: '#0a1a12', background: GREEN, '&:hover': { background: '#0ea271' } }}>
-            Onayla
+          <Button size="small" startIcon={!isMobile ? <CheckIcon sx={{ fontSize: '13px !important' }} /> : undefined}
+            onClick={() => enqueueSnackbar('Onaylandı', { variant: 'success' })}
+            sx={{ px: 1.25, py: 0.5, borderRadius: 2, fontSize: 11, fontWeight: 600, textTransform: 'none', color: '#fff', background: green, '&:hover': { background: '#0ea271' } }}>
+            {isMobile ? '✓' : 'Onayla'}
           </Button>
         </Box>
       </Box>
@@ -293,101 +467,131 @@ const SeatMapDesigner: React.FC = () => {
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* LEFT PANEL */}
-        <Box sx={{ width: 240, flexShrink: 0, background: SURFACE, borderRight: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {mode === 'edit' ? (<>
-            {/* Templates */}
-            <Box sx={{ p: 2, borderBottom: `1px solid ${BORDER}` }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: TEXT3, textTransform: 'uppercase', letterSpacing: 1, mb: 1.25 }}>Salon Tipi</Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.75 }}>
-                {VENUE_TEMPLATES.map(t => (
-                  <Box key={t.type} onClick={() => loadTemplate(t.type)}
-                    sx={{ background: venue.type === t.type ? alpha(GREEN, 0.12) : SURFACE2, border: `1.5px solid ${venue.type === t.type ? GREEN : BORDER}`, borderRadius: 2, p: '8px 6px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', '&:hover': { borderColor: venue.type === t.type ? GREEN : SURFACE3, background: SURFACE3 } }}>
-                    <Typography sx={{ fontSize: 18, mb: 0.25 }}>{t.icon}</Typography>
-                    <Typography sx={{ fontSize: 10, fontWeight: 600, color: venue.type === t.type ? GREEN : TEXT2, lineHeight: 1.2 }}>{t.label}</Typography>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
+        {!isMobile && mode === 'edit' && (
+          <Box sx={{ width: LEFT_W, flexShrink: 0, background: surface, borderRight: `1px solid ${border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-            {/* Category tools */}
-            <Box sx={{ p: 2, borderBottom: `1px solid ${BORDER}` }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: TEXT3, textTransform: 'uppercase', letterSpacing: 1, mb: 1.25 }}>Kategori Fırçası</Typography>
-              {categories.map(cat => (
-                <Box key={cat.id} onClick={() => setCurrentTool(cat.id)}
-                  sx={{ display: 'flex', alignItems: 'center', gap: 1.25, p: '8px 10px', borderRadius: 1.5, cursor: 'pointer', mb: 0.5, border: `1.5px solid ${currentTool === cat.id ? cat.color : 'transparent'}`, background: currentTool === cat.id ? SURFACE2 : 'transparent', color: cat.color, transition: 'all 0.15s', '&:hover': { background: SURFACE3 } }}>
-                  <Box sx={{ width: 12, height: 12, borderRadius: 0.75, background: cat.color, flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{cat.name}</Typography>
-                  <Typography sx={{ fontSize: 10, fontFamily: 'monospace', color: TEXT3 }}>₺{cat.price}</Typography>
+            {/* Tab switcher */}
+            <Box sx={{ display: 'flex', borderBottom: `1px solid ${border}` }}>
+              {(['templates', 'sections'] as const).map(tab => (
+                <Box key={tab} onClick={() => setLeftTab(tab)}
+                  sx={{ flex: 1, py: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: leftTab === tab ? primary : textDisabled, borderBottom: leftTab === tab ? `2px solid ${primary}` : '2px solid transparent', transition: 'all 0.15s' }}>
+                  {tab === 'templates' ? 'Şablonlar' : 'Bölümler'}
                 </Box>
               ))}
-              <Box onClick={() => setCurrentTool('disabled')}
-                sx={{ display: 'flex', alignItems: 'center', gap: 1.25, p: '8px 10px', borderRadius: 1.5, cursor: 'pointer', border: `1.5px solid ${currentTool === 'disabled' ? TEXT3 : 'transparent'}`, background: currentTool === 'disabled' ? SURFACE2 : 'transparent', color: currentTool === 'disabled' ? TEXT : TEXT3, transition: 'all 0.15s', '&:hover': { background: SURFACE3 } }}>
-                <BlockIcon sx={{ fontSize: 13 }} />
-                <Typography sx={{ fontSize: 12, fontWeight: 600 }}>Koltuk Kapat</Typography>
-              </Box>
             </Box>
 
-            {/* Stats */}
-            <Box sx={{ p: 2, flex: 1, overflowY: 'auto' }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: TEXT3, textTransform: 'uppercase', letterSpacing: 1, mb: 1.25 }}>İstatistikler</Typography>
-              {categories.map(cat => {
-                const cnt = stats.counts[cat.id] || 0;
-                const pct = stats.total > 0 ? (cnt / stats.total) * 100 : 0;
-                return (
-                  <Box key={cat.id} sx={{ mb: 1.5 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '2px', background: cat.color }} />
-                        <Typography sx={{ fontSize: 11, color: TEXT2 }}>{cat.name}</Typography>
+            <Box sx={{ flex: 1, overflowY: 'auto' }}>
+              {leftTab === 'templates' ? (<>
+                {/* Templates */}
+                <Box sx={{ p: 1.5 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0.5 }}>
+                    {VENUE_TEMPLATES.map(t => (
+                      <Box key={t.type} onClick={() => loadTemplate(t.type)}
+                        sx={{ background: venue.type === t.type ? alpha(primary, 0.1) : 'transparent', border: `1.5px solid ${venue.type === t.type ? primary : border}`, borderRadius: 2, p: '6px 4px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', '&:hover': { background: alpha(primary, 0.05) } }}>
+                        <Typography sx={{ fontSize: 16, mb: 0.25 }}>{t.icon}</Typography>
+                        <Typography sx={{ fontSize: 9, fontWeight: 600, color: venue.type === t.type ? primary : textSecondary, lineHeight: 1.1 }}>{t.label}</Typography>
                       </Box>
-                      <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: TEXT2, fontWeight: 600 }}>{cnt}</Typography>
-                    </Box>
-                    <Box sx={{ height: 3, background: SURFACE3, borderRadius: 1, overflow: 'hidden' }}>
-                      <Box sx={{ height: '100%', width: `${pct}%`, background: cat.color, borderRadius: 1, transition: 'width 0.3s' }} />
-                    </Box>
+                    ))}
                   </Box>
-                );
-              })}
-              <Box sx={{ mt: 2, p: 1.5, background: SURFACE2, border: `1px solid ${BORDER}`, borderRadius: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: TEXT2, mb: 0.75 }}>
-                  <span>Toplam Koltuk</span><b style={{ color: TEXT }}>{stats.total}</b>
                 </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: TEXT2, mb: 0.75 }}>
-                  <span>Bölüm Sayısı</span><b style={{ color: TEXT }}>{venue.sections.length}</b>
+                <Divider />
+                {/* Category tools */}
+                <Box sx={{ p: 1.5 }}>
+                  <Typography sx={{ fontSize: 9.5, fontWeight: 700, color: textDisabled, textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>Fırça</Typography>
+                  {categories.map(cat => (
+                    <Box key={cat.id} onClick={() => setCurrentTool(cat.id)}
+                      sx={{ display: 'flex', alignItems: 'center', gap: 1, p: '6px 8px', borderRadius: 1.5, cursor: 'pointer', mb: 0.25, border: `1.5px solid ${currentTool === cat.id ? cat.color : 'transparent'}`, background: currentTool === cat.id ? alpha(cat.color, 0.08) : 'transparent', transition: 'all 0.15s', '&:hover': { background: alpha(cat.color, 0.05) } }}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: '3px', background: cat.color, flexShrink: 0 }} />
+                      <Typography sx={{ fontSize: 11, fontWeight: 600, flex: 1, color: currentTool === cat.id ? cat.color : textPrimary }}>{cat.name}</Typography>
+                      <Typography sx={{ fontSize: 9.5, fontFamily: 'monospace', color: textDisabled }}>₺{cat.price}</Typography>
+                    </Box>
+                  ))}
+                  <Box onClick={() => setCurrentTool('disabled')}
+                    sx={{ display: 'flex', alignItems: 'center', gap: 1, p: '6px 8px', borderRadius: 1.5, cursor: 'pointer', border: `1.5px solid ${currentTool === 'disabled' ? textDisabled : 'transparent'}`, transition: 'all 0.15s', '&:hover': { background: alpha(textDisabled, 0.05) } }}>
+                    <BlockIcon sx={{ fontSize: 12, color: textDisabled }} />
+                    <Typography sx={{ fontSize: 11, fontWeight: 600, color: currentTool === 'disabled' ? textPrimary : textDisabled }}>Kapat</Typography>
+                  </Box>
                 </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, pt: 0.75, borderTop: `1px solid ${BORDER}` }}>
-                  <span style={{ color: TEXT2 }}>Maks. Gelir</span>
-                  <b style={{ color: GREEN, fontFamily: 'monospace' }}>₺{stats.maxRevenue.toLocaleString('tr-TR')}</b>
+                <Divider />
+                {/* Stats summary */}
+                <Box sx={{ p: 1.5 }}>
+                  <Typography sx={{ fontSize: 9.5, fontWeight: 700, color: textDisabled, textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>Özet</Typography>
+                  {categories.map(cat => (
+                    <Box key={cat.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+                      <Box sx={{ width: 6, height: 6, borderRadius: '2px', background: cat.color }} />
+                      <Typography sx={{ fontSize: 10.5, color: textSecondary, flex: 1 }}>{cat.name}</Typography>
+                      <Typography sx={{ fontSize: 10.5, fontFamily: 'monospace', color: textSecondary, fontWeight: 600 }}>{stats.counts[cat.id] || 0}</Typography>
+                    </Box>
+                  ))}
+                  <Box sx={{ mt: 1, pt: 1, borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                    <span style={{ color: textSecondary }}>Toplam</span>
+                    <b style={{ color: textPrimary }}>{stats.total}</b>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, mt: 0.5 }}>
+                    <span style={{ color: textSecondary }}>Gelir</span>
+                    <b style={{ color: green, fontFamily: 'monospace' }}>₺{stats.maxRevenue.toLocaleString('tr-TR')}</b>
+                  </Box>
                 </Box>
-              </Box>
+              </>) : (<>
+                {/* Sections list */}
+                <Box sx={{ p: 1.5 }}>
+                  {venue.sections.map((sec) => {
+                    const secSeats = seats.filter(s => s.sectionId === sec.id);
+                    const isEditing = editingSectionId === sec.id;
+                    return (
+                      <Box key={sec.id} onClick={() => setEditingSectionId(isEditing ? null : sec.id)}
+                        sx={{
+                          p: 1, mb: 0.5, borderRadius: 2, cursor: 'pointer',
+                          border: `1.5px solid ${isEditing ? primary : border}`,
+                          background: isEditing ? alpha(primary, 0.05) : 'transparent',
+                          transition: 'all 0.15s', '&:hover': { background: alpha(primary, 0.03) },
+                        }}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <SettingsIcon sx={{ fontSize: 14, color: isEditing ? primary : textDisabled }} />
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography sx={{ fontSize: 12, fontWeight: 600, color: textPrimary }} noWrap>{sec.name}</Typography>
+                            <Typography sx={{ fontSize: 10, color: textDisabled }}>
+                              {sec.rows.length} sıra · {secSeats.length} koltuk
+                            </Typography>
+                          </Box>
+                          <Chip label={sec.curveRadius > 0 ? 'Eğri' : 'Düz'} size="small"
+                            sx={{ height: 18, fontSize: 9, fontWeight: 600 }} />
+                        </Stack>
+                      </Box>
+                    );
+                  })}
+                  <Button size="small" fullWidth variant="outlined" startIcon={<AddIcon />}
+                    onClick={() => setVenue(addSection(venue))}
+                    sx={{ mt: 1, textTransform: 'none', borderRadius: 2, borderStyle: 'dashed', fontWeight: 600, fontSize: 11 }}>
+                    Bölüm Ekle
+                  </Button>
+                </Box>
+              </>)}
             </Box>
-          </>) : (
-            /* PREVIEW LEFT */
-            <Box sx={{ p: 2 }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: TEXT3, textTransform: 'uppercase', letterSpacing: 1, mb: 1.25 }}>Bilet Kategorileri</Typography>
-              <Stack spacing={0.75}>
-                {categories.map(cat => (
-                  <Box key={cat.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.25, p: '8px 10px', borderRadius: 2, background: SURFACE2, border: `1px solid ${BORDER}` }}>
-                    <Box sx={{ width: 12, height: 12, borderRadius: '3px', background: cat.color, flexShrink: 0 }} />
-                    <Box sx={{ flex: 1 }}>
-                      <Typography sx={{ fontSize: 12, fontWeight: 600, color: TEXT }}>{cat.name}</Typography>
-                      <Typography sx={{ fontSize: 10.5, color: TEXT3 }}>{avail[cat.id] || 0} müsait</Typography>
-                    </Box>
-                    <Typography sx={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: TEXT }}>₺{cat.price}</Typography>
+
+            {/* Section editor drawer */}
+            {editingSection && <SectionEditor />}
+          </Box>
+        )}
+
+        {/* PREVIEW LEFT */}
+        {!isMobile && mode === 'preview' && (
+          <Box sx={{ width: LEFT_W, flexShrink: 0, background: surface, borderRight: `1px solid ${border}`, p: 2, overflowY: 'auto' }}>
+            <Typography sx={{ fontSize: 9.5, fontWeight: 700, color: textDisabled, textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>Kategoriler</Typography>
+            <Stack spacing={0.5}>
+              {categories.map(cat => (
+                <Box key={cat.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, p: '6px 8px', borderRadius: 2, background: alpha(cat.color, 0.05), border: `1px solid ${alpha(cat.color, 0.12)}` }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '3px', background: cat.color, flexShrink: 0 }} />
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{ fontSize: 11, fontWeight: 600, color: textPrimary }}>{cat.name}</Typography>
+                    <Typography sx={{ fontSize: 9.5, color: textDisabled }}>{avail[cat.id] || 0} müsait</Typography>
                   </Box>
-                ))}
-              </Stack>
-              <Box sx={{ display: 'flex', gap: 1.5, mt: 1.5 }}>
-                {[{ c: SURFACE2, b: BORDER, l: 'Dolu' }, { c: GREEN, b: 'transparent', l: 'Seçili' }].map(v => (
-                  <Box key={v.l} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, fontSize: 11, color: TEXT3 }}>
-                    <Box sx={{ width: 12, height: 12, borderRadius: '3px', background: v.c, border: v.b !== 'transparent' ? `1px solid ${v.b}` : undefined }} />
-                    {v.l}
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          )}
-        </Box>
+                  <Typography sx={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: textPrimary }}>₺{cat.price}</Typography>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+        )}
 
         {/* CANVAS */}
         <Box sx={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -395,57 +599,56 @@ const SeatMapDesigner: React.FC = () => {
             onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
             onMouseLeave={() => { setIsPanning(false); setIsPainting(false); setTip(null); setHoveredSeat(null); }}
             onWheel={onWheel}
-            style={{ width: '100%', height: '100%', cursor: isPanning ? 'grabbing' : hoveredSeat ? 'pointer' : 'grab' }}
+            onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onUp}
+            style={{ width: '100%', height: '100%', cursor: isPanning ? 'grabbing' : hoveredSeat ? 'pointer' : 'grab', touchAction: 'none' }}
           />
-
-          {/* Zoom */}
-          <Box sx={{ position: 'absolute', bottom: 20, right: mode === 'preview' ? 280 : 20, display: 'flex', flexDirection: 'column', gap: 0.5, zIndex: 10 }}>
-            {[
-              { icon: <AddIcon sx={{ fontSize: 18 }} />, fn: () => setVp(v => ({ ...v, zoom: Math.min(3, v.zoom + 0.15) })) },
-            ].map((b, i) => (
-              <IconButton key={i} onClick={b.fn} sx={{ width: 36, height: 36, borderRadius: 2, background: SURFACE2, border: `1px solid ${BORDER}`, color: TEXT2, '&:hover': { background: SURFACE3 } }}>{b.icon}</IconButton>
-            ))}
-            <Box sx={{ background: SURFACE2, border: `1px solid ${BORDER}`, borderRadius: 1.5, py: 0.5, px: 1, fontSize: 11, fontFamily: 'monospace', color: TEXT2, textAlign: 'center' }}>
+          {/* Zoom controls */}
+          <Box sx={{ position: 'absolute', bottom: 16, right: 16, display: 'flex', flexDirection: 'column', gap: 0.5, zIndex: 10 }}>
+            <IconButton onClick={() => setVp(v => ({ ...v, zoom: Math.min(3, v.zoom + 0.15) }))}
+              size="small" sx={{ width: 32, height: 32, borderRadius: 1.5, background: surface, border: `1px solid ${border}`, color: textSecondary, '&:hover': { background: alpha(border, 0.5) } }}>
+              <AddIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+            <Box sx={{ background: surface, border: `1px solid ${border}`, borderRadius: 1, py: 0.25, px: 0.75, fontSize: 10, fontFamily: 'monospace', color: textDisabled, textAlign: 'center' }}>
               {Math.round(vp.zoom * 100)}%
             </Box>
             <IconButton onClick={() => setVp(v => ({ ...v, zoom: Math.max(0.3, v.zoom - 0.15) }))}
-              sx={{ width: 36, height: 36, borderRadius: 2, background: SURFACE2, border: `1px solid ${BORDER}`, color: TEXT2, '&:hover': { background: SURFACE3 } }}>
-              <RemoveIcon sx={{ fontSize: 18 }} />
+              size="small" sx={{ width: 32, height: 32, borderRadius: 1.5, background: surface, border: `1px solid ${border}`, color: textSecondary, '&:hover': { background: alpha(border, 0.5) } }}>
+              <RemoveIcon sx={{ fontSize: 16 }} />
             </IconButton>
             <IconButton onClick={() => setVp({ x: 0, y: 0, zoom: 1 })}
-              sx={{ width: 36, height: 36, borderRadius: 2, background: SURFACE2, border: `1px solid ${BORDER}`, color: TEXT2, '&:hover': { background: SURFACE3 } }}>
-              <ResetIcon sx={{ fontSize: 16 }} />
+              size="small" sx={{ width: 32, height: 32, borderRadius: 1.5, background: surface, border: `1px solid ${border}`, color: textSecondary, '&:hover': { background: alpha(border, 0.5) } }}>
+              <ResetIcon sx={{ fontSize: 14 }} />
             </IconButton>
           </Box>
         </Box>
 
-        {/* RIGHT PANEL (Preview) */}
-        {mode === 'preview' && (
-          <Box sx={{ width: 260, flexShrink: 0, background: SURFACE, borderLeft: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* RIGHT PANEL (Preview cart) */}
+        {mode === 'preview' && !isMobile && (
+          <Box sx={{ width: 260, flexShrink: 0, background: surface, borderLeft: `1px solid ${border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <Box sx={{ flex: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Typography sx={{ fontSize: 10, fontWeight: 700, color: TEXT3, textTransform: 'uppercase', letterSpacing: 1 }}>
-                Seçilen Koltuklar ({selectedSeats.length}/{MAX_SELECT})
+              <Typography sx={{ fontSize: 10, fontWeight: 700, color: textDisabled, textTransform: 'uppercase', letterSpacing: 1 }}>
+                Seçilenler ({selectedSeats.length}/{MAX_SELECT})
               </Typography>
 
               {selectedSeats.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 4, color: TEXT3 }}>
-                  <Typography sx={{ fontSize: 28, mb: 0.5, opacity: 0.5 }}>🪑</Typography>
-                  <Typography sx={{ fontSize: 12 }}>Koltuk seçmek için haritaya tıklayın</Typography>
+                <Box sx={{ textAlign: 'center', py: 4, color: textDisabled }}>
+                  <Typography sx={{ fontSize: 24, mb: 0.5, opacity: 0.5 }}>🪑</Typography>
+                  <Typography sx={{ fontSize: 11 }}>Koltuk seçmek için tıklayın</Typography>
                 </Box>
               ) : (
-                <Stack spacing={0.75}>
+                <Stack spacing={0.5}>
                   {selectedSeats.map(s => {
                     const cat = categories.find(c => c.id === s.category);
                     return (
-                      <Box key={s.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, background: SURFACE2, border: `1px solid ${BORDER}`, borderRadius: 2, p: '8px 10px' }}>
+                      <Box key={s.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, background: alpha(border, 0.3), border: `1px solid ${border}`, borderRadius: 2, p: '6px 8px' }}>
                         <Box sx={{ width: 8, height: 8, borderRadius: '2px', background: cat?.color, flexShrink: 0 }} />
                         <Box sx={{ flex: 1 }}>
-                          <Typography sx={{ fontSize: 12, fontWeight: 700, color: TEXT }}>{s.sectionName} · {s.rowLabel}-{s.seatNumber}</Typography>
-                          <Typography sx={{ fontSize: 10, color: TEXT3 }}>{cat?.name}</Typography>
+                          <Typography sx={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>{s.sectionName} · {s.rowLabel}{s.seatNumber}</Typography>
+                          <Typography sx={{ fontSize: 9.5, color: textDisabled }}>{cat?.name}</Typography>
                         </Box>
-                        <Typography sx={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: GREEN }}>₺{cat?.price}</Typography>
-                        <IconButton size="small" onClick={() => setSelectedSeats(prev => prev.filter(ss => ss.id !== s.id))} sx={{ color: TEXT3, p: 0.25, '&:hover': { color: '#ef4444' } }}>
-                          <CloseIcon sx={{ fontSize: 13 }} />
+                        <Typography sx={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: green }}>₺{cat?.price}</Typography>
+                        <IconButton size="small" onClick={() => setSelectedSeats(p => p.filter(ss => ss.id !== s.id))} sx={{ color: textDisabled, p: 0.25, '&:hover': { color: muiTheme.palette.error.main } }}>
+                          <CloseIcon sx={{ fontSize: 12 }} />
                         </IconButton>
                       </Box>
                     );
@@ -454,22 +657,22 @@ const SeatMapDesigner: React.FC = () => {
               )}
 
               {selectedSeats.length > 0 && (
-                <Box sx={{ background: SURFACE2, border: `1px solid ${BORDER}`, borderRadius: 2, p: 1.5 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, mb: 0.75, color: TEXT2 }}>
+                <Box sx={{ background: alpha(border, 0.3), border: `1px solid ${border}`, borderRadius: 2, p: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, mb: 0.5, color: textSecondary }}>
                     <span>Bilet ({selectedSeats.length})</span><span>₺{price.sub.toLocaleString('tr-TR')}</span>
                   </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, mb: 0.75, color: TEXT2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, mb: 0.5, color: textSecondary }}>
                     <span>Hizmet (%5)</span><span>₺{price.fee.toLocaleString('tr-TR')}</span>
                   </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 800, pt: 1, borderTop: `1px solid ${BORDER}`, color: TEXT }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800, pt: 0.75, borderTop: `1px solid ${border}`, color: textPrimary }}>
                     <span>Toplam</span>
-                    <span style={{ color: GREEN, fontFamily: 'monospace' }}>₺{price.total.toLocaleString('tr-TR')}</span>
+                    <span style={{ color: green, fontFamily: 'monospace' }}>₺{price.total.toLocaleString('tr-TR')}</span>
                   </Box>
                 </Box>
               )}
 
               <Button fullWidth disabled={!selectedSeats.length} onClick={() => setOrderOpen(true)} startIcon={<CartIcon />}
-                sx={{ py: 1.5, borderRadius: 2.5, fontSize: 14, fontWeight: 800, textTransform: 'none', background: selectedSeats.length > 0 ? GREEN : SURFACE3, color: selectedSeats.length > 0 ? '#0a1a12' : TEXT3, '&:hover': { background: '#0ea271' }, '&:disabled': { background: SURFACE3, color: TEXT3 } }}>
+                sx={{ py: 1.25, borderRadius: 2, fontSize: 13, fontWeight: 800, textTransform: 'none', background: selectedSeats.length > 0 ? green : alpha(border, 0.3), color: selectedSeats.length > 0 ? '#fff' : textDisabled, '&:hover': { background: '#0ea271' }, '&:disabled': { background: alpha(border, 0.3), color: textDisabled } }}>
                 Ödemeye Geç
               </Button>
             </Box>
@@ -479,50 +682,48 @@ const SeatMapDesigner: React.FC = () => {
 
       {/* TOOLTIP */}
       {tip && (
-        <Box sx={{ position: 'fixed', zIndex: 200, left: tip.x, top: tip.y, background: SURFACE3, border: `1px solid ${BORDER}`, borderRadius: 2, p: '8px 12px', pointerEvents: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.4)', whiteSpace: 'nowrap' }}>
-          <Typography sx={{ fontWeight: 700, color: TEXT2, fontSize: 10, textTransform: 'uppercase', mb: 0.25 }}>{tip.seat.sectionName} · Sıra {tip.seat.rowLabel}</Typography>
-          <Typography sx={{ fontSize: 13, fontWeight: 800, color: TEXT, mb: 0.5 }}>Koltuk {tip.seat.seatNumber}</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, fontSize: 11, color: TEXT2 }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: '2px', background: getCategoryColor(tip.seat.category, categories) }} />
-            {categories.find(c => c.id === tip.seat.category)?.name}
+        <Box sx={{ position: 'fixed', zIndex: 200, left: tip.x, top: tip.y, background: surface, border: `1px solid ${border}`, borderRadius: 2, p: '6px 10px', pointerEvents: 'none', boxShadow: muiTheme.shadows[8], whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontWeight: 700, color: textDisabled, fontSize: 9, textTransform: 'uppercase', mb: 0.25 }}>{tip.seat.sectionName} · Sıra {tip.seat.rowLabel}</Typography>
+          <Typography sx={{ fontSize: 12, fontWeight: 800, color: textPrimary }}>Koltuk {tip.seat.seatNumber}</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: '2px', background: getCategoryColor(tip.seat.category, categories) }} />
+            <Typography sx={{ fontSize: 10, color: textSecondary }}>{categories.find(c => c.id === tip.seat.category)?.name}</Typography>
+            {mode === 'preview' && <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, color: green, fontSize: 10, ml: 0.5 }}>₺{categories.find(c => c.id === tip.seat.category)?.price}</Typography>}
           </Box>
-          {mode === 'preview' && <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, color: TEXT, mt: 0.5 }}>₺{categories.find(c => c.id === tip.seat.category)?.price}</Typography>}
         </Box>
       )}
 
       {/* ORDER MODAL */}
-      <Dialog open={orderOpen} onClose={() => setOrderOpen(false)} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 4, boxShadow: '0 20px 60px rgba(0,0,0,0.6)' } }}
-        slotProps={{ backdrop: { sx: { backdropFilter: 'blur(6px)' } } }}>
-        <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
-          <Typography sx={{ fontSize: 18, fontWeight: 800, color: TEXT }}><TicketIcon sx={{ fontSize: 20, mr: 1, verticalAlign: 'text-bottom', color: GREEN }} />Sipariş Özeti</Typography>
-          <Typography sx={{ fontSize: 13, color: TEXT3, mt: 0.5 }}>{venue.name}</Typography>
+      <Dialog open={orderOpen} onClose={() => setOrderOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          <TicketIcon sx={{ fontSize: 20, mr: 1, verticalAlign: 'text-bottom', color: green }} />
+          Sipariş Özeti
         </DialogTitle>
-        <DialogContent sx={{ px: 3, py: 2.5 }}>
+        <DialogContent dividers>
           <Stack spacing={1} sx={{ mb: 2 }}>
             {selectedSeats.map(s => {
               const cat = categories.find(c => c.id === s.category);
               return (
-                <Box key={s.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, background: SURFACE2, borderRadius: 2 }}>
-                  <Box sx={{ width: 10, height: 10, borderRadius: '3px', background: cat?.color, flexShrink: 0 }} />
+                <Box key={s.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, bgcolor: 'action.hover', borderRadius: 2 }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '3px', background: cat?.color }} />
                   <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{s.sectionName} · {s.rowLabel}-{s.seatNumber}</Typography>
-                    <Typography sx={{ fontSize: 11, color: TEXT3 }}>{cat?.name}</Typography>
+                    <Typography variant="body2" fontWeight={700}>{s.sectionName} · {s.rowLabel}-{s.seatNumber}</Typography>
+                    <Typography variant="caption" color="text.secondary">{cat?.name}</Typography>
                   </Box>
-                  <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, color: GREEN }}>₺{cat?.price}</Typography>
+                  <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, color: green }}>₺{cat?.price}</Typography>
                 </Box>
               );
             })}
           </Stack>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.75, background: SURFACE3, borderRadius: 2 }}>
-            <Typography sx={{ fontSize: 14, fontWeight: 600, color: TEXT }}>Ödenecek Tutar</Typography>
-            <Typography sx={{ fontSize: 22, fontWeight: 800, fontFamily: 'monospace', color: GREEN }}>₺{price.total.toLocaleString('tr-TR')}</Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2, bgcolor: 'action.selected', borderRadius: 2 }}>
+            <Typography fontWeight={600}>Ödenecek Tutar</Typography>
+            <Typography sx={{ fontSize: 20, fontWeight: 800, fontFamily: 'monospace', color: green }}>₺{price.total.toLocaleString('tr-TR')}</Typography>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setOrderOpen(false)} sx={{ px: 2, py: 1, borderRadius: 2, fontSize: 13, fontWeight: 600, textTransform: 'none', color: TEXT2, background: SURFACE2, border: `1px solid ${BORDER}` }}>Geri</Button>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setOrderOpen(false)} sx={{ textTransform: 'none', borderRadius: 2 }}>Geri</Button>
           <Button onClick={() => { setOrderOpen(false); enqueueSnackbar('Ödeme sayfasına yönlendiriliyorsunuz...', { variant: 'success' }); }}
-            sx={{ px: 2, py: 1, borderRadius: 2, fontSize: 13, fontWeight: 600, textTransform: 'none', color: '#0a1a12', background: GREEN, '&:hover': { background: '#0ea271' } }}>
+            variant="contained" sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700, bgcolor: green, '&:hover': { bgcolor: '#0ea271' } }}>
             Ödemeye Geç
           </Button>
         </DialogActions>
