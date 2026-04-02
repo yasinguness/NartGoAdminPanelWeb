@@ -22,6 +22,7 @@ interface RichContentEditorProps {
   blocks: ContentBlock[];
   onChange: (blocks: ContentBlock[]) => void;
   compact?: boolean;
+  onImageUpload?: (file: File) => Promise<string | null>;
 }
 
 const BLOCK_OPTIONS: { type: ContentBlockType; label: string; icon: React.ReactNode; desc: string }[] = [
@@ -123,11 +124,12 @@ function parsePastedText(text: string): ContentBlock[] {
   return blocks.length ? blocks : [{ type: 'paragraph', text: text }];
 }
 
-export default function RichContentEditor({ blocks, onChange, compact }: RichContentEditorProps) {
+export default function RichContentEditor({ blocks, onChange, compact, onImageUpload }: RichContentEditorProps) {
   const theme = useTheme();
   const [addMenuAnchor, setAddMenuAnchor] = useState<{ el: HTMLElement; index: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTargetIndex, setUploadTargetIndex] = useState<number>(-1);
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
   const updateBlock = useCallback((index: number, updated: ContentBlock) => {
     const next = [...blocks]; next[index] = updated; onChange(next);
@@ -147,16 +149,27 @@ export default function RichContentEditor({ blocks, onChange, compact }: RichCon
     const next = [...blocks]; next.splice(afterIndex + 1, 0, createBlock(type)); onChange(next); setAddMenuAnchor(null);
   }, [blocks, onChange]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || uploadTargetIndex < 0 || !file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const block = blocks[uploadTargetIndex];
-      if (block.type === 'image') updateBlock(uploadTargetIndex, { ...block, url: ev.target?.result as string });
-    };
-    reader.readAsDataURL(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    try {
+      setUploadingIndex(uploadTargetIndex);
+      if (onImageUpload) {
+        const url = await onImageUpload(file);
+        const block = blocks[uploadTargetIndex];
+        if (block.type === 'image' && url) updateBlock(uploadTargetIndex, { ...block, url });
+      } else {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const block = blocks[uploadTargetIndex];
+          if (block.type === 'image') updateBlock(uploadTargetIndex, { ...block, url: ev.target?.result as string });
+        };
+        reader.readAsDataURL(file);
+      }
+    } finally {
+      setUploadingIndex(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   // Handle paste from clipboard — parse into blocks
@@ -345,9 +358,18 @@ export default function RichContentEditor({ blocks, onChange, compact }: RichCon
             ) : (
               <Box onClick={() => { setUploadTargetIndex(index); fileInputRef.current?.click(); }}
                 sx={{ border: '2px dashed', borderColor: 'divider', borderRadius: 3, p: 4, textAlign: 'center', cursor: 'pointer', transition: '0.15s', '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.02) } }}>
-                <UploadIcon sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
-                <Typography variant="body2" color="text.secondary" fontWeight={600}>Görsel yüklemek için tıklayın</Typography>
-                <Typography variant="caption" color="text.disabled">JPG, PNG, WebP — Maks 5MB</Typography>
+                {uploadingIndex === index ? (
+                  <>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>Görsel yükleniyor...</Typography>
+                    <Typography variant="caption" color="text.disabled">Lütfen bekleyin</Typography>
+                  </>
+                ) : (
+                  <>
+                    <UploadIcon sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>Görsel yüklemek için tıklayın</Typography>
+                    <Typography variant="caption" color="text.disabled">JPG, PNG, WebP — Maks 10MB</Typography>
+                  </>
+                )}
               </Box>
             )}
             {block.url && (

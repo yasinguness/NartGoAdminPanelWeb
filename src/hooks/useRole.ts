@@ -14,6 +14,7 @@ export function useRole() {
   const user = useAuthStore((state) => state.user);
 
   return useMemo(() => {
+    const normalizeIdentity = (value?: string | null) => (value || '').trim().toLowerCase();
     const roles: string[] = [];
 
     // Parse roles from user object
@@ -50,11 +51,16 @@ export function useRole() {
         }
         return true;
       },
-      /** Check if user owns a resource (by email match) */
-      isOwner: (resourceAuthorEmail?: string): boolean => {
+      /** Check if user owns a resource (email or display name match) */
+      isOwner: (resourceAuthor?: string): boolean => {
         if (isAdmin) return true;
-        if (!resourceAuthorEmail || !user?.email) return false;
-        return user.email.toLowerCase() === resourceAuthorEmail.toLowerCase();
+        const resourceIdentity = normalizeIdentity(resourceAuthor);
+        const userEmail = normalizeIdentity(user?.email);
+        const userFullName = normalizeIdentity(
+          user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : '',
+        );
+        if (!resourceIdentity) return false;
+        return resourceIdentity === userEmail || (!!userFullName && resourceIdentity === userFullName);
       },
       /** Current user email */
       userEmail: user?.email || '',

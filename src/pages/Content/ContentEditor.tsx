@@ -16,12 +16,14 @@ import { useSnackbar } from 'notistack';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useArticleStore } from '../../store/article/articleStore';
 import { articleService } from '../../services/article/articleService';
+import { api } from '../../services/api';
 import {
   ArticleCategory, ArticleType, ArticleStatus,
   CATEGORY_LABELS, TYPE_LABELS,
 } from '../../types/article/articleModel';
 import type { ArticleCreateRequest, ArticleDto } from '../../types/article/articleModel';
 import RichContentEditor, { RichContentRenderer } from '../../components/RichContentEditor';
+import OptionalImageCropDialog from '../../components/OptionalImageCropDialog';
 import type { ContentBlock } from '../../types/notification.types';
 import { useRole } from '../../hooks/useRole';
 
@@ -40,12 +42,27 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+function sanitizeFileName(fileName: string): string {
+  const dotIndex = fileName.lastIndexOf('.');
+  const baseName = dotIndex >= 0 ? fileName.slice(0, dotIndex) : fileName;
+  const extension = dotIndex >= 0 ? fileName.slice(dotIndex + 1).toLowerCase() : 'jpg';
+  const safeBase = slugify(baseName) || 'image';
+  return `${safeBase}.${extension.replace(/[^a-z0-9]/g, '') || 'jpg'}`;
+}
+
+function buildUploadPath(prefix: string, file: File): string {
+  const timestamp = Date.now();
+  return `${prefix}/${timestamp}-${sanitizeFileName(file.name)}`;
+}
+
 const initialForm: ArticleCreateRequest = {
   title: '', slug: '', summary: '', body: '',
   contentType: ArticleType.ARTICLE, category: ArticleCategory.CULTURE,
   coverImageUrl: '', author: '', tags: [],
   featured: false, breakingNews: false,
 };
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
 function escapeHtml(text: string): string {
   return text
@@ -70,19 +87,93 @@ function stripHtmlToText(html: string): string {
 }
 
 function htmlToBlocks(html?: string): ContentBlock[] {
-  const text = stripHtmlToText(html || '');
-  if (!text) return [];
+  if (!html?.trim()) return [];
 
-  return text
-    .split(/\n{2,}/)
-    .map((chunk) => chunk.trim())
-    .filter(Boolean)
-    .map((chunk, index) => {
-      if (index === 0) {
-        return { type: 'paragraph' as const, text: chunk };
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const nodes = Array.from(doc.body.children);
+  const blocks: ContentBlock[] = [];
+
+  for (const node of nodes) {
+    const tag = node.tagName.toLowerCase();
+
+    if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+      blocks.push({
+        type: 'heading',
+        level: Number(tag[1]) as 1 | 2 | 3,
+        text: (node.textContent || '').trim(),
+      });
+      continue;
+    }
+
+    if (tag === 'p') {
+      const text = stripHtmlToText(node.innerHTML);
+      if (text) blocks.push({ type: 'paragraph', text });
+      continue;
+    }
+
+    if (tag === 'ul' || tag === 'ol') {
+      const items = Array.from(node.querySelectorAll('li'))
+        .map((li) => (li.textContent || '').trim())
+        .filter(Boolean);
+      if (items.length) {
+        blocks.push({
+          type: tag === 'ul' ? 'bullet_list' : 'ordered_list',
+          items,
+        });
       }
-      return { type: 'paragraph' as const, text: chunk };
-    });
+      continue;
+    }
+
+    if (tag === 'figure') {
+      const img = node.querySelector('img');
+      if (img?.getAttribute('src')) {
+        blocks.push({
+          type: 'image',
+          url: img.getAttribute('src') || '',
+          caption: node.querySelector('figcaption')?.textContent?.trim() || '',
+          width: 'full',
+        });
+      }
+      continue;
+    }
+
+    if (tag === 'img') {
+      const src = node.getAttribute('src');
+      if (src) {
+        blocks.push({ type: 'image', url: src, caption: node.getAttribute('alt') || '', width: 'full' });
+      }
+      continue;
+    }
+
+    if (tag === 'hr') {
+      blocks.push({ type: 'divider' });
+      continue;
+    }
+
+    if (tag === 'blockquote') {
+      const variant = node.getAttribute('data-callout');
+      const footer = node.querySelector('footer');
+      const footerText = footer?.textContent?.trim() || '';
+      if (variant === 'info' || variant === 'warning' || variant === 'success') {
+        blocks.push({ type: 'callout', text: stripHtmlToText(node.innerHTML), variant });
+      } else {
+        const quoteText = stripHtmlToText(node.innerHTML.replace(footer?.outerHTML || '', ''));
+        blocks.push({ type: 'quote', text: quoteText, author: footerText });
+      }
+      continue;
+    }
+
+    const fallbackText = stripHtmlToText(node.innerHTML);
+    if (fallbackText) {
+      blocks.push({ type: 'paragraph', text: fallbackText });
+    }
+  }
+
+  if (blocks.length > 0) return blocks;
+
+  const text = stripHtmlToText(html);
+  return text ? [{ type: 'paragraph', text }] : [];
 }
 
 function blocksToHtml(blocks: ContentBlock[]): string {
@@ -162,16 +253,18 @@ export default function ContentEditor() {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [cropDialogState, setCropDialogState] = useState<{ file: File; title: string } | null>(null);
   const coverFileRef = useRef<HTMLInputElement>(null);
   const initialFormRef = useRef<string>('');
+  const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
   const useBlockEditor = form.contentType !== ArticleType.GALLERY;
 
   // ─── LIFECYCLE ────────────────────────────────────
   useEffect(() => {
     if (isEdit && id) loadArticle(id);
-    initialFormRef.current = JSON.stringify(initialForm);
-  }, [id]);
+    initialFormRef.current = JSON.stringify({ form: { ...initialForm, author: userName || '' }, richBlocks: [] });
+  }, [id, userName]);
 
   useEffect(() => {
     if (autoSlug && !isEdit) {
@@ -198,8 +291,7 @@ export default function ContentEditor() {
   const loadArticle = async (articleId: string) => {
     try {
       setLoading(true);
-      const res = await articleService.getArticles({ page: 0, size: 100 });
-      const found = res.content?.find((a: ArticleDto) => a.id === articleId);
+      const found = await articleService.getArticle(articleId);
       if (found) {
         // Editor role — ownership check
         if (isEditorOnly && !isOwner(found.author)) {
@@ -273,24 +365,47 @@ export default function ContentEditor() {
   };
 
   // ─── IMAGE UPLOAD ─────────────────────────────────
+  const validateImageFile = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) {
+      enqueueSnackbar('Sadece görsel dosyaları yüklenebilir', { variant: 'warning' });
+      return false;
+    }
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      enqueueSnackbar('Dosya boyutu 10MB\'ı aşamaz', { variant: 'warning' });
+      return false;
+    }
+    return true;
+  }, [enqueueSnackbar]);
+
+  const closeCropDialog = useCallback((file: File | null) => {
+    cropResolveRef.current?.(file);
+    cropResolveRef.current = null;
+    setCropDialogState(null);
+  }, []);
+
+  const requestOptionalCrop = useCallback((file: File, title: string) => {
+    return new Promise<File | null>((resolve) => {
+      cropResolveRef.current = resolve;
+      setCropDialogState({ file, title });
+    });
+  }, []);
+
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { enqueueSnackbar('Sadece görsel dosyaları yüklenebilir', { variant: 'warning' }); return; }
-    if (file.size > 10 * 1024 * 1024) { enqueueSnackbar('Dosya boyutu 10MB\'ı aşamaz', { variant: 'warning' }); return; }
+    if (!validateImageFile(file)) {
+      if (coverFileRef.current) coverFileRef.current.value = '';
+      return;
+    }
 
-    setUploading(true);
-    setUploadProgress(0);
+    let preparedFile: File | null = null;
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('path', 'articles/covers');
-      const { api } = await import('../../services/api');
-      const response = await api.post('/media/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (e) => { if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100)); },
-      });
-      const url = response.data?.data?.url || response.data?.data?.mediaUrl;
+      preparedFile = await requestOptionalCrop(file, 'Kapak görseli');
+      if (!preparedFile) return;
+
+      setUploading(true);
+      setUploadProgress(0);
+      const url = await uploadImage(preparedFile, 'articles/covers', (progress) => setUploadProgress(progress));
       if (url) {
         setForm(prev => ({ ...prev, coverImageUrl: url }));
         enqueueSnackbar('Görsel yüklendi', { variant: 'success' });
@@ -299,7 +414,7 @@ export default function ContentEditor() {
       // Fallback: use base64 for preview
       const reader = new FileReader();
       reader.onload = (ev) => setForm(prev => ({ ...prev, coverImageUrl: ev.target?.result as string }));
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(preparedFile || file);
       enqueueSnackbar('Sunucuya yüklenemedi, yerel önizleme kullanılıyor', { variant: 'info' });
     } finally {
       setUploading(false);
@@ -317,6 +432,53 @@ export default function ContentEditor() {
   const updateField = useCallback(<K extends keyof ArticleCreateRequest>(key: K, value: ArticleCreateRequest[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
   }, []);
+
+  const uploadImage = useCallback(async (file: File, pathPrefix: string, onProgress?: (progress: number) => void) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('path', buildUploadPath(pathPrefix, file));
+    const response = await api.post('/media/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (event) => {
+        if (event.total && onProgress) {
+          onProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      },
+    });
+
+    const url = response.data?.data?.url || response.data?.data?.mediaUrl;
+    if (!url) {
+      throw new Error('Upload response missing url');
+    }
+    return url as string;
+  }, []);
+
+  const handleBlockImageUpload = useCallback(async (file: File) => {
+    if (!validateImageFile(file)) {
+      return null;
+    }
+
+    const preparedFile = await requestOptionalCrop(file, 'İçerik görseli');
+    if (!preparedFile) {
+      return null;
+    }
+
+    try {
+      const url = await uploadImage(preparedFile, 'articles/content');
+      enqueueSnackbar('İçerik görseli yüklendi', { variant: 'success' });
+      return url;
+    } catch {
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          enqueueSnackbar('Sunucuya yüklenemedi, yerel önizleme kullanılıyor', { variant: 'info' });
+          resolve(event.target?.result as string);
+        };
+        reader.onerror = () => reject(new Error('file-read-failed'));
+        reader.readAsDataURL(preparedFile);
+      });
+    }
+  }, [enqueueSnackbar, requestOptionalCrop, uploadImage, validateImageFile]);
 
   // ─── COMPUTED ─────────────────────────────────────
   const wordCount = useMemo(() => {
@@ -478,12 +640,28 @@ export default function ContentEditor() {
                     <Paper elevation={0} sx={{ mt: 1.5, borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
                       {showPreview ? (
                         <Box sx={{ p: 4, minHeight: 500, bgcolor: '#FFFFFF' }}>
+                          {form.coverImageUrl && (
+                            <Box
+                              component="img"
+                              src={form.coverImageUrl}
+                              alt={form.title}
+                              sx={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 3, mb: 3 }}
+                            />
+                          )}
+                          <Typography variant="h3" fontWeight={800} sx={{ mb: 1.5 }}>
+                            {form.title || 'Başlıksız içerik'}
+                          </Typography>
+                          {form.summary && (
+                            <Typography color="text.secondary" sx={{ mb: 3, fontSize: 16, lineHeight: 1.7 }}>
+                              {form.summary}
+                            </Typography>
+                          )}
                           <RichContentRenderer blocks={richBlocks} />
                         </Box>
                       ) : (
                         <Box>
                           <Box sx={{ p: { xs: 2, md: 4 }, minHeight: 500 }}>
-                            <RichContentEditor blocks={richBlocks} onChange={setRichBlocks} />
+                            <RichContentEditor blocks={richBlocks} onChange={setRichBlocks} onImageUpload={handleBlockImageUpload} />
                           </Box>
                           {/* Word count bar */}
                           <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
@@ -644,6 +822,15 @@ export default function ContentEditor() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <OptionalImageCropDialog
+        open={!!cropDialogState}
+        file={cropDialogState?.file || null}
+        title={cropDialogState?.title}
+        onCancel={() => closeCropDialog(null)}
+        onUseOriginal={(file) => closeCropDialog(file)}
+        onConfirmCrop={(file) => closeCropDialog(file)}
+      />
     </Box>
   );
 }

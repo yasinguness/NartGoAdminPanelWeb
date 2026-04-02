@@ -46,12 +46,12 @@ export default function ContentList() {
     articles, totalElements, loading, fetchArticles,
     deleteArticle, publishArticle, archiveArticle,
   } = useArticleStore();
-  const { isEditorOnly, isOwner, userEmail } = useRole();
+  const { isEditorOnly, isOwner } = useRole();
 
   const visibleArticles = useMemo(() => {
     if (!isEditorOnly) return articles;
-    return articles.filter(a => a.author?.toLowerCase() === userEmail.toLowerCase());
-  }, [articles, isEditorOnly, userEmail]);
+    return articles.filter((article) => !article.author || isOwner(article.author));
+  }, [articles, isEditorOnly, isOwner]);
 
   const [page, setPage] = useState(0);
   const [pageSize] = useState(10);
@@ -69,11 +69,12 @@ export default function ContentList() {
         size: pageSize,
         ...(filterCategory && { category: filterCategory as ArticleCategory }),
         ...(filterStatus && { status: filterStatus as ArticleStatus }),
+        ...(filterType && { contentType: filterType }),
         ...(search && { keyword: search }),
       });
     }, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [page, pageSize, filterCategory, filterStatus, search, fetchArticles]);
+  }, [page, pageSize, filterCategory, filterStatus, filterType, search, fetchArticles]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
