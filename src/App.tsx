@@ -44,6 +44,7 @@ import CustomerSupportConsole from './pages/CustomerSupport/CustomerSupportConso
 import CampaignPromoEngine from './pages/CampaignPromoEngine/CampaignPromoEngine';
 import SeatMapDesigner from './pages/SeatMap/SeatMapDesigner';
 import EventOperations from './pages/AdminOperations/EventOperations';
+import Settings from './pages/Settings';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +108,7 @@ function App() {
                 <Route path="sub-merchants" element={<SubMerchants />} />
                 <Route path="sub-merchants/new" element={<SubMerchantForm />} />
                 <Route path="sub-merchants/:id" element={<SubMerchantDetails />} />
+                <Route path="settings" element={<Settings />} />
               </Route>
             </Routes>
           </BrowserRouter>

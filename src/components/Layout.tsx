@@ -342,33 +342,55 @@ export default function Layout() {
                     <MenuIcon />
                 </IconButton>
 
-                <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', color: theme.palette.text.primary }}>
-                    {currentPageTitle}
-                </Typography>
+                <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2, color: theme.palette.text.primary }}>
+                        {currentPageTitle}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: theme.palette.text.disabled, fontSize: 11 }}>
+                        NartGo Yönetim Paneli
+                    </Typography>
+                </Box>
 
                 <Box sx={{ flex: 1 }} />
 
-                {/* Optional: search shortcut hint */}
+                {/* Search hint */}
                 <Box sx={{
                     display: { xs: 'none', md: 'flex' },
                     alignItems: 'center', gap: 1,
-                    px: 1.5, py: 0.5,
+                    px: 1.5, py: 0.625,
                     borderRadius: 2,
                     border: `1px solid ${theme.palette.divider}`,
                     cursor: 'pointer',
-                    '&:hover': { borderColor: theme.palette.text.disabled },
+                    transition: 'all 0.15s',
+                    '&:hover': { borderColor: theme.palette.primary.main, bgcolor: alpha(theme.palette.primary.main, 0.02) },
                 }}>
-                    <SearchIcon sx={{ fontSize: 16, color: theme.palette.text.disabled }} />
-                    <Typography sx={{ fontSize: 12, color: theme.palette.text.disabled }}>Ara...</Typography>
+                    <SearchIcon sx={{ fontSize: 15, color: theme.palette.text.disabled }} />
+                    <Typography sx={{ fontSize: 12, color: theme.palette.text.disabled, userSelect: 'none' }}>Ara...</Typography>
                     <Box sx={{
                         px: 0.75, py: 0.125, borderRadius: 1,
                         border: `1px solid ${theme.palette.divider}`,
-                        fontSize: 10, fontWeight: 600, fontFamily: 'monospace',
+                        fontSize: 10, fontWeight: 700, fontFamily: 'monospace',
                         color: theme.palette.text.disabled,
                     }}>
                         ⌘K
                     </Box>
                 </Box>
+
+                {/* Notifications shortcut */}
+                <Tooltip title="Bildirimler">
+                    <IconButton size="small" onClick={() => navigate('/notifications')}
+                        sx={{ color: theme.palette.text.secondary, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}>
+                        <NotificationsIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                </Tooltip>
+
+                {/* Settings shortcut */}
+                <Tooltip title="Ayarlar">
+                    <IconButton size="small" onClick={() => navigate('/settings')}
+                        sx={{ color: theme.palette.text.secondary, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}>
+                        <SettingsIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                </Tooltip>
             </Box>
 
             {/* Sidebar */}
