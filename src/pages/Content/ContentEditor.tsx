@@ -28,6 +28,7 @@ import {
 import type { ArticleCreateRequest, ArticleDto } from '../../types/article/articleModel';
 import RichContentEditor, { RichContentRenderer } from '../../components/RichContentEditor';
 import type { ContentBlock } from '../../types/notification.types';
+import { useRole } from '../../hooks/useRole';
 
 // ─── UTILS ──────────────────────────────────────────
 function slugify(text: string): string {
@@ -57,9 +58,10 @@ export default function ContentEditor() {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { createArticle, updateArticle } = useArticleStore();
+  const { isEditorOnly, isOwner, userName, userEmail } = useRole();
 
   const isEdit = !!id;
-  const [form, setForm] = useState<ArticleCreateRequest>(initialForm);
+  const [form, setForm] = useState<ArticleCreateRequest>({ ...initialForm, author: userName || '' });
   const [richBlocks, setRichBlocks] = useState<ContentBlock[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -111,6 +113,12 @@ export default function ContentEditor() {
       const res = await articleService.getArticles({ page: 0, size: 100 });
       const found = res.content?.find((a: ArticleDto) => a.id === articleId);
       if (found) {
+        // Editor role — ownership check
+        if (isEditorOnly && !isOwner(found.author)) {
+          enqueueSnackbar('Bu içeriği düzenleme yetkiniz yok', { variant: 'error' });
+          navigate('/content');
+          return;
+        }
         setArticle(found);
         const formData: ArticleCreateRequest = {
           title: found.title, slug: found.slug, summary: found.summary || '',

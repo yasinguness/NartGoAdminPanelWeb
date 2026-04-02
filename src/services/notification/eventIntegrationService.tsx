@@ -60,7 +60,7 @@ export const eventIntegrationService = {
                 location: `${event.address?.city}, ${event.address?.district}`
             }));
         } catch (error) {
-            console.error('Error fetching popular events:', error);
+            // silently handled
             throw new Error('Popüler etkinlikler yüklenirken hata oluştu');
         }
     },
@@ -85,7 +85,7 @@ export const eventIntegrationService = {
                 location: `${event.address?.city}, ${event.address?.district}`
             }));
         } catch (error) {
-            console.error('Error fetching organizer events:', error);
+            // silently handled
             throw new Error('Organizatör etkinlikleri yüklenirken hata oluştu');
         }
     },
@@ -103,7 +103,7 @@ export const eventIntegrationService = {
 
             return response.data.data;
         } catch (error) {
-            console.error('Error fetching event details:', error);
+            // silently handled
             throw new Error('Etkinlik detayları yüklenirken hata oluştu');
         }
     },
@@ -407,7 +407,7 @@ export const eventIntegrationService = {
 
             return response.data.data.participants.map(p => p.userId);
         } catch (error) {
-            console.error('Error fetching event participants:', error);
+            // silently handled
             throw new Error('Etkinlik katılımcıları yüklenirken hata oluştu');
         }
     },
@@ -434,7 +434,7 @@ export const eventIntegrationService = {
                 location: `${event.address?.city}, ${event.address?.district}`
             }));
         } catch (error) {
-            console.error('Error searching events:', error);
+            // silently handled
             throw new Error('Etkinlik arama sırasında hata oluştu');
         }
     }

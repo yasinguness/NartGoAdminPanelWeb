@@ -141,7 +141,7 @@ export const searchPlaces = async (input: string): Promise<PlacePrediction[]> =>
             );
         });
     } catch (error) {
-        console.error('Failed to search places:', error);
+        // silently handled
         return [];
     }
 };
@@ -187,7 +187,7 @@ export const getPlaceDetails = async (placeId: string): Promise<Partial<AddressD
             );
         });
     } catch (error) {
-        console.error('Failed to get place details:', error);
+        // silently handled
         return null;
     }
 };

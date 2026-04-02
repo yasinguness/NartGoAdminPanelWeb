@@ -172,7 +172,7 @@ export const AssociationTable: React.FC<AssociationTableProps> = ({
                     </Typography>
                     <Chip 
                       size="small" 
-                      label="Active" 
+                      label="Aktif" 
                       color="success"
                       sx={{ borderRadius: 2 }}
                     />
@@ -180,7 +180,7 @@ export const AssociationTable: React.FC<AssociationTableProps> = ({
                 </Box>
                 
                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                  <Tooltip title="View Details">
+                  <Tooltip title="Detayları Gör">
                     <IconButton 
                       size="small"
                       onClick={(e) => { e.stopPropagation(); onView(association); }}
@@ -299,7 +299,7 @@ export const AssociationTable: React.FC<AssociationTableProps> = ({
                       </TableCell>
                       <TableCell>
                         <Chip 
-                          label="Active" 
+                          label="Aktif" 
                           color="success" 
                           size="small"
                           sx={{ borderRadius: 2, fontWeight: 500 }}
@@ -307,12 +307,12 @@ export const AssociationTable: React.FC<AssociationTableProps> = ({
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {association.createdAt ? new Date(association.createdAt).toLocaleDateString() : 'N/A'}
+                          {association.createdAt ? new Date(association.createdAt).toLocaleDateString() : '—'}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
                         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                          <Tooltip title="View Details">
+                          <Tooltip title="Detayları Gör">
                             <IconButton 
                               size="small"
                               onClick={(e) => { e.stopPropagation(); onView(association); }}

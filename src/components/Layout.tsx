@@ -51,6 +51,7 @@ import {
     Article as ArticleIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import { useRole } from '../hooks/useRole';
 
 const drawerWidth = 272;
 
@@ -64,6 +65,8 @@ interface MenuSection {
     title: string;
     items: MenuItem[];
     defaultOpen?: boolean;
+    /** If set, section only visible to these roles. Empty = all roles */
+    allowedRoles?: string[];
 }
 
 const menuSections: MenuSection[] = [
@@ -77,6 +80,7 @@ const menuSections: MenuSection[] = [
     {
         title: 'Etkinlik Yönetimi',
         defaultOpen: true,
+        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
             { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories' },
@@ -87,6 +91,7 @@ const menuSections: MenuSection[] = [
     {
         title: 'İşletme Yönetimi',
         defaultOpen: true,
+        allowedRoles: ['ADMIN'],
         items: [
             { text: 'İşletmeler', icon: <BusinessIcon />, path: '/businesses' },
             { text: 'İşletme Talepleri', icon: <FactCheckIcon />, path: '/business-claims' },
@@ -95,6 +100,7 @@ const menuSections: MenuSection[] = [
     },
     {
         title: 'Satış & Finans',
+        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Satış Merkezi', icon: <TrendingUpIcon />, path: '/sales-command' },
             { text: 'Gişe', icon: <PointOfSaleIcon />, path: '/box-office' },
@@ -105,6 +111,7 @@ const menuSections: MenuSection[] = [
     },
     {
         title: 'Kullanıcılar & Topluluk',
+        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users' },
             { text: 'Dernekler', icon: <HomeWork />, path: '/associations' },
@@ -113,16 +120,25 @@ const menuSections: MenuSection[] = [
     },
     {
         title: 'İçerik & İletişim',
+        allowedRoles: ['ADMIN', 'MODERATOR'],
         items: [
             { text: 'Bildirimler', icon: <NotificationsIcon />, path: '/notifications' },
             { text: 'Video Akışı', icon: <FeedIcon />, path: '/feeds' },
             { text: 'Bültenler', icon: <CampaignIcon />, path: '/bulletins' },
             { text: 'Kampanya Motoru', icon: <LocalActivityIcon />, path: '/campaign-engine' },
+        ],
+    },
+    {
+        title: 'İçerik Yönetimi',
+        defaultOpen: true,
+        allowedRoles: ['ADMIN', 'EDITOR', 'MODERATOR'],
+        items: [
             { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
         ],
     },
     {
         title: 'Operasyonlar',
+        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Kapı Operasyonları', icon: <SensorsIcon />, path: '/gate-ops' },
             { text: 'Müşteri Destek', icon: <SupportIcon />, path: '/customer-support' },
@@ -130,6 +146,7 @@ const menuSections: MenuSection[] = [
     },
     {
         title: 'Sistem',
+        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Cihazlar', icon: <DevicesIcon />, path: '/devices' },
             { text: 'Oyunlaştırma', icon: <EmojiEventsIcon />, path: '/gamification' },
@@ -143,6 +160,15 @@ export default function Layout() {
     const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
+    const { roles, isAdmin, isEditorOnly } = useRole();
+
+    // Filter menu sections by user role
+    const visibleSections = useMemo(() => {
+        return menuSections.filter((section) => {
+            if (!section.allowedRoles || section.allowedRoles.length === 0) return true;
+            return section.allowedRoles.some((r) => roles.includes(r));
+        });
+    }, [roles]);
     const { logout } = useAuth();
     
     // Check if we are in Zen mode (for SeatMap Designer)
@@ -229,7 +255,7 @@ export default function Layout() {
 
             {/* Navigation Sections */}
             <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
-                {menuSections.map((section) => {
+                {visibleSections.map((section) => {
                     const isExpanded = expandedSections[section.title] ?? false;
                     const hasActiveItem = section.items.some((item) => location.pathname === item.path);
 

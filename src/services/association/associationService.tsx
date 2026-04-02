@@ -125,8 +125,10 @@ export const associationService = {
 
   // Association Members
   getAssociationMembers: async (associationId: string): Promise<AssociationMemberDto[]> => {
-    // TODO: Implement API call
-    return dummyMembers;
+    const response = await api.get<ApiResponse<PageResponseDto<AssociationMemberDto>>>(
+      `/businesses/associations/${associationId}/members/active`, { params: { page: 0, size: 100 } }
+    );
+    return response.data?.data?.content || [];
   },
 
   getActiveMembers: async (id: string, page: number = 0, size: number = 10) => {

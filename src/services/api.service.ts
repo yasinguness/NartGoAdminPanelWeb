@@ -20,7 +20,6 @@ export class ApiService {
             headers: this.getHeaders(),
             body: JSON.stringify(data),
         });
-        console.log(response);
         return this.handleResponse<T>(response);
     }
 
@@ -59,11 +58,10 @@ export class ApiService {
                 throw new Error(responseText || `HTTP error! status: ${response.status}`);
             }
             // If it was supposed to be success but no JSON, that's weird for this API
-            console.error('Failed to parse JSON response:', responseText);
+            // parse error
             throw new Error('Invalid response format');
         }
 
-        console.log('API Response:', data);
 
         if (!response.ok) {
             throw new Error(data.message || `HTTP error! status: ${response.status}`);

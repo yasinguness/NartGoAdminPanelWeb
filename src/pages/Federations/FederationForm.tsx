@@ -215,11 +215,11 @@ const FederationForm: React.FC<FederationFormProps> = ({
             <Divider />
 
             {/* Basic Information */}
-            <FormSection title="Basic Information">
+            <FormSection title="Temel Bilgiler">
               <FormGrid>
                 <TextField
                   fullWidth
-                  label="Federation Name"
+                  label="Federasyon Adı"
                   name="name"
                   placeholder="e.g. National Soccer Federation"
                   value={formik.values.name}
@@ -229,7 +229,7 @@ const FederationForm: React.FC<FederationFormProps> = ({
                 />
                 <TextField
                   fullWidth
-                  label="Federation Code"
+                  label="Federasyon Kodu"
                   name="code"
                   placeholder="e.g. NSF"
                   value={formik.values.code}
@@ -254,11 +254,11 @@ const FederationForm: React.FC<FederationFormProps> = ({
               </FormGrid>
             </FormSection>
 
-            <FormSection title="Contact & Location">
+            <FormSection title="İletişim & Konum">
               <FormGrid>
                 <TextField
                   fullWidth
-                  label="Contact Email"
+                  label="İletişim E-postası"
                   name="contactEmail"
                   value={formik.values.contactEmail}
                   onChange={formik.handleChange}
@@ -267,7 +267,7 @@ const FederationForm: React.FC<FederationFormProps> = ({
                 />
                 <TextField
                   fullWidth
-                  label="Contact Phone"
+                  label="İletişim Telefonu"
                   name="contactPhone"
                   value={formik.values.contactPhone}
                   onChange={formik.handleChange}
@@ -277,7 +277,7 @@ const FederationForm: React.FC<FederationFormProps> = ({
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Full Address"
+                    label="Tam Adres"
                     name="address"
                     value={formik.values.address}
                     onChange={formik.handleChange}
@@ -288,7 +288,7 @@ const FederationForm: React.FC<FederationFormProps> = ({
               </FormGrid>
             </FormSection>
 
-            <FormSection title="Organization Details">
+            <FormSection title="Kuruluş Detayları">
               <FormGrid>
                 <TextField
                   fullWidth
@@ -302,7 +302,7 @@ const FederationForm: React.FC<FederationFormProps> = ({
                 />
                 <TextField
                   fullWidth
-                  label="Established Date"
+                  label="Kuruluş Tarihi"
                   name="establishedDate"
                   type="date"
                   value={formik.values.establishedDate}
@@ -317,7 +317,7 @@ const FederationForm: React.FC<FederationFormProps> = ({
                     name="status"
                     value={formik.values.status}
                     onChange={formik.handleChange}
-                    label="Operational Status"
+                    label="Faaliyet Durumu"
                   >
                     <MenuItem value="ACTIVE">Active</MenuItem>
                     <MenuItem value="INACTIVE">Inactive</MenuItem>
@@ -330,7 +330,7 @@ const FederationForm: React.FC<FederationFormProps> = ({
               </FormGrid>
             </FormSection>
 
-            <FormSection title="Social Presence">
+            <FormSection title="Sosyal Medya">
               <FormGrid>
                 <TextField
                   fullWidth

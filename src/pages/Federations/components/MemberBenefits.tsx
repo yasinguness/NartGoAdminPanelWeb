@@ -363,7 +363,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                   fullWidth
                   id="businessName"
                   name="businessName"
-                  label="Business Name"
+                  label="İşletme Adı"
                   value={formik.values.businessName}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -379,7 +379,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                     labelId="businessType-label"
                     id="businessType"
                     name="businessType"
-                    label="Business Type"
+                    label="İşletme Türü"
                     value={formik.values.businessType}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
@@ -403,7 +403,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                   rows={3}
                   id="benefitDescription"
                   name="benefitDescription"
-                  label="Benefit Description"
+                  label="Avantaj Açıklaması"
                   value={formik.values.benefitDescription}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -418,7 +418,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                   type="number"
                   id="discountPercentage"
                   name="discountPercentage"
-                  label="Discount Percentage (Optional)"
+                  label="İndirim Yüzdesi (Opsiyonel)"
                   value={formik.values.discountPercentage ?? ''}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -436,7 +436,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                   type="number"
                   id="discountAmount"
                   name="discountAmount"
-                  label="Discount Amount (Optional)"
+                  label="İndirim Tutarı (Opsiyonel)"
                   value={formik.values.discountAmount ?? ''}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -454,7 +454,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                   type="date"
                   id="agreementStartDate"
                   name="agreementStartDate"
-                  label="Agreement Start Date"
+                  label="Anlaşma Başlangıç Tarihi"
                   value={formik.values.agreementStartDate}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -470,7 +470,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                   type="date"
                   id="agreementEndDate"
                   name="agreementEndDate"
-                  label="Agreement End Date"
+                  label="Anlaşma Bitiş Tarihi"
                   value={formik.values.agreementEndDate}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -487,7 +487,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                     labelId="status-label"
                     id="status"
                     name="status"
-                    label="Status"
+                    label="Durum"
                     value={formik.values.status}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
@@ -507,7 +507,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                   type="number"
                   id="maxUsagePerMember"
                   name="maxUsagePerMember"
-                  label="Max Usage Per Member (Optional)"
+                  label="Üye Başına Maks Kullanım (Opsiyonel)"
                   value={formik.values.maxUsagePerMember ?? ''}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -523,7 +523,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                   rows={3}
                   id="terms"
                   name="terms"
-                  label="Terms and Conditions"
+                  label="Şartlar ve Koşullar"
                   value={formik.values.terms}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -539,7 +539,7 @@ const MemberBenefits: React.FC<MemberBenefitsProps> = ({ memberId }) => {
                   rows={3}
                   id="eligibilityCriteria"
                   name="eligibilityCriteria"
-                  label="Eligibility Criteria"
+                  label="Uygunluk Kriterleri"
                   value={formik.values.eligibilityCriteria}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}

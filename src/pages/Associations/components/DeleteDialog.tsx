@@ -27,10 +27,10 @@ export const DeleteDialog: React.FC<DeleteDialogProps> = ({
 }) => {
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Delete Association</DialogTitle>
+      <DialogTitle>Derneği Sil</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          Are you sure you want to delete the association "{association?.name}"? This action cannot be undone.
+          "{association?.name}" derneğini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
         </DialogContentText>
       </DialogContent>
       <DialogActions>

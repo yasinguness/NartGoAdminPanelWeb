@@ -243,7 +243,7 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
                 <TextField
                   fullWidth
                   name="whatsappNumber"
-                  label="WhatsApp Number"
+                  label="WhatsApp Numarası"
                   value={formik.values.whatsappNumber}
                   onChange={formik.handleChange}
                   error={formik.touched.whatsappNumber && Boolean(formik.errors.whatsappNumber)}
@@ -266,7 +266,7 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
                 <TextField
                   fullWidth
                   name="membershipFee"
-                  label="Default Membership Fee"
+                  label="Varsayılan Üyelik Ücreti"
                   type="number"
                   InputProps={{ startAdornment: <Typography variant="body2" sx={{ mr: 1 }}>$</Typography> }}
                   value={formik.values.membershipFee}
@@ -277,7 +277,7 @@ const AssociationForm: React.FC<AssociationFormProps> = ({
                 <TextField
                   fullWidth
                   name="membershipDurationMonths"
-                  label="Membership Duration (Months)"
+                  label="Üyelik Süresi (Ay)"
                   type="number"
                   value={formik.values.membershipDurationMonths}
                   onChange={formik.handleChange}

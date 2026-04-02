@@ -61,7 +61,7 @@ export const templateManagementService = {
 
             return response.data.data;
         } catch (error) {
-            console.error('Error fetching templates:', error);
+            // silently handled
             throw new Error('Şablonlar yüklenirken hata oluştu');
         }
     },
@@ -79,7 +79,7 @@ export const templateManagementService = {
 
             return response.data.data;
         } catch (error) {
-            console.error('Error fetching template:', error);
+            // silently handled
             throw new Error('Şablon yüklenirken hata oluştu');
         }
     },
@@ -97,7 +97,7 @@ export const templateManagementService = {
 
             return response.data.data;
         } catch (error) {
-            console.error('Error creating template:', error);
+            // silently handled
             throw new Error('Şablon oluşturulurken hata oluştu');
         }
     },
@@ -115,7 +115,7 @@ export const templateManagementService = {
 
             return response.data.data;
         } catch (error) {
-            console.error('Error updating template:', error);
+            // silently handled
             throw new Error('Şablon güncellenirken hata oluştu');
         }
     },
@@ -131,7 +131,7 @@ export const templateManagementService = {
                 throw new Error(response.data.message);
             }
         } catch (error) {
-            console.error('Error deleting template:', error);
+            // silently handled
             throw new Error('Şablon silinirken hata oluştu');
         }
     },
@@ -149,7 +149,7 @@ export const templateManagementService = {
                 throw new Error(response.data.message);
             }
         } catch (error) {
-            console.error('Error toggling template status:', error);
+            // silently handled
             throw new Error('Şablon durumu güncellenirken hata oluştu');
         }
     },
@@ -167,7 +167,7 @@ export const templateManagementService = {
 
             return response.data.data;
         } catch (error) {
-            console.error('Error fetching template analytics:', error);
+            // silently handled
             throw new Error('Şablon analitikleri yüklenirken hata oluştu');
         }
     },
@@ -187,7 +187,7 @@ export const templateManagementService = {
 
             return response.data.data;
         } catch (error) {
-            console.error('Error fetching template usage history:', error);
+            // silently handled
             throw new Error('Şablon kullanım geçmişi yüklenirken hata oluştu');
         }
     },
@@ -273,7 +273,7 @@ export const templateManagementService = {
 
             return response.data.data;
         } catch (error) {
-            console.error('Error testing template:', error);
+            // silently handled
             throw new Error('Şablon test edilirken hata oluştu');
         }
     },
@@ -293,7 +293,7 @@ export const templateManagementService = {
 
             return response.data.data;
         } catch (error) {
-            console.error('Error duplicating template:', error);
+            // silently handled
             throw new Error('Şablon kopyalanırken hata oluştu');
         }
     },
@@ -306,7 +306,7 @@ export const templateManagementService = {
             const template = await templateManagementService.getTemplateById(templateId);
             return JSON.stringify(template, null, 2);
         } catch (error) {
-            console.error('Error exporting template:', error);
+            // silently handled
             throw new Error('Şablon dışa aktarılırken hata oluştu');
         }
     },
@@ -329,7 +329,7 @@ export const templateManagementService = {
             
             return await templateManagementService.createTemplate(templateWithoutId);
         } catch (error) {
-            console.error('Error importing template:', error);
+            // silently handled
             throw new Error('Şablon içe aktarılırken hata oluştu');
         }
     },

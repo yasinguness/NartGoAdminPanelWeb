@@ -481,7 +481,7 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
             <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
-                label="Start Date"
+                label="Başlangıç Tarihi"
                 type="date"
                 value={currentFilter.startDate ? new Date(currentFilter.startDate).toISOString().split('T')[0] : ''}
                 InputLabelProps={{ shrink: true }}
@@ -491,7 +491,7 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
             <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
-                label="End Date"
+                label="Bitiş Tarihi"
                 type="date"
                 value={currentFilter.endDate ? new Date(currentFilter.endDate).toISOString().split('T')[0] : ''}
                 InputLabelProps={{ shrink: true }}
@@ -504,15 +504,15 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
               <TextField
                 select
                 fullWidth
-                label="Package Type"
+                label="Paket Türü"
                 value={currentFilter.packageType || ''}
                 onChange={(e) => onFilterChange('packageType', e.target.value)}
               >
-                <MenuItem value="">All Packages</MenuItem>
-                <MenuItem value="BRONZE">Bronze</MenuItem>
+                <MenuItem value="">Tüm Paketler</MenuItem>
+                <MenuItem value="BRONZE">Bronz</MenuItem>
                 <MenuItem value="SILVER">Silver</MenuItem>
-                <MenuItem value="GOLD">Gold</MenuItem>
-                <MenuItem value="PLATINUM">Platinum</MenuItem>
+                <MenuItem value="GOLD">Altın</MenuItem>
+                <MenuItem value="PLATINUM">Platin</MenuItem>
               </TextField>
             </Grid>
 
@@ -521,12 +521,12 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
               <TextField
                 select
                 fullWidth
-                label="Event Type"
+                label="İşlem Türü"
                 value={currentFilter.eventType || ''}
                 onChange={(e) => onFilterChange('eventType', e.target.value)}
               >
-                <MenuItem value="">All Events</MenuItem>
-                <MenuItem value="INITIAL_PURCHASE">New Purchase</MenuItem>
+                <MenuItem value="">Tüm İşlemler</MenuItem>
+                <MenuItem value="INITIAL_PURCHASE">Yeni Satın Alma</MenuItem>
                 <MenuItem value="RENEWAL">Renewal</MenuItem>
                 <MenuItem value="CANCELLATION">Cancellation</MenuItem>
                 <MenuItem value="EXPIRATION">Expiration</MenuItem>
@@ -538,7 +538,7 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
               <TextField
                 select
                 fullWidth
-                label="Status"
+                label="Durum"
                 value={currentFilter.status || ''}
                 onChange={(e) => onFilterChange('status', e.target.value)}
               >
@@ -668,7 +668,7 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
             <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
-                label="Min Amount"
+                label="Min Tutar"
                 type="number"
                 value={currentFilter.minAmount || ''}
                 onChange={e => onFilterChange('minAmount', e.target.value ? Number(e.target.value) : undefined)}

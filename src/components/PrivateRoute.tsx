@@ -1,6 +1,7 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { ReactElement } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { useRole } from '../hooks/useRole';
 
 interface PrivateRouteProps {
     children: ReactElement;
@@ -8,6 +9,15 @@ interface PrivateRouteProps {
 
 export default function PrivateRoute({ children }: PrivateRouteProps) {
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const { canAccess, isEditorOnly } = useRole();
+    const location = useLocation();
 
-    return isAuthenticated ? children : <Navigate to="/login" />;
-} 
+    if (!isAuthenticated) return <Navigate to="/login" />;
+
+    // Editor role — redirect to /content if accessing unauthorized pages
+    if (isEditorOnly && !canAccess(location.pathname)) {
+        return <Navigate to="/content" replace />;
+    }
+
+    return children;
+}

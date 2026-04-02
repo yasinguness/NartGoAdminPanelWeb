@@ -36,23 +36,26 @@ import RichContentEditor, { RichContentRenderer } from '../../components/RichCon
 const STATUS_TABS: { label: string; value: string }[] = [
   { label: 'Hepsi', value: '' },
   { label: 'Taslak', value: 'DRAFT' },
-  { label: 'Planland\u0131', value: 'SCHEDULED' },
-  { label: 'G\u00f6nderildi', value: 'SENT' },
-  { label: 'Ba\u015far\u0131s\u0131z', value: 'FAILED' },
+  { label: 'Planlandı', value: 'SCHEDULED' },
+  { label: 'Gönderildi', value: 'SENT' },
+  { label: 'Başarısız', value: 'FAILED' },
 ];
 
-const PRIORITY_LABELS: Record<Priority, string> = { LOW: 'D\u00fc\u015f\u00fck', NORMAL: 'Normal', HIGH: 'Y\u00fcksek', URGENT: 'Acil' };
-const WIZARD_STEPS = ['\u0130\u00e7erik', 'Kanal', 'Hedefleme', 'Zamanlama', '\u00d6nizleme'];
+const PRIORITY_LABELS: Record<Priority, string> = { LOW: 'Düşük', NORMAL: 'Normal', HIGH: 'Yüksek', URGENT: 'Acil' };
+const STATUS_LABELS: Record<CampaignStatus, string> = {
+  DRAFT: 'Taslak', SCHEDULED: 'Planlandı', SENDING: 'Gönderiliyor', SENT: 'Gönderildi', FAILED: 'Başarısız', CANCELLED: 'İptal Edildi',
+};
+const WIZARD_STEPS = ['İçerik', 'Kanal', 'Hedefleme', 'Zamanlama', 'Önizleme'];
 
 const CHANNEL_ICONS: Record<Channel, React.ReactNode> = {
   PUSH: <PhoneAndroid />, IN_APP: <Inbox />, EMAIL: <Mail />, SMS: <Sms />,
 };
 const CHANNEL_DESC: Record<Channel, string> = {
-  PUSH: 'Anl\u0131k push bildirimi', IN_APP: 'Uygulama i\u00e7i mesaj', EMAIL: 'E-posta kampanyas\u0131', SMS: 'K\u0131sa mesaj',
+  PUSH: 'Anlık push bildirimi', IN_APP: 'Uygulama içi mesaj', EMAIL: 'E-posta kampanyası', SMS: 'Kısa mesaj',
 };
 
-const COUNTRY_OPTIONS = ['T\u00fcrkiye', 'Almanya', 'Fransa', 'ABD', 'Birle\u015fik Krall\u0131k'];
-const SEGMENT_OPTIONS = ['Yeni Kullan\u0131c\u0131lar', 'Aktif Kullan\u0131c\u0131lar', 'Premium', 'Pasif Kullan\u0131c\u0131lar', 'VIP'];
+const COUNTRY_OPTIONS = ['Türkiye', 'Almanya', 'Fransa', 'ABD', 'Birleşik Krallık'];
+const SEGMENT_OPTIONS = ['Yeni Kullanıcılar', 'Aktif Kullanıcılar', 'Premium', 'Pasif Kullanıcılar', 'VIP'];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function TabPanel({ children, value, index }: { children?: React.ReactNode; value: number; index: number }) {
@@ -94,9 +97,10 @@ function CampaignCard({ c, onPublish, onSchedule, onCancel, onDelete, onDuplicat
   const sc = STATUS_COLORS[c.status];
   const isSent = c.status === 'SENT';
 
-  const targetLabel = c.targeting.type === 'ALL' ? 'T\u00fcm Kullan\u0131c\u0131lar'
-    : c.targeting.type === 'SEGMENT' ? `Segment (${c.targeting.userSegments.length + c.targeting.countries.length} filtre)`
-    : 'Bireysel';
+  const targetLabel = c.targeting?.type === 'ALL' ? 'Tüm Kullanıcılar'
+    : c.targeting?.type === 'SEGMENT' ? `Segment (${(c.targeting?.userSegments?.length || 0) + (c.targeting?.countries?.length || 0)} filtre)`
+    : c.targeting?.type === 'INDIVIDUAL' ? 'Bireysel'
+    : 'Tüm Kullanıcılar';
 
   return (
     <Paper elevation={0} sx={{
@@ -109,7 +113,7 @@ function CampaignCard({ c, onPublish, onSchedule, onCancel, onDelete, onDuplicat
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: .5 }}>
             <Typography variant="subtitle1" fontWeight={800} noWrap>{c.name}</Typography>
-            <Chip label={c.status} size="small" sx={{ bgcolor: sc.bg, color: sc.text, fontWeight: 700, fontSize: 11 }} />
+            <Chip label={STATUS_LABELS[c.status] || c.status} size="small" sx={{ bgcolor: sc.bg, color: sc.text, fontWeight: 700, fontSize: 11 }} />
             <Chip label={PRIORITY_LABELS[c.priority]} size="small" sx={{ bgcolor: alpha(PRIORITY_COLORS[c.priority], .1), color: PRIORITY_COLORS[c.priority], fontWeight: 700, fontSize: 11 }} />
           </Stack>
           <Stack direction="row" spacing={.5} sx={{ mb: 1 }}>
@@ -122,12 +126,12 @@ function CampaignCard({ c, onPublish, onSchedule, onCancel, onDelete, onDuplicat
         <Stack direction="row" spacing={.5}>
           {c.status === 'DRAFT' && (
             <>
-              <Tooltip title="Yay\u0131nla"><IconButton size="small" color="success" onClick={() => onPublish(c)}><Send fontSize="small" /></IconButton></Tooltip>
+              <Tooltip title="Yayınla"><IconButton size="small" color="success" onClick={() => onPublish(c)}><Send fontSize="small" /></IconButton></Tooltip>
               <Tooltip title="Planla"><IconButton size="small" color="info" onClick={() => onSchedule(c)}><Schedule fontSize="small" /></IconButton></Tooltip>
             </>
           )}
           {c.status === 'SCHEDULED' && (
-            <Tooltip title="\u0130ptal Et"><IconButton size="small" color="warning" onClick={() => onCancel(c)}><Cancel fontSize="small" /></IconButton></Tooltip>
+            <Tooltip title="İptal Et"><IconButton size="small" color="warning" onClick={() => onCancel(c)}><Cancel fontSize="small" /></IconButton></Tooltip>
           )}
           <Tooltip title="Kopyala"><IconButton size="small" onClick={() => onDuplicate(c.id)}><ContentCopy fontSize="small" /></IconButton></Tooltip>
           {(c.status === 'DRAFT' || c.status === 'CANCELLED') && (
@@ -145,13 +149,13 @@ function CampaignCard({ c, onPublish, onSchedule, onCancel, onDelete, onDuplicat
       </Stack>
 
       {/* Stats for SENT */}
-      {isSent && (
+      {isSent && c.stats && (
         <Grid container spacing={2}>
           {([
-            { label: 'Teslim', value: c.stats.deliveryRate, color: '#10b981' },
-            { label: 'A\u00e7\u0131lma', value: c.stats.openRate, color: '#3b82f6' },
-            { label: 'T\u0131klama', value: c.stats.ctr, color: '#f59e0b' },
-            { label: 'Opt-out', value: c.stats.optOut / Math.max(c.stats.delivered, 1) * 100, color: '#ef4444' },
+            { label: 'Teslim', value: c.stats?.deliveryRate || 0, color: '#10b981' },
+            { label: 'Açılma', value: c.stats?.openRate || 0, color: '#3b82f6' },
+            { label: 'Tıklama', value: c.stats?.ctr || 0, color: '#f59e0b' },
+            { label: 'Çıkış', value: (c.stats?.optOut || 0) / Math.max(c.stats?.delivered || 1, 1) * 100, color: '#ef4444' },
           ] as const).map(s => (
             <Grid item xs={3} key={s.label}>
               <Typography variant="caption" color="text.secondary" fontWeight={600}>{s.label}</Typography>
@@ -238,7 +242,7 @@ export default function NotificationsRefactored() {
   }, [form, createMut, publishMut]);
 
   const handleScheduleNew = useCallback(async () => {
-    if (!scheduledDate) { enqueueSnackbar('L\u00fctfen bir tarih se\u00e7in', { variant: 'warning' }); return; }
+    if (!scheduledDate) { enqueueSnackbar('Lütfen bir tarih seçin', { variant: 'warning' }); return; }
     const created = await createMut.mutateAsync(form);
     if (created?.id) await scheduleMut.mutateAsync({ id: created.id, scheduledAt: new Date(scheduledDate).toISOString() });
     setDrawerOpen(false);
@@ -275,9 +279,9 @@ export default function NotificationsRefactored() {
   }, [wizardStep, form]);
 
   const confirmMessages: Record<string, { title: string; body: string }> = {
-    publish: { title: 'Kampanyay\u0131 Yay\u0131nla', body: `Bu kampanyay\u0131 ~${fmt(confirmDialog?.campaign.estimatedReach)} kullan\u0131c\u0131ya g\u00f6ndermek istedi\u011finize emin misiniz?` },
-    delete: { title: 'Kampanyay\u0131 Sil', body: 'Bu kampanyay\u0131 silmek istedi\u011finize emin misiniz? Bu i\u015flem geri al\u0131namaz.' },
-    cancel: { title: 'Kampanyay\u0131 \u0130ptal Et', body: 'Planlanm\u0131\u015f kampanyay\u0131 iptal etmek istedi\u011finize emin misiniz?' },
+    publish: { title: 'Kampanyayı Yayınla', body: `Bu kampanyayı ~${fmt(confirmDialog?.campaign.estimatedReach)} kullanıcıya göndermek istediğinize emin misiniz?` },
+    delete: { title: 'Kampanyayı Sil', body: 'Bu kampanyayı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.' },
+    cancel: { title: 'Kampanyayı İptal Et', body: 'Planlanmış kampanyayı iptal etmek istediğinize emin misiniz?' },
   };
 
   // ─── RENDER ─────────────────────────────────────────────────────────────────
@@ -293,7 +297,7 @@ export default function NotificationsRefactored() {
             Bildirim Merkezi
           </Typography>
           <Typography variant="body2" color="text.secondary" fontWeight={500} sx={{ mt: .5 }}>
-            Kampanyalar\u0131n\u0131z\u0131 olu\u015fturun, y\u00f6netin ve analiz edin.
+            Kampanyalarınızı oluşturun, yönetin ve analiz edin.
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<Add />} onClick={openWizard} sx={{ borderRadius: 3, px: 3, py: 1.2, textTransform: 'none', fontWeight: 700, boxShadow: theme.shadows[4] }}>
@@ -304,16 +308,16 @@ export default function NotificationsRefactored() {
       {/* Stat Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <StatCard label="Toplam G\u00f6nderim" value={fmt(analytics?.totalSent)} color={theme.palette.primary.main} icon={<Send />} />
+          <StatCard label="Toplam Gönderim" value={fmt(analytics?.totalSent)} color={theme.palette.primary.main} icon={<Send />} />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <StatCard label="Teslim Oran\u0131" value={pct(analytics?.avgDeliveryRate)} color="#10b981" icon={<CheckCircle />} />
+          <StatCard label="Teslim Oranı" value={pct(analytics?.avgDeliveryRate)} color="#10b981" icon={<CheckCircle />} />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <StatCard label="A\u00e7\u0131lma Oran\u0131" value={pct(analytics?.avgOpenRate)} color="#3b82f6" icon={<Visibility />} />
+          <StatCard label="Açılma Oranı" value={pct(analytics?.avgOpenRate)} color="#3b82f6" icon={<Visibility />} />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <StatCard label="Planlanm\u0131\u015f" value={String(campaigns.filter(c => c.status === 'SCHEDULED').length)} color="#8b5cf6" icon={<Schedule />} />
+          <StatCard label="Planlanmış" value={String(campaigns.filter(c => c.status === 'SCHEDULED').length)} color="#8b5cf6" icon={<Schedule />} />
         </Grid>
       </Grid>
 
@@ -359,10 +363,10 @@ export default function NotificationsRefactored() {
         ) : campaigns.length === 0 ? (
           <Paper elevation={0} sx={{ p: 8, borderRadius: 4, textAlign: 'center', border: '1px solid', borderColor: 'divider' }}>
             <Notifications sx={{ fontSize: 56, color: 'text.disabled', mb: 2 }} />
-            <Typography variant="h6" fontWeight={700} color="text.secondary">Hen\u00fcz kampanya yok</Typography>
-            <Typography variant="body2" color="text.disabled" sx={{ mb: 3 }}>Yeni bir kampanya olu\u015fturarak ba\u015flay\u0131n.</Typography>
+            <Typography variant="h6" fontWeight={700} color="text.secondary">Henüz kampanya yok</Typography>
+            <Typography variant="body2" color="text.disabled" sx={{ mb: 3 }}>Yeni bir kampanya oluşturarak başlayın.</Typography>
             <Button variant="contained" startIcon={<Add />} onClick={openWizard} sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 700 }}>
-              \u0130lk Kampanyay\u0131 Olu\u015ftur
+              İlk Kampanyayı Oluştur
             </Button>
           </Paper>
         ) : (
@@ -396,27 +400,27 @@ export default function NotificationsRefactored() {
         </Stack>
 
         <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', mb: 4 }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>G\u00f6nderim Trendi</Typography>
+          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Gönderim Trendi</Typography>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={analytics?.dailyStats ?? []}>
               <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.text.primary, .08)} />
               <XAxis dataKey="date" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <ReTooltip />
-              <Area type="monotone" dataKey="sent" name="G\u00f6nderildi" stroke={theme.palette.primary.main} fill={alpha(theme.palette.primary.main, .15)} strokeWidth={2} />
-              <Area type="monotone" dataKey="opened" name="A\u00e7\u0131ld\u0131" stroke="#3b82f6" fill={alpha('#3b82f6', .1)} strokeWidth={2} />
-              <Area type="monotone" dataKey="clicked" name="T\u0131kland\u0131" stroke="#f59e0b" fill={alpha('#f59e0b', .08)} strokeWidth={2} />
+              <Area type="monotone" dataKey="sent" name="Gönderildi" stroke={theme.palette.primary.main} fill={alpha(theme.palette.primary.main, .15)} strokeWidth={2} />
+              <Area type="monotone" dataKey="opened" name="Açıldı" stroke="#3b82f6" fill={alpha('#3b82f6', .1)} strokeWidth={2} />
+              <Area type="monotone" dataKey="clicked" name="Tıklandı" stroke="#f59e0b" fill={alpha('#f59e0b', .08)} strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </Paper>
 
         {/* Top 5 campaigns */}
         <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>En \u0130yi 5 Kampanya</Typography>
+          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>En İyi 5 Kampanya</Typography>
           <Stack spacing={0}>
             <Stack direction="row" sx={{ py: 1, borderBottom: 1, borderColor: 'divider' }}>
               <Typography variant="caption" fontWeight={700} sx={{ flex: 1 }}>Kampanya</Typography>
-              <Typography variant="caption" fontWeight={700} sx={{ width: 100, textAlign: 'right' }}>G\u00f6nderim</Typography>
+              <Typography variant="caption" fontWeight={700} sx={{ width: 100, textAlign: 'right' }}>Gönderim</Typography>
               <Typography variant="caption" fontWeight={700} sx={{ width: 80, textAlign: 'right' }}>CTR</Typography>
             </Stack>
             {(analytics?.topCampaigns ?? []).slice(0, 5).map((tc, i) => (
@@ -427,7 +431,7 @@ export default function NotificationsRefactored() {
               </Stack>
             ))}
             {(analytics?.topCampaigns ?? []).length === 0 && (
-              <Typography variant="body2" color="text.disabled" sx={{ py: 3, textAlign: 'center' }}>Hen\u00fcz veri yok</Typography>
+              <Typography variant="body2" color="text.disabled" sx={{ py: 3, textAlign: 'center' }}>Henüz veri yok</Typography>
             )}
           </Stack>
         </Paper>
@@ -548,7 +552,7 @@ export default function NotificationsRefactored() {
                 })}
               </Grid>
               <Divider />
-              <Typography variant="subtitle2" fontWeight={700}>\u00d6ncelik</Typography>
+              <Typography variant="subtitle2" fontWeight={700}>Öncelik</Typography>
               <Stack direction="row" spacing={1}>
                 {(['LOW', 'NORMAL', 'HIGH', 'URGENT'] as Priority[]).map(p => (
                   <Chip key={p} label={PRIORITY_LABELS[p]} variant={form.priority === p ? 'filled' : 'outlined'}
@@ -567,15 +571,15 @@ export default function NotificationsRefactored() {
             <Stack spacing={3}>
               <Typography variant="subtitle2" fontWeight={700}>Hedef Kitle</Typography>
               <RadioGroup value={form.targeting.type} onChange={e => setForm(p => ({ ...p, targeting: { ...p.targeting, type: e.target.value as any } }))}>
-                <FormControlLabel value="ALL" control={<Radio />} label="T\u00fcm Kullan\u0131c\u0131lar" />
-                <FormControlLabel value="SEGMENT" control={<Radio />} label="Segmente G\u00f6re" />
-                <FormControlLabel value="INDIVIDUAL" control={<Radio />} label="Bireysel (Kullan\u0131c\u0131 ID)" />
+                <FormControlLabel value="ALL" control={<Radio />} label="Tüm Kullanıcılar" />
+                <FormControlLabel value="SEGMENT" control={<Radio />} label="Segmente Göre" />
+                <FormControlLabel value="INDIVIDUAL" control={<Radio />} label="Bireysel (Kullanıcı ID)" />
               </RadioGroup>
 
               {form.targeting.type === 'SEGMENT' && (
                 <>
                   <Box>
-                    <Typography variant="caption" fontWeight={700} sx={{ mb: 1, display: 'block' }}>\u00dclke</Typography>
+                    <Typography variant="caption" fontWeight={700} sx={{ mb: 1, display: 'block' }}>Ülke</Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                       {COUNTRY_OPTIONS.map(c => (
                         <Chip key={c} label={c} size="small"
@@ -600,20 +604,20 @@ export default function NotificationsRefactored() {
               )}
 
               {form.targeting.type === 'INDIVIDUAL' && (
-                <TextField label="Kullan\u0131c\u0131 ID'leri (virg\u00fclle ay\u0131r\u0131n)" fullWidth multiline rows={3}
+                <TextField label="Kullanıcı ID'leri (virgülle ayırın)" fullWidth multiline rows={3}
                   value={form.targeting.specificUserIds.join(', ')}
                   onChange={e => setForm(p => ({ ...p, targeting: { ...p.targeting, specificUserIds: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } }))} />
               )}
 
               <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: alpha(theme.palette.info.main, .06), border: '1px solid', borderColor: alpha(theme.palette.info.main, .15) }}>
-                <Typography variant="caption" fontWeight={600} color="text.secondary">Tahmini Eri\u015fim</Typography>
+                <Typography variant="caption" fontWeight={600} color="text.secondary">Tahmini Erişim</Typography>
                 {estimateMut.isPending ? (
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: .5 }}>
                     <CircularProgress size={16} />
-                    <Typography variant="body2" color="text.secondary">Hesaplan\u0131yor...</Typography>
+                    <Typography variant="body2" color="text.secondary">Hesaplanıyor...</Typography>
                   </Stack>
                 ) : (
-                  <Typography variant="h5" fontWeight={800} color="info.main">{fmt(estimatedReach)} kullan\u0131c\u0131</Typography>
+                  <Typography variant="h5" fontWeight={800} color="info.main">{fmt(estimatedReach)} kullanıcı</Typography>
                 )}
               </Paper>
             </Stack>
@@ -622,11 +626,11 @@ export default function NotificationsRefactored() {
           {/* Step 3: Schedule */}
           {wizardStep === 3 && (
             <Stack spacing={3}>
-              <Typography variant="subtitle2" fontWeight={700}>G\u00f6nderim Zaman\u0131</Typography>
+              <Typography variant="subtitle2" fontWeight={700}>Gönderim Zamanı</Typography>
               <RadioGroup value={scheduleType} onChange={e => setScheduleType(e.target.value as any)}>
-                <FormControlLabel value="now" control={<Radio />} label="Hemen G\u00f6nder" />
-                <FormControlLabel value="date" control={<Radio />} label="Tarih Se\u00e7" />
-                <FormControlLabel value="recurring" control={<Radio />} label="Tekrarlayan (yak\u0131nda)" disabled />
+                <FormControlLabel value="now" control={<Radio />} label="Hemen Gönder" />
+                <FormControlLabel value="date" control={<Radio />} label="Tarih Seç" />
+                <FormControlLabel value="recurring" control={<Radio />} label="Tekrarlayan (yakında)" disabled />
               </RadioGroup>
               {scheduleType === 'date' && (
                 <TextField type="datetime-local" fullWidth label="Tarih ve Saat" value={scheduledDate}
@@ -638,20 +642,20 @@ export default function NotificationsRefactored() {
           {/* Step 4: Preview */}
           {wizardStep === 4 && (
             <Stack spacing={3}>
-              <Typography variant="subtitle2" fontWeight={700}>\u00d6nizleme</Typography>
+              <Typography variant="subtitle2" fontWeight={700}>Önizleme</Typography>
 
               {/* Summary */}
               <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
                 <Stack spacing={1.5}>
                   <Box><Typography variant="caption" color="text.secondary">Kampanya</Typography><Typography fontWeight={700}>{form.name}</Typography></Box>
                   <Divider />
-                  <Box><Typography variant="caption" color="text.secondary">Ba\u015fl\u0131k</Typography><Typography fontWeight={600}>{form.title}</Typography></Box>
+                  <Box><Typography variant="caption" color="text.secondary">Başlık</Typography><Typography fontWeight={600}>{form.title}</Typography></Box>
                   <Box><Typography variant="caption" color="text.secondary">Mesaj</Typography><Typography variant="body2">{form.body}</Typography></Box>
                   <Divider />
                   <Stack direction="row" spacing={1}>{form.channels.map(ch => <Chip key={ch} label={CHANNEL_LABELS[ch]} size="small" />)}</Stack>
-                  <Typography variant="body2">\u00d6ncelik: <strong>{PRIORITY_LABELS[form.priority]}</strong></Typography>
-                  <Typography variant="body2">Hedef: <strong>{form.targeting.type === 'ALL' ? 'T\u00fcm Kullan\u0131c\u0131lar' : form.targeting.type === 'SEGMENT' ? 'Segment' : 'Bireysel'}</strong></Typography>
-                  <Typography variant="body2">Tahmini Eri\u015fim: <strong>{fmt(estimatedReach)}</strong></Typography>
+                  <Typography variant="body2">Öncelik: <strong>{PRIORITY_LABELS[form.priority]}</strong></Typography>
+                  <Typography variant="body2">Hedef: <strong>{form.targeting.type === 'ALL' ? 'Tüm Kullanıcılar' : form.targeting.type === 'SEGMENT' ? 'Segment' : 'Bireysel'}</strong></Typography>
+                  <Typography variant="body2">Tahmini Erişim: <strong>{fmt(estimatedReach)}</strong></Typography>
                   <Typography variant="body2">Zamanlama: <strong>{scheduleType === 'now' ? 'Hemen' : scheduleType === 'date' ? scheduledDate : 'Tekrarlayan'}</strong></Typography>
                 </Stack>
               </Paper>
@@ -660,9 +664,9 @@ export default function NotificationsRefactored() {
               <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: alpha(theme.palette.success.main, .04) }}>
                 <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Kontrol Listesi</Typography>
                 {[
-                  { ok: form.title.length > 0, t: 'Ba\u015fl\u0131k girildi' },
-                  { ok: form.body.length > 0, t: 'Mesaj i\u00e7eri\u011fi girildi' },
-                  { ok: form.channels.length > 0, t: 'En az bir kanal se\u00e7ildi' },
+                  { ok: form.title.length > 0, t: 'Başlık girildi' },
+                  { ok: form.body.length > 0, t: 'Mesaj içeriği girildi' },
+                  { ok: form.channels.length > 0, t: 'En az bir kanal seçildi' },
                   { ok: estimatedReach > 0, t: 'Hedef kitle belirli' },
                 ].map(item => (
                   <Stack key={item.t} direction="row" spacing={1} alignItems="center" sx={{ py: .5 }}>
@@ -723,7 +727,7 @@ export default function NotificationsRefactored() {
                 sx={{ textTransform: 'none', fontWeight: 600 }}>Geri</Button>
               <Button variant="contained" endIcon={<ArrowForward />} disabled={!canNext}
                 onClick={() => setWizardStep(s => s + 1)} sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
-                \u0130leri
+                İleri
               </Button>
             </Stack>
           ) : (
@@ -742,7 +746,7 @@ export default function NotificationsRefactored() {
                 <Button variant="contained" color="success" startIcon={<Send />} onClick={handlePublishNew}
                   disabled={createMut.isPending || publishMut.isPending}
                   sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
-                  Yay\u0131nla
+                  Yayınla
                 </Button>
               )}
             </Stack>
@@ -762,13 +766,13 @@ export default function NotificationsRefactored() {
               </Typography>
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
-              <Button onClick={() => setConfirmDialog(null)} sx={{ textTransform: 'none', fontWeight: 600 }}>Vazge\u00e7</Button>
+              <Button onClick={() => setConfirmDialog(null)} sx={{ textTransform: 'none', fontWeight: 600 }}>Vazgeç</Button>
               <Button variant="contained"
                 color={confirmDialog.type === 'delete' ? 'error' : confirmDialog.type === 'cancel' ? 'warning' : 'success'}
                 onClick={handleConfirm}
                 disabled={publishMut.isPending || deleteMut.isPending || cancelMut.isPending}
                 sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}>
-                {confirmDialog.type === 'publish' ? 'Yay\u0131nla' : confirmDialog.type === 'delete' ? 'Sil' : '\u0130ptal Et'}
+                {confirmDialog.type === 'publish' ? 'Yayınla' : confirmDialog.type === 'delete' ? 'Sil' : 'İptal Et'}
               </Button>
             </DialogActions>
           </>

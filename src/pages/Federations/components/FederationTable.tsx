@@ -123,7 +123,7 @@ export const FederationTable: React.FC<FederationTableProps> = ({
             <InputLabel>Status</InputLabel>
             <Select
               value={statusFilter}
-              label="Status"
+              label="Durum"
               onChange={(e) => onStatusFilterChange(e.target.value)}
             >
               <MenuItem value="all">All</MenuItem>

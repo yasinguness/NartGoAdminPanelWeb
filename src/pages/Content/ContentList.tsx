@@ -22,6 +22,7 @@ import {
   CATEGORY_LABELS, STATUS_LABELS, TYPE_LABELS,
 } from '../../types/article/articleModel';
 import type { ArticleDto } from '../../types/article/articleModel';
+import { useRole } from '../../hooks/useRole';
 
 
 const statusColors: Record<ArticleStatus, string> = {
@@ -39,10 +40,17 @@ const statusBgColors: Record<ArticleStatus, string> = {
 export default function ContentList() {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  const { 
-    articles, totalElements, loading, fetchArticles, 
-    deleteArticle, publishArticle, archiveArticle 
+  const {
+    articles, totalElements, loading, fetchArticles,
+    deleteArticle, publishArticle, archiveArticle
   } = useArticleStore();
+  const { isEditorOnly, isOwner, userEmail } = useRole();
+
+  // Editor only sees their own articles
+  const visibleArticles = useMemo(() => {
+    if (!isEditorOnly) return articles;
+    return articles.filter(a => a.author?.toLowerCase() === userEmail.toLowerCase());
+  }, [articles, isEditorOnly, userEmail]);
 
   const [page, setPage] = useState(0);
   const [pageSize] = useState(10);
@@ -68,7 +76,7 @@ export default function ContentList() {
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
-      setSelectedIds(articles.map(a => a.id));
+      setSelectedIds(visibleArticles.map(a => a.id));
     } else {
       setSelectedIds([]);
     }
@@ -97,8 +105,8 @@ export default function ContentList() {
 
   const stats = useMemo(() => [
     { label: 'Toplam İçerik', value: totalElements.toString(), detail: '+6 bu ay', trend: 'up', icon: <AddIcon /> },
-    { label: 'Yayında', value: articles.filter(a => a.status === ArticleStatus.PUBLISHED).length.toString(), detail: '%75 yayın oranı', trend: 'neutral', icon: <CheckCircleIcon /> },
-    { label: 'Toplam Görüntülenme', value: articles.reduce((acc, a) => acc + (a.viewCount || 0), 0).toLocaleString(), detail: '+%34 geçen aya göre', trend: 'up', icon: <ViewIcon /> },
+    { label: 'Yayında', value: visibleArticles.filter(a => a.status === ArticleStatus.PUBLISHED).length.toString(), detail: '%75 yayın oranı', trend: 'neutral', icon: <CheckCircleIcon /> },
+    { label: 'Toplam Görüntülenme', value: visibleArticles.reduce((acc, a) => acc + (a.viewCount || 0), 0).toLocaleString(), detail: '+%34 geçen aya göre', trend: 'up', icon: <ViewIcon /> },
     { label: 'Ort. Okuma Süresi', value: '4 dk', detail: 'İyi etkileşim', trend: 'up', icon: <TrendingUp /> },
   ], [totalElements, articles]);
 
@@ -227,8 +235,8 @@ export default function ContentList() {
             <TableRow>
               <TableCell padding="checkbox">
                 <Checkbox 
-                  checked={selectedIds.length === articles.length && articles.length > 0}
-                  indeterminate={selectedIds.length > 0 && selectedIds.length < articles.length}
+                  checked={selectedIds.length === visibleArticles.length && visibleArticles.length > 0}
+                  indeterminate={selectedIds.length > 0 && selectedIds.length < visibleArticles.length}
                   onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               </TableCell>
@@ -242,7 +250,7 @@ export default function ContentList() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {articles.map((article) => (
+            {visibleArticles.map((article) => (
               <TableRow key={article.id} hover sx={{ '&:last-child td': { border: 0 } }}>
                 <TableCell padding="checkbox">
                   <Checkbox 

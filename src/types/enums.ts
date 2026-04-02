@@ -2,18 +2,19 @@ export enum UserRole {
     ADMIN = 'ADMIN',
     USER = 'USER',
     MODERATOR = 'MODERATOR',
-    // ... diğer roller
+    EDITOR = 'EDITOR',
 }
 
 export enum UserStatus {
     ACTIVE = 'ACTIVE',
     INACTIVE = 'INACTIVE',
     PENDING = 'PENDING',
-    // ... diğer durumlar
+    BLOCKED = 'BLOCKED',
 }
 
 export enum AccountType {
     INDIVIDUAL = 'INDIVIDUAL',
     CORPORATE = 'CORPORATE',
-    // ... diğer hesap tipleri
-} 
+    BUSINESS = 'BUSINESS',
+    ASSOCIATION = 'ASSOCIATION',
+}

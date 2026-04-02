@@ -41,6 +41,7 @@ import GateOpsLiveBoard from './pages/GateOpsLiveBoard/GateOpsLiveBoard';
 import CustomerSupportConsole from './pages/CustomerSupport/CustomerSupportConsole';
 import CampaignPromoEngine from './pages/CampaignPromoEngine/CampaignPromoEngine';
 import SeatMapDesigner from './pages/SeatMap/SeatMapDesigner';
+import EventOperations from './pages/AdminOperations/EventOperations';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -90,6 +91,8 @@ function App() {
                 <Route path="associations" element={<Associations />} />
                 <Route path="federations/:id" element={<FederationDetails />} />
                 <Route path="federations/:federationId/associations/:associationId" element={<AssociationDetails />} />
+                <Route path="event-operations" element={<EventOperations />} />
+                <Route path="event-operations/:eventId" element={<EventOperations />} />
                 <Route path="event-categories" element={<EventCategories />} />
                 <Route path="event/raffle-live" element={<RaffleLivePage />} />
                 <Route path="ticket-creation" element={<TicketCreationPage />} />

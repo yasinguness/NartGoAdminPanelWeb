@@ -9,6 +9,8 @@ const BASE = '/notifications/admin/campaigns';
 /** Parse richContent JSON string from backend into ContentBlock[] */
 function parseCampaignResponse(campaign: any): Campaign {
   if (!campaign) return campaign;
+
+  // Parse richContent from JSON string
   let richContent: ContentBlock[] | undefined;
   if (campaign.richContent && typeof campaign.richContent === 'string') {
     try { richContent = JSON.parse(campaign.richContent); } catch { richContent = undefined; }
@@ -17,7 +19,41 @@ function parseCampaignResponse(campaign: any): Campaign {
   } else if (Array.isArray(campaign.richContent)) {
     richContent = campaign.richContent;
   }
-  return { ...campaign, richContent };
+
+  // Extract content fields from nested content object if present
+  const title = campaign.title || campaign.content?.title || '';
+  const body = campaign.body || campaign.content?.body || '';
+  const imageUrl = campaign.imageUrl || campaign.content?.imageUrl || '';
+  const deepLink = campaign.deepLink || campaign.content?.deepLink || '';
+
+  // Ensure stats object exists with defaults
+  const stats = campaign.stats || {
+    delivered: campaign.successfulDeliveries || 0,
+    opened: 0, clicked: 0, optOut: 0,
+    failed: campaign.failedDeliveries || 0,
+    deliveryRate: campaign.totalRecipients > 0 ? ((campaign.successfulDeliveries || 0) / campaign.totalRecipients) * 100 : 0,
+    openRate: 0, ctr: 0,
+  };
+
+  // Ensure targeting object exists with defaults
+  const targeting = campaign.targeting || campaign.audience || {
+    type: 'ALL', countries: [], cities: [], categories: [],
+    userSegments: [], behaviors: [], specificUserIds: [],
+  };
+
+  // Ensure channels is an array
+  const channels = Array.isArray(campaign.channels) ? campaign.channels
+    : typeof campaign.channels === 'string' ? campaign.channels.split(',').filter(Boolean)
+    : ['PUSH'];
+
+  return {
+    ...campaign,
+    title, body, imageUrl, deepLink,
+    richContent, stats, targeting, channels,
+    estimatedReach: campaign.estimatedReach || campaign.totalRecipients || 0,
+    createdBy: campaign.createdBy || '',
+    createdAt: campaign.createdAt || new Date().toISOString(),
+  };
 }
 
 export const notificationCampaignService = {

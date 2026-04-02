@@ -332,9 +332,9 @@ const MemberForm: React.FC<MemberFormProps> = ({
                   onChange={formik.handleChange}
                   label="Dernek"
                 >
-                  <MenuItem value="Basketball">Basketball</MenuItem>
-                  <MenuItem value="Swimming">Swimming</MenuItem>
-                  <MenuItem value="Football">Football</MenuItem>
+                  <MenuItem value="Basketball">Basketbol</MenuItem>
+                  <MenuItem value="Swimming">Yüzme</MenuItem>
+                  <MenuItem value="Football">Futbol</MenuItem>
                 </Select>
               </FormControl>
             </Grid>

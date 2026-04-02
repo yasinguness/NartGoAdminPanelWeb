@@ -460,7 +460,7 @@ export default function Feeds() {
                     <Stack spacing={2} mt={1}>
                         {!selectedFeed && (
                             <TextField
-                                label="Creator Email"
+                                label="Oluşturucu E-postası"
                                 value={creatorEmail}
                                 onChange={(event) => setCreatorEmail(event.target.value)}
                                 required

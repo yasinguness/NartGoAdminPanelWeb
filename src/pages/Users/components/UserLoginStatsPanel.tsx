@@ -114,7 +114,7 @@ export default function UserLoginStatsPanel({ userId }: UserLoginStatsPanelProps
             <Select
               labelId="source-limit-label"
               value={sourceLimit}
-              label="Source Limit"
+              label="Kaynak Limiti"
               onChange={(event) => {
                 const value = Number(event.target.value);
                 setSourceLimit(value);
