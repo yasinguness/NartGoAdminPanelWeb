@@ -76,32 +76,31 @@ const glassCardSx = {
   bgcolor: 'background.paper',
   border: '1px solid',
   borderColor: 'divider',
-  borderRadius: 4,
+  borderRadius: 3,
   overflow: 'hidden',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  transition: 'all 0.2s ease',
   position: 'relative' as const,
   '&:hover': {
     borderColor: 'primary.light',
-    boxShadow: '0 12px 32px rgba(0,0,0,0.08)',
-    transform: 'translateY(-4px)',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+    transform: 'translateY(-2px)',
     '& .chevron-icon': { transform: 'translateX(4px)', opacity: 1 },
   },
 };
 
 const statCardSx = (color: string) => ({
-  p: 3,
-  borderRadius: 4,
+  p: 2.5,
+  borderRadius: 3,
   bgcolor: 'background.paper',
   border: '1px solid',
-  borderColor: 'divider',
   position: 'relative' as const,
   overflow: 'hidden',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0, left: 0, width: '4px', height: '100%',
-    bgcolor: color,
+  background: `linear-gradient(135deg, ${alpha(color, 0.06)} 0%, ${alpha(color, 0.02)} 100%)`,
+  borderColor: alpha(color, 0.12),
+  transition: 'all 0.2s ease',
+  '&:hover': {
+    borderColor: alpha(color, 0.25),
+    boxShadow: `0 8px 24px ${alpha(color, 0.12)}`,
   },
 });
 
@@ -253,11 +252,11 @@ export default function Events() {
                     <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing={1}>
                       {stat.label}
                     </Typography>
-                    <Typography variant="h4" fontWeight={800} sx={{ mt: 0.5, color: 'text.primary' }}>
+                    <Typography variant="h4" fontWeight={800} sx={{ mt: 0.75, color: stat.color }}>
                       {stat.value}
                     </Typography>
                   </Box>
-                  <Avatar sx={{ bgcolor: alpha(stat.color, 0.1), color: stat.color, width: 44, height: 44 }}>
+                  <Avatar sx={{ bgcolor: alpha(stat.color, 0.12), color: stat.color, width: 48, height: 48, borderRadius: 2.5 }}>
                     {stat.icon}
                   </Avatar>
                 </Stack>
@@ -270,9 +269,10 @@ export default function Events() {
         <Box sx={{
           bgcolor: 'background.paper',
           p: 2,
-          borderRadius: 4,
+          borderRadius: 3,
           mb: 3,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          border: '1px solid',
+          borderColor: 'divider',
           display: 'flex',
           flexDirection: { xs: 'column', md: 'row' },
           alignItems: 'center',
@@ -280,11 +280,12 @@ export default function Events() {
         }}>
           <TextField
             fullWidth
+            size="small"
             placeholder="Etkinlik adına veya konuma göre ara..."
             onChange={(e) => handleSearchChange(e.target.value)}
             InputProps={{
-              startAdornment: <SearchIcon sx={{ color: 'text.disabled', mr: 1 }} />,
-              sx: { borderRadius: 3, bgcolor: '#f1f5f9', border: 'none', '& fieldset': { border: 'none' } }
+              startAdornment: <SearchIcon sx={{ color: 'text.disabled', mr: 1, fontSize: 20 }} />,
+              sx: { borderRadius: 2, bgcolor: 'background.default', '&:hover': { bgcolor: alpha('#000', 0.02) } },
             }}
           />
           <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>

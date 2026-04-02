@@ -69,15 +69,17 @@ const pct = (n?: number) => `%${(n ?? 0).toFixed(1)}`;
 function StatCard({ label, value, color, icon }: { label: string; value: string; color: string; icon: React.ReactNode }) {
   return (
     <Paper elevation={0} sx={{
-      p: 2.5, borderRadius: 4, bgcolor: alpha(color, 0.04),
-      borderLeft: `4px solid ${color}`, transition: 'transform .2s, box-shadow .2s',
-      '&:hover': { transform: 'translateY(-3px)', boxShadow: `0 8px 24px ${alpha(color, 0.12)}` },
+      p: 2.5, borderRadius: 3,
+      background: `linear-gradient(135deg, ${alpha(color, 0.06)} 0%, ${alpha(color, 0.02)} 100%)`,
+      border: `1px solid ${alpha(color, 0.12)}`,
+      transition: 'all .2s ease',
+      '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.25), boxShadow: `0 8px 24px ${alpha(color, 0.12)}` },
     }}>
       <Stack direction="row" alignItems="center" spacing={2}>
-        <Box sx={{ p: 1.2, borderRadius: 3, bgcolor: alpha(color, 0.1), color, display: 'flex' }}>{icon}</Box>
+        <Box sx={{ p: 1.2, borderRadius: 2.5, bgcolor: alpha(color, 0.12), color, display: 'flex' }}>{icon}</Box>
         <Box>
-          <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: .5 }}>{label}</Typography>
-          <Typography variant="h5" fontWeight={800}>{value}</Typography>
+          <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: .5, fontSize: 11 }}>{label}</Typography>
+          <Typography variant="h5" fontWeight={800} sx={{ color }}>{value}</Typography>
         </Box>
       </Stack>
     </Paper>
@@ -104,7 +106,7 @@ function CampaignCard({ c, onPublish, onSchedule, onCancel, onDelete, onDuplicat
 
   return (
     <Paper elevation={0} sx={{
-      p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider',
+      p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider',
       transition: 'transform .2s, box-shadow .2s',
       '&:hover': { transform: 'translateY(-2px)', boxShadow: theme.shadows[4] },
     }}>
@@ -357,11 +359,11 @@ export default function NotificationsRefactored() {
         {isLoading ? (
           <Stack spacing={2}>
             {[0, 1, 2].map(i => (
-              <Skeleton key={i} variant="rounded" height={140} sx={{ borderRadius: 4 }} />
+              <Skeleton key={i} variant="rounded" height={140} sx={{ borderRadius: 3 }} />
             ))}
           </Stack>
         ) : campaigns.length === 0 ? (
-          <Paper elevation={0} sx={{ p: 8, borderRadius: 4, textAlign: 'center', border: '1px solid', borderColor: 'divider' }}>
+          <Paper elevation={0} sx={{ p: 8, borderRadius: 3, textAlign: 'center', border: '1px solid', borderColor: 'divider' }}>
             <Notifications sx={{ fontSize: 56, color: 'text.disabled', mb: 2 }} />
             <Typography variant="h6" fontWeight={700} color="text.secondary">Henüz kampanya yok</Typography>
             <Typography variant="body2" color="text.disabled" sx={{ mb: 3 }}>Yeni bir kampanya oluşturarak başlayın.</Typography>
@@ -399,7 +401,7 @@ export default function NotificationsRefactored() {
           ))}
         </Stack>
 
-        <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', mb: 4 }}>
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', mb: 4 }}>
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Gönderim Trendi</Typography>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={analytics?.dailyStats ?? []}>
@@ -415,7 +417,7 @@ export default function NotificationsRefactored() {
         </Paper>
 
         {/* Top 5 campaigns */}
-        <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>En İyi 5 Kampanya</Typography>
           <Stack spacing={0}>
             <Stack direction="row" sx={{ py: 1, borderBottom: 1, borderColor: 'divider' }}>
@@ -681,7 +683,7 @@ export default function NotificationsRefactored() {
                 <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Mobil Önizleme</Typography>
 
                 {/* Push notification preview */}
-                <Box sx={{ mx: 'auto', width: 280, borderRadius: 4, border: '2px solid', borderColor: 'divider', overflow: 'hidden', bgcolor: '#1a1a1a', mb: 2 }}>
+                <Box sx={{ mx: 'auto', width: 280, borderRadius: 3, border: '2px solid', borderColor: 'divider', overflow: 'hidden', bgcolor: '#1a1a1a', mb: 2 }}>
                   <Box sx={{ px: 2, py: 1, bgcolor: alpha('#fff', .08) }}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <PhoneAndroid sx={{ fontSize: 14, color: '#888' }} />
@@ -756,7 +758,7 @@ export default function NotificationsRefactored() {
 
       {/* ─── CONFIRM DIALOGS ──────────────────────────────────────────────── */}
       <Dialog open={!!confirmDialog} onClose={() => setConfirmDialog(null)} maxWidth="xs" fullWidth
-        PaperProps={{ sx: { borderRadius: 4, p: 1 } }}>
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
         {confirmDialog && (
           <>
             <DialogTitle sx={{ fontWeight: 800 }}>{confirmMessages[confirmDialog.type].title}</DialogTitle>

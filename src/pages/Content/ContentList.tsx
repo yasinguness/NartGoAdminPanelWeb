@@ -4,7 +4,8 @@ import {
   IconButton, MenuItem, Select, TextField, Tooltip, Typography,
   Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, Paper, Avatar, Stack, Checkbox, Grid, alpha,
-  Pagination, PaginationItem, FormControl,
+  Pagination, PaginationItem, FormControl, Divider, InputAdornment,
+  useTheme, Card,
 } from '@mui/material';
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon,
@@ -12,7 +13,7 @@ import {
   FileDownload as DownloadIcon, FilterList as FilterIcon,
   CheckCircle as CheckCircleIcon, Archive as ArchiveIcon,
   Close as CloseIcon, ArrowBackIosNew, ArrowForwardIos,
-  TrendingUp, TrendingDown, AccessTime,
+  TrendingUp, AccessTime, Article as ArticleIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +24,7 @@ import {
 } from '../../types/article/articleModel';
 import type { ArticleDto } from '../../types/article/articleModel';
 import { useRole } from '../../hooks/useRole';
-
+import { PageContainer, PageHeader } from '../../components/Page';
 
 const statusColors: Record<ArticleStatus, string> = {
   [ArticleStatus.DRAFT]: '#94A3B8',
@@ -39,14 +40,14 @@ const statusBgColors: Record<ArticleStatus, string> = {
 
 export default function ContentList() {
   const navigate = useNavigate();
+  const theme = useTheme();
   const { enqueueSnackbar } = useSnackbar();
   const {
     articles, totalElements, loading, fetchArticles,
-    deleteArticle, publishArticle, archiveArticle
+    deleteArticle, publishArticle, archiveArticle,
   } = useArticleStore();
   const { isEditorOnly, isOwner, userEmail } = useRole();
 
-  // Editor only sees their own articles
   const visibleArticles = useMemo(() => {
     if (!isEditorOnly) return articles;
     return articles.filter(a => a.author?.toLowerCase() === userEmail.toLowerCase());
@@ -80,11 +81,11 @@ export default function ContentList() {
     } else {
       setSelectedIds([]);
     }
-  }, [articles]);
+  }, [visibleArticles]);
 
   const handleSelectOne = useCallback((id: string) => {
-    setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id],
     );
   }, []);
 
@@ -104,222 +105,371 @@ export default function ContentList() {
   }, [selectedIds, page, pageSize, publishArticle, archiveArticle, deleteArticle, fetchArticles, enqueueSnackbar]);
 
   const stats = useMemo(() => [
-    { label: 'Toplam İçerik', value: totalElements.toString(), detail: '+6 bu ay', trend: 'up', icon: <AddIcon /> },
-    { label: 'Yayında', value: visibleArticles.filter(a => a.status === ArticleStatus.PUBLISHED).length.toString(), detail: '%75 yayın oranı', trend: 'neutral', icon: <CheckCircleIcon /> },
-    { label: 'Toplam Görüntülenme', value: visibleArticles.reduce((acc, a) => acc + (a.viewCount || 0), 0).toLocaleString(), detail: '+%34 geçen aya göre', trend: 'up', icon: <ViewIcon /> },
-    { label: 'Ort. Okuma Süresi', value: '4 dk', detail: 'İyi etkileşim', trend: 'up', icon: <TrendingUp /> },
-  ], [totalElements, articles]);
+    { label: 'Toplam İçerik', value: totalElements, detail: '+6 bu ay', color: theme.palette.primary.main, icon: <ArticleIcon /> },
+    { label: 'Yayında', value: visibleArticles.filter(a => a.status === ArticleStatus.PUBLISHED).length, detail: '%75 yayın oranı', color: '#10B981', icon: <CheckCircleIcon /> },
+    { label: 'Toplam Görüntülenme', value: visibleArticles.reduce((acc, a) => acc + (a.viewCount || 0), 0), detail: '+%34 geçen ay', color: '#3b82f6', icon: <ViewIcon /> },
+    { label: 'Ort. Okuma Süresi', value: '4 dk', detail: 'İyi etkileşim', color: '#f59e0b', icon: <AccessTime /> },
+  ], [totalElements, visibleArticles, theme]);
 
   return (
-    <Box sx={{ p: 4, minHeight: '100vh' }}>
-      {/* Header & Breadcrumbs */}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-            İçerik & İletişim › <Box component="span" sx={{ color: 'text.primary', fontWeight: 700 }}>İçerik & Makaleler</Box>
-          </Typography>
-          <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>İçerik & Makaleler</Typography>
-          <Typography variant="body2" color="text.secondary">Makaleler, haberler ve galeri içerikleri · Toplam {totalElements} içerik</Typography>
-        </Box>
-        
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-            {new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </Typography>
-          <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40, fontSize: 14, fontWeight: 700 }}>YB</Avatar>
-        </Stack>
-      </Stack>
-
-      <Stack direction="row" spacing={2} mb={4}>
-        <Button variant="outlined" startIcon={<DownloadIcon />} sx={{ borderRadius: 2, textTransform: 'none', px: 3, py: 1, fontWeight: 600 }}>
-          CSV İndir
-        </Button>
-        <Button 
-          variant="contained" 
-          startIcon={<AddIcon />} 
-          onClick={() => navigate('/content/new')}
-          sx={{ borderRadius: 2, textTransform: 'none', px: 3, py: 1, boxShadow: 'none', fontWeight: 700 }}
-        >
-          + Yeni İçerik
-        </Button>
-      </Stack>
+    <PageContainer>
+      <PageHeader
+        title="İçerik & Makaleler"
+        subtitle={`Makaleler, haberler ve galeri içerikleri · Toplam ${totalElements} içerik`}
+        breadcrumbs={[
+          { label: 'Kontrol Paneli', href: '/dashboard' },
+          { label: 'İçerik & Makaleler' },
+        ]}
+        actions={
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+            >
+              CSV İndir
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/content/new')}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+            >
+              Yeni İçerik
+            </Button>
+          </Stack>
+        }
+      />
 
       {/* Stats Grid */}
-      <Grid container spacing={3} mb={4}>
+      <Grid container spacing={2} mb={3}>
         {stats.map((s, i) => (
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <Paper elevation={0} sx={{ p: 3, borderRadius: 4 }}>
-              <Typography variant="h3" fontWeight={800} sx={{ mb: 0.5 }}>{s.value}</Typography>
-              <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ mb: 1 }}>{s.label}</Typography>
-              <Stack direction="row" alignItems="center" spacing={0.5}>
-                {s.trend === 'up' && <TrendingUp sx={{ fontSize: 16, color: '#10B981' }} />}
-                <Typography variant="caption" sx={{ color: s.trend === 'up' ? '#10B981' : 'text.secondary', fontWeight: 700 }}>
+            <Card
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: 3,
+                background: `linear-gradient(135deg, ${alpha(s.color, 0.06)} 0%, ${alpha(s.color, 0.02)} 100%)`,
+                border: `1px solid ${alpha(s.color, 0.12)}`,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  borderColor: alpha(s.color, 0.25),
+                  boxShadow: `0 8px 24px ${alpha(s.color, 0.12)}`,
+                },
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                <Box>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 11 }}
+                  >
+                    {s.label}
+                  </Typography>
+                  <Typography variant="h4" fontWeight={800} sx={{ mt: 0.75, color: s.color }}>
+                    {typeof s.value === 'number' ? s.value.toLocaleString('tr-TR') : s.value}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: alpha(s.color, 0.12), color: s.color, width: 48, height: 48, borderRadius: 2.5 }}>
+                  {s.icon}
+                </Avatar>
+              </Stack>
+              <Stack direction="row" alignItems="center" spacing={0.5} mt={1.5}>
+                <TrendingUp sx={{ fontSize: 14, color: '#10B981' }} />
+                <Typography variant="caption" sx={{ color: '#10B981', fontWeight: 600, fontSize: 11 }}>
                   {s.detail}
                 </Typography>
               </Stack>
-            </Paper>
+            </Card>
           </Grid>
         ))}
       </Grid>
 
       {/* Filter Bar */}
-      <Paper elevation={0} sx={{ p: 1.5, borderRadius: 4, mb: 3 }}>
+      <Card
+        elevation={0}
+        sx={{
+          p: 2,
+          borderRadius: 3,
+          mb: 3,
+          border: `1px solid ${theme.palette.divider}`,
+        }}
+      >
         <Stack direction="row" spacing={1.5} alignItems="center">
           <TextField
             size="small"
-            placeholder="Ara..."
+            placeholder="İçerik ara..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            InputProps={{ 
-              startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />,
-              sx: { borderRadius: 2 }
+            sx={{
+              flexGrow: 1,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                bgcolor: 'background.default',
+                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
+              },
             }}
-            sx={{ flexGrow: 1 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                </InputAdornment>
+              ),
+              ...(search && {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearch('')}>
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }),
+            }}
           />
           <FormControl size="small" sx={{ minWidth: 160 }}>
-            <Select value={filterCategory} displayEmpty onChange={(e) => setFilterCategory(e.target.value)} sx={{ borderRadius: 2 }}>
+            <Select
+              value={filterCategory}
+              displayEmpty
+              onChange={(e) => setFilterCategory(e.target.value)}
+              sx={{ borderRadius: 2 }}
+            >
               <MenuItem value="">Tüm Kategoriler</MenuItem>
-              {Object.entries(CATEGORY_LABELS).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
+              {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                <MenuItem key={k} value={k}>{v}</MenuItem>
+              ))}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 140 }}>
-            <Select value={filterStatus} displayEmpty onChange={(e) => setFilterStatus(e.target.value)} sx={{ borderRadius: 2 }}>
+            <Select
+              value={filterStatus}
+              displayEmpty
+              onChange={(e) => setFilterStatus(e.target.value)}
+              sx={{ borderRadius: 2 }}
+            >
               <MenuItem value="">Tüm Durumlar</MenuItem>
-              {Object.entries(STATUS_LABELS).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
+              {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                <MenuItem key={k} value={k}>{v}</MenuItem>
+              ))}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 140 }}>
-            <Select value={filterType} displayEmpty onChange={(e) => setFilterType(e.target.value)} sx={{ borderRadius: 2 }}>
+            <Select
+              value={filterType}
+              displayEmpty
+              onChange={(e) => setFilterType(e.target.value)}
+              sx={{ borderRadius: 2 }}
+            >
               <MenuItem value="">Tüm Türler</MenuItem>
-              {Object.entries(TYPE_LABELS).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
+              {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                <MenuItem key={k} value={k}>{v}</MenuItem>
+              ))}
             </Select>
           </FormControl>
-          <IconButton sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}><FilterIcon/></IconButton>
         </Stack>
-      </Paper>
+      </Card>
 
       {/* Bulk Actions Bar */}
       {selectedIds.length > 0 && (
-        <Box 
-          sx={{ 
-            bgcolor: 'primary.dark', 
-            color: 'white', 
-            p: 2, 
-            borderRadius: 3, 
-            mb: 3, 
-            display: 'flex', 
-            alignItems: 'center', 
+        <Box
+          sx={{
+            background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+            color: 'white',
+            p: 1.5,
+            borderRadius: 3,
+            mb: 3,
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'space-between',
-            boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.3)'
+            boxShadow: `0 10px 30px ${alpha(theme.palette.primary.main, 0.3)}`,
           }}
         >
-          <Stack direction="row" spacing={3} alignItems="center">
-            <Stack direction="row" spacing={1} alignItems="center">
-              <CheckCircleIcon />
-              <Typography fontWeight={700}>{selectedIds.length} içerik seçildi</Typography>
-            </Stack>
-            <Stack direction="row" spacing={1}>
-              <Button size="small" variant="contained" startIcon={<CheckCircleIcon />} sx={{ bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }, textTransform: 'none', fontWeight: 600 }} onClick={() => handleBulkAction('publish')}>Yayınla</Button>
-              <Button size="small" variant="contained" startIcon={<ArchiveIcon />} sx={{ bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }, textTransform: 'none', fontWeight: 600 }} onClick={() => handleBulkAction('archive')}>Arşive</Button>
-              <Button size="small" variant="contained" startIcon={<CloseIcon />} sx={{ bgcolor: '#7F1D1D', '&:hover': { bgcolor: '#991B1B' }, textTransform: 'none', fontWeight: 600 }} onClick={() => handleBulkAction('delete')}>Sil</Button>
-            </Stack>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {selectedIds.length} içerik seçildi
+            </Typography>
+            <Divider orientation="vertical" flexItem sx={{ bgcolor: 'rgba(255,255,255,0.2)' }} />
+            <Button
+              size="small"
+              color="inherit"
+              startIcon={<CheckCircleIcon />}
+              onClick={() => handleBulkAction('publish')}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              Yayınla
+            </Button>
+            <Button
+              size="small"
+              color="inherit"
+              startIcon={<ArchiveIcon />}
+              onClick={() => handleBulkAction('archive')}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              Arşive
+            </Button>
+            <Button
+              size="small"
+              color="inherit"
+              startIcon={<DeleteIcon />}
+              onClick={() => handleBulkAction('delete')}
+              sx={{ textTransform: 'none', fontWeight: 600, bgcolor: 'rgba(239,68,68,0.2)', '&:hover': { bgcolor: 'rgba(239,68,68,0.3)' } }}
+            >
+              Sil
+            </Button>
           </Stack>
-          <Button variant="text" sx={{ color: 'white', textTransform: 'none', fontWeight: 700 }} onClick={() => setSelectedIds([])}>Seçimi Temizle</Button>
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() => setSelectedIds([])}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Temizle
+          </Button>
         </Box>
       )}
 
       {/* Content Table */}
-      <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 4, overflow: 'hidden' }}>
+      <TableContainer
+        component={Paper}
+        elevation={0}
+        sx={{
+          borderRadius: 3,
+          overflow: 'hidden',
+          border: `1px solid ${theme.palette.divider}`,
+        }}
+      >
         <Table sx={{ minWidth: 1000 }}>
-          <TableHead sx={{ bgcolor: '#F8FAFC' }}>
+          <TableHead>
             <TableRow>
               <TableCell padding="checkbox">
-                <Checkbox 
+                <Checkbox
                   checked={selectedIds.length === visibleArticles.length && visibleArticles.length > 0}
                   indeterminate={selectedIds.length > 0 && selectedIds.length < visibleArticles.length}
                   onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               </TableCell>
-              <TableCell sx={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', color: 'text.secondary' }}>Kapak</TableCell>
-              <TableCell sx={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', color: 'text.secondary' }}>Başlık</TableCell>
-              <TableCell sx={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', color: 'text.secondary' }}>Kategori</TableCell>
-              <TableCell sx={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', color: 'text.secondary' }}>Tür</TableCell>
-              <TableCell sx={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', color: 'text.secondary' }}>Durum</TableCell>
-              <TableCell align="center" sx={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', color: 'text.secondary' }}>İletişim</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', color: 'text.secondary' }}>Aksiyon</TableCell>
+              {['Kapak', 'Başlık', 'Kategori', 'Tür', 'Durum', 'Görüntülenme', 'Aksiyon'].map((h) => (
+                <TableCell
+                  key={h}
+                  align={h === 'Aksiyon' ? 'right' : h === 'Görüntülenme' ? 'center' : 'left'}
+                  sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}
+                >
+                  {h}
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
             {visibleArticles.map((article) => (
-              <TableRow key={article.id} hover sx={{ '&:last-child td': { border: 0 } }}>
-                <TableCell padding="checkbox">
-                  <Checkbox 
+              <TableRow
+                key={article.id}
+                hover
+                sx={{
+                  cursor: 'pointer',
+                  transition: 'background 0.15s',
+                  '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.03) },
+                  '&:last-child td': { border: 0 },
+                }}
+                onClick={() => navigate(`/content/${article.id}/edit`)}
+              >
+                <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
                     checked={selectedIds.includes(article.id)}
                     onChange={() => handleSelectOne(article.id)}
                   />
                 </TableCell>
                 <TableCell>
-                  <Avatar 
-                    variant="rounded" 
-                    src={article.coverImageUrl} 
-                    sx={{ width: 80, height: 50, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}
+                  <Avatar
+                    variant="rounded"
+                    src={article.coverImageUrl}
+                    sx={{
+                      width: 72,
+                      height: 48,
+                      borderRadius: 2,
+                      border: `1px solid ${theme.palette.divider}`,
+                      bgcolor: alpha(theme.palette.primary.main, 0.06),
+                      color: 'primary.main',
+                      fontSize: 16,
+                      fontWeight: 700,
+                    }}
                   >
                     {article.title[0]}
                   </Avatar>
                 </TableCell>
                 <TableCell sx={{ maxWidth: 400 }}>
-                  <Typography variant="body1" fontWeight={700}>{article.title}</Typography>
+                  <Typography variant="body2" fontWeight={700}>{article.title}</Typography>
                   <Stack direction="row" spacing={1} alignItems="center" mt={0.5}>
                     <Typography variant="caption" color="text.secondary" fontWeight={500}>
                       {article.author || 'NartGo Editör'}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>•</Typography>
+                    <Typography variant="caption" color="text.disabled">&middot;</Typography>
                     <Stack direction="row" spacing={0.5} alignItems="center">
-                      <AccessTime sx={{ fontSize: 12, color: 'text.secondary' }} />
-                      <Typography variant="caption" color="text.secondary">{article.readTimeMinutes} dk okuma</Typography>
+                      <AccessTime sx={{ fontSize: 12, color: 'text.disabled' }} />
+                      <Typography variant="caption" color="text.secondary">{article.readTimeMinutes} dk</Typography>
                     </Stack>
                   </Stack>
                 </TableCell>
                 <TableCell>
-                  <Chip 
-                    label={CATEGORY_LABELS[article.category]} 
-                    size="small" 
-                    sx={{ fontWeight: 700, borderRadius: 1.5, bgcolor: '#F1F5F9', color: '#475569' }} 
+                  <Chip
+                    label={CATEGORY_LABELS[article.category]}
+                    size="small"
+                    sx={{ fontWeight: 600, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.06), color: 'text.primary', fontSize: 11 }}
                   />
                 </TableCell>
                 <TableCell>
-                  <Typography variant="caption" fontWeight={600} color="text.secondary">{TYPE_LABELS[article.contentType]}</Typography>
+                  <Typography variant="caption" fontWeight={600} color="text.secondary">
+                    {TYPE_LABELS[article.contentType]}
+                  </Typography>
                 </TableCell>
                 <TableCell>
-                  <Chip 
-                    label={STATUS_LABELS[article.status]} 
-                    size="small" 
-                    sx={{ 
-                      fontWeight: 700, 
-                      borderRadius: 1.5, 
-                      bgcolor: statusBgColors[article.status], 
-                      color: statusColors[article.status] 
-                    }} 
+                  <Chip
+                    label={STATUS_LABELS[article.status]}
+                    size="small"
+                    sx={{
+                      fontWeight: 700,
+                      borderRadius: 1.5,
+                      fontSize: 11,
+                      bgcolor: statusBgColors[article.status],
+                      color: statusColors[article.status],
+                    }}
                   />
                 </TableCell>
                 <TableCell align="center">
-                  <Stack direction="row" spacing={2} justifyContent="center">
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <ViewIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                      <Typography variant="caption" fontWeight={700}>{article.viewCount}</Typography>
-                    </Stack>
+                  <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                    <ViewIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
+                    <Typography variant="caption" fontWeight={700}>
+                      {(article.viewCount || 0).toLocaleString('tr-TR')}
+                    </Typography>
                   </Stack>
                 </TableCell>
-                <TableCell align="right">
-                  <IconButton size="small" onClick={() => navigate(`/content/${article.id}/edit`)}>
-                    <EditIcon sx={{ fontSize: 20 }} />
-                  </IconButton>
-                  <IconButton size="small" color="error" onClick={() => setDeleteDialog(article.id)}>
-                    <DeleteIcon sx={{ fontSize: 20 }} />
-                  </IconButton>
+                <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                  <Tooltip title="Düzenle">
+                    <IconButton size="small" onClick={() => navigate(`/content/${article.id}/edit`)}>
+                      <EditIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Sil">
+                    <IconButton size="small" color="error" onClick={() => setDeleteDialog(article.id)}>
+                      <DeleteIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
+            {visibleArticles.length === 0 && !loading && (
+              <TableRow>
+                <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                  <ArticleIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+                  <Typography variant="body1" fontWeight={600} color="text.secondary">
+                    İçerik bulunamadı
+                  </Typography>
+                  <Typography variant="body2" color="text.disabled" mt={0.5}>
+                    Filtreleri değiştirerek veya yeni içerik ekleyerek başlayın.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>
@@ -327,12 +477,13 @@ export default function ContentList() {
       {/* Pagination */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" mt={3}>
         <Typography variant="caption" color="text.secondary" fontWeight={600}>
-          Toplam {totalElements} içerik · {page * pageSize + 1}-{Math.min((page + 1) * pageSize, totalElements)} gösteriliyor
+          Toplam {totalElements} içerik &middot; {page * pageSize + 1}-{Math.min((page + 1) * pageSize, totalElements)} gösteriliyor
         </Typography>
-        <Pagination 
-          count={Math.ceil(totalElements / pageSize)} 
+        <Pagination
+          count={Math.ceil(totalElements / pageSize)}
           page={page + 1}
           onChange={(_, p) => setPage(p - 1)}
+          color="primary"
           renderItem={(item) => (
             <PaginationItem
               slots={{ previous: ArrowBackIosNew, next: ArrowForwardIos }}
@@ -340,7 +491,7 @@ export default function ContentList() {
               sx={{
                 borderRadius: 2,
                 fontWeight: 700,
-                '&.Mui-selected': { bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }
+                '&.Mui-selected': { bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } },
               }}
             />
           )}
@@ -348,22 +499,40 @@ export default function ContentList() {
       </Stack>
 
       {/* Delete Confirmation */}
-      <Dialog open={!!deleteDialog} onClose={() => setDeleteDialog(null)} PaperProps={{ sx: { borderRadius: 4, p: 1 } }}>
+      <Dialog
+        open={!!deleteDialog}
+        onClose={() => setDeleteDialog(null)}
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
         <DialogTitle sx={{ fontWeight: 800 }}>İçeriği Sil</DialogTitle>
         <DialogContent>
-          <Typography color="text.secondary">Bu içeriği silmek istediğinize emin misiniz? Bu işlem geri alınamaz.</Typography>
+          <Typography color="text.secondary">
+            Bu içeriği silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+          </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button onClick={() => setDeleteDialog(null)} sx={{ textTransform: 'none', fontWeight: 700, color: 'text.secondary' }}>İptal</Button>
-          <Button onClick={async () => {
-            if (deleteDialog) {
-              await deleteArticle(deleteDialog);
-              enqueueSnackbar('Icerik silindi', { variant: 'success' });
-              setDeleteDialog(null);
-            }
-          }} color="error" variant="contained" sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}>Sil</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setDeleteDialog(null)}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+          >
+            İptal
+          </Button>
+          <Button
+            onClick={async () => {
+              if (deleteDialog) {
+                await deleteArticle(deleteDialog);
+                enqueueSnackbar('İçerik silindi', { variant: 'success' });
+                setDeleteDialog(null);
+              }
+            }}
+            color="error"
+            variant="contained"
+            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+          >
+            Sil
+          </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }

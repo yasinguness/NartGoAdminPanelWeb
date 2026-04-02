@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Avatar,
@@ -16,6 +17,7 @@ import {
   IconButton,
   LinearProgress,
   Pagination,
+  Skeleton,
   Stack,
   Table,
   TableBody,
@@ -23,13 +25,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
   alpha,
   useTheme,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
-  FilterList as FilterIcon,
   FiberManualRecord as LiveDotIcon,
   Business as BusinessIcon,
   People as PeopleIcon,
@@ -50,6 +52,12 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   Notifications as NotificationIcon,
+  ArrowForward as ArrowForwardIcon,
+  EventSeat as SeatIcon,
+  ConfirmationNumber as TicketIcon,
+  Store as StoreIcon,
+  Campaign as CampaignIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { useSnackbar } from 'notistack';
@@ -57,6 +65,7 @@ import { PageContainer } from '../components/Page';
 import { adminLoginStatsService } from '../services/auth/adminLoginStatsService';
 import { campaignService } from '../services/notification/campaignService';
 import { api } from '../services/api';
+import { useRole } from '../hooks/useRole';
 import type {
   LoginStatsOverviewDto,
   RecentLoggedInUserDto,
@@ -68,6 +77,7 @@ import type {
 } from '../types/security/loginStats';
 import type { PageResponseDto } from '../types/common/pageResponse';
 
+// ─── Helpers ───
 const formatTurkishDate = (date: Date): string =>
   new Intl.DateTimeFormat('tr-TR', {
     day: 'numeric',
@@ -76,26 +86,34 @@ const formatTurkishDate = (date: Date): string =>
     weekday: 'long',
   }).format(date);
 
+const getGreeting = (): string => {
+  const h = new Date().getHours();
+  if (h < 6) return 'İyi geceler';
+  if (h < 12) return 'Günaydın';
+  if (h < 18) return 'İyi günler';
+  return 'İyi akşamlar';
+};
+
 const relativeTime = (dateStr: string): string => {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'az once';
-  if (mins < 60) return `${mins} dk once`;
+  if (mins < 1) return 'az önce';
+  if (mins < 60) return `${mins} dk önce`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} saat once`;
+  if (hours < 24) return `${hours} saat önce`;
   const days = Math.floor(hours / 24);
-  return `${days} gun once`;
+  return `${days} gün önce`;
 };
 
 const relativeTimeFuture = (dateStr: string): string => {
   const diff = new Date(dateStr).getTime() - Date.now();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'simdi';
+  if (mins < 1) return 'şimdi';
   if (mins < 60) return `${mins} dk sonra`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours} saat sonra`;
   const days = Math.floor(hours / 24);
-  return `${days} gun sonra`;
+  return `${days} gün sonra`;
 };
 
 const getInitials = (name?: string | null, email?: string | null): string => {
@@ -111,9 +129,78 @@ interface UpcomingNotification {
   time: string;
 }
 
+// ─── Metric Card Skeleton ───
+function MetricSkeleton() {
+  return (
+    <Card elevation={0} sx={{ height: '100%' }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Box flex={1}>
+            <Skeleton width={80} height={16} />
+            <Skeleton width={60} height={36} sx={{ mt: 0.5 }} />
+          </Box>
+          <Skeleton variant="circular" width={48} height={48} />
+        </Stack>
+        <Skeleton width={120} height={24} sx={{ mt: 1.5 }} />
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Quick Action Card ───
+function QuickAction({ icon, label, desc, color, onClick }: {
+  icon: React.ReactNode; label: string; desc: string; color: string; onClick: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Card
+      elevation={0}
+      onClick={onClick}
+      sx={{
+        cursor: 'pointer',
+        border: `1px solid ${theme.palette.divider}`,
+        transition: 'all 0.2s ease',
+        '&:hover': {
+          borderColor: color,
+          bgcolor: alpha(color, 0.04),
+          transform: 'translateY(-2px)',
+          boxShadow: `0 4px 20px ${alpha(color, 0.15)}`,
+        },
+      }}
+    >
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <Avatar
+            sx={{
+              width: 40,
+              height: 40,
+              bgcolor: alpha(color, 0.1),
+              color,
+            }}
+          >
+            {icon}
+          </Avatar>
+          <Box flex={1} minWidth={0}>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {label}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {desc}
+            </Typography>
+          </Box>
+          <ArrowForwardIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Main Component ───
 export default function Dashboard() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const { userName, isAdmin } = useRole();
 
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<LoginStatsOverviewDto | null>(null);
@@ -128,8 +215,6 @@ export default function Dashboard() {
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<ActiveAlertDto | null>(null);
   const [upcomingNotifications, setUpcomingNotifications] = useState<UpcomingNotification[]>([]);
-
-  // Real entity counts
   const [entityCounts, setEntityCounts] = useState({ businesses: 0, users: 0, events: 0, activeSessions: 0 });
 
   const query = useMemo(() => {
@@ -152,7 +237,6 @@ export default function Dashboard() {
       adminLoginStatsService.getActiveAlerts(query),
       adminLoginStatsService.getRecentLogs({ ...query, limit: 10 }),
       campaignService.getCampaigns(undefined, 0, 5),
-      // Real entity counts
       api.get('/businesses', { params: { page: 0, size: 1 } }).catch(() => null),
       api.get('/auth/all-users', { params: { page: 0, size: 1 } }).catch(() => null),
       api.get('/events/popular/all', { params: { page: 0, size: 1 } }).catch(() => null),
@@ -178,7 +262,6 @@ export default function Dashboard() {
       if (scheduled.length > 0) setUpcomingNotifications(scheduled);
     }
 
-    // Parse real entity counts
     const counts = { businesses: 0, users: 0, events: 0, activeSessions: engagement?.dailyActiveUsers ?? 0 };
     if (results[7]?.status === 'fulfilled') {
       const d = (results[7] as any).value?.data?.data;
@@ -200,7 +283,7 @@ export default function Dashboard() {
       enqueueSnackbar(`${failCount} veri kaynağı yüklenemedi`, { variant: 'warning' });
     }
     setLoading(false);
-  }, [query, page, enqueueSnackbar]);
+  }, [query, page, enqueueSnackbar, engagement?.dailyActiveUsers]);
 
   useEffect(() => {
     fetchData();
@@ -236,65 +319,107 @@ export default function Dashboard() {
       value: entityCounts.businesses,
       icon: <BusinessIcon />,
       color: theme.palette.primary.main,
-      delta: entityCounts.businesses > 0 ? `${entityCounts.businesses}` : '—',
-      newLast3: engagement?.dailyActiveUsers ?? 0,
+      bgGradient: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.primary.light, 0.04)} 100%)`,
+      path: '/businesses',
     },
     {
       label: 'Toplam Kullanıcı',
       value: entityCounts.users,
       icon: <PeopleIcon />,
       color: theme.palette.success.main,
-      delta: entityCounts.users > 0 ? `${entityCounts.users}` : '—',
-      newLast3: engagement?.weeklyActiveUsers ?? 0,
+      bgGradient: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)} 0%, ${alpha(theme.palette.success.light, 0.04)} 100%)`,
+      path: '/users',
     },
     {
       label: 'Toplam Etkinlik',
       value: entityCounts.events,
       icon: <EventIcon />,
       color: theme.palette.warning.main,
-      delta: entityCounts.events > 0 ? `${entityCounts.events}` : '—',
-      newLast3: engagement?.dailyLoginCount ?? 0,
+      bgGradient: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.08)} 0%, ${alpha(theme.palette.warning.light, 0.04)} 100%)`,
+      path: '/events',
     },
     {
       label: 'Aktif Oturum',
       value: entityCounts.activeSessions,
       icon: <SessionIcon />,
       color: theme.palette.info.main,
-      delta: entityCounts.activeSessions > 0 ? `${entityCounts.activeSessions}` : '—',
-      newLast3: engagement?.dailyLoginCount ?? 0,
+      bgGradient: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.08)} 0%, ${alpha(theme.palette.info.light, 0.04)} 100%)`,
+      path: '/users',
     },
   ];
+
+  const firstName = userName.split(' ')[0] || 'Admin';
 
   return (
     <PageContainer>
       {loading && (
-        <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1300 }} />
+        <LinearProgress
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1300,
+            height: 3,
+          }}
+        />
       )}
 
-      {/* Header */}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" fontWeight={700}>
-            Kontrol Paneli
-          </Typography>
-          <Stack direction="row" alignItems="center" spacing={1} mt={0.5}>
-            <LiveDotIcon sx={{ fontSize: 10, color: 'success.main' }} />
-            <Typography variant="body2" color="text.secondary">
-              {formatTurkishDate(new Date())}
+      {/* ── Welcome Header ── */}
+      <Box sx={{ mb: 4 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Box>
+            <Typography
+              variant="h4"
+              fontWeight={800}
+              sx={{
+                background: `linear-gradient(135deg, ${theme.palette.text.primary} 0%, ${theme.palette.primary.main} 100%)`,
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              {getGreeting()}, {firstName}
             </Typography>
-          </Stack>
-        </Box>
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<FilterIcon />} size="small">
-            Filtre
-          </Button>
-          <Button variant="contained" startIcon={<RefreshIcon />} size="small" onClick={fetchData}>
-            Yenile
-          </Button>
+            <Stack direction="row" alignItems="center" spacing={1} mt={0.75}>
+              <LiveDotIcon
+                sx={{
+                  fontSize: 8,
+                  color: 'success.main',
+                  animation: 'pulse 2s infinite',
+                  '@keyframes pulse': {
+                    '0%': { opacity: 1 },
+                    '50%': { opacity: 0.4 },
+                    '100%': { opacity: 1 },
+                  },
+                }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                {formatTurkishDate(new Date())} &middot; Sistem aktif
+              </Typography>
+            </Stack>
+          </Box>
+          <Tooltip title="Verileri yenile">
+            <IconButton
+              onClick={fetchData}
+              disabled={loading}
+              sx={{
+                bgcolor: alpha(theme.palette.primary.main, 0.08),
+                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.14) },
+              }}
+            >
+              <RefreshIcon
+                sx={{
+                  transition: 'transform 0.3s',
+                  ...(loading && { animation: 'spin 1s linear infinite', '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } } }),
+                }}
+              />
+            </IconButton>
+          </Tooltip>
         </Stack>
-      </Stack>
+      </Box>
 
-      {/* Alert Banners */}
+      {/* ── Alert Banners ── */}
       {criticalAlerts.length > 0 && (
         <Stack spacing={1} mb={3}>
           {criticalAlerts.map((alert, i) => (
@@ -304,17 +429,15 @@ export default function Dashboard() {
               icon={<ErrorIcon />}
               sx={{
                 cursor: 'pointer',
+                borderRadius: 3,
+                border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
                 '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.08) },
               }}
               onClick={() => handleAlertClick(alert)}
-              action={<Chip label="Detay" size="small" color="error" variant="outlined" />}
+              action={<Chip label="Detay" size="small" color="error" variant="outlined" sx={{ borderRadius: 2 }} />}
             >
-              <Typography variant="body2" fontWeight={600}>
-                {alert.title}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {alert.description}
-              </Typography>
+              <Typography variant="body2" fontWeight={600}>{alert.title}</Typography>
+              <Typography variant="caption" color="text.secondary">{alert.description}</Typography>
             </Alert>
           ))}
         </Stack>
@@ -329,84 +452,138 @@ export default function Dashboard() {
               icon={<WarningIcon />}
               sx={{
                 cursor: 'pointer',
+                borderRadius: 3,
+                border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
                 '&:hover': { bgcolor: alpha(theme.palette.warning.main, 0.06) },
               }}
               onClick={() => handleAlertClick(alert)}
-              action={<Chip label="Detay" size="small" color="warning" variant="outlined" />}
+              action={<Chip label="Detay" size="small" color="warning" variant="outlined" sx={{ borderRadius: 2 }} />}
             >
-              <Typography variant="body2" fontWeight={600}>
-                {alert.title}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {alert.description}
-              </Typography>
+              <Typography variant="body2" fontWeight={600}>{alert.title}</Typography>
+              <Typography variant="caption" color="text.secondary">{alert.description}</Typography>
             </Alert>
           ))}
         </Stack>
       )}
 
-      {/* 4 Main Metric Cards */}
-      <Grid container spacing={2} mb={3}>
+      {/* ── Metric Cards ── */}
+      <Grid container spacing={2.5} mb={3}>
         {metricCards.map((card, i) => (
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <Card elevation={0}>
-              <CardContent>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                  <Box>
+            {loading ? (
+              <MetricSkeleton />
+            ) : (
+              <Card
+                elevation={0}
+                onClick={() => navigate(card.path)}
+                sx={{
+                  height: '100%',
+                  cursor: 'pointer',
+                  background: card.bgGradient,
+                  border: `1px solid ${alpha(card.color, 0.12)}`,
+                  borderRadius: 3,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: alpha(card.color, 0.3),
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 8px 24px ${alpha(card.color, 0.12)}`,
+                  },
+                }}
+              >
+                <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                    <Box>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        fontWeight={600}
+                        sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 11 }}
+                      >
+                        {card.label}
+                      </Typography>
+                      <Typography variant="h4" fontWeight={800} mt={0.75} sx={{ color: card.color }}>
+                        {card.value.toLocaleString('tr-TR')}
+                      </Typography>
+                    </Box>
+                    <Avatar
+                      sx={{
+                        bgcolor: alpha(card.color, 0.15),
+                        color: card.color,
+                        width: 48,
+                        height: 48,
+                        borderRadius: 3,
+                      }}
+                    >
+                      {card.icon}
+                    </Avatar>
+                  </Stack>
+                  <Stack direction="row" alignItems="center" spacing={0.5} mt={1.5}>
+                    <TrendingUpIcon sx={{ fontSize: 14, color: 'success.main' }} />
                     <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                      {card.label}
+                      Son 30 gün
                     </Typography>
-                    <Typography variant="h4" fontWeight={700} mt={0.5}>
-                      {card.value.toLocaleString('tr-TR')}
-                    </Typography>
-                  </Box>
-                  <Avatar
-                    sx={{
-                      bgcolor: alpha(card.color, 0.1),
-                      color: card.color,
-                      width: 44,
-                      height: 44,
-                    }}
-                  >
-                    {card.icon}
-                  </Avatar>
-                </Stack>
-                <Stack direction="row" spacing={1} mt={1.5}>
-                  <Chip
-                    size="small"
-                    icon={<TrendingUpIcon sx={{ fontSize: 14 }} />}
-                    label={card.delta}
-                    sx={{
-                      bgcolor: alpha(theme.palette.success.main, 0.1),
-                      color: 'success.dark',
-                      fontWeight: 600,
-                      fontSize: 11,
-                    }}
-                  />
-                  <Chip
-                    size="small"
-                    label={`Son 3 gün: ${card.newLast3}`}
-                    sx={{
-                      bgcolor: alpha(theme.palette.info.main, 0.1),
-                      color: 'info.dark',
-                      fontWeight: 500,
-                      fontSize: 11,
-                    }}
-                  />
-                </Stack>
-              </CardContent>
-            </Card>
+                    <OpenInNewIcon sx={{ fontSize: 12, color: 'text.disabled', ml: 'auto' }} />
+                  </Stack>
+                </CardContent>
+              </Card>
+            )}
           </Grid>
         ))}
       </Grid>
 
-      {/* Son 3 Gün Eklenenler */}
-      <Card elevation={0} sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" fontWeight={600} mb={2}>
-            Son 3 Gün Eklenenler
+      {/* ── Quick Actions ── */}
+      {isAdmin && (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" fontWeight={700} color="text.secondary" mb={1.5} sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: 11 }}>
+            Hızlı Erişim
           </Typography>
-          <Grid container spacing={3}>
+          <Grid container spacing={2}>
+            {[
+              { icon: <EventIcon fontSize="small" />, label: 'Etkinlik Oluştur', desc: 'Yeni etkinlik ekle', color: theme.palette.warning.main, path: '/events' },
+              { icon: <TicketIcon fontSize="small" />, label: 'Bilet Oluştur', desc: 'Bilet tipi tanımla', color: theme.palette.info.main, path: '/ticket-creation' },
+              { icon: <SeatIcon fontSize="small" />, label: 'Oturma Düzeni', desc: 'Salon planı tasarla', color: theme.palette.success.main, path: '/seat-map' },
+              { icon: <StoreIcon fontSize="small" />, label: 'İşletme Ekle', desc: 'Yeni işletme kaydet', color: theme.palette.primary.main, path: '/businesses' },
+              { icon: <CampaignIcon fontSize="small" />, label: 'Bildirim Gönder', desc: 'Kampanya oluştur', color: theme.palette.error.main, path: '/notifications' },
+              { icon: <PersonIcon fontSize="small" />, label: 'Kullanıcılar', desc: 'Kullanıcı yönetimi', color: '#8b5cf6', path: '/users' },
+            ].map((action) => (
+              <Grid item xs={12} sm={6} md={4} lg={2} key={action.label}>
+                <QuickAction {...action} onClick={() => navigate(action.path)} />
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
+
+      {/* ── Son 3 Gün Eklenenler ── */}
+      <Card
+        elevation={0}
+        sx={{
+          mb: 3,
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 3,
+          overflow: 'hidden',
+        }}
+      >
+        <Box sx={{ px: 3, pt: 2.5, pb: 1 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6" fontWeight={700}>
+              Son 3 Gün Eklenenler
+            </Typography>
+            <Chip
+              label="Canlı"
+              size="small"
+              icon={<LiveDotIcon sx={{ fontSize: '8px !important', color: 'success.main !important' }} />}
+              sx={{
+                bgcolor: alpha(theme.palette.success.main, 0.08),
+                color: 'success.dark',
+                fontWeight: 600,
+                fontSize: 11,
+              }}
+            />
+          </Stack>
+        </Box>
+        <CardContent sx={{ pt: 1 }}>
+          <Grid container spacing={2}>
             {[
               {
                 label: 'Yeni İşletme',
@@ -431,60 +608,110 @@ export default function Dashboard() {
               },
             ].map((item, i) => (
               <Grid item xs={12} md={4} key={i}>
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={2}
-                  sx={{ p: 2, borderRadius: 2, bgcolor: alpha(item.color, 0.04) }}
+                <Box
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 3,
+                    background: `linear-gradient(135deg, ${alpha(item.color, 0.06)} 0%, ${alpha(item.color, 0.02)} 100%)`,
+                    border: `1px solid ${alpha(item.color, 0.1)}`,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderColor: alpha(item.color, 0.25),
+                      boxShadow: `0 4px 12px ${alpha(item.color, 0.1)}`,
+                    },
+                  }}
                 >
-                  <Avatar sx={{ bgcolor: alpha(item.color, 0.12), color: item.color }}>
-                    {item.icon}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      {item.label}
-                    </Typography>
-                    <Typography variant="h5" fontWeight={700}>
-                      {item.value}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Günlük ort: {item.avg}
-                    </Typography>
-                  </Box>
-                </Stack>
+                  <Stack direction="row" alignItems="center" spacing={2}>
+                    <Avatar
+                      sx={{
+                        bgcolor: alpha(item.color, 0.15),
+                        color: item.color,
+                        width: 44,
+                        height: 44,
+                        borderRadius: 2.5,
+                      }}
+                    >
+                      {item.icon}
+                    </Avatar>
+                    <Box flex={1}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                        {item.label}
+                      </Typography>
+                      <Stack direction="row" alignItems="baseline" spacing={1}>
+                        <Typography variant="h4" fontWeight={800} color={item.color}>
+                          {item.value}
+                        </Typography>
+                        <Typography variant="caption" color="text.disabled">
+                          ort. {item.avg}/gün
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  </Stack>
+                </Box>
               </Grid>
             ))}
           </Grid>
         </CardContent>
       </Card>
 
-      {/* Main Grid: 2fr 1fr */}
+      {/* ── Main Grid: Table + Sidebar ── */}
       <Grid container spacing={3}>
         {/* Left: Recent Users Table */}
         <Grid item xs={12} lg={8}>
           <Card
             elevation={0}
-            sx={{ height: '100%' }}
+            sx={{
+              height: '100%',
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 3,
+            }}
           >
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6" fontWeight={600}>
-                  Son Giriş Yapan Kullanıcılar
-                </Typography>
-                <Chip
-                  label={`${recentUsersData?.totalElements ?? 0} kullanıcı`}
+            <CardContent sx={{ p: 0 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" px={3} pt={2.5} pb={1.5}>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Typography variant="h6" fontWeight={700}>
+                    Son Giriş Yapanlar
+                  </Typography>
+                  <Chip
+                    label={`${recentUsersData?.totalElements ?? 0}`}
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      bgcolor: alpha(theme.palette.primary.main, 0.08),
+                      color: 'primary.main',
+                    }}
+                  />
+                </Stack>
+                <Button
                   size="small"
-                />
+                  endIcon={<ArrowForwardIcon sx={{ fontSize: '14px !important' }} />}
+                  onClick={() => navigate('/users')}
+                  sx={{ textTransform: 'none', fontWeight: 600, fontSize: 12 }}
+                >
+                  Tümünü Gör
+                </Button>
               </Stack>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Kullanıcı</TableCell>
-                      <TableCell>E-posta</TableCell>
-                      <TableCell>Son Giriş</TableCell>
-                      <TableCell>Cihaz</TableCell>
-                      <TableCell align="center">Durum</TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary', pl: 3 }}>
+                        Kullanıcı
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary' }}>
+                        E-posta
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary' }}>
+                        Son Giriş
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary' }}>
+                        Cihaz
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary', pr: 3 }}>
+                        Durum
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -499,37 +726,38 @@ export default function Dashboard() {
                           hover
                           sx={{
                             cursor: 'pointer',
-                            '&:hover': {
-                              bgcolor: alpha(theme.palette.primary.main, 0.04),
-                            },
+                            transition: 'background 0.15s',
+                            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
+                            '&:last-child td': { borderBottom: 0 },
                           }}
                           onClick={() => handleUserClick(user)}
                         >
-                          <TableCell>
+                          <TableCell sx={{ pl: 3 }}>
                             <Stack direction="row" alignItems="center" spacing={1.5}>
                               <Avatar
                                 sx={{
-                                  width: 32,
-                                  height: 32,
+                                  width: 34,
+                                  height: 34,
                                   fontSize: 13,
-                                  bgcolor: alpha(theme.palette.primary.main, 0.15),
+                                  fontWeight: 600,
+                                  bgcolor: alpha(theme.palette.primary.main, 0.12),
                                   color: 'primary.main',
                                 }}
                               >
                                 {getInitials(user.displayName, user.userEmail)}
                               </Avatar>
-                              <Typography variant="body2" fontWeight={500}>
+                              <Typography variant="body2" fontWeight={600}>
                                 {user.displayName || user.userEmail.split('@')[0]}
                               </Typography>
                             </Stack>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
                               {user.userEmail}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
                               {user.lastLoginAt ? relativeTime(user.lastLoginAt) : '-'}
                             </Typography>
                           </TableCell>
@@ -537,25 +765,37 @@ export default function Dashboard() {
                             {userLog?.device ? (
                               <Stack direction="row" alignItems="center" spacing={0.5}>
                                 {userLog.device.toLowerCase().includes('mobile') ? (
-                                  <PhoneIcon sx={{ fontSize: 16 }} />
+                                  <PhoneIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
                                 ) : (
-                                  <LaptopIcon sx={{ fontSize: 16 }} />
+                                  <LaptopIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
                                 )}
-                                <Typography variant="caption">{userLog.device}</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {userLog.device}
+                                </Typography>
                               </Stack>
                             ) : (
-                              <Typography variant="caption" color="text.disabled">
-                                -
-                              </Typography>
+                              <Typography variant="caption" color="text.disabled">-</Typography>
                             )}
                           </TableCell>
-                          <TableCell align="center">
+                          <TableCell align="center" sx={{ pr: 3 }}>
                             <Chip
                               size="small"
                               label={isRecent ? 'Aktif' : 'Çevrimdışı'}
-                              color={isRecent ? 'success' : 'default'}
-                              variant={isRecent ? 'filled' : 'outlined'}
-                              sx={{ fontSize: 11, height: 24 }}
+                              sx={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                height: 24,
+                                borderRadius: 1.5,
+                                ...(isRecent
+                                  ? {
+                                      bgcolor: alpha(theme.palette.success.main, 0.1),
+                                      color: 'success.dark',
+                                    }
+                                  : {
+                                      bgcolor: alpha(theme.palette.grey[500], 0.08),
+                                      color: 'text.secondary',
+                                    }),
+                              }}
                             />
                           </TableCell>
                         </TableRow>
@@ -563,9 +803,10 @@ export default function Dashboard() {
                     })}
                     {recentUsers.length === 0 && !loading && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                          <PeopleIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
                           <Typography variant="body2" color="text.secondary">
-                            Kullanıcı bulunamadı
+                            Henüz giriş kaydı bulunamadı
                           </Typography>
                         </TableCell>
                       </TableRow>
@@ -574,7 +815,7 @@ export default function Dashboard() {
                 </Table>
               </TableContainer>
               {recentUsersData && recentUsersData.totalPages > 1 && (
-                <Stack alignItems="center" mt={2}>
+                <Stack alignItems="center" py={2}>
                   <Pagination
                     count={recentUsersData.totalPages}
                     page={page + 1}
@@ -590,14 +831,29 @@ export default function Dashboard() {
 
         {/* Right Column */}
         <Grid item xs={12} lg={4}>
-          <Stack spacing={3}>
+          <Stack spacing={2.5}>
             {/* Bu Hafta En Çok Giriş */}
-            <Card elevation={0}>
-              <CardContent>
+            <Card
+              elevation={0}
+              sx={{
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+              }}
+            >
+              <CardContent sx={{ p: 2.5 }}>
                 <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-                  <TrophyIcon sx={{ color: 'warning.main', fontSize: 20 }} />
-                  <Typography variant="h6" fontWeight={600}>
-                    Bu Hafta En Çok Giriş
+                  <Avatar
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      bgcolor: alpha(theme.palette.warning.main, 0.12),
+                      color: 'warning.main',
+                    }}
+                  >
+                    <TrophyIcon sx={{ fontSize: 16 }} />
+                  </Avatar>
+                  <Typography variant="subtitle1" fontWeight={700}>
+                    Haftalık Sıralama
                   </Typography>
                 </Stack>
                 <Stack spacing={1.5}>
@@ -606,19 +862,28 @@ export default function Dashboard() {
                       <Stack direction="row" alignItems="center" spacing={1.5}>
                         <Typography
                           variant="caption"
-                          fontWeight={700}
+                          fontWeight={800}
                           sx={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
+                            width: 24,
+                            height: 24,
+                            borderRadius: 1.5,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            bgcolor:
-                              i < 3
-                                ? alpha(theme.palette.warning.main, 0.15)
-                                : alpha(theme.palette.grey[500], 0.1),
-                            color: i < 3 ? 'warning.dark' : 'text.secondary',
+                            bgcolor: i === 0
+                              ? alpha('#f59e0b', 0.15)
+                              : i === 1
+                                ? alpha('#94a3b8', 0.15)
+                                : i === 2
+                                  ? alpha('#cd7f32', 0.15)
+                                  : alpha(theme.palette.grey[500], 0.08),
+                            color: i === 0
+                              ? '#d97706'
+                              : i === 1
+                                ? '#64748b'
+                                : i === 2
+                                  ? '#b45309'
+                                  : 'text.secondary',
                             fontSize: 11,
                           }}
                         >
@@ -626,68 +891,112 @@ export default function Dashboard() {
                         </Typography>
                         <Avatar
                           sx={{
-                            width: 28,
-                            height: 28,
-                            fontSize: 11,
-                            bgcolor: alpha(theme.palette.primary.main, 0.12),
+                            width: 30,
+                            height: 30,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            bgcolor: alpha(theme.palette.primary.main, 0.1),
                             color: 'primary.main',
                           }}
                         >
                           {getInitials(user.displayName, user.userEmail)}
                         </Avatar>
                         <Box flex={1} minWidth={0}>
-                          <Typography variant="body2" fontWeight={500} noWrap>
+                          <Typography variant="body2" fontWeight={600} noWrap>
                             {user.displayName || user.userEmail?.split('@')[0] || 'Bilinmiyor'}
                           </Typography>
                         </Box>
-                        <Typography variant="caption" fontWeight={600} color="text.secondary">
-                          {user.totalLogins}
-                        </Typography>
+                        <Chip
+                          label={user.totalLogins}
+                          size="small"
+                          sx={{
+                            height: 22,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            bgcolor: i === 0
+                              ? alpha(theme.palette.warning.main, 0.1)
+                              : alpha(theme.palette.grey[500], 0.08),
+                            color: i === 0 ? 'warning.dark' : 'text.secondary',
+                          }}
+                        />
                       </Stack>
                       <LinearProgress
                         variant="determinate"
                         value={(user.totalLogins / maxLogins) * 100}
                         sx={{
-                          height: 4,
+                          height: 3,
                           borderRadius: 2,
                           ml: 6.5,
-                          bgcolor: alpha(theme.palette.primary.main, 0.08),
+                          bgcolor: alpha(theme.palette.primary.main, 0.06),
                           '& .MuiLinearProgress-bar': {
                             borderRadius: 2,
-                            bgcolor: i === 0 ? 'warning.main' : 'primary.main',
+                            background: i === 0
+                              ? `linear-gradient(90deg, ${theme.palette.warning.main}, ${theme.palette.warning.light})`
+                              : `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
                           },
                         }}
                       />
                     </Stack>
                   ))}
                   {topUsers.length === 0 && (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      textAlign="center"
-                      py={2}
-                    >
-                      Veri bulunamadı
-                    </Typography>
+                    <Box textAlign="center" py={3}>
+                      <TrophyIcon sx={{ fontSize: 32, color: 'text.disabled', mb: 0.5 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Veri bulunamadı
+                      </Typography>
+                    </Box>
                   )}
                 </Stack>
               </CardContent>
             </Card>
 
             {/* Yaklaşan Bildirimler */}
-            <Card elevation={0}>
-              <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-                  <ScheduleIcon sx={{ color: 'info.main', fontSize: 20 }} />
-                  <Typography variant="h6" fontWeight={600}>
-                    Yaklaşan Bildirimler
-                  </Typography>
+            <Card
+              elevation={0}
+              sx={{
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+              }}
+            >
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Avatar
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        bgcolor: alpha(theme.palette.info.main, 0.12),
+                        color: 'info.main',
+                      }}
+                    >
+                      <ScheduleIcon sx={{ fontSize: 16 }} />
+                    </Avatar>
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      Yaklaşan Bildirimler
+                    </Typography>
+                  </Stack>
+                  {upcomingNotifications.length > 0 && (
+                    <Chip
+                      label={upcomingNotifications.length}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        bgcolor: alpha(theme.palette.info.main, 0.1),
+                        color: 'info.dark',
+                      }}
+                    />
+                  )}
                 </Stack>
                 <Stack spacing={0}>
                   {upcomingNotifications.length === 0 ? (
-                    <Typography variant="body2" color="text.disabled" textAlign="center" py={3}>
-                      Yaklaşan bildirim bulunmuyor
-                    </Typography>
+                    <Box textAlign="center" py={3}>
+                      <NotificationIcon sx={{ fontSize: 32, color: 'text.disabled', mb: 0.5 }} />
+                      <Typography variant="body2" color="text.disabled">
+                        Yaklaşan bildirim bulunmuyor
+                      </Typography>
+                    </Box>
                   ) : upcomingNotifications.map((notif, i) => (
                     <Box key={notif.id}>
                       <Stack direction="row" spacing={1.5} alignItems="flex-start" py={1.5}>
@@ -699,13 +1008,13 @@ export default function Dashboard() {
                             color: 'info.main',
                           }}
                         >
-                          <NotificationIcon fontSize="small" />
+                          <NotificationIcon sx={{ fontSize: 16 }} />
                         </Avatar>
                         <Box flex={1} minWidth={0}>
-                          <Typography variant="body2" fontWeight={500}>
+                          <Typography variant="body2" fontWeight={600} noWrap>
                             {notif.title}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" color="text.secondary" noWrap>
                             {notif.description}
                           </Typography>
                         </Box>
@@ -714,7 +1023,9 @@ export default function Dashboard() {
                           size="small"
                           sx={{
                             fontSize: 10,
+                            fontWeight: 600,
                             height: 22,
+                            borderRadius: 1.5,
                             bgcolor: alpha(theme.palette.info.main, 0.08),
                             color: 'info.dark',
                           }}
@@ -730,16 +1041,17 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      {/* User Detail Dialog */}
+      {/* ── User Detail Dialog ── */}
       <Dialog
         open={!!selectedUser}
         onClose={() => setSelectedUser(null)}
         maxWidth="sm"
         fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
       >
         {selectedUser && (
           <>
-            <DialogTitle>
+            <DialogTitle sx={{ pb: 1 }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Stack direction="row" alignItems="center" spacing={2}>
                   <Avatar
@@ -754,7 +1066,7 @@ export default function Dashboard() {
                     {getInitials(selectedUser.displayName, selectedUser.userEmail)}
                   </Avatar>
                   <Box>
-                    <Typography variant="h6" fontWeight={600}>
+                    <Typography variant="h6" fontWeight={700}>
                       {selectedUser.displayName || selectedUser.userEmail.split('@')[0]}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -769,7 +1081,7 @@ export default function Dashboard() {
             </DialogTitle>
             <DialogContent dividers>
               {/* Stats Grid */}
-              <Grid container spacing={2} mb={3}>
+              <Grid container spacing={1.5} mb={3}>
                 {[
                   {
                     label: 'Toplam Giriş',
@@ -790,8 +1102,8 @@ export default function Dashboard() {
                     label: 'Risk Skoru',
                     value:
                       userTimeline.filter((e) => e.status === 'FAILURE').length > 3
-                        ? 'Yuksek'
-                        : 'Dusuk',
+                        ? 'Yüksek'
+                        : 'Düşük',
                     icon: <SecurityIcon fontSize="small" />,
                     color:
                       userTimeline.filter((e) => e.status === 'FAILURE').length > 3
@@ -809,16 +1121,17 @@ export default function Dashboard() {
                     <Box
                       sx={{
                         p: 1.5,
-                        borderRadius: 2,
+                        borderRadius: 2.5,
                         bgcolor: alpha(stat.color, 0.06),
+                        border: `1px solid ${alpha(stat.color, 0.1)}`,
                         textAlign: 'center',
                       }}
                     >
                       <Box sx={{ color: stat.color, mb: 0.5 }}>{stat.icon}</Box>
-                      <Typography variant="caption" color="text.secondary" display="block">
+                      <Typography variant="caption" color="text.secondary" display="block" fontWeight={500}>
                         {stat.label}
                       </Typography>
-                      <Typography variant="body1" fontWeight={600}>
+                      <Typography variant="body1" fontWeight={700}>
                         {stat.value}
                       </Typography>
                     </Box>
@@ -827,10 +1140,10 @@ export default function Dashboard() {
               </Grid>
 
               {/* User Info */}
-              <Typography variant="subtitle2" fontWeight={600} mb={1}>
+              <Typography variant="subtitle2" fontWeight={700} mb={1}>
                 Kullanıcı Bilgileri
               </Typography>
-              <Stack spacing={1} mb={3}>
+              <Stack spacing={0.5} mb={3}>
                 {[
                   { label: 'Kullanıcı ID', value: selectedUser.userId },
                   { label: 'E-posta', value: selectedUser.userEmail },
@@ -852,26 +1165,21 @@ export default function Dashboard() {
                     direction="row"
                     justifyContent="space-between"
                     sx={{
-                      py: 0.75,
+                      py: 1,
                       px: 1.5,
-                      borderRadius: 1,
-                      bgcolor:
-                        i % 2 === 0 ? alpha(theme.palette.grey[500], 0.04) : 'transparent',
+                      borderRadius: 2,
+                      bgcolor: i % 2 === 0 ? alpha(theme.palette.grey[500], 0.04) : 'transparent',
                     }}
                   >
-                    <Typography variant="body2" color="text.secondary">
-                      {row.label}
-                    </Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {row.value}
-                    </Typography>
+                    <Typography variant="body2" color="text.secondary">{row.label}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{row.value}</Typography>
                   </Stack>
                 ))}
               </Stack>
 
               {/* Activity Timeline */}
-              <Typography variant="subtitle2" fontWeight={600} mb={1}>
-                Aktivite Gecmisi
+              <Typography variant="subtitle2" fontWeight={700} mb={1}>
+                Aktivite Geçmişi
               </Typography>
               <Stack spacing={0} sx={{ maxHeight: 240, overflowY: 'auto' }}>
                 {userTimeline.slice(0, 10).map((event, i) => (
@@ -889,19 +1197,13 @@ export default function Dashboard() {
                     }}
                   >
                     {event.status === 'SUCCESS' ? (
-                      <CheckCircleIcon
-                        sx={{ fontSize: 18, color: 'success.main', mt: 0.25 }}
-                      />
+                      <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.25 }} />
                     ) : (
                       <CancelIcon sx={{ fontSize: 18, color: 'error.main', mt: 0.25 }} />
                     )}
                     <Box flex={1}>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography variant="body2" fontWeight={500}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="body2" fontWeight={600}>
                           {event.eventType === 'LOGIN'
                             ? 'Giriş'
                             : event.eventType === 'LOGOUT'
@@ -914,42 +1216,32 @@ export default function Dashboard() {
                       </Stack>
                       <Stack direction="row" spacing={1} mt={0.25}>
                         {event.ipAddress && (
-                          <Typography variant="caption" color="text.disabled">
-                            {event.ipAddress}
-                          </Typography>
+                          <Typography variant="caption" color="text.disabled">{event.ipAddress}</Typography>
                         )}
                         {event.device && (
-                          <Typography variant="caption" color="text.disabled">
-                            {event.device}
-                          </Typography>
+                          <Typography variant="caption" color="text.disabled">{event.device}</Typography>
                         )}
                       </Stack>
                       {event.failureReason && (
-                        <Typography variant="caption" color="error.main">
-                          {event.failureReason}
-                        </Typography>
+                        <Typography variant="caption" color="error.main">{event.failureReason}</Typography>
                       )}
                     </Box>
                   </Stack>
                 ))}
                 {userTimeline.length === 0 && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    textAlign="center"
-                    py={3}
-                  >
+                  <Typography variant="body2" color="text.secondary" textAlign="center" py={3}>
                     Aktivite bulunamadı
                   </Typography>
                 )}
               </Stack>
             </DialogContent>
-            <DialogActions sx={{ px: 3, py: 2 }}>
+            <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
               <Button
                 startIcon={<LogoutIcon />}
                 color="warning"
                 variant="outlined"
                 size="small"
+                sx={{ borderRadius: 2, textTransform: 'none' }}
                 onClick={() => {
                   enqueueSnackbar('Oturum kapatma işlemi başlatıldı', { variant: 'info' });
                   setSelectedUser(null);
@@ -962,10 +1254,9 @@ export default function Dashboard() {
                 color="error"
                 variant="outlined"
                 size="small"
+                sx={{ borderRadius: 2, textTransform: 'none' }}
                 onClick={() => {
-                  enqueueSnackbar('Hesap engelleme işlemi başlatıldı', {
-                    variant: 'warning',
-                  });
+                  enqueueSnackbar('Hesap engelleme işlemi başlatıldı', { variant: 'warning' });
                   setSelectedUser(null);
                 }}
               >
@@ -976,7 +1267,9 @@ export default function Dashboard() {
                 color="primary"
                 variant="contained"
                 size="small"
+                sx={{ borderRadius: 2, textTransform: 'none' }}
                 onClick={() => {
+                  navigate(`/users/${selectedUser.userId}`);
                   setSelectedUser(null);
                 }}
               >
@@ -987,12 +1280,13 @@ export default function Dashboard() {
         )}
       </Dialog>
 
-      {/* Alert Detail Dialog */}
+      {/* ── Alert Detail Dialog ── */}
       <Dialog
         open={alertDialogOpen}
         onClose={() => setAlertDialogOpen(false)}
         maxWidth="xs"
         fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
       >
         {selectedAlert && (
           <>
@@ -1003,7 +1297,7 @@ export default function Dashboard() {
                 ) : (
                   <WarningIcon color="warning" />
                 )}
-                <Typography variant="h6" fontWeight={600}>
+                <Typography variant="h6" fontWeight={700}>
                   {selectedAlert.title}
                 </Typography>
               </Stack>
@@ -1011,25 +1305,26 @@ export default function Dashboard() {
             <DialogContent dividers>
               <Stack spacing={2}>
                 <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Aciklama
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    Açıklama
                   </Typography>
                   <Typography variant="body2">{selectedAlert.description}</Typography>
                 </Box>
                 <Stack direction="row" spacing={2}>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Onem Derecesi
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      Önem Derecesi
                     </Typography>
-                    <Box>
+                    <Box mt={0.5}>
                       <Chip
                         size="small"
+                        sx={{ borderRadius: 1.5 }}
                         label={
                           selectedAlert.severity === 'HIGH'
-                            ? 'Yuksek'
+                            ? 'Yüksek'
                             : selectedAlert.severity === 'MEDIUM'
                               ? 'Orta'
-                              : 'Dusuk'
+                              : 'Düşük'
                         }
                         color={
                           selectedAlert.severity === 'HIGH'
@@ -1042,22 +1337,20 @@ export default function Dashboard() {
                     </Box>
                   </Box>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
                       Durum
                     </Typography>
-                    <Typography variant="body2">{selectedAlert.status}</Typography>
+                    <Typography variant="body2" mt={0.5}>{selectedAlert.status}</Typography>
                   </Box>
                 </Stack>
                 <Box>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
                     Kod
                   </Typography>
-                  <Typography variant="body2" fontFamily="monospace">
-                    {selectedAlert.code}
-                  </Typography>
+                  <Typography variant="body2" fontFamily="monospace">{selectedAlert.code}</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
                     Oluşturulma
                   </Typography>
                   <Typography variant="body2">
@@ -1066,7 +1359,7 @@ export default function Dashboard() {
                 </Box>
                 {selectedAlert.assignee && (
                   <Box>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
                       Atanan
                     </Typography>
                     <Typography variant="body2">{selectedAlert.assignee}</Typography>
@@ -1074,8 +1367,13 @@ export default function Dashboard() {
                 )}
               </Stack>
             </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setAlertDialogOpen(false)}>Kapat</Button>
+            <DialogActions sx={{ px: 3, py: 2 }}>
+              <Button
+                onClick={() => setAlertDialogOpen(false)}
+                sx={{ borderRadius: 2, textTransform: 'none' }}
+              >
+                Kapat
+              </Button>
             </DialogActions>
           </>
         )}

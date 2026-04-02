@@ -29,24 +29,27 @@ import { PageContainer, PageHeader } from '../../components/Page';
 // ─── PREMIUM STYLES ──────────────────────────────────────
 const glassCardSx = {
   bgcolor: 'background.paper',
-  border: '1px solid', borderColor: 'divider', borderRadius: 4,
-  overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  border: '1px solid', borderColor: 'divider', borderRadius: 3,
+  overflow: 'hidden',
+  transition: 'all 0.2s ease',
   cursor: 'pointer',
   '&:hover': {
     borderColor: 'primary.light',
-    boxShadow: '0 12px 32px rgba(0,0,0,0.08)',
-    transform: 'translateY(-4px)',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+    transform: 'translateY(-2px)',
   },
 };
 
 const statCardSx = (color: string) => ({
-  p: 3, borderRadius: 4, bgcolor: 'background.paper',
+  p: 2.5, borderRadius: 3, bgcolor: 'background.paper',
   border: '1px solid', borderColor: 'divider',
   position: 'relative' as const, overflow: 'hidden',
-  '&::before': {
-    content: '""', position: 'absolute',
-    top: 0, left: 0, width: '4px', height: '100%', bgcolor: color,
+  background: `linear-gradient(135deg, ${alpha(color, 0.06)} 0%, ${alpha(color, 0.02)} 100%)`,
+  borderColor: alpha(color, 0.12),
+  transition: 'all 0.2s ease',
+  '&:hover': {
+    borderColor: alpha(color, 0.25),
+    boxShadow: `0 8px 24px ${alpha(color, 0.12)}`,
   },
 });
 
@@ -205,11 +208,11 @@ export default function Businesses() {
                     <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing={1}>
                       {stat.label}
                     </Typography>
-                    <Typography variant="h4" fontWeight={800} sx={{ mt: 0.5 }}>
+                    <Typography variant="h4" fontWeight={800} sx={{ mt: 0.75, color: stat.color }}>
                       {stat.value}
                     </Typography>
                   </Box>
-                  <Avatar sx={{ bgcolor: alpha(stat.color, 0.1), color: stat.color, width: 44, height: 44 }}>
+                  <Avatar sx={{ bgcolor: alpha(stat.color, 0.12), color: stat.color, width: 48, height: 48, borderRadius: 2.5 }}>
                     {stat.icon}
                   </Avatar>
                 </Stack>
@@ -220,16 +223,17 @@ export default function Businesses() {
 
         {/* ═══ SEARCH & FILTERS ═══ */}
         <Box sx={{
-          bgcolor: 'background.paper', p: 2, borderRadius: 4, mb: 3,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          bgcolor: 'background.paper', p: 2, borderRadius: 3, mb: 3,
+          border: '1px solid', borderColor: 'divider',
           display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: 2,
         }}>
           <TextField
             fullWidth placeholder="İşletme adı, kategori veya konuma göre ara..."
             onChange={(e) => debouncedSearch(e.target.value)}
+            size="small"
             InputProps={{
-              startAdornment: <SearchIcon sx={{ color: 'text.disabled', mr: 1 }} />,
-              sx: { borderRadius: 3, bgcolor: '#f1f5f9', border: 'none', '& fieldset': { border: 'none' } },
+              startAdornment: <SearchIcon sx={{ color: 'text.disabled', mr: 1, fontSize: 20 }} />,
+              sx: { borderRadius: 2, bgcolor: 'background.default', '&:hover': { bgcolor: alpha('#000', 0.02) } },
             }}
           />
           <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
@@ -429,7 +433,7 @@ export default function Businesses() {
 
       {/* ═══ DELETE DIALOG ═══ */}
       <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth
-        PaperProps={{ sx: { borderRadius: 4 } }}>
+        PaperProps={{ sx: { borderRadius: 3 } }}>
         <DialogTitle sx={{ fontWeight: 700 }}>İşletmeyi Sil</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
@@ -446,7 +450,7 @@ export default function Businesses() {
 
       {/* ═══ FEATURED DIALOG ═══ */}
       <Dialog open={featuredOpen} onClose={() => setFeaturedOpen(false)} maxWidth="xs" fullWidth
-        PaperProps={{ sx: { borderRadius: 4 } }}>
+        PaperProps={{ sx: { borderRadius: 3 } }}>
         <DialogTitle sx={{ fontWeight: 700 }}>İşletmeyi Öne Çıkar</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
