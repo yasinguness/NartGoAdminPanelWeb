@@ -2,14 +2,14 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   Box, Button, Card, CardContent, Chip, FormControl, Grid, InputLabel,
   MenuItem, Select, Stack, Switch, TextField, Typography, FormControlLabel,
-  IconButton, LinearProgress, Divider, Avatar, alpha, Paper,
+  IconButton, LinearProgress, Divider, Avatar, Paper,
   Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
   Save as SaveIcon, Publish as PublishIcon, ArrowBack as BackIcon,
   Delete as DeleteIcon, AddPhotoAlternate as AddPhotoIcon,
   Visibility as PreviewIcon, Close as CloseIcon,
-  Edit as EditIcon, Check as CheckMarkIcon, CloudUpload as UploadIcon,
+  Edit as EditIcon, Check as CheckMarkIcon,
   FiberManualRecord as DotIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
@@ -21,8 +21,9 @@ import {
   ArticleCategory, ArticleType, ArticleStatus,
   CATEGORY_LABELS, TYPE_LABELS,
 } from '../../types/article/articleModel';
-import type { ArticleCreateRequest, ArticleDto } from '../../types/article/articleModel';
+import type { ArticleCreateRequest, ArticleDto, CoverMediaRequest } from '../../types/article/articleModel';
 import RichContentEditor, { RichContentRenderer } from '../../components/RichContentEditor';
+import CoverImageEditor from '../../components/CoverImageEditor';
 import OptionalImageCropDialog from '../../components/OptionalImageCropDialog';
 import type { ContentBlock } from '../../types/notification.types';
 import { useRole } from '../../hooks/useRole';
@@ -58,7 +59,7 @@ function buildUploadPath(prefix: string, file: File): string {
 const initialForm: ArticleCreateRequest = {
   title: '', slug: '', summary: '', body: '',
   contentType: ArticleType.ARTICLE, category: ArticleCategory.CULTURE,
-  coverImageUrl: '', author: '', tags: [],
+  coverMedia: undefined, author: '', tags: [],
   featured: false, breakingNews: false,
 };
 
@@ -252,10 +253,7 @@ export default function ContentEditor() {
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [cropDialogState, setCropDialogState] = useState<{ file: File; title: string } | null>(null);
-  const coverFileRef = useRef<HTMLInputElement>(null);
   const initialFormRef = useRef<string>('');
   const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
@@ -273,7 +271,18 @@ export default function ContentEditor() {
     const formData: ArticleCreateRequest = {
       title: found.title, slug: found.slug, summary: found.summary || '',
       body: found.body || '', contentType: found.contentType,
-      category: found.category, coverImageUrl: found.coverImageUrl || '',
+      category: found.category,
+      coverMedia: found.coverMedia
+        ? {
+            originalUrl: found.coverMedia.originalUrl,
+            width: found.coverMedia.width,
+            height: found.coverMedia.height,
+            mimeType: found.coverMedia.mimeType,
+            alt: found.coverMedia.alt,
+            focalPointX: found.coverMedia.focalPointX,
+            focalPointY: found.coverMedia.focalPointY,
+          }
+        : undefined,
       author: found.author || '', tags: found.tags || [],
       featured: found.featured, breakingNews: found.breakingNews,
     };
@@ -378,63 +387,25 @@ export default function ContentEditor() {
   };
 
   // ─── IMAGE UPLOAD ─────────────────────────────────
-  const validateImageFile = useCallback((file: File) => {
-    if (!file.type.startsWith('image/')) {
-      enqueueSnackbar('Sadece görsel dosyaları yüklenebilir', { variant: 'warning' });
-      return false;
-    }
-    if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      enqueueSnackbar('Dosya boyutu 10MB\'ı aşamaz', { variant: 'warning' });
-      return false;
-    }
-    return true;
-  }, [enqueueSnackbar]);
-
   const closeCropDialog = useCallback((file: File | null) => {
     cropResolveRef.current?.(file);
     cropResolveRef.current = null;
     setCropDialogState(null);
   }, []);
 
-  const requestOptionalCrop = useCallback((file: File, title: string) => {
+  const requestOptionalCrop = useCallback((file: File) => {
     return new Promise<File | null>((resolve) => {
       cropResolveRef.current = resolve;
-      setCropDialogState({ file, title });
+      setCropDialogState({ file, title: 'Kapak görseli' });
     });
   }, []);
 
-  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!validateImageFile(file)) {
-      if (coverFileRef.current) coverFileRef.current.value = '';
-      return;
-    }
-
-    let preparedFile: File | null = null;
-    try {
-      preparedFile = await requestOptionalCrop(file, 'Kapak görseli');
-      if (!preparedFile) return;
-
-      setUploading(true);
-      setUploadProgress(0);
-      const url = await uploadImage(preparedFile, 'articles/covers', (progress) => setUploadProgress(progress));
-      if (url) {
-        setForm(prev => ({ ...prev, coverImageUrl: url }));
-        enqueueSnackbar('Görsel yüklendi', { variant: 'success' });
-      }
-    } catch {
-      // Fallback: use base64 for preview
-      const reader = new FileReader();
-      reader.onload = (ev) => setForm(prev => ({ ...prev, coverImageUrl: ev.target?.result as string }));
-      reader.readAsDataURL(preparedFile || file);
-      enqueueSnackbar('Sunucuya yüklenemedi, yerel önizleme kullanılıyor', { variant: 'info' });
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-      if (coverFileRef.current) coverFileRef.current.value = '';
-    }
-  };
+  // Cover upload handler passed to CoverImageEditor
+  const handleCoverUpload = useCallback(async (file: File, onProgress: (p: number) => void) => {
+    const url = await uploadCoverImage(file, onProgress);
+    enqueueSnackbar('Görsel yüklendi', { variant: 'success' });
+    return url;
+  }, [enqueueSnackbar]); // eslint-disable-line
 
   // ─── BACK HANDLER ─────────────────────────────────
   const handleBack = () => {
@@ -458,23 +429,23 @@ export default function ContentEditor() {
         }
       },
     });
-
     const url = response.data?.data?.url || response.data?.data?.mediaUrl;
-    if (!url) {
-      throw new Error('Upload response missing url');
-    }
+    if (!url) throw new Error('Upload response missing url');
     return url as string;
   }, []);
 
-  const handleBlockImageUpload = useCallback(async (file: File) => {
-    if (!validateImageFile(file)) {
-      return null;
-    }
+  // Passed to CoverImageEditor as onUpload prop
+  const handleCoverUpload = useCallback(async (file: File, onProgress: (p: number) => void) => {
+    const url = await uploadImage(file, 'articles/covers', onProgress);
+    enqueueSnackbar('Görsel yüklendi', { variant: 'success' });
+    return url;
+  }, [uploadImage, enqueueSnackbar]);
 
-    const preparedFile = await requestOptionalCrop(file, 'İçerik görseli');
-    if (!preparedFile) {
-      return null;
-    }
+  const handleBlockImageUpload = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/') || file.size > MAX_IMAGE_SIZE_BYTES) return null;
+
+    const preparedFile = await requestOptionalCrop(file);
+    if (!preparedFile) return null;
 
     try {
       const url = await uploadImage(preparedFile, 'articles/content');
@@ -491,7 +462,7 @@ export default function ContentEditor() {
         reader.readAsDataURL(preparedFile);
       });
     }
-  }, [enqueueSnackbar, requestOptionalCrop, uploadImage, validateImageFile]);
+  }, [enqueueSnackbar, requestOptionalCrop, uploadImage]);
 
   // ─── COMPUTED ─────────────────────────────────────
   const wordCount = useMemo(() => {
@@ -507,8 +478,7 @@ export default function ContentEditor() {
   // ─── RENDER ───────────────────────────────────────
   return (
     <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', pb: 8 }}>
-      {loading && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }} />}
-      <input type="file" accept="image/*" ref={coverFileRef} onChange={handleCoverUpload} style={{ display: 'none' }} />
+      {loading && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }} />
 
       {/* ═══ TOP BAR ═══ */}
       <Box sx={{ bgcolor: 'background.paper', borderBottom: '0.5px solid', borderColor: 'divider', px: 4, py: 1.5, position: 'sticky', top: 0, zIndex: 10 }}>
@@ -613,31 +583,22 @@ export default function ContentEditor() {
 
                 {/* Cover Image */}
                 <Box>
-                  <Typography variant="caption" fontWeight={800} color="text.secondary" textTransform="uppercase">Kapak Görseli</Typography>
-                  <Box sx={{ mt: 1.5, borderRadius: 3, overflow: 'hidden', border: form.coverImageUrl ? '1px solid' : '2px dashed', borderColor: 'divider', position: 'relative' }}>
-                    {uploading ? (
-                      <Box sx={{ height: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                        <LinearProgress variant="determinate" value={uploadProgress} sx={{ width: '60%', borderRadius: 2 }} />
-                        <Typography variant="caption" color="text.secondary">Yükleniyor... %{uploadProgress}</Typography>
-                      </Box>
-                    ) : form.coverImageUrl ? (
-                      <Box sx={{ position: 'relative', '&:hover .cover-actions': { opacity: 1 } }}>
-                        <Box component="img" src={form.coverImageUrl} sx={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />
-                        <Box className="cover-actions" sx={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 1, opacity: 0, transition: '0.2s' }}>
-                          <Button size="small" variant="contained" onClick={() => coverFileRef.current?.click()}
-                            sx={{ bgcolor: 'rgba(255,255,255,0.9)', color: 'text.primary', fontSize: 11, '&:hover': { bgcolor: 'white' } }}>Değiştir</Button>
-                          <Button size="small" variant="contained" color="error" sx={{ fontSize: 11 }}
-                            onClick={() => updateField('coverImageUrl', '')}>Kaldır</Button>
-                        </Box>
-                      </Box>
-                    ) : (
-                      <Box onClick={() => coverFileRef.current?.click()} sx={{ height: 160, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', '&:hover': { bgcolor: alpha('#1a5c28', 0.02) } }}>
-                        <UploadIcon sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
-                        <Typography variant="body2" color="text.secondary" fontWeight={600}>Görsel yükle veya sürükle</Typography>
-                        <Typography variant="caption" color="text.disabled">JPG, PNG, WEBP · Maks 10 MB</Typography>
-                      </Box>
+                  <Stack direction="row" justifyContent="space-between" alignItems="baseline" mb={1.5}>
+                    <Typography variant="caption" fontWeight={800} color="text.secondary" textTransform="uppercase">
+                      Kapak Görseli
+                    </Typography>
+                    {form.coverMedia?.originalUrl && (
+                      <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10 }}>
+                        Görsele tıklayarak odak noktasını ayarla
+                      </Typography>
                     )}
-                  </Box>
+                  </Stack>
+                  <CoverImageEditor
+                    value={form.coverMedia}
+                    onChange={(v) => updateField('coverMedia', v)}
+                    onUpload={handleCoverUpload}
+                    onRequestCrop={requestOptionalCrop}
+                  />
                 </Box>
 
                 <Divider sx={{ my: 4 }} />
@@ -653,11 +614,11 @@ export default function ContentEditor() {
                     <Paper elevation={0} sx={{ mt: 1.5, borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
                       {showPreview ? (
                         <Box sx={{ p: 4, minHeight: 500, bgcolor: '#FFFFFF' }}>
-                          {form.coverImageUrl && (
+                          {form.coverMedia?.originalUrl && (
                             <Box
                               component="img"
-                              src={form.coverImageUrl}
-                              alt={form.title}
+                              src={form.coverMedia.originalUrl}
+                              alt={form.coverMedia.alt || form.title}
                               sx={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 3, mb: 3 }}
                             />
                           )}

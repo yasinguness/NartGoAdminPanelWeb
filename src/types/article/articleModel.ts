@@ -64,6 +64,37 @@ export const TYPE_LABELS: Record<ArticleType, string> = {
   [ArticleType.GUIDE]: 'Rehber',
 };
 
+export type MediaVariantKind = 'thumbnail' | 'card' | 'mobileHero' | 'desktopHero' | 'fullscreen';
+
+export interface MediaVariantDto {
+  kind: MediaVariantKind;
+  url: string;
+  width: number;
+  height: number;
+  aspectRatio: string;
+}
+
+export interface CoverMediaDto {
+  originalUrl: string;
+  width?: number;
+  height?: number;
+  mimeType?: string;
+  alt?: string;
+  focalPointX: number;
+  focalPointY: number;
+  variants: MediaVariantDto[];
+}
+
+export interface CoverMediaRequest {
+  originalUrl: string;
+  width?: number;
+  height?: number;
+  mimeType?: string;
+  alt?: string;
+  focalPointX?: number;
+  focalPointY?: number;
+}
+
 export interface ArticleMediaDto {
   id: string;
   mediaUrl: string;
@@ -82,7 +113,7 @@ export interface ArticleDto {
   status: ArticleStatus;
   featured: boolean;
   breakingNews: boolean;
-  coverImageUrl?: string;
+  coverMedia?: CoverMediaDto;
   readTimeMinutes: number;
   viewCount: number;
   author?: string;
@@ -100,7 +131,7 @@ export interface ArticleCreateRequest {
   body?: string;
   contentType?: ArticleType;
   category: ArticleCategory;
-  coverImageUrl?: string;
+  coverMedia?: CoverMediaRequest;
   author?: string;
   tags?: string[];
   featured?: boolean;

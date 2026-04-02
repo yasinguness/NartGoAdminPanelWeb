@@ -381,7 +381,7 @@ export default function ContentList() {
                 <TableCell>
                   <Avatar
                     variant="rounded"
-                    src={article.coverImageUrl}
+                    src={article.coverMedia?.originalUrl}
                     sx={{
                       width: 72,
                       height: 48,

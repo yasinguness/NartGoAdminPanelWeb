@@ -268,7 +268,7 @@ export default function ContentDetail() {
         {/* Main Content */}
         <Grid item xs={12} md={8}>
           {/* Cover Image */}
-          {article.coverImageUrl && (
+          {article.coverMedia?.originalUrl && (
             <Card
               elevation={0}
               sx={{
@@ -280,9 +280,18 @@ export default function ContentDetail() {
             >
               <Box
                 component="img"
-                src={article.coverImageUrl}
-                alt={article.title}
-                sx={{ width: '100%', height: 'auto', maxHeight: 400, objectFit: 'cover', display: 'block' }}
+                src={article.coverMedia.originalUrl}
+                alt={article.coverMedia.alt || article.title}
+                sx={{
+                  width: '100%',
+                  height: 'auto',
+                  maxHeight: 400,
+                  objectFit: 'cover',
+                  objectPosition: article.coverMedia.focalPointX != null && article.coverMedia.focalPointY != null
+                    ? `${Math.round(article.coverMedia.focalPointX * 100)}% ${Math.round(article.coverMedia.focalPointY * 100)}%`
+                    : 'center',
+                  display: 'block',
+                }}
               />
             </Card>
           )}
