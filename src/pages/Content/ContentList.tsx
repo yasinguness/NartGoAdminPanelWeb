@@ -363,7 +363,7 @@ export default function ContentList() {
           </TableHead>
           <TableBody>
             {visibleArticles.map((article) => (
-              <TableRow
+                <TableRow
                 key={article.id}
                 hover
                 sx={{
@@ -372,7 +372,7 @@ export default function ContentList() {
                   '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.03) },
                   '&:last-child td': { border: 0 },
                 }}
-                onClick={() => navigate(`/content/${article.id}/edit`)}
+                onClick={() => navigate(`/content/${article.id}/edit`, { state: { article } })}
               >
                 <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
@@ -446,7 +446,7 @@ export default function ContentList() {
                 </TableCell>
                 <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                   <Tooltip title="Düzenle">
-                    <IconButton size="small" onClick={() => navigate(`/content/${article.id}/edit`)}>
+                    <IconButton size="small" onClick={() => navigate(`/content/${article.id}/edit`, { state: { article } })}>
                       <EditIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   </Tooltip>

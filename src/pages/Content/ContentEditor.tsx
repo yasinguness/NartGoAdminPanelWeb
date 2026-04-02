@@ -13,7 +13,7 @@ import {
   FiberManualRecord as DotIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useArticleStore } from '../../store/article/articleStore';
 import { articleService } from '../../services/article/articleService';
 import { api } from '../../services/api';
@@ -234,6 +234,7 @@ function blocksToPlainText(blocks: ContentBlock[]): string {
 // ─── COMPONENT ──────────────────────────────────────
 export default function ContentEditor() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { createArticle, updateArticle } = useArticleStore();
@@ -259,12 +260,41 @@ export default function ContentEditor() {
   const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
   const useBlockEditor = form.contentType !== ArticleType.GALLERY;
+  const locationArticle = (location.state as { article?: ArticleDto } | null)?.article;
+
+  const applyArticleToForm = useCallback((found: ArticleDto) => {
+    if (isEditorOnly && !isOwner(found.author)) {
+      enqueueSnackbar('Bu içeriği düzenleme yetkiniz yok', { variant: 'error' });
+      navigate('/content');
+      return false;
+    }
+
+    setArticle(found);
+    const formData: ArticleCreateRequest = {
+      title: found.title, slug: found.slug, summary: found.summary || '',
+      body: found.body || '', contentType: found.contentType,
+      category: found.category, coverImageUrl: found.coverImageUrl || '',
+      author: found.author || '', tags: found.tags || [],
+      featured: found.featured, breakingNews: found.breakingNews,
+    };
+    const nextBlocks = htmlToBlocks(found.body);
+    setForm(formData);
+    setRichBlocks(nextBlocks);
+    setAutoSlug(false);
+    initialFormRef.current = JSON.stringify({ form: formData, richBlocks: nextBlocks });
+    return true;
+  }, [enqueueSnackbar, isEditorOnly, isOwner, navigate]);
 
   // ─── LIFECYCLE ────────────────────────────────────
   useEffect(() => {
-    if (isEdit && id) loadArticle(id);
+    if (isEdit && id) {
+      if (locationArticle?.id === id && applyArticleToForm(locationArticle)) {
+        return;
+      }
+      loadArticle(id);
+    }
     initialFormRef.current = JSON.stringify({ form: { ...initialForm, author: userName || '' }, richBlocks: [] });
-  }, [id, userName]);
+  }, [applyArticleToForm, id, isEdit, locationArticle, userName]);
 
   useEffect(() => {
     if (autoSlug && !isEdit) {
@@ -288,36 +318,19 @@ export default function ContentEditor() {
   }, [isDirty]);
 
   // ─── LOAD ─────────────────────────────────────────
-  const loadArticle = async (articleId: string) => {
+  const loadArticle = useCallback(async (articleId: string) => {
     try {
       setLoading(true);
       const found = await articleService.getArticle(articleId);
       if (found) {
-        // Editor role — ownership check
-        if (isEditorOnly && !isOwner(found.author)) {
-          enqueueSnackbar('Bu içeriği düzenleme yetkiniz yok', { variant: 'error' });
-          navigate('/content');
-          return;
-        }
-        setArticle(found);
-        const formData: ArticleCreateRequest = {
-          title: found.title, slug: found.slug, summary: found.summary || '',
-          body: found.body || '', contentType: found.contentType,
-          category: found.category, coverImageUrl: found.coverImageUrl || '',
-          author: found.author || '', tags: found.tags || [],
-          featured: found.featured, breakingNews: found.breakingNews,
-        };
-        setForm(formData);
-        setRichBlocks(htmlToBlocks(found.body));
-        setAutoSlug(false);
-        initialFormRef.current = JSON.stringify({ form: formData, richBlocks: htmlToBlocks(found.body) });
+        applyArticleToForm(found);
       }
     } catch {
       enqueueSnackbar('İçerik yüklenemedi', { variant: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [applyArticleToForm, enqueueSnackbar]);
 
   // ─── SAVE ─────────────────────────────────────────
   const handleSave = async (publish = false) => {
