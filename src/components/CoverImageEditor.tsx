@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import {
-  Box, Button, IconButton, InputAdornment, LinearProgress, Stack, TextField,
+  Box, Button, IconButton, LinearProgress, Stack, TextField,
   Tooltip, Typography, alpha, Chip,
 } from '@mui/material';
 import {
@@ -9,8 +9,6 @@ import {
   SwapHoriz as SwapIcon,
   MyLocation as FocalIcon,
   InfoOutlined as InfoIcon,
-  Link as LinkIcon,
-  ArrowForward as ApplyIcon,
 } from '@mui/icons-material';
 import type { CoverMediaRequest } from '../types/article/articleModel';
 
@@ -45,8 +43,6 @@ export default function CoverImageEditor({
   const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [focalHint, setFocalHint] = useState(false); // show pulse after upload
-  const [urlInput, setUrlInput] = useState('');
-  const [urlError, setUrlError] = useState(false);
 
   const fx = value?.focalPointX ?? 0.5;
   const fy = value?.focalPointY ?? 0.33;
@@ -104,18 +100,6 @@ export default function CoverImageEditor({
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragOver(true); };
   const handleDragLeave = () => setDragOver(false);
 
-  // ─── URL input ────────────────────────────────────────────────────────────
-  const applyUrl = useCallback(() => {
-    const trimmed = urlInput.trim();
-    if (!trimmed.match(/^https?:\/\/.+/i)) {
-      setUrlError(true);
-      return;
-    }
-    setUrlError(false);
-    setUrlInput('');
-    onChange({ originalUrl: trimmed, focalPointX: 0.5, focalPointY: 0.33 });
-  }, [urlInput, onChange]);
-
   // ─── Focal point ─────────────────────────────────────────────────────────
   const handleFocalClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!value) return;
@@ -147,84 +131,43 @@ export default function CoverImageEditor({
       <>
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
           style={{ display: 'none' }} onChange={handleFileInput} />
-
-        <Box sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-          {/* Upload / drag-drop zone */}
-          <Box
-            onClick={() => !disabled && fileInputRef.current?.click()}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            sx={{
-              border: '2px dashed',
-              borderColor: dragOver ? '#1a5c28' : 'transparent',
-              bgcolor: dragOver ? alpha('#1a5c28', 0.04) : 'transparent',
-              transition: 'all 0.15s',
-              cursor: disabled ? 'default' : 'pointer',
-              p: 4,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 1,
-              '&:hover': disabled ? {} : {
-                borderColor: '#1a5c28',
-                bgcolor: alpha('#1a5c28', 0.02),
-              },
-            }}
-          >
-            <Box sx={{
-              width: 48, height: 48, borderRadius: '50%',
-              bgcolor: alpha('#1a5c28', 0.08),
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              mb: 0.5,
-            }}>
-              <UploadIcon sx={{ fontSize: 24, color: '#1a5c28' }} />
-            </Box>
-            <Typography variant="body2" fontWeight={700} color="text.primary">
-              {dragOver ? 'Bırak!' : 'Görsel yükle veya sürükle bırak'}
-            </Typography>
-            <Typography variant="caption" color="text.disabled">
-              JPG, PNG, WEBP · Maks 10 MB · Önerilen: 1600 × 900 px
-            </Typography>
+        <Box
+          onClick={() => !disabled && fileInputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          sx={{
+            borderRadius: 3,
+            border: '2px dashed',
+            borderColor: dragOver ? '#1a5c28' : 'divider',
+            bgcolor: dragOver ? alpha('#1a5c28', 0.04) : 'transparent',
+            transition: 'all 0.15s',
+            cursor: disabled ? 'default' : 'pointer',
+            p: 5,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 1,
+            '&:hover': disabled ? {} : {
+              borderColor: '#1a5c28',
+              bgcolor: alpha('#1a5c28', 0.02),
+            },
+          }}
+        >
+          <Box sx={{
+            width: 52, height: 52, borderRadius: '50%',
+            bgcolor: alpha('#1a5c28', 0.08),
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            mb: 0.5,
+          }}>
+            <UploadIcon sx={{ fontSize: 26, color: '#1a5c28' }} />
           </Box>
-
-          {/* Divider */}
-          <Box sx={{ display: 'flex', alignItems: 'center', px: 3, gap: 1.5 }}>
-            <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
-            <Typography variant="caption" color="text.disabled" fontWeight={600}>veya</Typography>
-            <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
-          </Box>
-
-          {/* URL input */}
-          <Box sx={{ px: 2.5, py: 2 }}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="https://example.com/gorsel.jpg"
-              value={urlInput}
-              onChange={(e) => { setUrlInput(e.target.value); setUrlError(false); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyUrl(); } }}
-              error={urlError}
-              helperText={urlError ? 'Geçerli bir URL girin (https://...)' : undefined}
-              label="Görsel URL'si"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LinkIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
-                  </InputAdornment>
-                ),
-                endAdornment: urlInput.trim() && (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={applyUrl} sx={{ color: '#1a5c28' }}>
-                      <ApplyIcon sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                sx: { fontSize: 13, borderRadius: 1.5 },
-              }}
-              InputLabelProps={{ sx: { fontSize: 13 } }}
-            />
-          </Box>
+          <Typography variant="body2" fontWeight={700} color="text.primary">
+            {dragOver ? 'Bırak!' : 'Görsel yükle veya sürükle bırak'}
+          </Typography>
+          <Typography variant="caption" color="text.disabled">
+            JPG, PNG, WEBP · Maks 10 MB · Önerilen: 1600 × 900 px
+          </Typography>
         </Box>
       </>
     );

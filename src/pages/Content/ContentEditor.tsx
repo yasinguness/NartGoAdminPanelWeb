@@ -27,6 +27,8 @@ import CoverImageEditor from '../../components/CoverImageEditor';
 import OptionalImageCropDialog from '../../components/OptionalImageCropDialog';
 import type { ContentBlock } from '../../types/notification.types';
 import { useRole } from '../../hooks/useRole';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 // ─── UTILS ──────────────────────────────────────────
 function slugify(text: string): string {
@@ -70,6 +72,18 @@ function sanitizeHtml(html: string): string {
   const doc = parser.parseFromString(html, 'text/html');
   // Remove unsafe tags entirely
   doc.querySelectorAll('script, style, iframe, link, object, embed, form, input, button, noscript').forEach(el => el.remove());
+  // Normalize copied images that use lazy-loading attributes or srcset.
+  doc.querySelectorAll('img').forEach((img) => {
+    const currentSrc = img.getAttribute('src')?.trim();
+    const dataSrc = img.getAttribute('data-src')?.trim()
+      || img.getAttribute('data-original')?.trim()
+      || img.getAttribute('data-lazy-src')?.trim();
+    const srcSet = img.getAttribute('srcset')?.split(',')[0]?.trim().split(' ')[0];
+    const fallbackSrc = currentSrc || dataSrc || srcSet || '';
+    if (fallbackSrc) {
+      img.setAttribute('src', fallbackSrc.startsWith('//') ? `https:${fallbackSrc}` : fallbackSrc);
+    }
+  });
   // Strip event handlers and javascript: hrefs from every element
   doc.querySelectorAll('*').forEach(el => {
     Array.from(el.attributes).forEach(attr => {
@@ -80,6 +94,26 @@ function sanitizeHtml(html: string): string {
   });
   // Return just the body content (strips <html>/<head> if user pasted full page)
   return doc.body.innerHTML;
+}
+
+function isDataUrl(value?: string | null): boolean {
+  return !!value && value.trim().toLowerCase().startsWith('data:');
+}
+
+function looksLikeHtml(value: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(value);
+}
+
+function looksLikeImageUrl(value: string): boolean {
+  return /^https?:\/\/\S+\.(png|jpe?g|gif|webp|avif|svg)(\?\S*)?$/i.test(value.trim());
+}
+
+function normalizeHtmlInput(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (looksLikeHtml(trimmed)) return sanitizeHtml(trimmed);
+  if (looksLikeImageUrl(trimmed)) return `<p><img src="${escapeHtml(trimmed)}" alt="" /></p>`;
+  return value;
 }
 
 function escapeHtml(text: string): string {
@@ -208,17 +242,15 @@ function blocksToHtml(blocks: ContentBlock[]): string {
           return `<ol>${block.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ol>`;
         case 'image':
           if (!block.url) return '';
-          return `<figure><img src="${escapeHtml(block.url)}" alt="${escapeHtml(block.caption || '')}" />${
-            block.caption ? `<figcaption>${escapeHtml(block.caption)}</figcaption>` : ''
-          }</figure>`;
+          return `<figure><img src="${escapeHtml(block.url)}" alt="${escapeHtml(block.caption || '')}" />${block.caption ? `<figcaption>${escapeHtml(block.caption)}</figcaption>` : ''
+            }</figure>`;
         case 'divider':
           return '<hr />';
         case 'callout':
           return `<blockquote data-callout="${block.variant}">${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</blockquote>`;
         case 'quote':
-          return `<blockquote><p>${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</p>${
-            block.author ? `<footer>${escapeHtml(block.author)}</footer>` : ''
-          }</blockquote>`;
+          return `<blockquote><p>${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</p>${block.author ? `<footer>${escapeHtml(block.author)}</footer>` : ''
+            }</blockquote>`;
         default:
           return '';
       }
@@ -292,14 +324,14 @@ export default function ContentEditor() {
       category: found.category,
       coverMedia: found.coverMedia
         ? {
-            originalUrl: found.coverMedia.originalUrl,
-            width: found.coverMedia.width,
-            height: found.coverMedia.height,
-            mimeType: found.coverMedia.mimeType,
-            alt: found.coverMedia.alt,
-            focalPointX: found.coverMedia.focalPointX,
-            focalPointY: found.coverMedia.focalPointY,
-          }
+          originalUrl: found.coverMedia.originalUrl,
+          width: found.coverMedia.width,
+          height: found.coverMedia.height,
+          mimeType: found.coverMedia.mimeType,
+          alt: found.coverMedia.alt,
+          focalPointX: found.coverMedia.focalPointX,
+          focalPointY: found.coverMedia.focalPointY,
+        }
         : undefined,
       author: found.author || '', tags: found.tags || [],
       featured: found.featured, breakingNews: found.breakingNews,
@@ -307,8 +339,7 @@ export default function ContentEditor() {
     const nextBlocks = htmlToBlocks(found.body);
     setForm(formData);
     setRichBlocks(nextBlocks);
-    // If body looks like raw HTML from an external paste (more than 500 chars, no rich content), open in HTML mode
-    if (found.body && found.body.length > 500 && !found.richContent?.length) {
+    if (found.body && looksLikeHtml(found.body)) {
       setEditorMode('html');
     }
     setAutoSlug(false);
@@ -377,6 +408,14 @@ export default function ContentEditor() {
       enqueueSnackbar('HTML içerik alanı boş bırakılamaz', { variant: 'warning' });
       return;
     }
+    if (isDataUrl(form.coverMedia?.originalUrl)) {
+      enqueueSnackbar('Kapak görseli henüz yüklenmedi. Lütfen yeniden yükleyip URL oluşmasını bekleyin.', { variant: 'warning' });
+      return;
+    }
+    if (useBlockEditor && editorMode === 'blocks' && richBlocks.some((block) => block.type === 'image' && isDataUrl(block.url))) {
+      enqueueSnackbar('İçerikte yüklenmemiş görsel var. Lütfen problemli görseli yeniden yükleyin.', { variant: 'warning' });
+      return;
+    }
     try {
       setLoading(true);
       const payload = {
@@ -426,13 +465,6 @@ export default function ContentEditor() {
     });
   }, []);
 
-  // Cover upload handler passed to CoverImageEditor
-  const handleCoverUpload = useCallback(async (file: File, onProgress: (p: number) => void) => {
-    const url = await uploadCoverImage(file, onProgress);
-    enqueueSnackbar('Görsel yüklendi', { variant: 'success' });
-    return url;
-  }, [enqueueSnackbar]); // eslint-disable-line
-
   // ─── BACK HANDLER ─────────────────────────────────
   const handleBack = () => {
     if (isDirty) { setLeaveDialogOpen(true); return; }
@@ -455,12 +487,14 @@ export default function ContentEditor() {
         }
       },
     });
-    const url = response.data?.data?.url || response.data?.data?.mediaUrl;
+    const url = response.data?.data?.cdnUrl
+      || response.data?.data?.originalUrl
+      || response.data?.data?.url
+      || response.data?.data?.mediaUrl;
     if (!url) throw new Error('Upload response missing url');
     return url as string;
   }, []);
 
-  // Passed to CoverImageEditor as onUpload prop
   const handleCoverUpload = useCallback(async (file: File, onProgress: (p: number) => void) => {
     const url = await uploadImage(file, 'articles/covers', onProgress);
     enqueueSnackbar('Görsel yüklendi', { variant: 'success' });
@@ -478,15 +512,8 @@ export default function ContentEditor() {
       enqueueSnackbar('İçerik görseli yüklendi', { variant: 'success' });
       return url;
     } catch {
-      return await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          enqueueSnackbar('Sunucuya yüklenemedi, yerel önizleme kullanılıyor', { variant: 'info' });
-          resolve(event.target?.result as string);
-        };
-        reader.onerror = () => reject(new Error('file-read-failed'));
-        reader.readAsDataURL(preparedFile);
-      });
+      enqueueSnackbar('İçerik görseli yüklenemedi. Bloka eklenmedi, lütfen tekrar deneyin.', { variant: 'error' });
+      return null;
     }
   }, [enqueueSnackbar, requestOptionalCrop, uploadImage]);
 
@@ -506,7 +533,7 @@ export default function ContentEditor() {
   // ─── RENDER ───────────────────────────────────────
   return (
     <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', pb: 8 }}>
-      {loading && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }} />
+      {loading && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }} />}
 
       {/* ═══ TOP BAR ═══ */}
       <Box sx={{ bgcolor: 'background.paper', borderBottom: '0.5px solid', borderColor: 'divider', px: 4, py: 1.5, position: 'sticky', top: 0, zIndex: 10 }}>
@@ -713,7 +740,7 @@ export default function ContentEditor() {
                       {/* Info bar */}
                       <Box sx={{ px: 2.5, py: 1.25, bgcolor: alpha('#1a5c28', 0.04), borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="caption" fontWeight={600} color="#1a5c28" sx={{ fontSize: 11 }}>
-                          Sayfayı tarayıcıda aç → Tüm metni seç (Ctrl+A) → Kopyala (Ctrl+C) → Buraya yapıştır
+                          Sayfayı tarayıcıda aç → Tüm metni seç (Ctrl+A) → Kopyala (Ctrl+C) → Buraya yapıştır. (İçerik doğrudan düzenlenebilir)
                         </Typography>
                       </Box>
 
@@ -747,39 +774,33 @@ export default function ContentEditor() {
                         </Box>
                       ) : (
                         /* HTML Input */
-                        <Box>
-                          <TextField
-                            fullWidth
-                            multiline
-                            minRows={20}
+                        <Box sx={{
+                          '& .quill': { bgcolor: '#FAFAFA' },
+                          '& .ql-toolbar': { bgcolor: '#F9FAFB', border: 'none', borderBottom: '1px solid #E5E7EB' },
+                          '& .ql-container': { border: 'none', minHeight: 400, fontSize: 16, fontFamily: 'inherit' },
+                          '& .ql-editor': { minHeight: 400 }
+                        }}>
+                          <ReactQuill
+                            theme="snow"
                             value={form.body || ''}
-                            onChange={(e) => updateField('body', e.target.value)}
-                            onPaste={(e) => {
-                              const pasted = e.clipboardData.getData('text/plain') || e.clipboardData.getData('text/html');
-                              if (pasted.trim().startsWith('<')) {
-                                e.preventDefault();
-                                updateField('body', sanitizeHtml(pasted));
-                              }
+                            onChange={(content) => updateField('body', content)}
+                            modules={{
+                               toolbar: [
+                                 [{ 'header': [1, 2, 3, false] }],
+                                 ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+                                 [{'list': 'ordered'}, {'list': 'bullet'}],
+                                 ['link', 'image', 'video'],
+                                 ['clean']
+                               ]
                             }}
-                            placeholder={`Buraya HTML yapıştırın.\n\nÖrnek:\n<h2>Başlık</h2>\n<p>Paragraf metni buraya gelir.</p>`}
-                            InputProps={{
-                              sx: {
-                                fontFamily: 'monospace',
-                                fontSize: 12,
-                                lineHeight: 1.6,
-                                bgcolor: '#FAFAFA',
-                                borderRadius: 0,
-                                '& fieldset': { border: 'none' },
-                                alignItems: 'flex-start',
-                              },
-                            }}
+                            placeholder="Buraya metninizi yapıştırın veya yazmaya başlayın..."
                           />
                           <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
                               {wordCount} kelime · ~{readTime} dk okuma
                             </Typography>
                             <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
-                              {(form.body || '').length} karakter
+                              {(form.body || '').replace(/<[^>]*>/g, '').length} karakter
                             </Typography>
                           </Box>
                         </Box>

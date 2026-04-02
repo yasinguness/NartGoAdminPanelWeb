@@ -45,9 +45,39 @@ const COLORS = {
   neutral: '#64748b' // grey
 };
 
+type InventoryAllocation = {
+  sellable: number;
+  vip: number;
+  hold: number;
+  blackout: number;
+};
+
+type InventoryChild = {
+  id: string;
+  name: string;
+  type: string;
+  capacity: number;
+  allocation: InventoryAllocation;
+};
+
+type InventoryBlock = {
+  id: string;
+  name: string;
+  type: string;
+  capacity: number;
+  allocation: InventoryAllocation;
+  expanded?: boolean;
+  children: InventoryChild[];
+};
+
+type InventoryRow = InventoryBlock | (InventoryChild & { parentId: string });
+
+function isInventoryBlock(row: InventoryRow): row is InventoryBlock {
+  return !('parentId' in row);
+}
 
 export default function VenueInventoryManager() {
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<InventoryBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
   const [isDrawerOpen, setDrawerOpen] = useState(false);
@@ -100,19 +130,19 @@ export default function VenueInventoryManager() {
     );
   };
 
-  let rowsToRender: any[] = [];
-  data.forEach(block => {
+  const rowsToRender: InventoryRow[] = [];
+  data.forEach((block: InventoryBlock) => {
     if (block.name.toLowerCase().includes(searchQuery.toLowerCase())) {
         rowsToRender.push(block);
         if (block.expanded) {
-          block.children.forEach(child => rowsToRender.push({ ...child, parentId: block.id }));
+          block.children.forEach((child: InventoryChild) => rowsToRender.push({ ...child, parentId: block.id }));
         }
     } else {
         // If parent doesn't match, maybe child matches
-        const matchingChildren = block.children.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        const matchingChildren = block.children.filter((child: InventoryChild) => child.name.toLowerCase().includes(searchQuery.toLowerCase()));
         if (matchingChildren.length > 0) {
             rowsToRender.push({ ...block, expanded: true }); // auto expand to show matching
-            matchingChildren.forEach(child => rowsToRender.push({ ...child, parentId: block.id }));
+            matchingChildren.forEach((child: InventoryChild) => rowsToRender.push({ ...child, parentId: block.id }));
         }
     }
   });
@@ -213,7 +243,7 @@ export default function VenueInventoryManager() {
               <TableBody>
                 {rowsToRender.map(row => {
                   const isSelected = selectedIds.includes(row.id);
-                  const isBlock = row.type === 'BLOCK';
+                  const isBlock = isInventoryBlock(row);
                   
                   return (
                     <TableRow 
