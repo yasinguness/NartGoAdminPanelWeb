@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   Box, Button, Card, CardContent, Chip, FormControl, Grid, InputLabel,
   MenuItem, Select, Stack, Switch, TextField, Typography, FormControlLabel,
-  IconButton, LinearProgress, Divider, Avatar, Paper,
+  IconButton, LinearProgress, Divider, Avatar, Paper, alpha,
   Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
@@ -64,6 +64,23 @@ const initialForm: ArticleCreateRequest = {
 };
 
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+
+function sanitizeHtml(html: string): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  // Remove unsafe tags entirely
+  doc.querySelectorAll('script, style, iframe, link, object, embed, form, input, button, noscript').forEach(el => el.remove());
+  // Strip event handlers and javascript: hrefs from every element
+  doc.querySelectorAll('*').forEach(el => {
+    Array.from(el.attributes).forEach(attr => {
+      if (attr.name.startsWith('on') || (attr.name === 'href' && attr.value.trim().toLowerCase().startsWith('javascript:'))) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+  // Return just the body content (strips <html>/<head> if user pasted full page)
+  return doc.body.innerHTML;
+}
 
 function escapeHtml(text: string): string {
   return text
@@ -254,6 +271,7 @@ export default function ContentEditor() {
   const [isDirty, setIsDirty] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [cropDialogState, setCropDialogState] = useState<{ file: File; title: string } | null>(null);
+  const [editorMode, setEditorMode] = useState<'blocks' | 'html'>('blocks');
   const initialFormRef = useRef<string>('');
   const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
@@ -289,6 +307,10 @@ export default function ContentEditor() {
     const nextBlocks = htmlToBlocks(found.body);
     setForm(formData);
     setRichBlocks(nextBlocks);
+    // If body looks like raw HTML from an external paste (more than 500 chars, no rich content), open in HTML mode
+    if (found.body && found.body.length > 500 && !found.richContent?.length) {
+      setEditorMode('html');
+    }
     setAutoSlug(false);
     initialFormRef.current = JSON.stringify({ form: formData, richBlocks: nextBlocks });
     return true;
@@ -347,15 +369,19 @@ export default function ContentEditor() {
       enqueueSnackbar('Başlık zorunludur', { variant: 'warning' });
       return;
     }
-    if (useBlockEditor && richBlocks.length === 0) {
+    if (useBlockEditor && editorMode === 'blocks' && richBlocks.length === 0) {
       enqueueSnackbar('İçerik alanı boş bırakılamaz', { variant: 'warning' });
+      return;
+    }
+    if (useBlockEditor && editorMode === 'html' && !form.body?.trim()) {
+      enqueueSnackbar('HTML içerik alanı boş bırakılamaz', { variant: 'warning' });
       return;
     }
     try {
       setLoading(true);
       const payload = {
         ...form,
-        body: useBlockEditor ? blocksToHtml(richBlocks) : form.body,
+        body: useBlockEditor && editorMode === 'blocks' ? blocksToHtml(richBlocks) : form.body,
       };
       if (isEdit && id) {
         await updateArticle(id, payload);
@@ -466,10 +492,12 @@ export default function ContentEditor() {
 
   // ─── COMPUTED ─────────────────────────────────────
   const wordCount = useMemo(() => {
-    const sourceText = useBlockEditor ? blocksToPlainText(richBlocks) : (form.body || '').replace(/<[^>]*>/g, ' ');
+    const sourceText = useBlockEditor && editorMode === 'blocks'
+      ? blocksToPlainText(richBlocks)
+      : (form.body || '').replace(/<[^>]*>/g, ' ');
     const text = sourceText.split(/\s+/).filter(w => w.length > 0);
     return text.length;
-  }, [form.body, richBlocks, form.contentType]);
+  }, [form.body, richBlocks, form.contentType, editorMode]);
   const readTime = Math.max(1, Math.ceil(wordCount / 200));
   const titleLen = form.title?.length || 0;
   const summaryLen = form.summary?.length || 0;
@@ -605,13 +633,46 @@ export default function ContentEditor() {
 
                 {/* ═══ EDITOR ═══ */}
                 <Box>
-                  <Typography variant="caption" fontWeight={800} color="text.secondary" textTransform="uppercase">İçerik</Typography>
-                  <Typography variant="caption" color="text.disabled" display="block" sx={{ mt: 0.75, mb: 1.5 }}>
-                    Tek editör kullanılır. İçerik bloklarıyla yazın; sistem bunu yayın için makale gövdesine dönüştürür.
-                  </Typography>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
+                    <Typography variant="caption" fontWeight={800} color="text.secondary" textTransform="uppercase">İçerik</Typography>
+                    {useBlockEditor && (
+                      <Stack direction="row" spacing={0.5} sx={{
+                        bgcolor: '#F3F4F6', borderRadius: 2, p: 0.5,
+                      }}>
+                        <Button
+                          size="small"
+                          onClick={() => setEditorMode('blocks')}
+                          sx={{
+                            borderRadius: 1.5, textTransform: 'none', fontWeight: 700, fontSize: 11, px: 1.5, py: 0.5,
+                            bgcolor: editorMode === 'blocks' ? 'white' : 'transparent',
+                            color: editorMode === 'blocks' ? 'text.primary' : 'text.secondary',
+                            boxShadow: editorMode === 'blocks' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            minWidth: 0,
+                            '&:hover': { bgcolor: editorMode === 'blocks' ? 'white' : alpha('#000', 0.04) },
+                          }}
+                        >
+                          Blok Editör
+                        </Button>
+                        <Button
+                          size="small"
+                          onClick={() => setEditorMode('html')}
+                          sx={{
+                            borderRadius: 1.5, textTransform: 'none', fontWeight: 700, fontSize: 11, px: 1.5, py: 0.5,
+                            bgcolor: editorMode === 'html' ? 'white' : 'transparent',
+                            color: editorMode === 'html' ? 'text.primary' : 'text.secondary',
+                            boxShadow: editorMode === 'html' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            minWidth: 0,
+                            '&:hover': { bgcolor: editorMode === 'html' ? 'white' : alpha('#000', 0.04) },
+                          }}
+                        >
+                          HTML Yapıştır
+                        </Button>
+                      </Stack>
+                    )}
+                  </Stack>
 
-                  {useBlockEditor && (
-                    <Paper elevation={0} sx={{ mt: 1.5, borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                  {useBlockEditor && editorMode === 'blocks' && (
+                    <Paper elevation={0} sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
                       {showPreview ? (
                         <Box sx={{ p: 4, minHeight: 500, bgcolor: '#FFFFFF' }}>
                           {form.coverMedia?.originalUrl && (
@@ -637,10 +698,88 @@ export default function ContentEditor() {
                           <Box sx={{ p: { xs: 2, md: 4 }, minHeight: 500 }}>
                             <RichContentEditor blocks={richBlocks} onChange={setRichBlocks} onImageUpload={handleBlockImageUpload} />
                           </Box>
-                          {/* Word count bar */}
                           <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
                             <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
                               {wordCount} kelime · ~{readTime} dk okuma
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                    </Paper>
+                  )}
+
+                  {useBlockEditor && editorMode === 'html' && (
+                    <Paper elevation={0} sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                      {/* Info bar */}
+                      <Box sx={{ px: 2.5, py: 1.25, bgcolor: alpha('#1a5c28', 0.04), borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="caption" fontWeight={600} color="#1a5c28" sx={{ fontSize: 11 }}>
+                          Sayfayı tarayıcıda aç → Tüm metni seç (Ctrl+A) → Kopyala (Ctrl+C) → Buraya yapıştır
+                        </Typography>
+                      </Box>
+
+                      {showPreview ? (
+                        /* HTML Preview */
+                        <Box sx={{ p: 3, minHeight: 500, bgcolor: '#FFFFFF' }}>
+                          <Box
+                            sx={{
+                              '& h1,& h2,& h3,& h4': { fontWeight: 700, lineHeight: 1.3, mt: 3, mb: 1.5 },
+                              '& h1': { fontSize: '2em' }, '& h2': { fontSize: '1.5em' }, '& h3': { fontSize: '1.25em' },
+                              '& p': { mb: 1.5, lineHeight: 1.8 },
+                              '& ul,& ol': { pl: 3, mb: 1.5 },
+                              '& li': { mb: 0.5, lineHeight: 1.8 },
+                              '& blockquote': { borderLeft: '4px solid #1a5c28', pl: 2, ml: 0, color: 'text.secondary', my: 2 },
+                              '& img': { maxWidth: '100%', borderRadius: 2, my: 1 },
+                              '& a': { color: '#1a5c28' },
+                              '& strong,& b': { fontWeight: 700 },
+                              '& em,& i': { fontStyle: 'italic' },
+                              '& pre,& code': { fontFamily: 'monospace', bgcolor: '#F3F4F6', borderRadius: 1, p: 0.5 },
+                              '& hr': { border: 'none', borderTop: '1px solid', borderColor: 'divider', my: 3 },
+                              '& table': { width: '100%', borderCollapse: 'collapse', mb: 2 },
+                              '& th,& td': { border: '1px solid', borderColor: 'divider', p: 1 },
+                            }}
+                            dangerouslySetInnerHTML={{ __html: form.body || '' }}
+                          />
+                          <Box sx={{ mt: 2, pt: 2, borderTop: '0.5px solid #E5E7EB' }}>
+                            <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                              {wordCount} kelime · ~{readTime} dk okuma
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ) : (
+                        /* HTML Input */
+                        <Box>
+                          <TextField
+                            fullWidth
+                            multiline
+                            minRows={20}
+                            value={form.body || ''}
+                            onChange={(e) => updateField('body', e.target.value)}
+                            onPaste={(e) => {
+                              const pasted = e.clipboardData.getData('text/plain') || e.clipboardData.getData('text/html');
+                              if (pasted.trim().startsWith('<')) {
+                                e.preventDefault();
+                                updateField('body', sanitizeHtml(pasted));
+                              }
+                            }}
+                            placeholder={`Buraya HTML yapıştırın.\n\nÖrnek:\n<h2>Başlık</h2>\n<p>Paragraf metni buraya gelir.</p>`}
+                            InputProps={{
+                              sx: {
+                                fontFamily: 'monospace',
+                                fontSize: 12,
+                                lineHeight: 1.6,
+                                bgcolor: '#FAFAFA',
+                                borderRadius: 0,
+                                '& fieldset': { border: 'none' },
+                                alignItems: 'flex-start',
+                              },
+                            }}
+                          />
+                          <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                              {wordCount} kelime · ~{readTime} dk okuma
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                              {(form.body || '').length} karakter
                             </Typography>
                           </Box>
                         </Box>
