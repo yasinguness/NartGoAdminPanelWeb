@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { api } from '../api';
 import type { ApiResponse } from '../../types/api';
 import type { ArticleDto, ArticleCreateRequest, ArticleCategory, ArticleStatus } from '../../types/article/articleModel';
@@ -71,8 +72,16 @@ export const articleService = {
   },
 
   updateArticle: async (id: string, payload: ArticleCreateRequest) => {
-    const response = await api.put<ArticleDto | ApiResponse<ArticleDto>>(`/content/admin/articles/${id}`, payload);
-    return unwrapArticleResponse(response.data);
+    try {
+      const response = await api.put<ArticleDto | ApiResponse<ArticleDto>>(`/content/admin/articles/${id}`, payload);
+      return unwrapArticleResponse(response.data);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 405) {
+        const response = await api.patch<ArticleDto | ApiResponse<ArticleDto>>(`/content/admin/articles/${id}`, payload);
+        return unwrapArticleResponse(response.data);
+      }
+      throw error;
+    }
   },
 
   deleteArticle: async (id: string) => {
