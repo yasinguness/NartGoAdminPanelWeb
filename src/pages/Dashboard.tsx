@@ -122,6 +122,12 @@ const getInitials = (name?: string | null, email?: string | null): string => {
   return '?';
 };
 
+const getUserDisplayName = (name?: string | null, email?: string | null): string => {
+  if (name?.trim()) return name;
+  if (email?.trim()) return email.split('@')[0];
+  return 'Bilinmiyor';
+};
+
 interface UpcomingNotification {
   id: string | number;
   title: string;
@@ -746,14 +752,14 @@ export default function Dashboard() {
                               >
                                 {getInitials(user.displayName, user.userEmail)}
                               </Avatar>
-                              <Typography variant="body2" fontWeight={600}>
-                                {user.displayName || user.userEmail.split('@')[0]}
+                              <Typography variant="body2" fontWeight={500}>
+                                {getUserDisplayName(user.displayName, user.userEmail)}
                               </Typography>
                             </Stack>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-                              {user.userEmail}
+                            <Typography variant="body2" color="text.secondary">
+                              {user.userEmail || '-'}
                             </Typography>
                           </TableCell>
                           <TableCell>
@@ -902,8 +908,8 @@ export default function Dashboard() {
                           {getInitials(user.displayName, user.userEmail)}
                         </Avatar>
                         <Box flex={1} minWidth={0}>
-                          <Typography variant="body2" fontWeight={600} noWrap>
-                            {user.displayName || user.userEmail?.split('@')[0] || 'Bilinmiyor'}
+                          <Typography variant="body2" fontWeight={500} noWrap>
+                            {getUserDisplayName(user.displayName, user.userEmail)}
                           </Typography>
                         </Box>
                         <Chip
@@ -1066,11 +1072,11 @@ export default function Dashboard() {
                     {getInitials(selectedUser.displayName, selectedUser.userEmail)}
                   </Avatar>
                   <Box>
-                    <Typography variant="h6" fontWeight={700}>
-                      {selectedUser.displayName || selectedUser.userEmail.split('@')[0]}
+                    <Typography variant="h6" fontWeight={600}>
+                      {getUserDisplayName(selectedUser.displayName, selectedUser.userEmail)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {selectedUser.userEmail}
+                      {selectedUser.userEmail || '-'}
                     </Typography>
                   </Box>
                 </Stack>

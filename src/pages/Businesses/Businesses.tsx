@@ -42,7 +42,7 @@ const glassCardSx = {
 
 const statCardSx = (color: string) => ({
   p: 2.5, borderRadius: 3, bgcolor: 'background.paper',
-  border: '1px solid', borderColor: 'divider',
+  border: '1px solid',
   position: 'relative' as const, overflow: 'hidden',
   background: `linear-gradient(135deg, ${alpha(color, 0.06)} 0%, ${alpha(color, 0.02)} 100%)`,
   borderColor: alpha(color, 0.12),

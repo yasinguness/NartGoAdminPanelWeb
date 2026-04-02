@@ -2,19 +2,14 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   Box, Button, Card, CardContent, Chip, FormControl, Grid, InputLabel,
   MenuItem, Select, Stack, Switch, TextField, Typography, FormControlLabel,
-  IconButton, LinearProgress, Divider, Tooltip, Avatar, alpha, Paper,
+  IconButton, LinearProgress, Divider, Avatar, alpha, Paper,
   Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
   Save as SaveIcon, Publish as PublishIcon, ArrowBack as BackIcon,
   Delete as DeleteIcon, AddPhotoAlternate as AddPhotoIcon,
-  FormatBold, FormatItalic, FormatListBulleted, FormatQuote,
-  Title as TitleIcon, Link as LinkIcon, Image as ImageIcon,
   Visibility as PreviewIcon, Close as CloseIcon,
-  FormatUnderlined, FormatAlignLeft, FormatAlignCenter,
-  FormatAlignRight, FormatListNumbered, Undo, Redo,
-  Edit as EditIcon, Check as CheckMarkIcon, Code as CodeIcon,
-  HorizontalRule, StrikethroughS, CloudUpload as UploadIcon,
+  Edit as EditIcon, Check as CheckMarkIcon, CloudUpload as UploadIcon,
   FiberManualRecord as DotIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
@@ -52,6 +47,92 @@ const initialForm: ArticleCreateRequest = {
   featured: false, breakingNews: false,
 };
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function stripHtmlToText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+}
+
+function htmlToBlocks(html?: string): ContentBlock[] {
+  const text = stripHtmlToText(html || '');
+  if (!text) return [];
+
+  return text
+    .split(/\n{2,}/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk, index) => {
+      if (index === 0) {
+        return { type: 'paragraph' as const, text: chunk };
+      }
+      return { type: 'paragraph' as const, text: chunk };
+    });
+}
+
+function blocksToHtml(blocks: ContentBlock[]): string {
+  return blocks
+    .map((block) => {
+      switch (block.type) {
+        case 'heading':
+          return `<h${block.level}>${escapeHtml(block.text || '')}</h${block.level}>`;
+        case 'paragraph':
+          return `<p>${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</p>`;
+        case 'image':
+          if (!block.url) return '';
+          return `<figure><img src="${escapeHtml(block.url)}" alt="${escapeHtml(block.caption || '')}" />${
+            block.caption ? `<figcaption>${escapeHtml(block.caption)}</figcaption>` : ''
+          }</figure>`;
+        case 'divider':
+          return '<hr />';
+        case 'callout':
+          return `<blockquote data-callout="${block.variant}">${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</blockquote>`;
+        case 'quote':
+          return `<blockquote><p>${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</p>${
+            block.author ? `<footer>${escapeHtml(block.author)}</footer>` : ''
+          }</blockquote>`;
+        default:
+          return '';
+      }
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function blocksToPlainText(blocks: ContentBlock[]): string {
+  return blocks
+    .map((block) => {
+      switch (block.type) {
+        case 'heading':
+        case 'paragraph':
+        case 'callout':
+        case 'quote':
+          return [block.text, block.type === 'quote' ? block.author : ''].filter(Boolean).join(' ');
+        case 'image':
+          return block.caption || '';
+        default:
+          return '';
+      }
+    })
+    .filter(Boolean)
+    .join(' ');
+}
+
 // ─── COMPONENT ──────────────────────────────────────
 export default function ContentEditor() {
   const { id } = useParams<{ id: string }>();
@@ -74,8 +155,6 @@ export default function ContentEditor() {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileRef = useRef<HTMLInputElement>(null);
   const initialFormRef = useRef<string>('');
 
@@ -93,9 +172,9 @@ export default function ContentEditor() {
 
   // Dirty tracking
   useEffect(() => {
-    const current = JSON.stringify(form);
+    const current = JSON.stringify({ form, richBlocks });
     setIsDirty(current !== initialFormRef.current);
-  }, [form]);
+  }, [form, richBlocks]);
 
   // Browser close warning
   useEffect(() => {
@@ -128,8 +207,9 @@ export default function ContentEditor() {
           featured: found.featured, breakingNews: found.breakingNews,
         };
         setForm(formData);
+        setRichBlocks(htmlToBlocks(found.body));
         setAutoSlug(false);
-        initialFormRef.current = JSON.stringify(formData);
+        initialFormRef.current = JSON.stringify({ form: formData, richBlocks: htmlToBlocks(found.body) });
       }
     } catch {
       enqueueSnackbar('İçerik yüklenemedi', { variant: 'error' });
@@ -144,12 +224,16 @@ export default function ContentEditor() {
       enqueueSnackbar('Başlık zorunludur', { variant: 'warning' });
       return;
     }
+    if (useBlockEditor && richBlocks.length === 0) {
+      enqueueSnackbar('İçerik alanı boş bırakılamaz', { variant: 'warning' });
+      return;
+    }
     try {
       setLoading(true);
-      const payload = { ...form };
-      if (richBlocks.length > 0) {
-        (payload as any).richContent = JSON.stringify(richBlocks);
-      }
+      const payload = {
+        ...form,
+        body: useBlockEditor ? blocksToHtml(richBlocks) : form.body,
+      };
       if (isEdit && id) {
         await updateArticle(id, payload);
         if (publish) await articleService.publishArticle(id);
@@ -161,29 +245,13 @@ export default function ContentEditor() {
       }
       setLastSaved(new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
       setIsDirty(false);
-      initialFormRef.current = JSON.stringify(form);
+      initialFormRef.current = JSON.stringify({ form: payload, richBlocks });
       navigate('/content');
     } catch {
       enqueueSnackbar('Kaydetme hatası', { variant: 'error' });
     } finally {
       setLoading(false);
     }
-  };
-
-  // ─── HTML INSERT ──────────────────────────────────
-  const insertHtml = (before: string, after: string = '') => {
-    const textarea = bodyRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = form.body?.substring(start, end) || '';
-    const newBody = (form.body || '').substring(0, start) + before + selected + after + (form.body || '').substring(end);
-    setForm(prev => ({ ...prev, body: newBody }));
-    setTimeout(() => {
-      textarea.focus();
-      textarea.selectionStart = start + before.length;
-      textarea.selectionEnd = start + before.length + selected.length;
-    }, 0);
   };
 
   // ─── TAGS ─────────────────────────────────────────
@@ -243,9 +311,10 @@ export default function ContentEditor() {
 
   // ─── COMPUTED ─────────────────────────────────────
   const wordCount = useMemo(() => {
-    const text = (form.body || '').replace(/<[^>]*>/g, ' ').split(/\s+/).filter(w => w.length > 0);
+    const sourceText = useBlockEditor ? blocksToPlainText(richBlocks) : (form.body || '').replace(/<[^>]*>/g, ' ');
+    const text = sourceText.split(/\s+/).filter(w => w.length > 0);
     return text.length;
-  }, [form.body]);
+  }, [form.body, richBlocks, useBlockEditor]);
   const readTime = Math.max(1, Math.ceil(wordCount / 200));
   const titleLen = form.title?.length || 0;
   const summaryLen = form.summary?.length || 0;
@@ -394,56 +463,21 @@ export default function ContentEditor() {
                 {/* ═══ EDITOR ═══ */}
                 <Box>
                   <Typography variant="caption" fontWeight={800} color="text.secondary" textTransform="uppercase">İçerik</Typography>
+                  <Typography variant="caption" color="text.disabled" display="block" sx={{ mt: 0.75, mb: 1.5 }}>
+                    Tek editör kullanılır. İçerik bloklarıyla yazın; sistem bunu yayın için makale gövdesine dönüştürür.
+                  </Typography>
 
                   {useBlockEditor && (
                     <Paper elevation={0} sx={{ mt: 1.5, borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-                      {/* Toolbar */}
-                      <Stack direction="row" spacing={0.5} sx={{
-                        p: 1, bgcolor: '#F9FAFB', flexWrap: 'wrap',
-                        borderBottom: '0.5px solid #E5E7EB',
-                        position: 'sticky', top: 52, zIndex: 5,
-                      }}>
-                        <Tooltip title="Büyük Başlık (H2)"><IconButton onClick={() => insertHtml('<h2>', '</h2>')} size="small"><Typography variant="caption" fontWeight={800}>H2</Typography></IconButton></Tooltip>
-                        <Tooltip title="Küçük Başlık (H3)"><IconButton onClick={() => insertHtml('<h3>', '</h3>')} size="small"><Typography variant="caption" fontWeight={800}>H3</Typography></IconButton></Tooltip>
-                        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-                        <Tooltip title="Kalın (Ctrl+B)"><IconButton size="small" onClick={() => insertHtml('<strong>', '</strong>')}><FormatBold fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="İtalik (Ctrl+I)"><IconButton size="small" onClick={() => insertHtml('<em>', '</em>')}><FormatItalic fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Altı Çizili (Ctrl+U)"><IconButton size="small" onClick={() => insertHtml('<u>', '</u>')}><FormatUnderlined fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Üstü Çizili"><IconButton size="small" onClick={() => insertHtml('<s>', '</s>')}><StrikethroughS fontSize="small" /></IconButton></Tooltip>
-                        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-                        <Tooltip title="Sola Hizala"><IconButton size="small" onClick={() => insertHtml('<div style="text-align:left">', '</div>')}><FormatAlignLeft fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Ortala"><IconButton size="small" onClick={() => insertHtml('<div style="text-align:center">', '</div>')}><FormatAlignCenter fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Sağa Hizala"><IconButton size="small" onClick={() => insertHtml('<div style="text-align:right">', '</div>')}><FormatAlignRight fontSize="small" /></IconButton></Tooltip>
-                        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-                        <Tooltip title="Madde İşareti"><IconButton size="small" onClick={() => insertHtml('<ul><li>', '</li></ul>')}><FormatListBulleted fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Numaralı Liste"><IconButton size="small" onClick={() => insertHtml('<ol><li>', '</li></ol>')}><FormatListNumbered fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Alıntı"><IconButton size="small" onClick={() => insertHtml('<blockquote>', '</blockquote>')}><FormatQuote fontSize="small" /></IconButton></Tooltip>
-                        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-                        <Tooltip title="Link Ekle (Ctrl+K)"><IconButton size="small" onClick={() => insertHtml('<a href="">', '</a>')}><LinkIcon fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Görsel Ekle"><IconButton size="small" onClick={() => insertHtml('<img src="" alt="" />')}><ImageIcon fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Yatay Çizgi"><IconButton size="small" onClick={() => insertHtml('<hr />')}><HorizontalRule fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Kod Bloğu"><IconButton size="small" onClick={() => insertHtml('<pre><code>', '</code></pre>')}><CodeIcon fontSize="small" /></IconButton></Tooltip>
-                        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-                        <Tooltip title="Geri Al"><IconButton size="small"><Undo fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Yeniden Yap"><IconButton size="small"><Redo fontSize="small" /></IconButton></Tooltip>
-                      </Stack>
-
                       {showPreview ? (
                         <Box sx={{ p: 3, minHeight: 400, bgcolor: '#FFFFFF' }}>
-                          <div dangerouslySetInnerHTML={{ __html: form.body || '' }} style={{ fontSize: 15, lineHeight: 1.75, color: '#111' }} />
+                          <RichContentRenderer blocks={richBlocks} />
                         </Box>
                       ) : (
                         <Box>
-                          <textarea ref={bodyRef} value={form.body}
-                            onChange={(e) => updateField('body', e.target.value)}
-                            placeholder="İçeriği buraya yazın..."
-                            style={{
-                              width: '100%', minHeight: 400, border: 'none', outline: 'none',
-                              padding: '20px 24px', fontSize: 15, lineHeight: 1.75,
-                              fontFamily: 'inherit', background: '#FFFFFF', color: '#111111',
-                              resize: 'vertical',
-                            }}
-                          />
+                          <Box sx={{ p: 2 }}>
+                            <RichContentEditor blocks={richBlocks} onChange={setRichBlocks} />
+                          </Box>
                           {/* Word count bar */}
                           <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
                             <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
@@ -464,18 +498,6 @@ export default function ContentEditor() {
                     </Paper>
                   )}
 
-                  {/* Rich Content (Blog Blocks) */}
-                  <Box sx={{ mt: 4 }}>
-                    <Typography variant="caption" fontWeight={800} color="text.secondary" textTransform="uppercase">
-                      Zengin İçerik Blokları (Mobil Görünüm)
-                    </Typography>
-                    <Typography variant="caption" color="text.disabled" display="block" sx={{ mb: 1.5 }}>
-                      Uygulama içinde blog tarzında görünecek blok içerik. Metin aralarına görsel, alıntı ve bilgi kutuları ekleyebilirsiniz.
-                    </Typography>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, minHeight: 120 }}>
-                      <RichContentEditor blocks={richBlocks} onChange={setRichBlocks} />
-                    </Paper>
-                  </Box>
                 </Box>
 
                 {/* Tags */}
