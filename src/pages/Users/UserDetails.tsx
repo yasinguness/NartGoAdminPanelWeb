@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -103,15 +103,15 @@ export default function UserDetails() {
     if (!id) return;
     try {
       setLoading(true);
-      const [userRes, summaryRes, notesRes] = await Promise.all([
+      const [userRes, notesRes] = await Promise.all([
         userService.getUserAdmin(id),
-        userService.getActivitySummary(id),
         userService.getAdminNotes(id)
       ]);
       
       setUser(userRes.data);
       setFormData(userRes.data);
-      setActivitySummary(summaryRes.data);
+      setActivitySummary(userRes.data.activitySummary || null);
+      setActivityLogs(userRes.data.activityLog || []);
       setAdminNotes(notesRes.data);
     } catch (error) {
       enqueueSnackbar('Kullanıcı verileri yüklenirken hata oluştu', { variant: 'error' });
@@ -124,6 +124,21 @@ export default function UserDetails() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (!id || !user || activitySummary) return;
+
+    const fetchSummaryFallback = async () => {
+      try {
+        const res = await userService.getActivitySummary(id);
+        setActivitySummary(res.data);
+      } catch {
+        setActivitySummary(null);
+      }
+    };
+
+    void fetchSummaryFallback();
+  }, [id, user, activitySummary]);
+
   // Tab change triggers fetch for heavy data
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -132,6 +147,11 @@ export default function UserDetails() {
 
   const fetchLogs = async () => {
     if (!id) return;
+    if (user?.activityLog?.length) {
+      setActivityLogs(user.activityLog);
+      return;
+    }
+
     try {
       const res = await userService.getActivityLog(id);
       setActivityLogs(res.data);
@@ -394,14 +414,15 @@ export default function UserDetails() {
                             <Chip 
                                 size="small" 
                                 label={l.status} 
-                                color={l.status === 'SUCCESS' ? 'success' : 'error'} 
+                                color={l.status === 'SUCCESS' ? 'success' : l.status === 'FAILED' ? 'error' : 'warning'} 
                                 variant="outlined" 
                                 sx={{ fontWeight: 700 }}
                             />
                         ) },
+                        { id: 'eventType', label: 'Olay', render: (l: ActivityLogItem) => l.eventType || l.failureReason || '-' },
                         { id: 'ip', label: 'IP Adresi', render: (l: ActivityLogItem) => l.ipAddress || '-' },
                         { id: 'device', label: 'Cihaz', render: (l: ActivityLogItem) => l.device || '-' },
-                        { id: 'location', label: 'Konum', render: (l: ActivityLogItem) => l.city ? `${l.city}, ${l.country}` : 'Bilinmiyor' }
+                        { id: 'location', label: 'Konum', render: (l: ActivityLogItem) => l.city ? `${l.city}, ${l.country || ''}`.replace(/, $/, '') : 'Bilinmiyor' }
                     ]}
                     data={activityLogs}
                 />

@@ -54,6 +54,8 @@ export interface UserDTO {
     hometownCity?: string;
     hometownVillage?: string;
     profileIncomplete?: boolean;
+    activitySummary?: UserActivitySummary;
+    activityLog?: ActivityLogItem[];
 }
 
 export interface User {
@@ -91,15 +93,18 @@ export interface UserActivitySummary {
 }
 
 export interface ActivityLogItem {
-    userId: string;
-    userEmail: string;
-    status: 'SUCCESS' | 'FAILED' | 'SUSPICIOUS';
+    eventId?: string;
+    eventType?: string;
+    userId?: string | null;
+    userEmail?: string | null;
+    status: 'SUCCESS' | 'FAILED' | 'SUSPICIOUS' | string;
     failureReason?: string;
-    ipAddress?: string;
-    device?: string;
-    city?: string;
-    country?: string;
+    ipAddress?: string | null;
+    device?: string | null;
+    city?: string | null;
+    country?: string | null;
     createdAt: string;
+    source?: string | null;
 }
 
 export interface AdminNote {
