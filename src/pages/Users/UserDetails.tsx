@@ -56,7 +56,8 @@ import {
   ActivityLogItem,
   AdminNote,
 } from '../../types/users/userModel';
-import { AdminUserGamificationRewardItemDto } from '../../types/gamification/adminUserGamification';
+import UserLoginStatsPanel from './components/UserLoginStatsPanel';
+import UserGamificationRewardsPanel from './components/UserGamificationRewardsPanel';
 import {
   AdminBulkNotificationRequest,
   RecipientType,
@@ -154,11 +155,7 @@ export default function UserDetails() {
   const [logStartDate, setLogStartDate] = useState('');
   const [logEndDate, setLogEndDate] = useState('');
 
-  // ── Gamification ──────────────────────────
-  const [rewards, setRewards] = useState<AdminUserGamificationRewardItemDto[]>([]);
-  const [rewardsPage, setRewardsPage] = useState(0);
-  const [rewardsTotal, setRewardsTotal] = useState(0);
-  const [rewardsLoading, setRewardsLoading] = useState(false);
+  // ── Gamification — handled by UserGamificationRewardsPanel ───────────
 
   // ── Notifications ─────────────────────────
   const [notifTitle, setNotifTitle] = useState('');
@@ -192,7 +189,7 @@ export default function UserDetails() {
       setUser(userRes.data);
       setFormData(userRes.data);
       setActivitySummary(userRes.data.activitySummary ?? null);
-      setAdminNotes(notesRes.data);
+      setAdminNotes(Array.isArray(notesRes.data) ? notesRes.data : []);
     } catch {
       enqueueSnackbar('Kullanıcı verileri yüklenirken hata oluştu', { variant: 'error' });
     } finally {
@@ -225,8 +222,8 @@ export default function UserDetails() {
         endDate: logEndDate || undefined,
       });
       const pagedData = res.data as any; // PageResponseDto<ActivityLogItem>
-      setLogs(pagedData.content ?? pagedData ?? []);
-      setLogTotal(pagedData.totalElements ?? (pagedData.content ? pagedData.content.length : 0));
+      setLogs(Array.isArray(pagedData?.content) ? pagedData.content : (Array.isArray(pagedData) ? pagedData : []));
+      setLogTotal(pagedData?.totalElements ?? pagedData?.content?.length ?? 0);
       setLogPage(page);
     } catch {
       enqueueSnackbar('Aktivite logları yüklenemedi', { variant: 'error' });
@@ -236,31 +233,11 @@ export default function UserDetails() {
   }, [id, logSize, logStatus, logStartDate, logEndDate, enqueueSnackbar]);
 
   // ─────────────────────────────────────────
-  // Gamification rewards fetch
-  // ─────────────────────────────────────────
-  const fetchRewards = useCallback(async (page = 0) => {
-    if (!id) return;
-    try {
-      setRewardsLoading(true);
-      const res = await userService.getUserGamificationRewards(id, { page, size: 20 });
-      const data = res.data as any;
-      setRewards(data.content ?? []);
-      setRewardsTotal(data.totalElements ?? 0);
-      setRewardsPage(page);
-    } catch {
-      enqueueSnackbar('Ödül verileri yüklenemedi', { variant: 'error' });
-    } finally {
-      setRewardsLoading(false);
-    }
-  }, [id, enqueueSnackbar]);
-
-  // ─────────────────────────────────────────
   // Tab change handler
   // ─────────────────────────────────────────
   const handleTabChange = (_: React.SyntheticEvent, val: number) => {
     setTabValue(val);
     if (val === 1 && logs.length === 0) fetchLogs(0);
-    if (val === 3 && rewards.length === 0) fetchRewards(0);
   };
 
   // ─────────────────────────────────────────
@@ -585,39 +562,8 @@ export default function UserDetails() {
           {/* ─── Tab 1: Activity Logs ─── */}
           <TabPanel value={tabValue} index={1}>
             <Box sx={{ px: 3 }}>
-              {/* Summary stats */}
-              {activitySummary && (
-                <Grid container spacing={2} sx={{ mb: 3 }}>
-                  <Grid item xs={6} sm={3}>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center' }}>
-                      <Typography variant="h5" fontWeight={800} color="primary.main">{activitySummary.totalLogins}</Typography>
-                      <Typography variant="caption" color="text.secondary">Toplam Giriş</Typography>
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center' }}>
-                      <Typography variant="body2" fontWeight={700}>
-                        {activitySummary.lastLoginAt
-                          ? format(new Date(activitySummary.lastLoginAt), 'dd MMM HH:mm', { locale: tr })
-                          : '-'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">Son Giriş</Typography>
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center' }}>
-                      <Typography variant="body2" fontWeight={700} noWrap>{activitySummary.lastLoginIp ?? '-'}</Typography>
-                      <Typography variant="caption" color="text.secondary">Son IP</Typography>
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center' }}>
-                      <Typography variant="body2" fontWeight={700} noWrap>{activitySummary.lastLoginDevice ?? '-'}</Typography>
-                      <Typography variant="caption" color="text.secondary">Son Cihaz</Typography>
-                    </Paper>
-                  </Grid>
-                </Grid>
-              )}
+              {/* Login statistics panel (charts, breakdowns, trend) */}
+              <UserLoginStatsPanel userId={id!} />
 
               {/* Filters */}
               <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
@@ -812,80 +758,9 @@ export default function UserDetails() {
                     <Typography variant="caption" color="text.secondary">Kazanılan Rozet</Typography>
                   </Box>
                 </Paper>
-                <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <PointsIcon color="primary" fontSize="small" />
-                  <Box>
-                    <Typography variant="h6" fontWeight={800} lineHeight={1}>{rewardsTotal}</Typography>
-                    <Typography variant="caption" color="text.secondary">Toplam İşlem</Typography>
-                  </Box>
-                </Paper>
               </Stack>
 
-              {rewardsLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress /></Box>
-              ) : rewards.length === 0 ? (
-                <Box sx={{ py: 6, textAlign: 'center' }}>
-                  <PointsIcon sx={{ fontSize: 56, color: 'text.disabled', mb: 1 }} />
-                  <Typography color="text.secondary">Henüz ödül kaydı bulunmuyor.</Typography>
-                </Box>
-              ) : (
-                <>
-                  <DataTable
-                    columns={[
-                      {
-                        id: 'createdAt',
-                        label: 'Tarih',
-                        render: (r: AdminUserGamificationRewardItemDto) => (
-                          <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
-                            {format(new Date(r.createdAt), 'dd MMM yyyy HH:mm', { locale: tr })}
-                          </Typography>
-                        ),
-                      },
-                      {
-                        id: 'points',
-                        label: 'Puan',
-                        render: (r: AdminUserGamificationRewardItemDto) => (
-                          <Chip
-                            size="small"
-                            label={`+${r.points}`}
-                            color={r.points > 0 ? 'success' : 'error'}
-                            variant="outlined"
-                            sx={{ fontWeight: 800 }}
-                          />
-                        ),
-                      },
-                      { id: 'reason', label: 'Sebep', render: (r: AdminUserGamificationRewardItemDto) => r.reason ?? '-' },
-                      { id: 'actionLabel', label: 'Aksiyon', render: (r: AdminUserGamificationRewardItemDto) => r.actionLabel ?? '-' },
-                      { id: 'category', label: 'Kategori', render: (r: AdminUserGamificationRewardItemDto) => r.category ? <Chip size="small" label={r.category} variant="filled" sx={{ fontSize: 10 }} /> : '-' },
-                      {
-                        id: 'referenceName',
-                        label: 'Referans',
-                        render: (r: AdminUserGamificationRewardItemDto) =>
-                          r.referenceName ? (
-                            <Tooltip title={`${r.referenceType ?? ''} #${r.referenceId ?? ''}`}>
-                              <Typography variant="caption" noWrap sx={{ maxWidth: 160, display: 'block' }}>{r.referenceName}</Typography>
-                            </Tooltip>
-                          ) : '-',
-                      },
-                      {
-                        id: 'businessName',
-                        label: 'İşletme',
-                        render: (r: AdminUserGamificationRewardItemDto) => r.businessName ?? '-',
-                      },
-                    ]}
-                    data={rewards}
-                  />
-                  <TablePagination
-                    component="div"
-                    count={rewardsTotal}
-                    page={rewardsPage}
-                    rowsPerPage={20}
-                    rowsPerPageOptions={[20]}
-                    onPageChange={(_, p) => fetchRewards(p)}
-                    labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
-                  />
-                </>
-              )}
+              <UserGamificationRewardsPanel userId={id!} />
             </Box>
           </TabPanel>
 

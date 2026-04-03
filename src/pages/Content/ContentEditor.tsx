@@ -321,6 +321,7 @@ export default function ContentEditor() {
   const [autoSlug, setAutoSlug] = useState(true);
   const [editingSlug, setEditingSlug] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -417,28 +418,34 @@ export default function ContentEditor() {
     }
   }, [applyArticleToForm, enqueueSnackbar]);
 
-  // ─── SAVE ─────────────────────────────────────────
-  const handleSave = async (publish = false) => {
+  // ─── VALIDATION ───────────────────────────────────
+  const validateForm = (): boolean => {
     if (!form.title.trim()) {
       enqueueSnackbar('Başlık zorunludur', { variant: 'warning' });
-      return;
+      return false;
     }
     if (useBlockEditor && editorMode === 'blocks' && richBlocks.length === 0) {
       enqueueSnackbar('İçerik alanı boş bırakılamaz', { variant: 'warning' });
-      return;
+      return false;
     }
     if (useBlockEditor && editorMode === 'html' && !form.body?.trim()) {
       enqueueSnackbar('HTML içerik alanı boş bırakılamaz', { variant: 'warning' });
-      return;
+      return false;
     }
     if (isDataUrl(form.coverMedia?.originalUrl)) {
       enqueueSnackbar('Kapak görseli henüz yüklenmedi. Lütfen yeniden yükleyip URL oluşmasını bekleyin.', { variant: 'warning' });
-      return;
+      return false;
     }
     if (useBlockEditor && editorMode === 'blocks' && richBlocks.some((block) => block.type === 'image' && isDataUrl(block.url))) {
       enqueueSnackbar('İçerikte yüklenmemiş görsel var. Lütfen problemli görseli yeniden yükleyin.', { variant: 'warning' });
-      return;
+      return false;
     }
+    return true;
+  };
+
+  // ─── SAVE AS DRAFT (stays on page) ────────────────
+  const handleSaveDraft = async () => {
+    if (!validateForm()) return;
     try {
       setLoading(true);
       const payload = {
@@ -447,23 +454,81 @@ export default function ContentEditor() {
       };
       if (isEdit && id) {
         await updateArticle(id, payload);
-        if (publish) await articleService.publishArticle(id);
-        enqueueSnackbar(publish ? 'Yayınlandı' : 'Kaydedildi', { variant: 'success' });
+        enqueueSnackbar('Taslak kaydedildi', { variant: 'success' });
       } else {
         const created = await createArticle(payload);
-        if (publish && created?.id) await articleService.publishArticle(created.id);
-        enqueueSnackbar(publish ? 'Oluşturuldu ve yayınlandı' : 'Taslak kaydedildi', { variant: 'success' });
+        enqueueSnackbar('Taslak oluşturuldu', { variant: 'success' });
+        // Navigate to edit mode for the newly created draft so further edits update it
+        if (created?.id) {
+          setIsDirty(false);
+          initialFormRef.current = JSON.stringify({ form: payload, richBlocks });
+          navigate(`/content/edit/${created.id}`, { replace: true });
+          return;
+        }
       }
       setLastSaved(new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
       setIsDirty(false);
       initialFormRef.current = JSON.stringify({ form: payload, richBlocks });
-      navigate('/content');
     } catch {
       enqueueSnackbar('Kaydetme hatası', { variant: 'error' });
     } finally {
       setLoading(false);
     }
   };
+
+  // ─── PUBLISH (confirm → save + publish → navigate) ─
+  const handlePublish = async () => {
+    if (!validateForm()) return;
+    setShowPublishConfirm(true);
+  };
+
+  const handlePublishConfirmed = async () => {
+    setShowPublishConfirm(false);
+    try {
+      setLoading(true);
+      const payload = {
+        ...form,
+        body: useBlockEditor && editorMode === 'blocks' ? blocksToHtml(richBlocks) : form.body,
+      };
+      if (isEdit && id) {
+        await updateArticle(id, payload);
+        await articleService.publishArticle(id);
+      } else {
+        const created = await createArticle(payload);
+        if (created?.id) await articleService.publishArticle(created.id);
+      }
+      enqueueSnackbar('İçerik yayınlandı', { variant: 'success' });
+      setIsDirty(false);
+      navigate('/content');
+    } catch {
+      enqueueSnackbar('Yayınlama hatası', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── ARCHIVE (unpublish) ───────────────────────────
+  const handleArchive = async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      // Save any pending changes first, then archive
+      const payload = {
+        ...form,
+        body: useBlockEditor && editorMode === 'blocks' ? blocksToHtml(richBlocks) : form.body,
+      };
+      await updateArticle(id, payload);
+      await articleService.archiveArticle(id);
+      enqueueSnackbar('İçerik yayından kaldırıldı', { variant: 'success' });
+      setIsDirty(false);
+      navigate('/content');
+    } catch {
+      enqueueSnackbar('Yayından kaldırma hatası', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   // ─── TAGS ─────────────────────────────────────────
   const handleAddTag = (input?: string) => {
@@ -597,14 +662,23 @@ export default function ContentEditor() {
               sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 13, borderColor: '#D1D5DB', color: '#374151' }}>
               Önizle
             </Button>
-            <Button variant="outlined" startIcon={<SaveIcon />} onClick={() => handleSave(false)}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 13, bgcolor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB' }}>
-              Taslak Kaydet
-            </Button>
-            <Button variant="contained" startIcon={<PublishIcon />} onClick={() => handleSave(true)}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, fontSize: 13, px: 3, bgcolor: '#1a5c28', '&:hover': { bgcolor: '#155220' } }}>
-              Yayınla
-            </Button>
+            {article?.status === ArticleStatus.PUBLISHED ? (
+              <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveDraft}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, fontSize: 13, px: 3, bgcolor: '#1a5c28', '&:hover': { bgcolor: '#155220' } }}>
+                Değişiklikleri Kaydet
+              </Button>
+            ) : (
+              <>
+                <Button variant="outlined" startIcon={<SaveIcon />} onClick={handleSaveDraft}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 13, bgcolor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB' }}>
+                  Taslak Kaydet
+                </Button>
+                <Button variant="contained" startIcon={<PublishIcon />} onClick={handlePublish}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, fontSize: 13, px: 3, bgcolor: '#1a5c28', '&:hover': { bgcolor: '#155220' } }}>
+                  Yayınla
+                </Button>
+              </>
+            )}
           </Stack>
         </Stack>
       </Box>
@@ -664,9 +738,9 @@ export default function ContentEditor() {
                   />
                   <Typography variant="caption" sx={{
                     display: 'block', textAlign: 'right', mt: 0.5, fontSize: 11,
-                    color: summaryLen > 300 ? '#DC2626' : summaryLen > 250 ? '#D97706' : '#9CA3AF',
+                    color: summaryLen > 160 ? '#DC2626' : summaryLen > 130 ? '#D97706' : '#9CA3AF',
                   }}>
-                    {summaryLen} / 300 karakter
+                    {summaryLen} / 160 karakter
                   </Typography>
                 </Box>
 
@@ -833,14 +907,28 @@ export default function ContentEditor() {
                   <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: article?.status === ArticleStatus.PUBLISHED ? '#10B981' : '#F59E0B' }} />
                   <Typography variant="subtitle2" fontWeight={800}>{article?.status === ArticleStatus.PUBLISHED ? 'Yayında' : 'Taslak'}</Typography>
                 </Stack>
-                <Button fullWidth variant="outlined" onClick={() => handleSave(false)}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, mb: 1, bgcolor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB' }}>
-                  Taslağa Al
-                </Button>
-                <Button fullWidth variant="contained" onClick={() => handleSave(true)}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#1a5c28', '&:hover': { bgcolor: '#155220' } }}>
-                  Değişiklikleri Yayınla
-                </Button>
+                {article?.status === ArticleStatus.PUBLISHED ? (
+                  <Button fullWidth variant="outlined" color="warning" onClick={handleArchive}
+                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, mb: 1 }}>
+                    Yayından Kaldır
+                  </Button>
+                ) : (
+                  <Button fullWidth variant="outlined" onClick={handleSaveDraft}
+                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, mb: 1, bgcolor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB' }}>
+                    Taslak Kaydet
+                  </Button>
+                )}
+                {article?.status === ArticleStatus.PUBLISHED ? (
+                  <Button fullWidth variant="contained" onClick={handleSaveDraft}
+                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#1a5c28', '&:hover': { bgcolor: '#155220' } }}>
+                    Değişiklikleri Kaydet
+                  </Button>
+                ) : (
+                  <Button fullWidth variant="contained" onClick={handlePublish}
+                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#1a5c28', '&:hover': { bgcolor: '#155220' } }}>
+                    Yayınla
+                  </Button>
+                )}
               </Paper>
 
               {/* Settings */}
@@ -1167,6 +1255,26 @@ export default function ContentEditor() {
             </Paper>
           </Box>
         </Box>
+      </Dialog>
+
+      {/* ═══ PUBLISH CONFIRM DIALOG ═══ */}
+      <Dialog open={showPublishConfirm} onClose={() => setShowPublishConfirm(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>İçeriği yayınla</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            <strong>"{form.title}"</strong> başlıklı içerik herkese açık hale gelecek. Onaylıyor musunuz?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setShowPublishConfirm(false)}
+            sx={{ textTransform: 'none', fontWeight: 600 }}>
+            İptal
+          </Button>
+          <Button variant="contained" onClick={handlePublishConfirmed}
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, bgcolor: '#1a5c28', '&:hover': { bgcolor: '#155220' } }}>
+            Yayınla
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* ═══ LEAVE DIALOG ═══ */}
