@@ -90,6 +90,37 @@ export interface UserActivitySummary {
     lastLoginIp?: string;
     lastLoginDevice?: string;
     profileCompletionPercent: number;
+    lastSession?: UserSessionDto | null;
+    sessionHistory?: UserSessionDto[];
+}
+
+export interface UserSessionLocationDto {
+    city?: string | null;
+    country?: string | null;
+    raw?: string | null;
+}
+
+export interface UserSessionDto {
+    sessionId: string;
+    loginAt?: string | null;
+    lastActivityAt?: string | null;
+    logoutAt?: string | null;
+    status: 'ACTIVE' | 'LOGGED_OUT' | 'EXPIRED' | string;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    device?: string | null;
+    browser?: string | null;
+    os?: string | null;
+    platform?: string | null;
+    location?: UserSessionLocationDto | null;
+}
+
+export interface UserSessionAnalyticsDto {
+    userId: string;
+    email: string;
+    fullName?: string | null;
+    lastSession?: UserSessionDto | null;
+    sessionHistory: UserSessionDto[];
 }
 
 export interface ActivityLogItem {

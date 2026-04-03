@@ -43,6 +43,9 @@ import {
   Login as LoginIcon,
   FilterAlt as FilterIcon,
   Star as StarIcon,
+  AccessTime as LastActivityIcon,
+  Public as GlobeIcon,
+  Devices as DeviceIcon,
 } from '@mui/icons-material';
 import { useUsers } from '../../hooks/useUsers';
 import { useSnackbar } from 'notistack';
@@ -55,6 +58,8 @@ import {
   UserActivitySummary,
   ActivityLogItem,
   AdminNote,
+  UserSessionAnalyticsDto,
+  UserSessionDto,
 } from '../../types/users/userModel';
 import UserLoginStatsPanel from './components/UserLoginStatsPanel';
 import UserGamificationRewardsPanel from './components/UserGamificationRewardsPanel';
@@ -123,6 +128,38 @@ function eventLabel(type: string): string {
   return map[type] ?? type ?? '-';
 }
 
+function sessionStatusColor(status: string): 'success' | 'error' | 'warning' | 'default' {
+  if (status === 'ACTIVE') return 'success';
+  if (status === 'LOGGED_OUT') return 'default';
+  if (status === 'EXPIRED') return 'warning';
+  return 'default';
+}
+
+function sessionStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    ACTIVE: 'Aktif',
+    LOGGED_OUT: 'Sonlandırıldı',
+    EXPIRED: 'Expired',
+  };
+  return map[status] ?? status;
+}
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return '-';
+  try {
+    return format(new Date(value), 'dd MMM yyyy HH:mm:ss', { locale: tr });
+  } catch {
+    return value;
+  }
+}
+
+function sessionLocationLabel(session?: UserSessionDto | null): string {
+  if (!session?.location) return '-';
+  const { city, country, raw } = session.location;
+  if (city || country) return [city, country].filter(Boolean).join(', ');
+  return raw || '-';
+}
+
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
@@ -154,6 +191,12 @@ export default function UserDetails() {
   const [logStatus, setLogStatus] = useState('');
   const [logStartDate, setLogStartDate] = useState('');
   const [logEndDate, setLogEndDate] = useState('');
+  const [sessionSummary, setSessionSummary] = useState<UserSessionAnalyticsDto | null>(null);
+  const [sessions, setSessions] = useState<UserSessionDto[]>([]);
+  const [sessionPage, setSessionPage] = useState(0);
+  const [sessionSize] = useState(10);
+  const [sessionTotal, setSessionTotal] = useState(0);
+  const [sessionLoading, setSessionLoading] = useState(false);
 
   // ── Gamification — handled by UserGamificationRewardsPanel ───────────
 
@@ -232,12 +275,36 @@ export default function UserDetails() {
     }
   }, [id, logSize, logStatus, logStartDate, logEndDate, enqueueSnackbar]);
 
+  const fetchSessions = useCallback(async (page = 0) => {
+    if (!id) return;
+    try {
+      setSessionLoading(true);
+      const [summaryRes, sessionsRes] = await Promise.all([
+        userService.getUserSessionSummary(id, 10),
+        userService.getUserSessions(id, { page, size: sessionSize }),
+      ]);
+
+      const pagedSessions = sessionsRes.data as any;
+      setSessionSummary(summaryRes.data ?? null);
+      setSessions(Array.isArray(pagedSessions?.content) ? pagedSessions.content : []);
+      setSessionTotal(pagedSessions?.totalElements ?? 0);
+      setSessionPage(page);
+    } catch {
+      enqueueSnackbar('Oturum bilgileri yüklenemedi', { variant: 'error' });
+    } finally {
+      setSessionLoading(false);
+    }
+  }, [id, sessionSize, enqueueSnackbar]);
+
   // ─────────────────────────────────────────
   // Tab change handler
   // ─────────────────────────────────────────
   const handleTabChange = (_: React.SyntheticEvent, val: number) => {
     setTabValue(val);
-    if (val === 1 && logs.length === 0) fetchLogs(0);
+    if (val === 1) {
+      if (logs.length === 0) fetchLogs(0);
+      if (!sessionSummary && sessions.length === 0) fetchSessions(0);
+    }
   };
 
   // ─────────────────────────────────────────
@@ -562,6 +629,233 @@ export default function UserDetails() {
           {/* ─── Tab 1: Activity Logs ─── */}
           <TabPanel value={tabValue} index={1}>
             <Box sx={{ px: 3 }}>
+              <PageSection
+                title="Son Oturum"
+                subtitle="En güncel kullanıcı oturumu ve son cihaz bilgileri"
+              >
+                {sessionLoading && !sessionSummary ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : sessionSummary?.lastSession ? (
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={12} md={6}>
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 3,
+                          borderColor: sessionSummary.lastSession.status === 'ACTIVE' ? 'success.light' : 'divider',
+                          bgcolor: sessionSummary.lastSession.status === 'ACTIVE' ? 'success.50' : 'background.paper',
+                        }}
+                      >
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
+                          <Box>
+                            <Typography variant="subtitle1" fontWeight={800}>Son Oturum</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Session ID: {sessionSummary.lastSession.sessionId || '-'}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            size="small"
+                            color={sessionStatusColor(sessionSummary.lastSession.status)}
+                            label={sessionStatusLabel(sessionSummary.lastSession.status)}
+                            sx={{ fontWeight: 700 }}
+                          />
+                        </Stack>
+
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <Stack spacing={0.5}>
+                              <Typography variant="caption" color="text.secondary">Son Giriş</Typography>
+                              <Typography variant="body2" fontWeight={700}>{formatDateTime(sessionSummary.lastSession.loginAt)}</Typography>
+                            </Stack>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Stack spacing={0.5}>
+                              <Typography variant="caption" color="text.secondary">Son Aktiflik</Typography>
+                              <Typography variant="body2" fontWeight={700}>{formatDateTime(sessionSummary.lastSession.lastActivityAt)}</Typography>
+                            </Stack>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <LoginIcon fontSize="small" color="action" />
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">Oturum Başlangıcı</Typography>
+                                <Typography variant="body2" fontWeight={700}>{formatDateTime(sessionSummary.lastSession.loginAt)}</Typography>
+                              </Box>
+                            </Stack>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <LastActivityIcon fontSize="small" color="action" />
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">Oturum Bitişi</Typography>
+                                <Typography variant="body2" fontWeight={700}>{formatDateTime(sessionSummary.lastSession.logoutAt)}</Typography>
+                              </Box>
+                            </Stack>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <DeviceIcon fontSize="small" color="action" />
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">Cihaz / Tarayıcı</Typography>
+                                <Typography variant="body2" fontWeight={700}>
+                                  {[sessionSummary.lastSession.device, sessionSummary.lastSession.browser].filter(Boolean).join(' / ') || '-'}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <GlobeIcon fontSize="small" color="action" />
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">Platform / OS</Typography>
+                                <Typography variant="body2" fontWeight={700}>
+                                  {[sessionSummary.lastSession.platform, sessionSummary.lastSession.os].filter(Boolean).join(' / ') || '-'}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Stack spacing={0.5}>
+                              <Typography variant="caption" color="text.secondary">IP Adresi</Typography>
+                              <Typography variant="body2" fontWeight={700} sx={{ fontFamily: 'monospace' }}>
+                                {sessionSummary.lastSession.ipAddress || '-'}
+                              </Typography>
+                            </Stack>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Stack spacing={0.5}>
+                              <Typography variant="caption" color="text.secondary">Konum</Typography>
+                              <Typography variant="body2" fontWeight={700}>{sessionLocationLabel(sessionSummary.lastSession)}</Typography>
+                            </Stack>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, height: '100%' }}>
+                        <Typography variant="subtitle1" fontWeight={800} gutterBottom>Ham User Agent</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-word' }}>
+                          {sessionSummary.lastSession.userAgent || '-'}
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                  </Grid>
+                ) : (
+                  <Alert severity="info" sx={{ mb: 3 }}>
+                    Kullanıcı için henüz son oturum bilgisi bulunmuyor.
+                  </Alert>
+                )}
+              </PageSection>
+
+              <PageSection
+                title="Oturum Geçmişi"
+                subtitle="En yeni oturum en üstte olacak şekilde geçmiş oturumlar"
+              >
+                {sessionLoading && sessions.length === 0 ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : sessions.length === 0 ? (
+                  <Alert severity="info" sx={{ mb: 3 }}>
+                    Kullanıcı için listelenecek oturum geçmişi bulunamadı.
+                  </Alert>
+                ) : (
+                  <>
+                    <DataTable
+                      columns={[
+                        {
+                          id: 'status',
+                          label: 'Durum',
+                          render: (s: UserSessionDto) => (
+                            <Chip
+                              size="small"
+                              color={sessionStatusColor(s.status)}
+                              label={sessionStatusLabel(s.status)}
+                              variant={s.status === 'ACTIVE' ? 'filled' : 'outlined'}
+                              sx={{ fontWeight: 700, minWidth: 100 }}
+                            />
+                          ),
+                        },
+                        {
+                          id: 'loginAt',
+                          label: 'Başlangıç',
+                          render: (s: UserSessionDto) => (
+                            <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
+                              {formatDateTime(s.loginAt)}
+                            </Typography>
+                          ),
+                        },
+                        {
+                          id: 'lastActivityAt',
+                          label: 'Son Aktiflik',
+                          render: (s: UserSessionDto) => (
+                            <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
+                              {formatDateTime(s.lastActivityAt)}
+                            </Typography>
+                          ),
+                        },
+                        {
+                          id: 'logoutAt',
+                          label: 'Bitiş',
+                          render: (s: UserSessionDto) => (
+                            <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
+                              {formatDateTime(s.logoutAt)}
+                            </Typography>
+                          ),
+                        },
+                        {
+                          id: 'ipAddress',
+                          label: 'IP',
+                          render: (s: UserSessionDto) => (
+                            <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
+                              {s.ipAddress || '-'}
+                            </Typography>
+                          ),
+                        },
+                        {
+                          id: 'device',
+                          label: 'Cihaz / Tarayıcı',
+                          render: (s: UserSessionDto) => (
+                            <Typography variant="caption" noWrap sx={{ maxWidth: 180, display: 'block' }}>
+                              {[s.device, s.browser].filter(Boolean).join(' / ') || '-'}
+                            </Typography>
+                          ),
+                        },
+                        {
+                          id: 'platform',
+                          label: 'Platform / OS',
+                          render: (s: UserSessionDto) => (
+                            <Typography variant="caption">
+                              {[s.platform, s.os].filter(Boolean).join(' / ') || '-'}
+                            </Typography>
+                          ),
+                        },
+                        {
+                          id: 'location',
+                          label: 'Konum',
+                          render: (s: UserSessionDto) => (
+                            <Typography variant="caption">{sessionLocationLabel(s)}</Typography>
+                          ),
+                        },
+                      ]}
+                      data={sessions}
+                    />
+                    <TablePagination
+                      component="div"
+                      count={sessionTotal}
+                      page={sessionPage}
+                      rowsPerPage={sessionSize}
+                      rowsPerPageOptions={[sessionSize]}
+                      onPageChange={(_, p) => fetchSessions(p)}
+                      labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
+                    />
+                  </>
+                )}
+              </PageSection>
+
               {/* Login statistics panel (charts, breakdowns, trend) */}
               <UserLoginStatsPanel userId={id!} />
 

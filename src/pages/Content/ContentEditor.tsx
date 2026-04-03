@@ -310,10 +310,10 @@ export default function ContentEditor() {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { createArticle, updateArticle } = useArticleStore();
-  const { isEditorOnly, isOwner, userName, userEmail } = useRole();
+  const { isEditorOnly, isOwner, userEmail } = useRole();
 
   const isEdit = !!id;
-  const [form, setForm] = useState<ArticleCreateRequest>({ ...initialForm, author: userName || '' });
+  const [form, setForm] = useState<ArticleCreateRequest>({ ...initialForm, author: userEmail || '' });
   const [richBlocks, setRichBlocks] = useState<ContentBlock[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -379,8 +379,8 @@ export default function ContentEditor() {
       }
       loadArticle(id);
     }
-    initialFormRef.current = JSON.stringify({ form: { ...initialForm, author: userName || '' }, richBlocks: [] });
-  }, [applyArticleToForm, id, isEdit, locationArticle, userName]);
+    initialFormRef.current = JSON.stringify({ form: { ...initialForm, author: userEmail || '' }, richBlocks: [] });
+  }, [applyArticleToForm, id, isEdit, locationArticle, userEmail]);
 
   useEffect(() => {
     if (autoSlug && !isEdit) {

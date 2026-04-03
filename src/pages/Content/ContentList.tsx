@@ -46,7 +46,7 @@ export default function ContentList() {
     articles, totalElements, loading, fetchArticles,
     deleteArticle, publishArticle, archiveArticle,
   } = useArticleStore();
-  const { isEditorOnly, userName, userEmail } = useRole();
+  const { isEditorOnly, userEmail } = useRole();
 
   const visibleArticles = useMemo(() => articles, [articles]);
 
@@ -67,12 +67,12 @@ export default function ContentList() {
         ...(filterCategory && { category: filterCategory as ArticleCategory }),
         ...(filterStatus && { status: filterStatus as ArticleStatus }),
         ...(filterType && { contentType: filterType as ArticleType }),
-        ...(isEditorOnly && { author: userName || userEmail }),
+        ...(isEditorOnly && userEmail && { author: userEmail }),
         ...(search && { keyword: search }),
       });
     }, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [page, pageSize, filterCategory, filterStatus, filterType, search, fetchArticles, isEditorOnly, userName, userEmail]);
+  }, [page, pageSize, filterCategory, filterStatus, filterType, search, fetchArticles, isEditorOnly, userEmail]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -97,11 +97,11 @@ export default function ContentList() {
       }
       enqueueSnackbar(`${selectedIds.length} icerik güncellendi`, { variant: 'success' });
       setSelectedIds([]);
-      fetchArticles({ page, size: pageSize, ...(isEditorOnly && { author: userName || userEmail }) });
+      fetchArticles({ page, size: pageSize, ...(isEditorOnly && userEmail && { author: userEmail }) });
     } catch {
       enqueueSnackbar('İşlem sırasında hata oluştu', { variant: 'error' });
     }
-  }, [selectedIds, page, pageSize, publishArticle, archiveArticle, deleteArticle, fetchArticles, enqueueSnackbar, isEditorOnly, userName, userEmail]);
+  }, [selectedIds, page, pageSize, publishArticle, archiveArticle, deleteArticle, fetchArticles, enqueueSnackbar, isEditorOnly, userEmail]);
 
   const averageReadTime = useMemo(() => {
     const articlesWithReadTime = visibleArticles.filter(

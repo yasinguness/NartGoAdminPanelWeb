@@ -8,7 +8,9 @@ import {
     UserActivitySummary,
     ActivityLogItem,
     AdminNote,
-    UserLoginStatsDto
+    UserLoginStatsDto,
+    UserSessionAnalyticsDto,
+    UserSessionDto,
 } from '../../types/users/userModel';
 import { PageResponseDto } from '../../types/common/pageResponse';
 import { AddressDTO } from '../../types/businesses/addressModel';
@@ -181,6 +183,27 @@ export const userService = {
     ) => {
         const response = await api.get<ApiResponse<UserLoginStatsDto>>(
             `/auth/admin/login-stats/users/${userId}`,
+            { params }
+        );
+        return response.data;
+    },
+
+    // Admin - Get last session + limited session history summary
+    getUserSessionSummary: async (userId: string, limit = 10) => {
+        const response = await api.get<ApiResponse<UserSessionAnalyticsDto>>(
+            `/auth/admin/login-stats/users/${userId}/sessions/summary`,
+            { params: { limit } }
+        );
+        return response.data;
+    },
+
+    // Admin - Get paged session history
+    getUserSessions: async (
+        userId: string,
+        params?: { page?: number; size?: number }
+    ) => {
+        const response = await api.get<ApiResponse<PageResponseDto<UserSessionDto>>>(
+            `/auth/admin/login-stats/users/${userId}/sessions`,
             { params }
         );
         return response.data;
