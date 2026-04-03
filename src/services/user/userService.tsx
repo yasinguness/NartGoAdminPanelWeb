@@ -1,13 +1,14 @@
 import { api } from '../api';
-import { 
-    UserDTO, 
-    UserStatusEnum, 
-    AccountType, 
+import {
+    UserDTO,
+    UserStatusEnum,
+    AccountType,
     Language,
     AdminUserStats,
     UserActivitySummary,
     ActivityLogItem,
-    AdminNote
+    AdminNote,
+    UserLoginStatsDto
 } from '../../types/users/userModel';
 import { PageResponseDto } from '../../types/common/pageResponse';
 import { AddressDTO } from '../../types/businesses/addressModel';
@@ -147,11 +148,47 @@ export const userService = {
         return response.data;
     },
 
-    // Admin - Get user activity log
+    // Admin - Get user activity log (legacy list endpoint)
     getActivityLog: async (userId: string, limit = 100) => {
         const response = await api.get<ApiResponse<ActivityLogItem[]>>(`/auth/admin/login-stats/users/${userId}/activity-log`, {
             params: { limit }
         });
+        return response.data;
+    },
+
+    // Admin - Get user activity log paginated with filters
+    getActivityLogPaged: async (
+        userId: string,
+        params?: {
+            startDate?: string;
+            endDate?: string;
+            status?: string;
+            page?: number;
+            size?: number;
+        }
+    ) => {
+        const response = await api.get<ApiResponse<PageResponseDto<ActivityLogItem>>>(
+            `/auth/admin/login-stats/users/${userId}/activity-log`,
+            { params }
+        );
+        return response.data;
+    },
+
+    // Admin - Get per-user login statistics
+    getUserLoginStats: async (
+        userId: string,
+        params?: { startDate?: string; endDate?: string; sourceLimit?: number }
+    ) => {
+        const response = await api.get<ApiResponse<UserLoginStatsDto>>(
+            `/auth/admin/login-stats/users/${userId}`,
+            { params }
+        );
+        return response.data;
+    },
+
+    // Admin - Send password reset email to user
+    sendPasswordReset: async (userId: string) => {
+        const response = await api.post<ApiResponse<void>>(`/auth/admin/users/${userId}/password-reset`);
         return response.data;
     },
 

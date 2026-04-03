@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
-  Box, Button, Card, CardContent, Chip, FormControl, Grid, InputLabel,
+  Box, Button, Chip, FormControl, Grid, InputLabel,
   MenuItem, Select, Stack, Switch, TextField, Typography, FormControlLabel,
-  IconButton, LinearProgress, Divider, Avatar, Paper, alpha,
+  IconButton, LinearProgress, Divider, Paper, alpha,
   Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
@@ -11,6 +11,9 @@ import {
   Visibility as PreviewIcon, Close as CloseIcon,
   Edit as EditIcon, Check as CheckMarkIcon,
   FiberManualRecord as DotIcon,
+  DesktopWindows as DesktopIcon,
+  PhoneIphone as MobileIcon,
+  AccessTime as ReadTimeIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -27,8 +30,6 @@ import CoverImageEditor from '../../components/CoverImageEditor';
 import OptionalImageCropDialog from '../../components/OptionalImageCropDialog';
 import type { ContentBlock } from '../../types/notification.types';
 import { useRole } from '../../hooks/useRole';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
 
 // ─── UTILS ──────────────────────────────────────────
 function slugify(text: string): string {
@@ -281,6 +282,27 @@ function blocksToPlainText(blocks: ContentBlock[]): string {
     .join(' ');
 }
 
+function hasMeaningfulBlockContent(blocks: ContentBlock[]): boolean {
+  return blocks.some((block) => {
+    switch (block.type) {
+      case 'heading':
+      case 'paragraph':
+      case 'callout':
+      case 'quote':
+        return Boolean(block.text?.trim() || (block.type === 'quote' && block.author?.trim()));
+      case 'bullet_list':
+      case 'ordered_list':
+        return block.items.some((item) => item.trim());
+      case 'image':
+        return Boolean(block.url?.trim());
+      case 'divider':
+        return true;
+      default:
+        return false;
+    }
+  });
+}
+
 // ─── COMPONENT ──────────────────────────────────────
 export default function ContentEditor() {
   const { id } = useParams<{ id: string }>();
@@ -299,6 +321,7 @@ export default function ContentEditor() {
   const [autoSlug, setAutoSlug] = useState(true);
   const [editingSlug, setEditingSlug] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
@@ -530,6 +553,19 @@ export default function ContentEditor() {
   const summaryLen = form.summary?.length || 0;
   const seoTitleOk = titleLen >= 30 && titleLen <= 60;
   const seoDescOk = summaryLen >= 50 && summaryLen <= 160;
+  const normalizedHtmlBody = useMemo(() => sanitizeHtml(form.body || ''), [form.body]);
+  const previewBlocks = useMemo(
+    () => (useBlockEditor && editorMode === 'blocks' ? richBlocks : htmlToBlocks(normalizedHtmlBody)),
+    [editorMode, normalizedHtmlBody, richBlocks, useBlockEditor],
+  );
+  const hasPreviewContent = useMemo(() => {
+    return Boolean(
+      form.title?.trim()
+      || form.summary?.trim()
+      || form.coverMedia?.originalUrl?.trim()
+      || hasMeaningfulBlockContent(previewBlocks),
+    );
+  }, [form.coverMedia?.originalUrl, form.summary, form.title, previewBlocks]);
   // ─── RENDER ───────────────────────────────────────
   return (
     <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', pb: 8 }}>
@@ -557,9 +593,9 @@ export default function ContentEditor() {
           </Stack>
 
           <Stack direction="row" spacing={1.5}>
-            <Button variant="outlined" startIcon={<PreviewIcon />} onClick={() => setShowPreview(!showPreview)}
+            <Button variant="outlined" startIcon={<PreviewIcon />} onClick={() => setShowPreview(true)}
               sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 13, borderColor: '#D1D5DB', color: '#374151' }}>
-              {showPreview ? 'Düzenle' : 'Önizle'}
+              Önizle
             </Button>
             <Button variant="outlined" startIcon={<SaveIcon />} onClick={() => handleSave(false)}
               sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, fontSize: 13, bgcolor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB' }}>
@@ -700,38 +736,14 @@ export default function ContentEditor() {
 
                   {useBlockEditor && editorMode === 'blocks' && (
                     <Paper elevation={0} sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-                      {showPreview ? (
-                        <Box sx={{ p: 4, minHeight: 500, bgcolor: '#FFFFFF' }}>
-                          {form.coverMedia?.originalUrl && (
-                            <Box
-                              component="img"
-                              src={form.coverMedia.originalUrl}
-                              alt={form.coverMedia.alt || form.title}
-                              sx={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 3, mb: 3 }}
-                            />
-                          )}
-                          <Typography variant="h3" fontWeight={800} sx={{ mb: 1.5 }}>
-                            {form.title || 'Başlıksız içerik'}
-                          </Typography>
-                          {form.summary && (
-                            <Typography color="text.secondary" sx={{ mb: 3, fontSize: 16, lineHeight: 1.7 }}>
-                              {form.summary}
-                            </Typography>
-                          )}
-                          <RichContentRenderer blocks={richBlocks} />
-                        </Box>
-                      ) : (
-                        <Box>
-                          <Box sx={{ p: { xs: 2, md: 4 }, minHeight: 500 }}>
-                            <RichContentEditor blocks={richBlocks} onChange={setRichBlocks} onImageUpload={handleBlockImageUpload} />
-                          </Box>
-                          <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
-                            <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
-                              {wordCount} kelime · ~{readTime} dk okuma
-                            </Typography>
-                          </Box>
-                        </Box>
-                      )}
+                      <Box sx={{ p: { xs: 2, md: 4 }, minHeight: 500 }}>
+                        <RichContentEditor blocks={richBlocks} onChange={setRichBlocks} onImageUpload={handleBlockImageUpload} />
+                      </Box>
+                      <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
+                        <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                          {wordCount} kelime · ~{readTime} dk okuma
+                        </Typography>
+                      </Box>
                     </Paper>
                   )}
 
@@ -743,68 +755,36 @@ export default function ContentEditor() {
                           Sayfayı tarayıcıda aç → Tüm metni seç (Ctrl+A) → Kopyala (Ctrl+C) → Buraya yapıştır. (İçerik doğrudan düzenlenebilir)
                         </Typography>
                       </Box>
-
-                      {showPreview ? (
-                        /* HTML Preview */
-                        <Box sx={{ p: 3, minHeight: 500, bgcolor: '#FFFFFF' }}>
-                          <Box
-                            sx={{
-                              '& h1,& h2,& h3,& h4': { fontWeight: 700, lineHeight: 1.3, mt: 3, mb: 1.5 },
-                              '& h1': { fontSize: '2em' }, '& h2': { fontSize: '1.5em' }, '& h3': { fontSize: '1.25em' },
-                              '& p': { mb: 1.5, lineHeight: 1.8 },
-                              '& ul,& ol': { pl: 3, mb: 1.5 },
-                              '& li': { mb: 0.5, lineHeight: 1.8 },
-                              '& blockquote': { borderLeft: '4px solid #1a5c28', pl: 2, ml: 0, color: 'text.secondary', my: 2 },
-                              '& img': { maxWidth: '100%', borderRadius: 2, my: 1 },
-                              '& a': { color: '#1a5c28' },
-                              '& strong,& b': { fontWeight: 700 },
-                              '& em,& i': { fontStyle: 'italic' },
-                              '& pre,& code': { fontFamily: 'monospace', bgcolor: '#F3F4F6', borderRadius: 1, p: 0.5 },
-                              '& hr': { border: 'none', borderTop: '1px solid', borderColor: 'divider', my: 3 },
-                              '& table': { width: '100%', borderCollapse: 'collapse', mb: 2 },
-                              '& th,& td': { border: '1px solid', borderColor: 'divider', p: 1 },
-                            }}
-                            dangerouslySetInnerHTML={{ __html: form.body || '' }}
-                          />
-                          <Box sx={{ mt: 2, pt: 2, borderTop: '0.5px solid #E5E7EB' }}>
-                            <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
-                              {wordCount} kelime · ~{readTime} dk okuma
-                            </Typography>
-                          </Box>
+                      <Box sx={{ bgcolor: '#FAFAFA' }}>
+                        <TextField
+                          fullWidth
+                          multiline
+                          minRows={18}
+                          value={form.body || ''}
+                          onChange={(event) => updateField('body', normalizeHtmlInput(event.target.value))}
+                          placeholder="Buraya HTML, düz metin veya görsel URL'si yapıştırın..."
+                          InputProps={{
+                            sx: {
+                              alignItems: 'flex-start',
+                              px: 2,
+                              py: 2,
+                              fontSize: 15,
+                              lineHeight: 1.7,
+                              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                              '& textarea': { minHeight: 400 },
+                            },
+                          }}
+                          sx={{ '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
+                        />
+                        <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                            {wordCount} kelime · ~{readTime} dk okuma
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                            {(form.body || '').replace(/<[^>]*>/g, '').length} karakter
+                          </Typography>
                         </Box>
-                      ) : (
-                        /* HTML Input */
-                        <Box sx={{
-                          '& .quill': { bgcolor: '#FAFAFA' },
-                          '& .ql-toolbar': { bgcolor: '#F9FAFB', border: 'none', borderBottom: '1px solid #E5E7EB' },
-                          '& .ql-container': { border: 'none', minHeight: 400, fontSize: 16, fontFamily: 'inherit' },
-                          '& .ql-editor': { minHeight: 400 }
-                        }}>
-                          <ReactQuill
-                            theme="snow"
-                            value={form.body || ''}
-                            onChange={(content) => updateField('body', content)}
-                            modules={{
-                               toolbar: [
-                                 [{ 'header': [1, 2, 3, false] }],
-                                 ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-                                 [{'list': 'ordered'}, {'list': 'bullet'}],
-                                 ['link', 'image', 'video'],
-                                 ['clean']
-                               ]
-                            }}
-                            placeholder="Buraya metninizi yapıştırın veya yazmaya başlayın..."
-                          />
-                          <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
-                              {wordCount} kelime · ~{readTime} dk okuma
-                            </Typography>
-                            <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
-                              {(form.body || '').replace(/<[^>]*>/g, '').length} karakter
-                            </Typography>
-                          </Box>
-                        </Box>
-                      )}
+                      </Box>
                     </Paper>
                   )}
 
@@ -938,6 +918,256 @@ export default function ContentEditor() {
           </Grid>
         </Grid>
       </Box>
+
+      {/* ═══ PREVIEW DIALOG ═══ */}
+      <Dialog
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        fullScreen
+        PaperProps={{ sx: { bgcolor: '#F1F5F9' } }}
+      >
+        {/* Preview top bar */}
+        <Box sx={{
+          bgcolor: '#1a5c28',
+          px: 3,
+          py: 1.5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          gap: 2,
+        }}>
+          {/* Left: title + status badge */}
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+            <PreviewIcon sx={{ color: 'rgba(255,255,255,0.8)', fontSize: 20 }} />
+            <Typography variant="subtitle1" fontWeight={700} color="white" noWrap>
+              İçerik Önizleme
+            </Typography>
+            <Chip
+              label={article?.status === ArticleStatus.PUBLISHED ? 'Yayında' : 'Taslak'}
+              size="small"
+              sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: 'white', fontWeight: 700, fontSize: 11, height: 22 }}
+            />
+            {isDirty && (
+              <Chip
+                label="Kaydedilmemiş değişiklikler var"
+                size="small"
+                sx={{ bgcolor: 'rgba(217,119,6,0.3)', color: '#FDE68A', fontWeight: 600, fontSize: 11, height: 22 }}
+              />
+            )}
+          </Stack>
+
+          {/* Right: device switcher + back button */}
+          <Stack direction="row" spacing={1} alignItems="center" flexShrink={0}>
+            {/* Device toggle */}
+            <Box sx={{ display: 'flex', bgcolor: 'rgba(0,0,0,0.25)', borderRadius: 2, p: 0.5, gap: 0.5 }}>
+              <Button
+                size="small"
+                startIcon={<DesktopIcon sx={{ fontSize: '16px !important' }} />}
+                onClick={() => setPreviewDevice('desktop')}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: 1.5,
+                  color: previewDevice === 'desktop' ? '#1a5c28' : 'rgba(255,255,255,0.7)',
+                  bgcolor: previewDevice === 'desktop' ? 'white' : 'transparent',
+                  '&:hover': { bgcolor: previewDevice === 'desktop' ? 'white' : 'rgba(255,255,255,0.1)' },
+                  minWidth: 0,
+                }}
+              >
+                Masaüstü
+              </Button>
+              <Button
+                size="small"
+                startIcon={<MobileIcon sx={{ fontSize: '16px !important' }} />}
+                onClick={() => setPreviewDevice('mobile')}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: 1.5,
+                  color: previewDevice === 'mobile' ? '#1a5c28' : 'rgba(255,255,255,0.7)',
+                  bgcolor: previewDevice === 'mobile' ? 'white' : 'transparent',
+                  '&:hover': { bgcolor: previewDevice === 'mobile' ? 'white' : 'rgba(255,255,255,0.1)' },
+                  minWidth: 0,
+                }}
+              >
+                Mobil
+              </Button>
+            </Box>
+
+            <Button
+              variant="outlined"
+              startIcon={<BackIcon />}
+              onClick={() => setShowPreview(false)}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 700,
+                fontSize: 13,
+                borderColor: 'rgba(255,255,255,0.4)',
+                color: 'white',
+                borderRadius: 2,
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', borderColor: 'white' },
+              }}
+            >
+              Düzenlemeye Dön
+            </Button>
+          </Stack>
+        </Box>
+
+        {/* Preview content area */}
+        <Box sx={{ flex: 1, overflow: 'auto', py: 4, px: 2, display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+          <Box
+            sx={{
+              width: '100%',
+              maxWidth: previewDevice === 'mobile' ? 390 : 860,
+              mx: 'auto',
+              transition: 'max-width 0.3s ease',
+              ...(previewDevice === 'mobile' && {
+                boxShadow: '0 0 0 10px #1f2937, 0 0 0 12px #374151, 0 20px 60px rgba(0,0,0,0.4)',
+                borderRadius: 5,
+                overflow: 'hidden',
+              }),
+            }}
+          >
+            <Paper
+              elevation={0}
+              sx={{
+                p: previewDevice === 'mobile' ? 3 : 5,
+                borderRadius: previewDevice === 'mobile' ? 0 : 4,
+                minHeight: 600,
+                border: previewDevice === 'mobile' ? 'none' : '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              {!hasPreviewContent ? (
+                <Box sx={{ minHeight: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                  <PreviewIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                  <Typography variant="h6" fontWeight={700} color="text.secondary">Önizlenecek içerik yok</Typography>
+                  <Typography variant="body2" color="text.disabled" sx={{ mt: 0.5 }}>
+                    Başlık, özet veya içerik ekleyerek önizlemeyi aktif edin.
+                  </Typography>
+                  <Button variant="outlined" startIcon={<BackIcon />} onClick={() => setShowPreview(false)} sx={{ mt: 3 }}>
+                    Düzenlemeye Dön
+                  </Button>
+                </Box>
+              ) : (
+                <>
+                  {/* Cover image */}
+                  {form.coverMedia?.originalUrl && (
+                    <Box
+                      component="img"
+                      src={form.coverMedia.originalUrl}
+                      alt={form.coverMedia.alt || form.title}
+                      sx={{ width: '100%', maxHeight: previewDevice === 'mobile' ? 220 : 420, objectFit: 'cover', borderRadius: previewDevice === 'mobile' ? 2 : 3, mb: 3 }}
+                    />
+                  )}
+
+                  {/* Category + flags */}
+                  <Stack direction="row" spacing={1} sx={{ mb: 2 }} flexWrap="wrap">
+                    <Chip
+                      label={CATEGORY_LABELS[form.category] || form.category}
+                      size="small"
+                      sx={{ fontWeight: 700, fontSize: 11, bgcolor: alpha('#1a5c28', 0.08), color: '#1a5c28' }}
+                    />
+                    {form.breakingNews && (
+                      <Chip label="Son Dakika" size="small" color="error" sx={{ fontWeight: 700, fontSize: 11 }} />
+                    )}
+                    {form.featured && (
+                      <Chip label="Öne Çıkan" size="small" color="primary" sx={{ fontWeight: 700, fontSize: 11 }} />
+                    )}
+                  </Stack>
+
+                  {/* Title */}
+                  <Typography
+                    variant={previewDevice === 'mobile' ? 'h5' : 'h3'}
+                    fontWeight={800}
+                    sx={{ mb: 1.5, lineHeight: 1.25 }}
+                  >
+                    {form.title || 'Başlıksız İçerik'}
+                  </Typography>
+
+                  {/* Author + read time */}
+                  <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
+                    {form.author && (
+                      <Typography variant="caption" fontWeight={700} color="text.secondary">{form.author}</Typography>
+                    )}
+                    {form.author && <Typography variant="caption" color="text.disabled">·</Typography>}
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      <ReadTimeIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                      <Typography variant="caption" color="text.secondary">{readTime} dk okuma</Typography>
+                    </Stack>
+                    <Typography variant="caption" color="text.disabled">·</Typography>
+                    <Typography variant="caption" color="text.secondary">{wordCount} kelime</Typography>
+                  </Stack>
+
+                  {/* Summary / lead */}
+                  {form.summary && (
+                    <Typography
+                      variant="body1"
+                      color="text.secondary"
+                      sx={{
+                        mb: 4,
+                        fontSize: previewDevice === 'mobile' ? 15 : 17,
+                        lineHeight: 1.75,
+                        fontStyle: 'italic',
+                        borderLeft: '4px solid #1a5c28',
+                        pl: 2.5,
+                        py: 0.5,
+                      }}
+                    >
+                      {form.summary}
+                    </Typography>
+                  )}
+
+                  <Divider sx={{ mb: 4 }} />
+
+                  {/* Body content */}
+                  {normalizedHtmlBody ? (
+                    <Box
+                      sx={{
+                        '& h1,& h2,& h3,& h4': { fontWeight: 700, lineHeight: 1.3, mt: 4, mb: 1.5 },
+                        '& h1': { fontSize: '2em' },
+                        '& h2': { fontSize: '1.5em' },
+                        '& h3': { fontSize: '1.25em' },
+                        '& p': { mb: 1.5, lineHeight: 1.85, fontSize: previewDevice === 'mobile' ? 15 : 16 },
+                        '& ul,& ol': { pl: 3, mb: 1.5 },
+                        '& li': { mb: 0.5, lineHeight: 1.8 },
+                        '& blockquote': { borderLeft: '4px solid #1a5c28', pl: 2.5, ml: 0, color: 'text.secondary', my: 2.5, fontStyle: 'italic' },
+                        '& img': { maxWidth: '100%', borderRadius: 2, my: 1.5 },
+                        '& a': { color: '#1a5c28', fontWeight: 600 },
+                        '& strong,& b': { fontWeight: 700 },
+                        '& em,& i': { fontStyle: 'italic' },
+                        '& pre,& code': { fontFamily: 'monospace', bgcolor: '#F3F4F6', borderRadius: 1, p: 0.5, fontSize: 14 },
+                        '& hr': { border: 'none', borderTop: '1px solid', borderColor: 'divider', my: 4 },
+                        '& table': { width: '100%', borderCollapse: 'collapse', mb: 2 },
+                        '& th,& td': { border: '1px solid', borderColor: 'divider', p: 1 },
+                      }}
+                      dangerouslySetInnerHTML={{ __html: normalizedHtmlBody }}
+                    />
+                  ) : (
+                    <RichContentRenderer blocks={previewBlocks} />
+                  )}
+
+                  {/* Tags */}
+                  {(form.tags?.length ?? 0) > 0 && (
+                    <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} sx={{ mt: 5, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+                      {form.tags?.map(tag => (
+                        <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: 11, borderColor: '#1a5c28', color: '#1a5c28' }} />
+                      ))}
+                    </Stack>
+                  )}
+                </>
+              )}
+            </Paper>
+          </Box>
+        </Box>
+      </Dialog>
 
       {/* ═══ LEAVE DIALOG ═══ */}
       <Dialog open={leaveDialogOpen} onClose={() => setLeaveDialogOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>

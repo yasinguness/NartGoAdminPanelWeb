@@ -13,7 +13,7 @@ import {
   FileDownload as DownloadIcon, FilterList as FilterIcon,
   CheckCircle as CheckCircleIcon, Archive as ArchiveIcon,
   Close as CloseIcon, ArrowBackIosNew, ArrowForwardIos,
-  TrendingUp, AccessTime, Article as ArticleIcon,
+  AccessTime, Article as ArticleIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
@@ -103,12 +103,73 @@ export default function ContentList() {
     }
   }, [selectedIds, page, pageSize, publishArticle, archiveArticle, deleteArticle, fetchArticles, enqueueSnackbar, isEditorOnly, userName, userEmail]);
 
-  const stats = useMemo(() => [
-    { label: 'Toplam İçerik', value: totalElements, detail: '+6 bu ay', color: theme.palette.primary.main, icon: <ArticleIcon /> },
-    { label: 'Yayında', value: visibleArticles.filter(a => a.status === ArticleStatus.PUBLISHED).length, detail: '%75 yayın oranı', color: '#10B981', icon: <CheckCircleIcon /> },
-    { label: 'Toplam Görüntülenme', value: visibleArticles.reduce((acc, a) => acc + (a.viewCount || 0), 0), detail: '+%34 geçen ay', color: '#3b82f6', icon: <ViewIcon /> },
-    { label: 'Ort. Okuma Süresi', value: '4 dk', detail: 'İyi etkileşim', color: '#f59e0b', icon: <AccessTime /> },
-  ], [totalElements, visibleArticles, theme]);
+  const averageReadTime = useMemo(() => {
+    const articlesWithReadTime = visibleArticles.filter(
+      (article) => Number.isFinite(article.readTimeMinutes) && article.readTimeMinutes > 0,
+    );
+
+    if (articlesWithReadTime.length === 0) {
+      return null;
+    }
+
+    const totalReadTime = articlesWithReadTime.reduce((acc, article) => acc + article.readTimeMinutes, 0);
+    return Math.round(totalReadTime / articlesWithReadTime.length);
+  }, [visibleArticles]);
+
+  const publishedCount = useMemo(
+    () => visibleArticles.filter((article) => article.status === ArticleStatus.PUBLISHED).length,
+    [visibleArticles],
+  );
+
+  const totalViews = useMemo(
+    () => visibleArticles.reduce((acc, article) => acc + (article.viewCount || 0), 0),
+    [visibleArticles],
+  );
+
+  const stats = useMemo(() => {
+    const baseStats = [
+      {
+        label: 'Toplam İçerik',
+        value: totalElements,
+        detail: `${visibleArticles.length} içerik listeleniyor`,
+        color: theme.palette.primary.main,
+        icon: <ArticleIcon />,
+      },
+      {
+        label: 'Yayında',
+        value: publishedCount,
+        detail: visibleArticles.length > 0
+          ? `%${Math.round((publishedCount / visibleArticles.length) * 100)} yayın oranı`
+          : undefined,
+        color: '#10B981',
+        icon: <CheckCircleIcon />,
+      },
+      {
+        label: 'Toplam Görüntülenme',
+        value: totalViews,
+        detail: visibleArticles.length > 0
+          ? `${Math.round(totalViews / visibleArticles.length).toLocaleString('tr-TR')} içerik başı ortalama`
+          : undefined,
+        color: '#3b82f6',
+        icon: <ViewIcon />,
+      },
+    ];
+
+    if (averageReadTime === null) {
+      return baseStats;
+    }
+
+    return [
+      ...baseStats,
+      {
+        label: 'Ort. Okuma Süresi',
+        value: `${averageReadTime} dk`,
+        detail: `${visibleArticles.filter((article) => article.readTimeMinutes > 0).length} içerikten hesaplandı`,
+        color: '#f59e0b',
+        icon: <AccessTime />,
+      },
+    ];
+  }, [averageReadTime, publishedCount, totalElements, totalViews, visibleArticles, theme]);
 
   return (
     <PageContainer>
@@ -175,12 +236,11 @@ export default function ContentList() {
                   {s.icon}
                 </Avatar>
               </Stack>
-              <Stack direction="row" alignItems="center" spacing={0.5} mt={1.5}>
-                <TrendingUp sx={{ fontSize: 14, color: '#10B981' }} />
-                <Typography variant="caption" sx={{ color: '#10B981', fontWeight: 600, fontSize: 11 }}>
+              {s.detail && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5, fontSize: 11 }}>
                   {s.detail}
                 </Typography>
-              </Stack>
+              )}
             </Card>
           </Grid>
         ))}

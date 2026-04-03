@@ -97,14 +97,26 @@ export interface ActivityLogItem {
     eventType?: string;
     userId?: string | null;
     userEmail?: string | null;
-    status: 'SUCCESS' | 'FAILED' | 'SUSPICIOUS' | string;
+    status: 'SUCCESS' | 'FAILURE' | 'PENDING' | 'FAILED' | 'SUSPICIOUS' | string;
     failureReason?: string;
     ipAddress?: string | null;
     device?: string | null;
     city?: string | null;
     country?: string | null;
+    location?: string | null;
     createdAt: string;
     source?: string | null;
+}
+
+export interface UserLoginStatsDto {
+    userId: string;
+    totalLogins: number;
+    successfulLogins: number;
+    failedLogins: number;
+    lastLoginAt?: string | null;
+    lastLoginIp?: string | null;
+    lastLoginDevice?: string | null;
+    topSources: { source: string; count: number }[];
 }
 
 export interface AdminNote {
