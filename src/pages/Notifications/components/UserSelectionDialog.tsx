@@ -1,455 +1,415 @@
-import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    TextField,
+    Avatar,
     Box,
-    Typography,
-    Alert,
+    Button,
+    Checkbox,
     Chip,
+    CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     Divider,
+    IconButton,
     List,
     ListItem,
     ListItemIcon,
     ListItemText,
-    Avatar,
-    Checkbox,
+    MenuItem,
     Pagination,
-    CircularProgress,
-    IconButton
+    Stack,
+    TextField,
+    Typography,
+    Alert,
+    FormControlLabel,
 } from '@mui/material';
 import {
-    Search as SearchIcon,
     Close as CloseIcon,
     PersonAdd as PersonAddIcon,
-    Send as SendIcon
+    Search as SearchIcon,
+    Send as SendIcon,
 } from '@mui/icons-material';
+import { useSnackbar } from 'notistack';
 import { useUsers } from '../../../hooks/useUsers';
-import { useAdminNotificationActions } from '../../../hooks/notifications/useAdminNotificationActions';
+import { adminNotificationService } from '../../../services/notification/adminNotificationService';
 import { UserStatusEnum } from '../../../types/users/userModel';
-import { AdminBulkNotificationRequest } from '../../../types/notifications/adminBulkNotificationRequest';
-import { createAdminBulkNotificationRequest } from '../../../types/notifications/adminBulkNotificationRequest';
 import { NotificationPriority, NotificationType } from '../../../types/notifications/notificationModel';
+import type { BulkNotificationJob } from '../../../types/notifications/bulkNotificationJob';
+import BulkSendProgressDialog from './BulkSendProgressDialog';
 
-interface UserSelectionDialogProps {
-    open: boolean;
-    onClose: () => void;
-    onSuccess: () => void;
-    selectedUsers: string[];
-    setSelectedUsers: Dispatch<SetStateAction<string[]>>;
-    onSelectionComplete?: (selectedEmails: string[]) => void;
+// ── Types ─────────────────────────────────────────────────────────
+
+interface SelectedUser {
+    id: string;
+    email: string;
+    displayName: string;
 }
 
-export default function UserSelectionDialog({
-    open,
-    onClose,
-    onSuccess,
-    selectedUsers,
-    setSelectedUsers,
-    onSelectionComplete
-}: UserSelectionDialogProps) {
-    // User search and pagination states
-    const [userSearchTerm, setUserSearchTerm] = useState('');
-    const [userPage, setUserPage] = useState(0);
-    const [userPageSize] = useState(10);
-    
-    // User notification dialog states
-    const [openUserNotificationDialog, setOpenUserNotificationDialog] = useState(false);
-    const [userNotificationData, setUserNotificationData] = useState<Partial<AdminBulkNotificationRequest>>(
-        createAdminBulkNotificationRequest({})
-    );
+interface Props {
+    open: boolean;
+    onClose: () => void;
+    onSuccess?: () => void;
+    /** If provided, dialog acts as a picker — calls this with selected emails instead of sending */
+    onSelectionComplete?: (emails: string[]) => void;
+}
 
-    // Hooks
-    const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useUsers({
-        page: userPage,
-        size: userPageSize,
-        keyword: userSearchTerm,
-        status: UserStatusEnum.ACTIVE // Only active users
+// ── Component ─────────────────────────────────────────────────────
+
+export default function UserSelectionDialog({ open, onClose, onSuccess, onSelectionComplete }: Props) {
+    // ── Search / pagination ────────────────────────────────────
+    const [search, setSearch] = useState('');
+    const [page, setPage] = useState(0);
+
+    // ── Selection — store full user objects so emails persist across page changes
+    const [selected, setSelected] = useState<Map<string, SelectedUser>>(new Map());
+
+    // ── Notification compose ───────────────────────────────────
+    const [composeOpen, setComposeOpen] = useState(false);
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+    const [type, setType] = useState<string>(NotificationType.ANNOUNCEMENT);
+    const [priority, setPriority] = useState<NotificationPriority>(NotificationPriority.NORMAL);
+    const [sendPush, setSendPush] = useState(true);
+    const [sendEmail, setSendEmail] = useState(false);
+    const [sending, setSending] = useState(false);
+
+    // ── Progress tracking ──────────────────────────────────────
+    const [activeJobId, setActiveJobId] = useState<number | null>(null);
+
+    const { enqueueSnackbar } = useSnackbar();
+
+    const { data: usersData, isLoading } = useUsers({
+        page,
+        size: 10,
+        keyword: search || undefined,
+        status: UserStatusEnum.ACTIVE,
     });
 
-    const adminActions = useAdminNotificationActions();
-
-    // Debounced search effect for users
+    // Reset on close
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (open) {
-                refetchUsers();
-            }
-        }, 500); // 500ms debounce
+        if (!open) {
+            setSearch('');
+            setPage(0);
+            setSelected(new Map());
+            setComposeOpen(false);
+            setTitle('');
+            setContent('');
+        }
+    }, [open]);
 
-        return () => clearTimeout(timeoutId);
-    }, [userSearchTerm, userPage, open, refetchUsers]);
-
-    // User selection handlers
-    const handleUserSelect = (userId: string) => {
-        setSelectedUsers((prev: string[]) => 
-            prev.includes(userId) 
-                ? prev.filter((id: string) => id !== userId)
-                : [...prev, userId]
-        );
+    // ── Selection handlers ─────────────────────────────────────
+    const toggle = (user: { id: string; email: string; firstName?: string; lastName?: string }) => {
+        const displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+        setSelected(prev => {
+            const next = new Map(prev);
+            if (next.has(user.id)) next.delete(user.id);
+            else next.set(user.id, { id: user.id, email: user.email, displayName });
+            return next;
+        });
     };
 
-    const handleSelectAllUsers = () => {
-        if (usersData?.content) {
-            const currentPageUserIds = usersData.content.map(user => user.id);
-            const allCurrentPageSelected = currentPageUserIds.every(id => selectedUsers.includes(id));
-            
-            if (allCurrentPageSelected) {
-                // Remove all current page users from selection
-                setSelectedUsers((prev: string[]) => prev.filter((id: string) => !currentPageUserIds.includes(id)));
+    const togglePage = () => {
+        if (!usersData?.content) return;
+        const pageIds = usersData.content.map(u => u.id);
+        const allSelected = pageIds.every(id => selected.has(id));
+        setSelected(prev => {
+            const next = new Map(prev);
+            if (allSelected) {
+                pageIds.forEach(id => next.delete(id));
             } else {
-                // Add all current page users to selection
-                setSelectedUsers((prev: string[]) => [...new Set([...prev, ...currentPageUserIds])]);
+                usersData.content.forEach(u => {
+                    const displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
+                    next.set(u.id, { id: u.id, email: u.email, displayName });
+                });
             }
-        }
+            return next;
+        });
     };
 
-    const handleUserSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setUserSearchTerm(event.target.value);
-        setUserPage(0); // Reset to first page when searching
-    };
-
-    const handleUserPageChange = (_: React.ChangeEvent<unknown>, newPage: number) => {
-        setUserPage(newPage - 1); // MUI Pagination is 1-based, but API is 0-based
-    };
-
-    const handleOpenUserNotificationDialog = () => {
-        if (selectedUsers.length === 0) {
-            return;
-        }
-
-        if (onSelectionComplete) {
-            const selectedUserEmails = usersData?.content
-                ?.filter(user => selectedUsers.includes(user.id))
-                .map(user => user.email) || [];
-            onSelectionComplete(selectedUserEmails);
-            handleClose();
-            return;
-        }
-
-        setOpenUserNotificationDialog(true);
-    };
-
-    const handleCloseUserNotificationDialog = () => {
-        setOpenUserNotificationDialog(false);
-        setUserNotificationData(createAdminBulkNotificationRequest({}));
-    };
-
-    const handleSendToSelectedUsers = async () => {
-        try {
-            if (selectedUsers.length === 0) {
-                return;
-            }
-
-            // Get selected user emails
-            const selectedUserEmails = usersData?.content
-                ?.filter(user => selectedUsers.includes(user.id))
-                .map(user => user.email) || [];
-
-            if (selectedUserEmails.length === 0) {
-                return;
-            }
-
-            // Send notification to selected users via email
-            await adminActions.sendNotificationToEmails.mutateAsync({
-                emails: selectedUserEmails,
-                request: userNotificationData as AdminBulkNotificationRequest
-            });
-
-            handleCloseUserNotificationDialog();
-            setSelectedUsers([]);
-            onSuccess();
-        } catch (error) {
-            // silently handled
-        }
-    };
-
-    const handleClose = () => {
-        setUserSearchTerm('');
-        setUserPage(0);
-        setSelectedUsers([]);
+    // ── Picker mode ───────────────────────────────────────────
+    const handlePick = () => {
+        onSelectionComplete?.(Array.from(selected.values()).map(u => u.email));
         onClose();
     };
 
+    // ── Send flow ─────────────────────────────────────────────
+    const handleSend = async () => {
+        if (!title.trim() || !content.trim()) return;
+        const emailList = Array.from(selected.values()).map(u => u.email);
+        try {
+            setSending(true);
+            const job: BulkNotificationJob = await adminNotificationService.sendPushToSpecificUsers(
+                emailList,
+                {
+                    title: title.trim(),
+                    content: content.trim(),
+                    type,
+                    priority,
+                    sendPush,
+                    sendEmail,
+                    sendTelegram: false,
+                    sendWebSocket: false,
+                }
+            );
+            setComposeOpen(false);
+            setActiveJobId(job.id);
+        } catch {
+            enqueueSnackbar('Bildirim gönderilemedi', { variant: 'error' });
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const handleJobClose = () => {
+        setActiveJobId(null);
+        setSelected(new Map());
+        onSuccess?.();
+        onClose();
+    };
+
+    const selectedCount = selected.size;
+    const pageAllSelected = usersData?.content?.every(u => selected.has(u.id)) ?? false;
+
     return (
         <>
-            {/* User Selection Dialog */}
-            <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-                <DialogTitle>
-                    <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Typography variant="h6">Bildirim İçin Kullanıcı Seçin</Typography>
-                        <Chip 
-                            label={`${selectedUsers.length} seçildi`}
-                            color="primary" 
-                            size="small"
-                        />
-                    </Box>
+            {/* ── User list dialog ───────────────────────────── */}
+            <Dialog open={open && activeJobId === null} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+                <DialogTitle sx={{ pb: 1 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="h6" fontWeight={700}>Kullanıcı Seç</Typography>
+                        <Chip label={`${selectedCount} seçildi`} color="primary" size="small" />
+                    </Stack>
                 </DialogTitle>
-                <DialogContent>
-                    <Box sx={{ mt: 2 }}>
-                        {/* Search Bar */}
-                        <TextField
-                            fullWidth
-                            placeholder="İsim veya e-posta ile kullanıcı ara..."
-                            value={userSearchTerm}
-                            onChange={handleUserSearchChange}
-                            InputProps={{
-                                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                                endAdornment: userSearchTerm && (
-                                    <IconButton
-                                        size="small"
-                                        onClick={() => {
-                                            setUserSearchTerm('');
-                                            setUserPage(0);
-                                        }}
-                                    >
-                                        <CloseIcon />
-                                    </IconButton>
-                                )
-                            }}
-                            sx={{ mb: 2 }}
-                        />
 
-                        {/* Selection Info */}
-                        {selectedUsers.length > 0 && (
-                            <Alert severity="info" sx={{ mb: 2 }}>
-                                <Typography variant="body2">
-                                    Tüm sayfalarda {selectedUsers.length} kullanıcı seçildi
-                                </Typography>
-                            </Alert>
-                        )}
+                <DialogContent sx={{ pt: 1 }}>
+                    {/* Search */}
+                    <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="İsim veya e-posta ile ara..."
+                        value={search}
+                        onChange={e => { setSearch(e.target.value); setPage(0); }}
+                        InputProps={{
+                            startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} fontSize="small" />,
+                            endAdornment: search && (
+                                <IconButton size="small" onClick={() => { setSearch(''); setPage(0); }}>
+                                    <CloseIcon fontSize="small" />
+                                </IconButton>
+                            ),
+                        }}
+                        sx={{ mb: 2 }}
+                    />
 
-                        {/* Select All Button and Info */}
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                            <Button
-                                startIcon={<PersonAddIcon />}
-                                onClick={handleSelectAllUsers}
-                                variant="outlined"
-                                size="small"
-                                disabled={usersLoading || !usersData?.content?.length}
-                            >
-                                {usersData?.content?.every(user => selectedUsers.includes(user.id)) ? 'Sayfayı Kaldır' : 'Sayfayı Seç'}
-                            </Button>
-                            <Box textAlign="right">
-                                <Typography variant="body2" color="text.secondary">
-                                    {userSearchTerm
-                                        ? `${usersData?.totalElements || 0} kullanıcı bulundu`
-                                        : `Toplam ${usersData?.totalElements || 0} kullanıcı`
-                                    }
-                                </Typography>
-                                {usersData && usersData.totalPages > 1 && (
-                                    <Typography variant="caption" color="text.secondary">
-                                        Sayfa {userPage + 1} / {usersData.totalPages}
-                                    </Typography>
-                                )}
-                            </Box>
+                    {selectedCount > 0 && (
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                            Tüm sayfalarda <strong>{selectedCount} kullanıcı</strong> seçildi.
+                            Sayfa değiştiğinde seçimler korunur.
+                        </Alert>
+                    )}
+
+                    {/* Page select + count */}
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<PersonAddIcon />}
+                            onClick={togglePage}
+                            disabled={isLoading || !usersData?.content?.length}
+                        >
+                            {pageAllSelected ? 'Sayfayı Kaldır' : 'Sayfayı Seç'}
+                        </Button>
+                        <Typography variant="caption" color="text.secondary">
+                            {usersData?.totalElements ?? 0} kullanıcı · Sayfa {page + 1}/{usersData?.totalPages ?? 1}
+                        </Typography>
+                    </Stack>
+
+                    <Divider sx={{ mb: 1 }} />
+
+                    {/* User list */}
+                    {isLoading ? (
+                        <Box display="flex" justifyContent="center" py={4}>
+                            <CircularProgress size={32} />
                         </Box>
-
-                        <Divider sx={{ mb: 2 }} />
-
-                        {/* User List */}
-                        {usersLoading ? (
-                            <Box display="flex" flexDirection="column" alignItems="center" p={3}>
-                                <CircularProgress />
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                                    {userSearchTerm ? 'Kullanıcılar aranıyor...' : 'Kullanıcılar yükleniyor...'}
-                                </Typography>
-                            </Box>
-                        ) : (
-                            <List sx={{ maxHeight: 400, overflow: 'auto' }}>
-                                {usersData?.content?.map((user) => (
-                                    <ListItem key={user.id} button onClick={() => handleUserSelect(user.id)}>
-                                        <ListItemIcon>
+                    ) : (
+                        <List dense sx={{ maxHeight: 380, overflow: 'auto' }}>
+                            {usersData?.content?.map(user => {
+                                const name = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+                                return (
+                                    <ListItem
+                                        key={user.id}
+                                        button
+                                        onClick={() => toggle(user)}
+                                        sx={{ borderRadius: 2, mb: 0.5, '&:hover': { bgcolor: 'action.hover' } }}
+                                    >
+                                        <ListItemIcon sx={{ minWidth: 40 }}>
                                             <Checkbox
                                                 edge="start"
-                                                checked={selectedUsers.includes(user.id)}
+                                                checked={selected.has(user.id)}
                                                 tabIndex={-1}
                                                 disableRipple
+                                                size="small"
                                             />
                                         </ListItemIcon>
-                                        <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                                            {user.firstName?.charAt(0) || user.email?.charAt(0) || 'U'}
+                                        <Avatar sx={{ mr: 1.5, width: 32, height: 32, fontSize: 13, bgcolor: 'primary.main' }}>
+                                            {name.charAt(0).toUpperCase()}
                                         </Avatar>
                                         <ListItemText
-                                            primary={`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
+                                            primary={<Typography variant="body2" fontWeight={600}>{name}</Typography>}
                                             secondary={
-                                                <Box>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        {user.email}
-                                                    </Typography>
-                                                    <Box display="flex" gap={1} mt={0.5}>
-                                                        <Chip 
-                                                            label={user.userStatus} 
-                                                            size="small" 
-                                                            color={user.userStatus === 'ACTIVE' ? 'success' : 'default'}
-                                                        />
-                                                        <Chip 
-                                                            label={user.accountType} 
-                                                            size="small" 
-                                                            variant="outlined"
-                                                        />
-                                                    </Box>
-                                                </Box>
+                                                <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
+                                                    <Typography variant="caption" color="text.secondary">{user.email}</Typography>
+                                                    <Chip label={user.userStatus} size="small" color={user.userStatus === 'ACTIVE' ? 'success' : 'default'} sx={{ height: 16, fontSize: 9 }} />
+                                                    <Chip label={user.accountType} size="small" variant="outlined" sx={{ height: 16, fontSize: 9 }} />
+                                                </Stack>
                                             }
                                         />
                                     </ListItem>
-                                ))}
-                            </List>
-                        )}
+                                );
+                            })}
+                        </List>
+                    )}
 
-                        {usersData?.content?.length === 0 && !usersLoading && (
-                            <Box textAlign="center" py={4}>
-                                <Typography variant="body1" color="text.secondary">
-                                    {userSearchTerm ? 'Aramanızla eşleşen kullanıcı bulunamadı' : 'Aktif kullanıcı bulunamadı'}
-                                </Typography>
-                            </Box>
-                        )}
-
-                        {/* Pagination */}
-                        {usersData && usersData.totalPages > 1 && (
-                            <Box display="flex" justifyContent="center" mt={2}>
-                                <Pagination
-                                    count={usersData.totalPages}
-                                    page={userPage + 1} // MUI Pagination is 1-based
-                                    onChange={handleUserPageChange}
-                                    color="primary"
-                                    showFirstButton
-                                    showLastButton
-                                    disabled={usersLoading}
-                                />
-                            </Box>
-                        )}
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleClose}>İptal</Button>
-                    <Button
-                        onClick={handleOpenUserNotificationDialog}
-                        variant="contained"
-                        disabled={selectedUsers.length === 0}
-                        startIcon={<SendIcon />}
-                    >
-                        {onSelectionComplete ? 'Seç' : 'Devam'} ({selectedUsers.length} kullanıcı)
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* User Notification Dialog */}
-            <Dialog open={openUserNotificationDialog} onClose={handleCloseUserNotificationDialog} maxWidth="sm" fullWidth>
-                <DialogTitle>Seçili Kullanıcılara Bildirim Gönder</DialogTitle>
-                <DialogContent>
-                    <Box sx={{ mt: 2 }}>
-                        {/* Selected users summary */}
-                        <Alert severity="info" sx={{ mb: 3 }}>
-                            <Typography variant="body2">
-                                {selectedUsers.length} seçili kullanıcıya gönderilecek
+                    {usersData?.content?.length === 0 && !isLoading && (
+                        <Box textAlign="center" py={4}>
+                            <Typography color="text.secondary">
+                                {search ? 'Aramanızla eşleşen kullanıcı bulunamadı.' : 'Aktif kullanıcı bulunamadı.'}
                             </Typography>
-                        </Alert>
-
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <TextField
-                                fullWidth
-                                label="Bildirim Başlığı"
-                                value={userNotificationData.title || ''}
-                                onChange={(e) => setUserNotificationData({ ...userNotificationData, title: e.target.value })}
-                                required
-                            />
-
-                            <TextField
-                                fullWidth
-                                label="İçerik"
-                                multiline
-                                rows={4}
-                                value={userNotificationData.content || ''}
-                                onChange={(e) => setUserNotificationData({ ...userNotificationData, content: e.target.value })}
-                                required
-                            />
-
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="Tür"
-                                    value={userNotificationData.type || ''}
-                                    onChange={(e) => setUserNotificationData({ ...userNotificationData, type: e.target.value })}
-                                    SelectProps={{ native: true }}
-                                >
-                                    <option value="">Tür Seçin</option>
-                                    <option value={NotificationType.SYSTEM}>Sistem</option>
-                                    <option value={NotificationType.PROMOTION}>Promosyon</option>
-                                    <option value={NotificationType.ANNOUNCEMENT}>Duyuru</option>
-                                    <option value={NotificationType.ALERT}>Uyarı</option>
-                                </TextField>
-
-                                <TextField
-                                    select
-                                    fullWidth
-                                    label="Öncelik"
-                                    value={userNotificationData.priority || NotificationPriority.NORMAL}
-                                    onChange={(e) => setUserNotificationData({ ...userNotificationData, priority: e.target.value as NotificationPriority })}
-                                    SelectProps={{ native: true }}
-                                >
-                                    <option value={NotificationPriority.LOW}>Düşük</option>
-                                    <option value={NotificationPriority.NORMAL}>Normal</option>
-                                    <option value={NotificationPriority.HIGH}>Yüksek</option>
-                                    <option value={NotificationPriority.URGENT}>Acil</option>
-                                </TextField>
-                            </Box>
-
-                            {/* Channel Selection */}
-                            <Box>
-                                <Typography variant="subtitle2" gutterBottom>
-                                    Gönderim Kanalları
-                                </Typography>
-                                <Box display="flex" flexWrap="wrap" gap={2}>
-                                    <Chip
-                                        label="Push Bildirim"
-                                        color={userNotificationData.sendPush ? "primary" : "default"}
-                                        variant={userNotificationData.sendPush ? "filled" : "outlined"}
-                                        onClick={() => setUserNotificationData({ ...userNotificationData, sendPush: !userNotificationData.sendPush })}
-                                        clickable
-                                    />
-                                    <Chip
-                                        label="E-posta"
-                                        color={userNotificationData.sendEmail ? "primary" : "default"}
-                                        variant={userNotificationData.sendEmail ? "filled" : "outlined"}
-                                        onClick={() => setUserNotificationData({ ...userNotificationData, sendEmail: !userNotificationData.sendEmail })}
-                                        clickable
-                                    />
-                                    <Chip
-                                        label="WebSocket"
-                                        color={userNotificationData.sendWebSocket ? "primary" : "default"}
-                                        variant={userNotificationData.sendWebSocket ? "filled" : "outlined"}
-                                        onClick={() => setUserNotificationData({ ...userNotificationData, sendWebSocket: !userNotificationData.sendWebSocket })}
-                                        clickable
-                                    />
-                                    <Chip
-                                        label="Telegram"
-                                        color={userNotificationData.sendTelegram ? "primary" : "default"}
-                                        variant={userNotificationData.sendTelegram ? "filled" : "outlined"}
-                                        onClick={() => setUserNotificationData({ ...userNotificationData, sendTelegram: !userNotificationData.sendTelegram })}
-                                        clickable
-                                    />
-                                </Box>
-                            </Box>
                         </Box>
-                    </Box>
+                    )}
+
+                    {(usersData?.totalPages ?? 0) > 1 && (
+                        <Box display="flex" justifyContent="center" mt={2}>
+                            <Pagination
+                                count={usersData!.totalPages}
+                                page={page + 1}
+                                onChange={(_, p) => setPage(p - 1)}
+                                color="primary"
+                                size="small"
+                                showFirstButton
+                                showLastButton
+                                disabled={isLoading}
+                            />
+                        </Box>
+                    )}
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseUserNotificationDialog}>İptal</Button>
+
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button onClick={onClose} sx={{ textTransform: 'none' }}>İptal</Button>
                     <Button
-                        onClick={handleSendToSelectedUsers}
                         variant="contained"
-                        disabled={!userNotificationData.title || !userNotificationData.content || !userNotificationData.type}
                         startIcon={<SendIcon />}
+                        disabled={selectedCount === 0}
+                        onClick={onSelectionComplete ? handlePick : () => setComposeOpen(true)}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
                     >
-                        {selectedUsers.length} Kullanıcıya Gönder
+                        {onSelectionComplete ? `Seç (${selectedCount})` : `Devam (${selectedCount} kullanıcı)`}
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* ── Compose & send dialog ──────────────────────── */}
+            <Dialog open={composeOpen} onClose={() => setComposeOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+                <DialogTitle sx={{ fontWeight: 700 }}>
+                    {selectedCount} Kullanıcıya Bildirim Gönder
+                </DialogTitle>
+                <DialogContent>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        Seçili <strong>{selectedCount} kullanıcıya</strong> gönderilecek.
+                        Büyük listelerde gönderim arka planda yürütülür ve ilerleme gösterilir.
+                    </Alert>
+
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <TextField
+                            fullWidth
+                            label="Bildirim Başlığı"
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            required
+                            inputProps={{ maxLength: 100 }}
+                            helperText={`${title.length}/100`}
+                        />
+                        <TextField
+                            fullWidth
+                            label="İçerik"
+                            multiline
+                            rows={3}
+                            value={content}
+                            onChange={e => setContent(e.target.value)}
+                            required
+                            inputProps={{ maxLength: 500 }}
+                            helperText={`${content.length}/500`}
+                        />
+                        <Stack direction="row" spacing={2}>
+                            <TextField
+                                select
+                                fullWidth
+                                size="small"
+                                label="Tür"
+                                value={type}
+                                onChange={e => setType(e.target.value)}
+                            >
+                                <MenuItem value={NotificationType.ANNOUNCEMENT}>Duyuru</MenuItem>
+                                <MenuItem value={NotificationType.ALERT}>Uyarı</MenuItem>
+                                <MenuItem value={NotificationType.SYSTEM}>Sistem</MenuItem>
+                                <MenuItem value={NotificationType.PROMOTION}>Promosyon</MenuItem>
+                            </TextField>
+                            <TextField
+                                select
+                                fullWidth
+                                size="small"
+                                label="Öncelik"
+                                value={priority}
+                                onChange={e => setPriority(e.target.value as NotificationPriority)}
+                            >
+                                <MenuItem value={NotificationPriority.LOW}>Düşük</MenuItem>
+                                <MenuItem value={NotificationPriority.NORMAL}>Normal</MenuItem>
+                                <MenuItem value={NotificationPriority.HIGH}>Yüksek</MenuItem>
+                                <MenuItem value={NotificationPriority.URGENT}>Acil</MenuItem>
+                            </TextField>
+                        </Stack>
+
+                        <Box>
+                            <Typography variant="caption" fontWeight={700} color="text.secondary" display="block" mb={0.5}>
+                                Kanallar
+                            </Typography>
+                            <Stack direction="row" spacing={1} flexWrap="wrap">
+                                <Chip
+                                    label="Push"
+                                    color={sendPush ? 'primary' : 'default'}
+                                    variant={sendPush ? 'filled' : 'outlined'}
+                                    onClick={() => setSendPush(p => !p)}
+                                    clickable
+                                    size="small"
+                                />
+                                <Chip
+                                    label="E-posta"
+                                    color={sendEmail ? 'primary' : 'default'}
+                                    variant={sendEmail ? 'filled' : 'outlined'}
+                                    onClick={() => setSendEmail(p => !p)}
+                                    clickable
+                                    size="small"
+                                />
+                            </Stack>
+                        </Box>
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button onClick={() => setComposeOpen(false)} sx={{ textTransform: 'none' }}>İptal</Button>
+                    <Button
+                        variant="contained"
+                        startIcon={sending ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
+                        onClick={handleSend}
+                        disabled={sending || !title.trim() || !content.trim() || (!sendPush && !sendEmail)}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                    >
+                        {sending ? 'Gönderiliyor...' : `${selectedCount} Kullanıcıya Gönder`}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ── Progress tracking dialog ───────────────────── */}
+            <BulkSendProgressDialog jobId={activeJobId} onClose={handleJobClose} />
         </>
     );
 }

@@ -1,7 +1,22 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminNotificationService } from '../../services/notification/adminNotificationService';
 import { AdminBulkNotificationRequest, RecipientType } from '../../types/notifications/adminBulkNotificationRequest';
 import { AdminBulkNotificationResponse } from '../../types/notifications/adminBulkNotificationResponse';
+import type { BulkNotificationJob } from '../../types/notifications/bulkNotificationJob';
+
+const TERMINAL = new Set(['COMPLETED', 'FAILED', 'CANCELLED']);
+
+/** Polls a single bulk notification job until it reaches a terminal state. */
+export const useJobStatus = (jobId: number | null) =>
+    useQuery<BulkNotificationJob>({
+        queryKey: ['bulkJob', jobId],
+        queryFn: () => adminNotificationService.getJob(jobId!),
+        enabled: jobId !== null,
+        refetchInterval: (query) => {
+            const status = query.state.data?.status;
+            return status && TERMINAL.has(status) ? false : 2500;
+        },
+    });
 
 export const useAdminNotificationActions = () => {
     const queryClient = useQueryClient();
@@ -131,10 +146,29 @@ export const useAdminNotificationActions = () => {
     });
 
     const sendMultiChannelNotification = useMutation({
-        mutationFn: ({ request, recipientType }: { request: AdminBulkNotificationRequest; recipientType?: RecipientType }) => 
+        mutationFn: ({ request, recipientType }: { request: AdminBulkNotificationRequest; recipientType?: RecipientType }) =>
             adminNotificationService.sendMultiChannelNotification(request, recipientType),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminNotificationStats'] });
+        },
+    });
+
+    // ── Async job-based mutations ──────────────────────────────
+    const sendPushToSpecificUsers = useMutation({
+        mutationFn: ({ emailList, request }: {
+            emailList: string[];
+            request: Omit<AdminBulkNotificationRequest, 'emailList' | 'recipientType'>;
+        }) => adminNotificationService.sendPushToSpecificUsers(emailList, request),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['bulkJobs'] });
+        },
+    });
+
+    const submitBulkJob = useMutation({
+        mutationFn: (request: AdminBulkNotificationRequest) =>
+            adminNotificationService.submitBulkJob(request),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['bulkJobs'] });
         },
     });
 
@@ -162,5 +196,9 @@ export const useAdminNotificationActions = () => {
         sendPushNotificationToAnonymous,
         sendEmailNotificationToRegistered,
         sendMultiChannelNotification,
+
+        // Async job-based (submit-and-poll)
+        sendPushToSpecificUsers,
+        submitBulkJob,
     };
 };

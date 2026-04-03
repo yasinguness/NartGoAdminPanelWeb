@@ -1,12 +1,13 @@
 import { api } from '../api';
-import { 
-    AdminBulkNotificationRequest, 
-    RecipientType 
+import {
+    AdminBulkNotificationRequest,
+    RecipientType
 } from '../../types/notifications/adminBulkNotificationRequest';
 import { AdminBulkNotificationResponse } from '../../types/notifications/adminBulkNotificationResponse';
 import { AdminNotificationStats } from '../../types/notifications/adminNotificationStats';
 import { NotificationPriority } from '../../types/notifications/notificationModel';
 import { ApiResponse } from '../../types/api';
+import { BulkNotificationJob } from '../../types/notifications/bulkNotificationJob';
 
 
 
@@ -286,5 +287,50 @@ export const adminNotificationService = {
             sendWebSocket: true
         };
         return adminNotificationService.sendBulkNotificationCustom(modifiedRequest);
-    }
+    },
+
+    // ── Submit-and-poll async job endpoints ──────────────────────
+
+    /**
+     * Send push notification to specific users.
+     * Returns a BulkNotificationJob immediately — poll getJob(id) for progress.
+     */
+    sendPushToSpecificUsers: async (
+        emailList: string[],
+        request: Omit<AdminBulkNotificationRequest, 'emailList' | 'recipientType'>
+    ): Promise<BulkNotificationJob> => {
+        const response = await api.post<ApiResponse<BulkNotificationJob>>(
+            '/notifications/admin/push/send-to-users',
+            { ...request, emailList, recipientType: RecipientType.SPECIFIC_USERS }
+        );
+        return response.data.data;
+    },
+
+    /**
+     * Submit any bulk job (all channels, any recipient type).
+     * Returns a BulkNotificationJob immediately — poll getJob(id) for progress.
+     */
+    submitBulkJob: async (request: AdminBulkNotificationRequest): Promise<BulkNotificationJob> => {
+        const response = await api.post<ApiResponse<BulkNotificationJob>>(
+            '/notifications/admin/jobs/submit',
+            request
+        );
+        return response.data.data;
+    },
+
+    /** Poll the status of a bulk notification job. */
+    getJob: async (jobId: number | string): Promise<BulkNotificationJob> => {
+        const response = await api.get<ApiResponse<BulkNotificationJob>>(
+            `/notifications/admin/jobs/${jobId}`
+        );
+        return response.data.data;
+    },
+
+    /** Get all jobs (for active-jobs display). */
+    getJobs: async (): Promise<BulkNotificationJob[]> => {
+        const response = await api.get<ApiResponse<BulkNotificationJob[]>>(
+            '/notifications/admin/jobs'
+        );
+        return response.data.data ?? [];
+    },
 };
