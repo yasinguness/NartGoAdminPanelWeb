@@ -894,20 +894,22 @@ export default function ContentEditor() {
                 </Stack>
               </Paper>
 
-              {/* Properties */}
-              <Paper elevation={0} sx={{ p: 3, borderRadius: 4 }}>
-                <Typography variant="caption" fontWeight={800} color="text.secondary" textTransform="uppercase">Özellikler</Typography>
-                <Stack spacing={1} mt={1}>
-                  <FormControlLabel
-                    control={<Switch checked={form.featured} onChange={(e) => updateField('featured', e.target.checked)} color="primary" />}
-                    label={<Box><Typography variant="body2" fontWeight={700}>Öne Çıkar</Typography><Typography variant="caption" color="text.secondary">Ana sayfada büyük göster</Typography></Box>}
-                  />
-                  <FormControlLabel
-                    control={<Switch checked={form.breakingNews} onChange={(e) => updateField('breakingNews', e.target.checked)} color="error" />}
-                    label={<Box><Typography variant="body2" fontWeight={700}>Son Dakika</Typography><Typography variant="caption" color="text.secondary">Kırmızı badge + banner</Typography></Box>}
-                  />
-                </Stack>
-              </Paper>
+              {/* Properties — hidden for editors */}
+              {!isEditorOnly && (
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4 }}>
+                  <Typography variant="caption" fontWeight={800} color="text.secondary" textTransform="uppercase">Özellikler</Typography>
+                  <Stack spacing={1} mt={1}>
+                    <FormControlLabel
+                      control={<Switch checked={form.featured} onChange={(e) => updateField('featured', e.target.checked)} color="primary" />}
+                      label={<Box><Typography variant="body2" fontWeight={700}>Öne Çıkar</Typography><Typography variant="caption" color="text.secondary">Ana sayfada büyük göster</Typography></Box>}
+                    />
+                    <FormControlLabel
+                      control={<Switch checked={form.breakingNews} onChange={(e) => updateField('breakingNews', e.target.checked)} color="error" />}
+                      label={<Box><Typography variant="body2" fontWeight={700}>Son Dakika</Typography><Typography variant="caption" color="text.secondary">Kırmızı badge + banner</Typography></Box>}
+                    />
+                  </Stack>
+                </Paper>
+              )}
 
               {/* SEO Preview */}
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, bgcolor: '#F9FAFB' }}>

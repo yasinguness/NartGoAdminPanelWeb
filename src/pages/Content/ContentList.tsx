@@ -289,24 +289,28 @@ export default function ContentList() {
               {selectedIds.length} içerik seçildi
             </Typography>
             <Divider orientation="vertical" flexItem sx={{ bgcolor: 'rgba(255,255,255,0.2)' }} />
-            <Button
-              size="small"
-              color="inherit"
-              startIcon={<CheckCircleIcon />}
-              onClick={() => handleBulkAction('publish')}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
-            >
-              Yayınla
-            </Button>
-            <Button
-              size="small"
-              color="inherit"
-              startIcon={<ArchiveIcon />}
-              onClick={() => handleBulkAction('archive')}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
-            >
-              Arşive
-            </Button>
+            {!isEditorOnly && (
+              <Button
+                size="small"
+                color="inherit"
+                startIcon={<CheckCircleIcon />}
+                onClick={() => handleBulkAction('publish')}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Yayınla
+              </Button>
+            )}
+            {!isEditorOnly && (
+              <Button
+                size="small"
+                color="inherit"
+                startIcon={<ArchiveIcon />}
+                onClick={() => handleBulkAction('archive')}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Arşive
+              </Button>
+            )}
             <Button
               size="small"
               color="inherit"

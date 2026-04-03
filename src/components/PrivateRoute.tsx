@@ -14,8 +14,8 @@ export default function PrivateRoute({ children }: PrivateRouteProps) {
 
     if (!isAuthenticated) return <Navigate to="/login" />;
 
-    // Editor role — redirect to /content if accessing unauthorized pages
-    if (isEditorOnly && !canAccess(location.pathname)) {
+    // Editor role — redirect to /content for unauthorized pages and dashboard
+    if (isEditorOnly && (location.pathname === '/dashboard' || !canAccess(location.pathname))) {
         return <Navigate to="/content" replace />;
     }
 

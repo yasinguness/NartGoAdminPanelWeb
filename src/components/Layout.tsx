@@ -62,6 +62,7 @@ interface NavSection {
 const navSections: NavSection[] = [
     {
         title: 'Genel',
+        allowedRoles: ['ADMIN', 'MODERATOR'],
         items: [
             { text: 'Kontrol Paneli', icon: <DashboardIcon />, path: '/dashboard' },
         ],
@@ -110,6 +111,12 @@ const navSections: NavSection[] = [
         allowedRoles: ['ADMIN', 'MODERATOR', 'EDITOR'],
         items: [
             { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
+        ],
+    },
+    {
+        title: 'İçerik Yönetimi',
+        allowedRoles: ['ADMIN', 'MODERATOR'],
+        items: [
             { text: 'Bildirimler', icon: <NotificationsIcon />, path: '/notifications' },
             { text: 'Video Akışı', icon: <FeedIcon />, path: '/feeds' },
             { text: 'Bültenler', icon: <CampaignIcon />, path: '/bulletins' },
@@ -140,7 +147,7 @@ export default function Layout() {
     const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
-    const { roles, userName } = useRole();
+    const { roles, userName, isEditorOnly } = useRole();
     const { logout } = useAuth();
 
     const visibleSections = useMemo(() => {
@@ -376,21 +383,25 @@ export default function Layout() {
                     </Box>
                 </Box>
 
-                {/* Notifications shortcut */}
-                <Tooltip title="Bildirimler">
-                    <IconButton size="small" onClick={() => navigate('/notifications')}
-                        sx={{ color: theme.palette.text.secondary, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}>
-                        <NotificationsIcon sx={{ fontSize: 20 }} />
-                    </IconButton>
-                </Tooltip>
+                {/* Notifications shortcut — hidden for editors */}
+                {!isEditorOnly && (
+                    <Tooltip title="Bildirimler">
+                        <IconButton size="small" onClick={() => navigate('/notifications')}
+                            sx={{ color: theme.palette.text.secondary, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}>
+                            <NotificationsIcon sx={{ fontSize: 20 }} />
+                        </IconButton>
+                    </Tooltip>
+                )}
 
-                {/* Settings shortcut */}
-                <Tooltip title="Ayarlar">
-                    <IconButton size="small" onClick={() => navigate('/settings')}
-                        sx={{ color: theme.palette.text.secondary, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}>
-                        <SettingsIcon sx={{ fontSize: 20 }} />
-                    </IconButton>
-                </Tooltip>
+                {/* Settings shortcut — hidden for editors */}
+                {!isEditorOnly && (
+                    <Tooltip title="Ayarlar">
+                        <IconButton size="small" onClick={() => navigate('/settings')}
+                            sx={{ color: theme.palette.text.secondary, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}>
+                            <SettingsIcon sx={{ fontSize: 20 }} />
+                        </IconButton>
+                    </Tooltip>
+                )}
             </Box>
 
             {/* Sidebar */}

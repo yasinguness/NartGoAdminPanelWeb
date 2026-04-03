@@ -24,6 +24,7 @@ import type { ArticleDto } from '../../types/article/articleModel';
 import { RichContentRenderer } from '../../components/RichContentEditor';
 import type { ContentBlock } from '../../types/notification.types';
 import { PageContainer, PageHeader } from '../../components/Page';
+import { useRole } from '../../hooks/useRole';
 
 const statusColors: Record<ArticleStatus, string> = {
   [ArticleStatus.DRAFT]: '#94A3B8',
@@ -115,6 +116,7 @@ export default function ContentDetail() {
     deleteArticle, publishArticle, archiveArticle,
     toggleFeatured, toggleBreaking,
   } = useArticleStore();
+  const { isEditorOnly, isOwner } = useRole();
 
   const [deleteDialog, setDeleteDialog] = useState(false);
 
@@ -125,6 +127,16 @@ export default function ContentDetail() {
   }, [id, fetchArticle]);
 
   const article = currentArticle;
+
+  // Editor can only view their own articles
+  const canEdit = !isEditorOnly || isOwner(article?.author);
+
+  useEffect(() => {
+    if (article && isEditorOnly && !isOwner(article.author)) {
+      enqueueSnackbar('Bu içeriği görüntüleme yetkiniz yok', { variant: 'error' });
+      navigate('/content');
+    }
+  }, [article, isEditorOnly, isOwner, enqueueSnackbar, navigate]);
 
   const blocks = useMemo(() => htmlToBlocks(article?.body), [article?.body]);
 
@@ -222,45 +234,47 @@ export default function ContentDetail() {
           { label: article.title },
         ]}
         actions={
-          <Stack direction="row" spacing={1}>
-            {article.status === ArticleStatus.DRAFT && (
+          canEdit ? (
+            <Stack direction="row" spacing={1}>
+              {article.status === ArticleStatus.DRAFT && (
+                <Button
+                  variant="contained"
+                  startIcon={<PublishIcon />}
+                  onClick={handlePublish}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#1a5c28', '&:hover': { bgcolor: '#155220' } }}
+                >
+                  Yayınla
+                </Button>
+              )}
+              {article.status === ArticleStatus.PUBLISHED && (
+                <Button
+                  variant="outlined"
+                  startIcon={<ArchiveIcon />}
+                  onClick={handleArchive}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+                >
+                  Arşivle
+                </Button>
+              )}
               <Button
                 variant="contained"
-                startIcon={<PublishIcon />}
-                onClick={handlePublish}
-                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#1a5c28', '&:hover': { bgcolor: '#155220' } }}
+                startIcon={<EditIcon />}
+                onClick={() => navigate(`/content/${id}/edit`)}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
               >
-                Yayınla
+                Düzenle
               </Button>
-            )}
-            {article.status === ArticleStatus.PUBLISHED && (
               <Button
                 variant="outlined"
-                startIcon={<ArchiveIcon />}
-                onClick={handleArchive}
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={() => setDeleteDialog(true)}
                 sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
               >
-                Arşivle
+                Sil
               </Button>
-            )}
-            <Button
-              variant="contained"
-              startIcon={<EditIcon />}
-              onClick={() => navigate(`/content/${id}/edit`)}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-            >
-              Düzenle
-            </Button>
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={() => setDeleteDialog(true)}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
-            >
-              Sil
-            </Button>
-          </Stack>
+            </Stack>
+          ) : undefined
         }
       />
 
@@ -392,23 +406,27 @@ export default function ContentDetail() {
                 />
               </Stack>
 
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">Öne Çıkan</Typography>
-                <Tooltip title={article.featured ? 'Öne çıkarmayı kaldır' : 'Öne çıkar'}>
-                  <IconButton size="small" onClick={handleToggleFeatured}>
-                    <StarIcon sx={{ fontSize: 20, color: article.featured ? '#f59e0b' : 'text.disabled' }} />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
+              {!isEditorOnly && (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">Öne Çıkan</Typography>
+                  <Tooltip title={article.featured ? 'Öne çıkarmayı kaldır' : 'Öne çıkar'}>
+                    <IconButton size="small" onClick={handleToggleFeatured}>
+                      <StarIcon sx={{ fontSize: 20, color: article.featured ? '#f59e0b' : 'text.disabled' }} />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              )}
 
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">Son Dakika</Typography>
-                <Tooltip title={article.breakingNews ? 'Son dakika kaldır' : 'Son dakika yap'}>
-                  <IconButton size="small" onClick={handleToggleBreaking}>
-                    <BreakingIcon sx={{ fontSize: 20, color: article.breakingNews ? '#EF4444' : 'text.disabled' }} />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
+              {!isEditorOnly && (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">Son Dakika</Typography>
+                  <Tooltip title={article.breakingNews ? 'Son dakika kaldır' : 'Son dakika yap'}>
+                    <IconButton size="small" onClick={handleToggleBreaking}>
+                      <BreakingIcon sx={{ fontSize: 20, color: article.breakingNews ? '#EF4444' : 'text.disabled' }} />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              )}
             </Stack>
           </Card>
 

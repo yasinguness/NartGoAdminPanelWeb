@@ -45,9 +45,8 @@ export function useRole() {
       canAccess: (path: string): boolean => {
         if (isAdmin) return true;
         if (isEditor && !isAdmin) {
-          // Editor can only access content routes
-          const editorPaths = ['/dashboard', '/content', '/content/new'];
-          return editorPaths.some((p) => path === p || path.startsWith('/content/'));
+          // Editor can only access dashboard and content/article routes
+          return path === '/dashboard' || path === '/content' || path.startsWith('/content/');
         }
         return true;
       },
