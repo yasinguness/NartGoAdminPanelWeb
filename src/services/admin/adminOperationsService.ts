@@ -12,14 +12,17 @@ import {
   CheckInOnlineRequest,
   CheckInQrRequest,
   CheckInValidateRequest,
+  CheckInStats,
   GenericApiData,
   OfflineGenerateRequest,
   OfflineSyncRequest,
   OfflineValidateRequest,
+  OrderResponse,
   QrParseRequest,
   RemoveSeatsRequest,
   SeatMoveRequest,
   SeatOverrideRequest,
+  TicketTypeResponse,
 } from '../../types/admin/adminOperations';
 
 const unwrap = async <T>(request: Promise<{ data: ApiEnvelope<T> }>) => {
@@ -68,7 +71,13 @@ export const adminOperationsService = {
     unwrap<GenericApiData>(api.post(`/tickets/admin/events/${eventId}/seating/backfill`, payload ?? {})),
 
   getOrders: (eventId: string) =>
-    unwrap<GenericApiData>(api.get(`/tickets/admin/events/${eventId}/orders`)),
+    unwrap<OrderResponse[]>(api.get(`/tickets/admin/events/${eventId}/orders`)),
+
+  getTicketTypes: (eventId: string) =>
+    unwrap<TicketTypeResponse[]>(api.get(`/tickets/admin/events/${eventId}/ticket-types`)),
+
+  getCheckInStats: (eventId: string) =>
+    unwrap<CheckInStats>(api.get(`/tickets/admin/events/${eventId}/checkin-stats`)),
 
   bulkCancelRefundOrders: (eventId: string, payload: BulkOrderActionRequest) =>
     unwrap<GenericApiData>(api.post(`/tickets/admin/events/${eventId}/orders/bulk-cancel-refund`, payload)),
@@ -126,9 +135,6 @@ export const adminOperationsService = {
 
   syncOfflineCheckIns: (payload: OfflineSyncRequest) =>
     unwrap<GenericApiData>(api.post('/tickets/checkin/offline/sync', payload)),
-
-  getCheckInStats: (eventId: string) =>
-    unwrap<GenericApiData>(api.get(`/tickets/checkin/stats/${eventId}`)),
 
   parseQr: (payload: QrParseRequest) =>
     unwrap<GenericApiData>(api.post('/tickets/checkin/qr/parse', payload)),

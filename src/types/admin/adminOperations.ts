@@ -120,3 +120,67 @@ export interface QrParseRequest {
 }
 
 export type GenericApiData = Record<string, unknown> | Array<Record<string, unknown>> | string | number | boolean | null;
+
+// ── Ticket & Order types ──────────────────────────────────────────────────────
+
+export type TicketTypeStatus = 'ACTIVE' | 'INACTIVE' | 'SOLD_OUT' | 'ENDED';
+
+export interface TicketTypeResponse {
+  id: string;
+  eventId: string;
+  name: string;
+  description?: string;
+  basePrice: number;
+  currency: string;
+  capacityTotal: number;
+  capacitySold: number;
+  capacityReserved: number;
+  availableCapacity: number;
+  saleStartAt: string;
+  saleEndAt: string;
+  status: TicketTypeStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderItemResponse {
+  ticketTypeId: string;
+  ticketTypeName?: string;
+  unitPrice: number;
+  quantity: number;
+  discountApplied: number;
+  finalPrice: number;
+  totalPrice: number;
+}
+
+export interface TicketResponse {
+  id: string;
+  ticketTypeId: string;
+  status: string;
+  serialNo: string;
+  qrCodeUrl?: string;
+  issuedAt?: string;
+}
+
+export type OrderStatus = 'PENDING' | 'PAID' | 'CANCELLED' | 'REFUNDED' | 'FAILED';
+
+export interface OrderResponse {
+  id: string;
+  eventId: string;
+  reservationId?: string;
+  status: OrderStatus;
+  totalAmount: number;
+  currency: string;
+  iyzicoPaymentId?: string;
+  createdAt: string;
+  paidAt?: string;
+  items: OrderItemResponse[];
+  tickets: TicketResponse[];
+}
+
+export interface CheckInStats {
+  totalTickets: number;
+  checkedIn: number;
+  notCheckedIn: number;
+  checkInRate: number;
+}

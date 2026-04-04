@@ -4,6 +4,8 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Drawer,
   Stepper, Step, StepLabel, Tab, Tabs, LinearProgress, Radio, RadioGroup,
   FormControlLabel, Divider, Pagination, Paper, CircularProgress, Tooltip, Skeleton,
+  Avatar, Checkbox, List, ListItem, ListItemAvatar, ListItemText, ListItemSecondaryAction,
+  InputAdornment,
   useTheme,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -11,8 +13,10 @@ import {
   Campaign as CampaignIcon, Add, Search, Send, Schedule, Cancel,
   ContentCopy, Delete, Edit, MoreVert, Notifications, TrendingUp,
   Visibility, TouchApp, Close, ArrowBack, ArrowForward, CheckCircle,
-  Warning, PhoneAndroid, Mail, Sms, Inbox,
+  Warning, PhoneAndroid, Mail, Sms, Inbox, Person as PersonIcon,
 } from '@mui/icons-material';
+import { userService } from '../../services/user/userService';
+import type { UserDTO } from '../../types/users/userModel';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   ResponsiveContainer,
@@ -198,6 +202,12 @@ export default function NotificationsRefactored() {
   const [scheduleType, setScheduleType] = useState<'now' | 'date' | 'recurring'>('now');
   const [scheduledDate, setScheduledDate] = useState('');
 
+  // User picker for INDIVIDUAL targeting
+  const [userPickerOpen, setUserPickerOpen] = useState(false);
+  const [userPickerSearch, setUserPickerSearch] = useState('');
+  const [userPickerResults, setUserPickerResults] = useState<UserDTO[]>([]);
+  const [userPickerLoading, setUserPickerLoading] = useState(false);
+
   // Queries
   const { data: campaignsData, isLoading } = useCampaigns({ status: statusFilter || undefined, page: page - 1, size: 10, search: searchTerm || undefined });
   const { data: analytics } = useNotificationAnalytics(analyticsRange);
@@ -222,6 +232,31 @@ export default function NotificationsRefactored() {
   }, [form.targeting, drawerOpen, wizardStep]);
 
   const estimatedReach = estimateMut.data ?? 0;
+
+  // User picker search
+  useEffect(() => {
+    if (!userPickerOpen) return;
+    const t = setTimeout(async () => {
+      setUserPickerLoading(true);
+      try {
+        const res = await userService.getAllUsers({ keyword: userPickerSearch || undefined, page: 0, size: 30 });
+        setUserPickerResults(res?.content ?? []);
+      } catch {
+        setUserPickerResults([]);
+      } finally {
+        setUserPickerLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [userPickerSearch, userPickerOpen]);
+
+  const toggleUserSelection = (user: UserDTO) => {
+    const ids = form.targeting.specificUserIds;
+    const next = ids.includes(user.id)
+      ? ids.filter(id => id !== user.id)
+      : [...ids, user.id];
+    setForm(p => ({ ...p, targeting: { ...p.targeting, specificUserIds: next } }));
+  };
 
   const resetWizard = useCallback(() => {
     setWizardStep(0);
@@ -606,9 +641,31 @@ export default function NotificationsRefactored() {
               )}
 
               {form.targeting.type === 'INDIVIDUAL' && (
-                <TextField label="Kullanıcı ID'leri (virgülle ayırın)" fullWidth multiline rows={3}
-                  value={form.targeting.specificUserIds.join(', ')}
-                  onChange={e => setForm(p => ({ ...p, targeting: { ...p.targeting, specificUserIds: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } }))} />
+                <Box>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                    <Typography variant="caption" fontWeight={700}>
+                      Seçilen Kullanıcılar ({form.targeting.specificUserIds.length})
+                    </Typography>
+                    <Button size="small" variant="outlined" onClick={() => { setUserPickerSearch(''); setUserPickerOpen(true); }}
+                      sx={{ textTransform: 'none', borderRadius: 2, fontSize: 12 }}>
+                      Kullanıcı Seç
+                    </Button>
+                  </Stack>
+                  {form.targeting.specificUserIds.length === 0 ? (
+                    <Typography variant="caption" color="text.secondary">Henüz kullanıcı seçilmedi.</Typography>
+                  ) : (
+                    <Stack direction="row" flexWrap="wrap" spacing={0.5} useFlexGap>
+                      {form.targeting.specificUserIds.map(uid => {
+                        const u = userPickerResults.find(r => r.id === uid);
+                        return (
+                          <Chip key={uid} size="small" label={u ? (u.displayName || u.email) : uid}
+                            onDelete={() => setForm(p => ({ ...p, targeting: { ...p.targeting, specificUserIds: p.targeting.specificUserIds.filter(i => i !== uid) } }))}
+                            sx={{ fontWeight: 600 }} />
+                        );
+                      })}
+                    </Stack>
+                  )}
+                </Box>
               )}
 
               <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: alpha(theme.palette.info.main, .06), border: '1px solid', borderColor: alpha(theme.palette.info.main, .15) }}>
@@ -779,6 +836,74 @@ export default function NotificationsRefactored() {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* ── User Picker Dialog ────────────────────────────────────── */}
+      <Dialog open={userPickerOpen} onClose={() => setUserPickerOpen(false)} maxWidth="sm" fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>
+          Kullanıcı Seç
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+            {form.targeting.specificUserIds.length} kullanıcı seçildi
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ px: 2, pb: 1, pt: 0.5 }}>
+            <TextField
+              fullWidth size="small"
+              placeholder="İsim veya e-posta ile ara..."
+              value={userPickerSearch}
+              onChange={e => setUserPickerSearch(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    {userPickerLoading ? <CircularProgress size={16} /> : <Search sx={{ fontSize: 18 }} />}
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+          </Box>
+          <Divider />
+          <List dense sx={{ maxHeight: 380, overflow: 'auto', py: 0 }}>
+            {userPickerResults.length === 0 && !userPickerLoading && (
+              <ListItem>
+                <ListItemText primary={<Typography variant="body2" color="text.secondary">Kullanıcı bulunamadı</Typography>} />
+              </ListItem>
+            )}
+            {userPickerResults.map(user => {
+              const selected = form.targeting.specificUserIds.includes(user.id);
+              const name = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+              return (
+                <ListItem key={user.id} onClick={() => toggleUserSelection(user)}
+                  sx={{ cursor: 'pointer', bgcolor: selected ? alpha(theme.palette.primary.main, 0.06) : 'transparent', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>
+                  <ListItemAvatar>
+                    <Avatar src={user.imageUrl} sx={{ width: 36, height: 36, fontSize: 14, fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.12), color: 'primary.main' }}>
+                      {user.firstName ? user.firstName[0] : <PersonIcon sx={{ fontSize: 18 }} />}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={<Typography variant="body2" fontWeight={600}>{name}</Typography>}
+                    secondary={<Typography variant="caption" color="text.secondary">{user.email}</Typography>}
+                  />
+                  <ListItemSecondaryAction>
+                    <Checkbox checked={selected} color="primary" size="small" onChange={() => toggleUserSelection(user)} />
+                  </ListItemSecondaryAction>
+                </ListItem>
+              );
+            })}
+          </List>
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 2 }}>
+          <Button onClick={() => setForm(p => ({ ...p, targeting: { ...p.targeting, specificUserIds: [] } }))}
+            sx={{ textTransform: 'none', fontWeight: 600 }} color="error">
+            Temizle
+          </Button>
+          <Button onClick={() => setUserPickerOpen(false)} variant="contained"
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
+            Tamam ({form.targeting.specificUserIds.length} seçili)
+          </Button>
+        </DialogActions>
       </Dialog>
     </PageContainer>
   );

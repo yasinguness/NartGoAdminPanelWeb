@@ -50,9 +50,7 @@ const Associations = () => {
   const deleteAssociation = useDeleteAssociation();
 
   const handleCreateAssociation = () => {
-    setIsEdit(false);
-    setEditAssociationId(undefined);
-    setIsFormOpen(true);
+    navigate('/associations/new');
   };
 
   const handleEditAssociation = (association: AssociationSummaryResponse) => {

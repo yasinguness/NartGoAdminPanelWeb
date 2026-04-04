@@ -17,7 +17,7 @@ const AssociationHeader: React.FC<AssociationHeaderProps> = ({ association, onBa
         onClick={onBack}
         sx={{ mb: 2 }}
       >
-        Back to Federation
+        Geri Don
       </Button>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', maxWidth: '100%' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

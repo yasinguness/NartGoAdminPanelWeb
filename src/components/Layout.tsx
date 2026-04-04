@@ -40,6 +40,7 @@ import {
     Article as ArticleIcon,
     Menu as MenuIcon,
     Search as SearchIcon,
+    ManageSearch as AuditIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { useRole } from '../hooks/useRole';
@@ -73,7 +74,7 @@ const navSections: NavSection[] = [
         items: [
             { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
             { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories' },
-            { text: 'Bilet Oluşturucu', icon: <TicketIcon />, path: '/ticket-creation' },
+            { text: 'Etkinlik Oluştur', icon: <TicketIcon />, path: '/event-creation' },
             { text: 'Oturma Düzeni', icon: <EventSeatIcon />, path: '/seat-map' },
         ],
     },
@@ -103,7 +104,6 @@ const navSections: NavSection[] = [
         items: [
             { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users' },
             { text: 'Dernekler', icon: <HomeWork />, path: '/associations' },
-            { text: 'Federasyonlar', icon: <BusinessIcon />, path: '/federations' },
         ],
     },
     {
@@ -137,6 +137,7 @@ const navSections: NavSection[] = [
         items: [
             { text: 'Cihazlar', icon: <DevicesIcon />, path: '/devices' },
             { text: 'Oyunlaştırma', icon: <EmojiEventsIcon />, path: '/gamification' },
+            { text: 'Audit Log', icon: <AuditIcon />, path: '/audit-log' },
             { text: 'Ayarlar', icon: <SettingsIcon />, path: '/settings' },
         ],
     },

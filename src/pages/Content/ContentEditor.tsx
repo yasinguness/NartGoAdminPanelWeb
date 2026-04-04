@@ -16,7 +16,7 @@ import {
   AccessTime as ReadTimeIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useArticleStore } from '../../store/article/articleStore';
 import { articleService } from '../../services/article/articleService';
 import { api } from '../../services/api';
@@ -306,7 +306,6 @@ function hasMeaningfulBlockContent(blocks: ContentBlock[]): boolean {
 // ─── COMPONENT ──────────────────────────────────────
 export default function ContentEditor() {
   const { id } = useParams<{ id: string }>();
-  const location = useLocation();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { createArticle, updateArticle } = useArticleStore();
@@ -332,7 +331,6 @@ export default function ContentEditor() {
   const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
   const useBlockEditor = form.contentType !== ArticleType.GALLERY;
-  const locationArticle = (location.state as { article?: ArticleDto } | null)?.article;
 
   const applyArticleToForm = useCallback((found: ArticleDto) => {
     if (isEditorOnly && !isOwner(found.author)) {
@@ -374,13 +372,14 @@ export default function ContentEditor() {
   // ─── LIFECYCLE ────────────────────────────────────
   useEffect(() => {
     if (isEdit && id) {
-      if (locationArticle?.id === id && applyArticleToForm(locationArticle)) {
-        return;
-      }
+      // Always fetch the full article — the list endpoint omits `body`,
+      // so using the router state article would leave the editor empty.
       loadArticle(id);
+    } else {
+      initialFormRef.current = JSON.stringify({ form: { ...initialForm, author: userEmail || '' }, richBlocks: [] });
     }
-    initialFormRef.current = JSON.stringify({ form: { ...initialForm, author: userEmail || '' }, richBlocks: [] });
-  }, [applyArticleToForm, id, isEdit, locationArticle, userEmail]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isEdit]);
 
   useEffect(() => {
     if (autoSlug && !isEdit) {

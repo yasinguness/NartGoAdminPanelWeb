@@ -114,13 +114,15 @@ export const notificationCampaignService = {
   },
 
   estimateReach: async (targeting: TargetingConfig): Promise<number> => {
-    const response = await api.post<ApiResponse<{ estimatedCount: number }>>('/notifications/admin/audience/estimate', {
-      filters: [
-        ...(targeting.type === 'ALL' ? [{ type: 'ANONYMOUS_STATUS', operator: 'NOT_EQUALS', value: 'true' }] : []),
-        ...targeting.countries.map(c => ({ type: 'CITY', operator: 'EQUALS', value: c })),
-        ...targeting.userSegments.map(s => ({ type: 'ACCOUNT_TYPE', operator: 'EQUALS', value: s })),
-      ],
-    });
+    const filters: { type: string; operator: string; value: string }[] = [];
+
+    if (targeting.type === 'SEGMENT') {
+      targeting.countries.forEach(c => filters.push({ type: 'CITY', operator: 'EQUALS', value: c }));
+      targeting.userSegments.forEach(s => filters.push({ type: 'ACCOUNT_TYPE', operator: 'EQUALS', value: s }));
+    }
+    // For ALL and INDIVIDUAL we send empty filters; backend uses auth-service total count for ALL
+
+    const response = await api.post<ApiResponse<{ estimatedCount: number }>>('/notifications/admin/audience/estimate', { filters });
     return response.data?.data?.estimatedCount || 0;
   },
 

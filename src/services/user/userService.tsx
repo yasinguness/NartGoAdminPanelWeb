@@ -75,6 +75,29 @@ export const userService = {
         return response.data;
     },
 
+    // Sync all user statuses from Keycloak
+    syncKeycloakStatuses: async (): Promise<{ updatedCount: number }> => {
+        const response = await api.post<ApiResponse<{ updatedCount: number }>>('/auth/users/sync-keycloak-status');
+        return response.data.data;
+    },
+
+    // Admin: Create user with Keycloak + DB
+    createUserAsAdmin: async (request: {
+        email: string;
+        password: string;
+        firstName: string;
+        lastName?: string;
+        displayName?: string;
+        gsmNo?: string;
+        phoneCode?: string;
+        accountType: AccountType;
+        companyName?: string;
+        businessType?: string;
+    }): Promise<UserDTO> => {
+        const response = await api.post<ApiResponse<UserDTO>>('/auth/admin/users', request);
+        return response.data.data;
+    },
+
     // Get user activity logs
     getUserActivityLogs: async (userId: string, page = 0, size = 10) => {
         const response = await api.get<ApiResponse<PageResponseDto<UserActivity>>>(`/auth/users/${userId}/activity`, {

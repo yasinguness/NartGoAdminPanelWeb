@@ -2,7 +2,6 @@ export { useAuthStore } from './authStore';
 export { useNotificationStore } from './notifications/notificationStore';
 export { useAdminNotificationStore } from './notifications/adminNotificationStore';
 export { useAssociationStore } from './associations/associationStore';
-export { useFederationStore } from './federations/federationStore';
 export { useBusinessStore } from './businesses/businessStore';
 export { useEventStore } from './events/eventStore';
 export { useUserStore } from './users/userStore';

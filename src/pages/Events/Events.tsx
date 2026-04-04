@@ -256,7 +256,7 @@ export default function Events() {
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={() => navigate('/ticket-creation')}
+                onClick={() => navigate('/event-creation')}
                 sx={{
                   borderRadius: 2.5, px: 3, py: 1, textTransform: 'none', fontWeight: 700,
                   boxShadow: '0 4px 14px 0 rgba(30, 107, 60, 0.39)',

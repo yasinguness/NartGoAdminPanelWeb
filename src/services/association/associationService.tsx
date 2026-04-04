@@ -97,13 +97,6 @@ export const associationService = {
     return response.data;
   },
 
-  getFederationAssociations: async (federationId: string, page: number = 0, size: number = 10) => {
-    const response = await api.get<ApiResponse<PageResponseDto<AssociationDto>>>(`/businesses/associations/federation/${federationId}`, {
-      params: { page, size }
-    });
-    return response.data;
-  },
-
   deleteAssociation: async (id: string) => {
     const response = await api.delete<ApiResponse<void>>(`/businesses/associations/${id}`);
     return response.data;
@@ -244,10 +237,6 @@ export const associationService = {
     return response.data;
   },
 
-  getAssociationsByFederationId: async (federationId: number): Promise<AssociationDto[]> => {
-    const response = await api.get<AssociationDto[]>(`/associations/federation/${federationId}`);
-    return response.data;
-  },
 };
 
 

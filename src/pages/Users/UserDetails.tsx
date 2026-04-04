@@ -77,6 +77,8 @@ import { StatusChip, DataTable, StatCard } from '../../components/Data';
 import { LoadingState, ErrorState, ConfirmDialog } from '../../components/Feedback';
 import { userService } from '../../services/user/userService';
 import { adminNotificationService } from '../../services/notification/adminNotificationService';
+import { adminAuditService } from '../../services/admin/adminAuditService';
+import type { AdminAuditLogEntry } from '../../types/admin/adminAuditLog';
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -198,6 +200,10 @@ export default function UserDetails() {
   const [sessionTotal, setSessionTotal] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(false);
 
+  // ── Admin Audit (actions taken ON this user by admins) ───────────────
+  const [userAuditLogs, setUserAuditLogs] = useState<AdminAuditLogEntry[]>([]);
+  const [userAuditLoading, setUserAuditLoading] = useState(false);
+
   // ── Gamification — handled by UserGamificationRewardsPanel ───────────
 
   // ── Notifications ─────────────────────────
@@ -299,11 +305,25 @@ export default function UserDetails() {
   // ─────────────────────────────────────────
   // Tab change handler
   // ─────────────────────────────────────────
+  const fetchUserAuditLogs = useCallback(async () => {
+    if (!id) return;
+    setUserAuditLoading(true);
+    try {
+      const res = await adminAuditService.getLogs({ targetId: id, size: 20 });
+      setUserAuditLogs(res.content);
+    } catch {
+      // silently ignore
+    } finally {
+      setUserAuditLoading(false);
+    }
+  }, [id]);
+
   const handleTabChange = (_: React.SyntheticEvent, val: number) => {
     setTabValue(val);
     if (val === 1) {
       if (logs.length === 0) fetchLogs(0);
       if (!sessionSummary && sessions.length === 0) fetchSessions(0);
+      if (userAuditLogs.length === 0) fetchUserAuditLogs();
     }
   };
 
@@ -548,17 +568,14 @@ export default function UserDetails() {
 
       {/* ── Quick Stats ── */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard title="Toplam Sipariş" value={activitySummary?.totalOrders ?? 0} icon={<OrdersIcon color="primary" />} />
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard title="Platform Puanı (XP)" value={activitySummary?.gamificationPoints ?? 0} icon={<PointsIcon color="warning" />} />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard title="Toplam Harcama" value={`₺${activitySummary?.totalSpent?.toLocaleString() ?? '0'}`} icon={<PointsIcon color="secondary" />} />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard title="Platform Puanı" value={activitySummary?.gamificationPoints ?? 0} icon={<PointsIcon color="warning" />} />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard title="Toplam Giriş" value={activitySummary?.totalLogins ?? 0} icon={<LoginIcon color="info" />} />
+        </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard title="Rozetler" value={activitySummary?.badges ?? 0} icon={<StarIcon color="success" />} />
         </Grid>
       </Grid>
 
@@ -1021,6 +1038,44 @@ export default function UserDetails() {
                   />
                 </>
               )}
+              {/* ── Admin Actions on this user ─────────────────────── */}
+              <PageSection
+                title="Yönetici İşlemleri"
+                subtitle="Bu kullanıcı üzerinde gerçekleştirilen admin panel işlemleri"
+              >
+                {userAuditLoading ? (
+                  <Box display="flex" justifyContent="center" py={3}><CircularProgress size={24} /></Box>
+                ) : userAuditLogs.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">Henüz yönetici işlemi kaydedilmemiş.</Typography>
+                ) : (
+                  <Stack spacing={1}>
+                    {userAuditLogs.map(entry => (
+                      <Paper key={entry.id} variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 2 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                          <Box>
+                            <Chip
+                              label={entry.action.replace(/_/g, ' ')}
+                              size="small"
+                              color={
+                                entry.action.includes('BLOCKED') || entry.action.includes('DELETED') ? 'error' :
+                                entry.action.includes('UNBLOCKED') ? 'success' : 'default'
+                              }
+                              sx={{ fontWeight: 700, mb: 0.5, fontSize: 11 }}
+                            />
+                            <Typography variant="caption" display="block" color="text.secondary">
+                              {entry.actorEmail} — {entry.targetDescription}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', ml: 2 }}>
+                            {entry.createdAt ? new Date(entry.createdAt).toLocaleString('tr-TR') : ''}
+                          </Typography>
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </Stack>
+                )}
+              </PageSection>
+
             </Box>
           </TabPanel>
 
@@ -1036,25 +1091,11 @@ export default function UserDetails() {
           {/* ─── Tab 3: Gamification ─── */}
           <TabPanel value={tabValue} index={3}>
             <Box sx={{ px: 3 }}>
-              {/* Summary chips */}
-              <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap">
-                <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <StarIcon color="warning" fontSize="small" />
-                  <Box>
-                    <Typography variant="h6" fontWeight={800} lineHeight={1}>{activitySummary?.gamificationPoints ?? 0}</Typography>
-                    <Typography variant="caption" color="text.secondary">Toplam Puan</Typography>
-                  </Box>
-                </Paper>
-                <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <VerifiedIcon color="success" fontSize="small" />
-                  <Box>
-                    <Typography variant="h6" fontWeight={800} lineHeight={1}>{activitySummary?.badges ?? 0}</Typography>
-                    <Typography variant="caption" color="text.secondary">Kazanılan Rozet</Typography>
-                  </Box>
-                </Paper>
-              </Stack>
-
-              <UserGamificationRewardsPanel userId={id!} />
+              <UserGamificationRewardsPanel
+                userId={id!}
+                totalPoints={activitySummary?.gamificationPoints ?? 0}
+                totalBadges={activitySummary?.badges ?? 0}
+              />
             </Box>
           </TabPanel>
 

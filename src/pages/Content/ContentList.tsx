@@ -508,7 +508,7 @@ export default function ContentList() {
                 </TableCell>
                 <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                   <Tooltip title="Düzenle">
-                    <IconButton size="small" onClick={() => navigate(`/content/${article.id}/edit`, { state: { article } })}>
+                    <IconButton size="small" onClick={() => navigate(`/content/${article.id}/edit`)}>
                       <EditIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   </Tooltip>

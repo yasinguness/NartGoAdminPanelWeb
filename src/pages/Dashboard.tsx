@@ -105,6 +105,14 @@ const relativeTime = (dateStr: string): string => {
   return `${days} gün önce`;
 };
 
+const formatSessionTime = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  return d.toLocaleString('tr-TR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+};
+
 const relativeTimeFuture = (dateStr: string): string => {
   const diff = new Date(dateStr).getTime() - Date.now();
   const mins = Math.floor(diff / 60000);
@@ -546,7 +554,7 @@ export default function Dashboard() {
           <Grid container spacing={2}>
             {[
               { icon: <EventIcon fontSize="small" />, label: 'Etkinlik Oluştur', desc: 'Yeni etkinlik ekle', color: theme.palette.warning.main, path: '/events' },
-              { icon: <TicketIcon fontSize="small" />, label: 'Bilet Oluştur', desc: 'Bilet tipi tanımla', color: theme.palette.info.main, path: '/ticket-creation' },
+              { icon: <TicketIcon fontSize="small" />, label: 'Etkinlik Oluştur', desc: 'Yeni etkinlik & bilet', color: theme.palette.info.main, path: '/event-creation' },
               { icon: <SeatIcon fontSize="small" />, label: 'Oturma Düzeni', desc: 'Salon planı tasarla', color: theme.palette.success.main, path: '/seat-map' },
               { icon: <StoreIcon fontSize="small" />, label: 'İşletme Ekle', desc: 'Yeni işletme kaydet', color: theme.palette.primary.main, path: '/businesses' },
               { icon: <CampaignIcon fontSize="small" />, label: 'Bildirim Gönder', desc: 'Kampanya oluştur', color: theme.palette.error.main, path: '/notifications' },
@@ -573,7 +581,7 @@ export default function Dashboard() {
         <Box sx={{ px: 3, pt: 2.5, pb: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="h6" fontWeight={700}>
-              Son 3 Gün Eklenenler
+              Aktif Kullanıcılar
             </Typography>
             <Chip
               label="Canlı"
@@ -592,25 +600,25 @@ export default function Dashboard() {
           <Grid container spacing={2}>
             {[
               {
-                label: 'Yeni İşletme',
+                label: 'Günlük Aktif (DAU)',
                 value: engagement?.dailyActiveUsers ?? 0,
-                avg: ((engagement?.dailyActiveUsers ?? 0) / 3).toFixed(1),
+                subtitle: `${engagement?.dailyLoginCount ?? 0} oturum`,
                 color: theme.palette.primary.main,
-                icon: <BusinessIcon />,
-              },
-              {
-                label: 'Yeni Kullanıcı',
-                value: overview?.uniqueUsers ?? engagement?.weeklyActiveUsers ?? 0,
-                avg: ((overview?.uniqueUsers ?? engagement?.weeklyActiveUsers ?? 0) / 3).toFixed(1),
-                color: theme.palette.success.main,
                 icon: <PeopleIcon />,
               },
               {
-                label: 'Yeni Etkinlik',
-                value: engagement?.dailyLoginCount ?? 0,
-                avg: ((engagement?.dailyLoginCount ?? 0) / 3).toFixed(1),
+                label: 'Haftalık Aktif (WAU)',
+                value: engagement?.weeklyActiveUsers ?? 0,
+                subtitle: `${engagement?.weeklyLoginCount ?? 0} oturum`,
+                color: theme.palette.success.main,
+                icon: <SessionIcon />,
+              },
+              {
+                label: 'Aylık Aktif (MAU)',
+                value: engagement?.monthlyActiveUsers ?? 0,
+                subtitle: `${engagement?.monthlyLoginCount ?? 0} oturum`,
                 color: theme.palette.warning.main,
-                icon: <EventIcon />,
+                icon: <TrendingUpIcon />,
               },
             ].map((item, i) => (
               <Grid item xs={12} md={4} key={i}>
@@ -645,10 +653,10 @@ export default function Dashboard() {
                       </Typography>
                       <Stack direction="row" alignItems="baseline" spacing={1}>
                         <Typography variant="h4" fontWeight={800} color={item.color}>
-                          {item.value}
+                          {item.value.toLocaleString('tr-TR')}
                         </Typography>
                         <Typography variant="caption" color="text.disabled">
-                          ort. {item.avg}/gün
+                          {item.subtitle}
                         </Typography>
                       </Stack>
                     </Box>
@@ -763,9 +771,14 @@ export default function Dashboard() {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-                              {user.lastLoginAt ? relativeTime(user.lastLoginAt) : '-'}
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+                              {user.lastLoginAt ? formatSessionTime(user.lastLoginAt) : '-'}
                             </Typography>
+                            {user.lastLoginAt && (
+                              <Typography variant="caption" color="text.disabled" sx={{ fontSize: 11 }}>
+                                {relativeTime(user.lastLoginAt)}
+                              </Typography>
+                            )}
                           </TableCell>
                           <TableCell>
                             {userLog?.device ? (

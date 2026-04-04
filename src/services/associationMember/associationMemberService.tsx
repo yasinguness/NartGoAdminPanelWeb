@@ -118,9 +118,4 @@ export const associationMemberService = {
     const response = await api.get<string[]>(`/businesses/association-members/user/${userId}/association-ids`);
     return response.data;
   },
-
-  getMembersByFederationId: async (federationId: number): Promise<AssociationMemberDto[]> => {
-    const response = await api.get<AssociationMemberDto[]>(`/association-members/federation/${federationId}`);
-    return response.data;
-  }
 }; 

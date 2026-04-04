@@ -33,7 +33,9 @@ import {
   Group as GroupIcon,
   VerifiedUser as VerifiedIcon,
   Close as CloseIcon,
+  Sync as SyncIcon,
 } from '@mui/icons-material';
+import Tooltip from '@mui/material/Tooltip';
 import { useUsers } from '../hooks/useUsers';
 import { useSnackbar } from 'notistack';
 import {
@@ -77,6 +79,7 @@ export default function Users() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteUser, setDeleteUser] = useState<UserDTO | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const hasActiveFilters = !!(accountType || status || currentCity || currentDistrict || language);
 
@@ -133,6 +136,24 @@ export default function Users() {
       enqueueSnackbar('Durum başarıyla güncellendi', { variant: 'success' });
     } catch {
       enqueueSnackbar('Durum güncellenemedi', { variant: 'error' });
+    }
+  };
+
+  const handleSyncKeycloak = async () => {
+    setSyncing(true);
+    try {
+      const result = await userService.syncKeycloakStatuses();
+      enqueueSnackbar(
+        result.updatedCount > 0
+          ? `${result.updatedCount} kullanıcının durumu Keycloak ile senkronize edildi`
+          : 'Tüm kullanıcı durumları Keycloak ile eşleşiyor',
+        { variant: result.updatedCount > 0 ? 'success' : 'info' },
+      );
+      if (result.updatedCount > 0) refetch();
+    } catch {
+      enqueueSnackbar('Senkronizasyon başarısız', { variant: 'error' });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -274,6 +295,17 @@ export default function Users() {
         breadcrumbs={[{ label: 'Panel', href: '/dashboard' }, { label: 'Kullanıcılar' }]}
         actions={
           <Stack direction="row" spacing={1}>
+            <Tooltip title="Keycloak'tan durum eşitlemesi çeker ve DB'yi günceller">
+              <Button
+                variant="outlined"
+                startIcon={<SyncIcon sx={{ animation: syncing ? 'spin 1s linear infinite' : 'none', '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } } }} />}
+                disabled={syncing}
+                onClick={handleSyncKeycloak}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+              >
+                {syncing ? 'Senkronize ediliyor...' : 'Keycloak Senkronizasyonu'}
+              </Button>
+            </Tooltip>
             <Button
               variant="outlined"
               startIcon={<ExportIcon />}
