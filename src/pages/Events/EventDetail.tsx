@@ -199,13 +199,23 @@ export default function EventDetail() {
 
   const participants: ParticipationDTO[] = event?.participants ?? [];
 
+  const resolvedParticipants = useMemo(() =>
+    participants.map(p => ({
+      ...p,
+      userName: (p.userName && p.userName !== 'null null' && p.userName !== 'null')
+        ? p.userName
+        : (p.userId?.slice(0, 8) ? `Kullanici #${p.userId.slice(0, 8)}` : 'Anonim'),
+    })),
+    [participants],
+  );
+
   const filteredAttendees = useMemo(() => {
-    if (!attendeesSearch.trim()) return participants;
+    if (!attendeesSearch.trim()) return resolvedParticipants;
     const q = attendeesSearch.toLowerCase();
-    return participants.filter(p =>
+    return resolvedParticipants.filter(p =>
       p.userName?.toLowerCase().includes(q)
     );
-  }, [participants, attendeesSearch]);
+  }, [resolvedParticipants, attendeesSearch]);
 
   const filteredOrders = useMemo(() => {
     if (!ordersSearch.trim()) return orders;

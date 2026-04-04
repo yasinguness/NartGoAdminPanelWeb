@@ -1,11 +1,13 @@
 /**
  * SeatMapDesigner — Canvas-based, theme-aware, responsive, fully editable.
+ * Wraps with an event picker so admins first select a paid event before editing.
  */
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   Box, Typography, Button, IconButton, Tooltip, Dialog, DialogTitle,
   DialogContent, DialogActions, Stack, Chip, TextField, Slider, Select,
-  MenuItem, Divider, useTheme, alpha, useMediaQuery,
+  MenuItem, Divider, useTheme, alpha, useMediaQuery, Paper, Avatar,
+  CircularProgress, InputAdornment,
 } from '@mui/material';
 import {
   Edit as EditIcon, Visibility as PreviewIcon, Save as SaveIcon,
@@ -14,6 +16,7 @@ import {
   ShoppingCart as CartIcon, ConfirmationNumber as TicketIcon,
   Delete as DeleteIcon, Settings as SettingsIcon,
   KeyboardArrowUp as UpIcon, KeyboardArrowDown as DownIcon,
+  ArrowBack as BackIcon, Search as SearchIcon, MapOutlined as MapIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import {
@@ -24,9 +27,129 @@ import {
   updateSection, addRowToSection, removeRowFromSection, updateRow,
   updateSectionSeatCount, addSection, removeSection,
 } from './venueEngine';
+import { api } from '../../services/api';
 
-// ─── Component ─────────────────────────────────────────────────────────────
-const SeatMapDesigner: React.FC = () => {
+interface EventSummary {
+  id: string;
+  name: string;
+  eventTime?: string;
+  status?: string;
+  isPaid?: boolean;
+  currentParticipants?: number;
+  maxParticipants?: number;
+  image?: string;
+  category?: { name: string };
+}
+
+// ─── Event Picker ──────────────────────────────────────────────────────────
+const EventPicker: React.FC<{ onSelect: (event: EventSummary) => void }> = ({ onSelect }) => {
+  const theme = useTheme();
+  const { enqueueSnackbar } = useSnackbar();
+  const [search, setSearch] = useState('');
+  const [events, setEvents] = useState<EventSummary[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+
+  const fetchEvents = async (keyword?: string) => {
+    setLoading(true);
+    try {
+      const params: Record<string, string | number | boolean> = { page: 0, size: 20, isPaid: true };
+      if (keyword?.trim()) params.keyword = keyword.trim();
+      const res = await api.get('/events', { params });
+      const content = res.data?.data?.content || [];
+      setEvents(Array.isArray(content) ? content : []);
+      setSearched(true);
+    } catch {
+      enqueueSnackbar('Etkinlikler yuklenemedi', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchEvents(); }, []);
+
+  return (
+    <Box sx={{ maxWidth: 760, mx: 'auto', px: 3, py: 5 }}>
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+        <Box sx={{ width: 44, height: 44, borderRadius: 2.5, bgcolor: alpha(theme.palette.primary.main, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <MapIcon sx={{ color: 'primary.main', fontSize: 24 }} />
+        </Box>
+        <Box>
+          <Typography variant="h6" fontWeight={800}>Koltuk Haritasi Duzenleyici</Typography>
+          <Typography variant="body2" color="text.secondary">Duzenlemek istediginiz ucretli etkinligi secin</Typography>
+        </Box>
+      </Stack>
+
+      <Stack direction="row" spacing={1} sx={{ my: 3 }}>
+        <TextField
+          fullWidth
+          placeholder="Etkinlik adi ile ara..."
+          size="small"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') fetchEvents(search); }}
+          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} /></InputAdornment> }}
+        />
+        <Button variant="contained" onClick={() => fetchEvents(search)} disabled={loading}
+          sx={{ textTransform: 'none', borderRadius: 2, px: 3, whiteSpace: 'nowrap' }}>
+          {loading ? <CircularProgress size={18} color="inherit" /> : 'Ara'}
+        </Button>
+      </Stack>
+
+      {loading && (
+        <Box sx={{ textAlign: 'center', py: 6 }}>
+          <CircularProgress size={32} />
+        </Box>
+      )}
+
+      {!loading && searched && events.length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 6 }}>
+          <Typography sx={{ fontSize: 36, mb: 1 }}>🎟️</Typography>
+          <Typography color="text.secondary">Ucretli etkinlik bulunamadi</Typography>
+        </Box>
+      )}
+
+      <Stack spacing={1.5}>
+        {events.map(event => (
+          <Paper key={event.id} variant="outlined" onClick={() => onSelect(event)}
+            sx={{ p: 2, borderRadius: 2.5, cursor: 'pointer', transition: 'all 0.15s', '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.03), boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.12)}` } }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Avatar variant="rounded" src={event.image} sx={{ width: 52, height: 52, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', fontWeight: 700, fontSize: 13 }}>
+                {event.name?.[0]}
+              </Avatar>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={700} noWrap>{event.name}</Typography>
+                <Stack direction="row" spacing={1} sx={{ mt: 0.4 }}>
+                  {event.category?.name && <Chip label={event.category.name} size="small" sx={{ height: 18, fontSize: 10, fontWeight: 600 }} />}
+                  <Chip label="Ucretli" size="small" color="primary" variant="outlined" sx={{ height: 18, fontSize: 10, fontWeight: 600 }} />
+                  {event.status && <Chip label={event.status} size="small" variant="outlined" sx={{ height: 18, fontSize: 10 }} />}
+                </Stack>
+              </Box>
+              <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                {event.eventTime && (
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {new Date(event.eventTime).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </Typography>
+                )}
+                {event.maxParticipants != null && (
+                  <Typography variant="caption" color="text.disabled">
+                    {event.currentParticipants ?? 0} / {event.maxParticipants} kisi
+                  </Typography>
+                )}
+              </Box>
+              <Button size="small" variant="outlined" sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap', ml: 1 }}>
+                Haritayi Duzenle
+              </Button>
+            </Stack>
+          </Paper>
+        ))}
+      </Stack>
+    </Box>
+  );
+};
+
+// ─── Main Designer Component ───────────────────────────────────────────────
+const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }> = ({ event, onBack }) => {
   const { enqueueSnackbar } = useSnackbar();
   const muiTheme = useTheme();
   const isDark = muiTheme.palette.mode === 'dark';
@@ -426,13 +549,17 @@ const SeatMapDesigner: React.FC = () => {
         flexWrap: 'wrap', minHeight: 48,
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+          <IconButton size="small" onClick={onBack} sx={{ color: textSecondary, '&:hover': { color: textPrimary } }}>
+            <BackIcon sx={{ fontSize: 18 }} />
+          </IconButton>
           <Typography sx={{ fontSize: 15, fontWeight: 800, color: textPrimary, flexShrink: 0 }}>
             Nart<Box component="span" sx={{ color: green }}>Go</Box>
           </Typography>
           {!isMobile && <>
             <Box sx={{ width: 1, height: 16, background: border }} />
             <Typography sx={{ fontSize: 12, color: textSecondary }} noWrap>
-              <b style={{ color: textPrimary }}>{venue.name}</b>
+              <b style={{ color: textPrimary }}>{event.name}</b>
+              <Box component="span" sx={{ ml: 1 }}>{venue.name}</Box>
             </Typography>
           </>}
           <Chip label={`${stats.total}`} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: alpha(green, 0.1), color: green }} />
@@ -451,14 +578,14 @@ const SeatMapDesigner: React.FC = () => {
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
           <Button size="small" startIcon={!isMobile ? <SaveIcon sx={{ fontSize: '13px !important' }} /> : undefined}
-            onClick={() => enqueueSnackbar('Kaydedildi', { variant: 'info' })}
+            onClick={() => enqueueSnackbar(`"${event.name}" koltuk haritasi kaydedildi`, { variant: 'success' })}
             sx={{ px: 1.25, py: 0.5, borderRadius: 2, fontSize: 11, fontWeight: 600, textTransform: 'none', color: textSecondary, background: alpha(border, 0.3), border: `1px solid ${border}`, '&:hover': { background: alpha(border, 0.5) } }}>
             {isMobile ? '💾' : 'Kaydet'}
           </Button>
           <Button size="small" startIcon={!isMobile ? <CheckIcon sx={{ fontSize: '13px !important' }} /> : undefined}
-            onClick={() => enqueueSnackbar('Onaylandı', { variant: 'success' })}
+            onClick={() => { enqueueSnackbar(`"${event.name}" koltuk haritasi yayina alindi!`, { variant: 'success' }); }}
             sx={{ px: 1.25, py: 0.5, borderRadius: 2, fontSize: 11, fontWeight: 600, textTransform: 'none', color: '#fff', background: green, '&:hover': { background: '#0ea271' } }}>
-            {isMobile ? '✓' : 'Onayla'}
+            {isMobile ? '✓' : 'Yayinla'}
           </Button>
         </Box>
       </Box>
@@ -730,6 +857,17 @@ const SeatMapDesigner: React.FC = () => {
       </Dialog>
     </Box>
   );
+};
+
+// ─── Wrapper with Event Picker ─────────────────────────────────────────────
+const SeatMapDesigner: React.FC = () => {
+  const [selectedEvent, setSelectedEvent] = useState<EventSummary | null>(null);
+
+  if (!selectedEvent) {
+    return <EventPicker onSelect={setSelectedEvent} />;
+  }
+
+  return <SeatMapDesignerInner event={selectedEvent} onBack={() => setSelectedEvent(null)} />;
 };
 
 export default SeatMapDesigner;

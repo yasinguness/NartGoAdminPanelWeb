@@ -50,6 +50,7 @@ interface TierItem { id: string; name: string; price: number; quota: number; col
 type EventType = 'paid' | 'free' | 'invite';
 type Visibility = 'public' | 'link' | 'draft';
 const TIER_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#ec4899'];
+const CURRENCY_SYMBOLS: Record<string, string> = { TRY: '₺', USD: '$', EUR: '€' };
 
 export default function TicketCreationPage() {
   const theme = useTheme();
@@ -113,6 +114,7 @@ export default function TicketCreationPage() {
     if (s === 3) {
       if (!eventName.trim()) e.eventName = 'Etkinlik adi zorunludur';
       if (!eventStart) e.eventStart = 'Baslangic tarihi zorunludur';
+      else if (new Date(eventStart) <= new Date()) e.eventStart = 'Baslangic tarihi gelecekte olmali';
       if (!eventEnd) e.eventEnd = 'Bitis tarihi zorunludur';
       if (eventStart && eventEnd && new Date(eventStart) >= new Date(eventEnd)) e.eventEnd = 'Bitis baslangictan sonra olmali';
       if (!capacity || Number(capacity) <= 0) e.capacity = 'Kapasite 0\'dan buyuk olmali';
@@ -120,7 +122,11 @@ export default function TicketCreationPage() {
     if (s === 4 && eventType === 'paid') {
       if (tiers.length === 0) e.tiers = 'En az 1 bilet kategorisi ekleyin';
       if (tiers.some(t => !t.name.trim())) e.tierName = 'Tum kategorilerin adi olmali';
+      if (tiers.some(t => t.price <= 0)) e.tierPrice = 'Tum bilet fiyatlari 0\'dan buyuk olmali';
+      if (tiers.some(t => t.quota <= 0)) e.tierQuota = 'Tum kontenjanlar 0\'dan buyuk olmali';
       if (!saleStart) e.saleStart = 'Satis baslangici zorunludur';
+      if (minTickets < 1) e.minTickets = 'Minimum en az 1 olmali';
+      if (maxTickets < minTickets) e.maxTickets = 'Maksimum minimumdan kucuk olamaz';
     }
     if (s === 4 && eventType === 'free' && !saleStart) e.saleStart = 'Kayit baslangici zorunludur';
     setErrors(e);
@@ -218,6 +224,7 @@ export default function TicketCreationPage() {
         isPrivate: visibility === 'link',
         isRegistrationOpen: visibility !== 'draft',
         ticketPrice: isPaid && tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0,
+        category: eventCategory || undefined,
         address: eventLocation ? { city: eventLocation } : undefined,
         organizerId: organizer.id,
         organizerName: organizer.displayName || `${organizer.firstName || ''} ${organizer.lastName || ''}`.trim(),
@@ -552,7 +559,7 @@ export default function TicketCreationPage() {
                   <SH title="Bilet Kategorileri" />
                   <SC>
                     <Box sx={{ px: 2.5, py: 1, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', display: 'grid', gridTemplateColumns: '1fr 140px 100px 40px', gap: 1.5, fontSize: 11, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      <Box>Bilet Adi</Box><Box>Fiyat ({currency})</Box><Box>Kontenjan</Box><Box />
+                      <Box>Bilet Adi</Box><Box>Fiyat ({CURRENCY_SYMBOLS[currency] || currency})</Box><Box>Kontenjan</Box><Box />
                     </Box>
                     {tiers.map(t => (
                       <Box key={t.id} sx={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 40px', gap: 1.5, alignItems: 'center', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', '&:last-of-type': { borderBottom: 'none' }, '&:hover': { bgcolor: 'grey.50' } }}>
@@ -563,25 +570,32 @@ export default function TicketCreationPage() {
                             onChange={e => updateTier(t.id, 'name', e.target.value)} />
                         </Stack>
                         <TextField variant="outlined" size="small" type="number" value={t.price}
-                          InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, color: 'text.secondary', fontSize: 13 }}>₺</Typography> }}
+                          error={!!errors.tierPrice && t.price <= 0}
+                          InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, color: 'text.secondary', fontSize: 13 }}>{CURRENCY_SYMBOLS[currency] || currency}</Typography>, inputProps: { min: 1, step: 1 } }}
                           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                          onChange={e => updateTier(t.id, 'price', Number(e.target.value))} />
+                          onFocus={e => e.target.select()}
+                          onChange={e => updateTier(t.id, 'price', e.target.value === '' ? 0 : Number(e.target.value))} />
                         <TextField variant="outlined" size="small" type="number" value={t.quota}
+                          error={!!errors.tierQuota && t.quota <= 0}
                           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                          onChange={e => updateTier(t.id, 'quota', Number(e.target.value))} />
+                          InputProps={{ inputProps: { min: 1, step: 1 } }}
+                          onFocus={e => e.target.select()}
+                          onChange={e => updateTier(t.id, 'quota', e.target.value === '' ? 0 : Number(e.target.value))} />
                         <IconButton size="small" onClick={() => removeTier(t.id)} sx={{ '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.08), color: 'error.main' } }}><CloseIcon fontSize="small" /></IconButton>
                       </Box>
                     ))}
                     <Button fullWidth startIcon={<AddIcon />} onClick={addTier} sx={{ justifyContent: 'flex-start', px: 2.5, py: 1.5, textTransform: 'none', fontWeight: 600, color: 'primary.main', borderTop: '1px solid', borderColor: 'divider', borderRadius: 0 }}>Yeni Kategori Ekle</Button>
                   </SC>
                   {errors.tiers && <Typography variant="caption" color="error">{errors.tiers}</Typography>}
+                  {errors.tierPrice && <Typography variant="caption" color="error">{errors.tierPrice}</Typography>}
+                  {errors.tierQuota && <Typography variant="caption" color="error">{errors.tierQuota}</Typography>}
                   <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
                     <Paper variant="outlined" sx={{ flex: 1, p: 1.5, borderRadius: 2, textAlign: 'center' }}>
                       <Typography variant="h6" fontWeight={800} fontFamily="JetBrains Mono, monospace" color="info.main">{totalQuota}</Typography>
                       <Typography variant="caption" color="text.secondary" fontWeight={600}>Toplam Kontenjan</Typography>
                     </Paper>
                     <Paper variant="outlined" sx={{ flex: 1, p: 1.5, borderRadius: 2, textAlign: 'center' }}>
-                      <Typography variant="h6" fontWeight={800} fontFamily="JetBrains Mono, monospace" color="success.main">₺{maxRevenue.toLocaleString('tr-TR')}</Typography>
+                      <Typography variant="h6" fontWeight={800} fontFamily="JetBrains Mono, monospace" color="success.main">{CURRENCY_SYMBOLS[currency] || currency}{maxRevenue.toLocaleString('tr-TR')}</Typography>
                       <Typography variant="caption" color="text.secondary" fontWeight={600}>Maks. Gelir</Typography>
                     </Paper>
                   </Stack>
@@ -622,17 +636,26 @@ export default function TicketCreationPage() {
             )}
             <Divider />
             <Box>
-              <SH title={eventType === 'paid' ? 'Satis Takvimi' : 'Kayit Takvimi'} />
+              <SH
+                title={eventType === 'paid' ? 'Satis Takvimi' : eventType === 'free' ? 'Kayit Takvimi' : 'Etkinlik Takvimi (Opsiyonel)'}
+                subtitle={eventType === 'invite' ? 'Davetiye etkinliklerinde takvim opsiyoneldir.' : undefined}
+              />
               <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-                <TextField fullWidth label={eventType === 'paid' ? 'Satis Baslangici' : 'Kayit Baslangici'} type="datetime-local" required InputLabelProps={{ shrink: true }}
+                <TextField fullWidth label={eventType === 'paid' ? 'Satis Baslangici' : eventType === 'free' ? 'Kayit Baslangici' : 'Baslangic (opsiyonel)'} type="datetime-local" required={eventType !== 'invite'} InputLabelProps={{ shrink: true }}
                   value={saleStart} onChange={e => { setSaleStart(e.target.value); clr('saleStart'); }} error={!!errors.saleStart} helperText={errors.saleStart} />
-                <TextField fullWidth label={eventType === 'paid' ? 'Satis Bitisi (opsiyonel)' : 'Kayit Bitisi (opsiyonel)'} type="datetime-local" InputLabelProps={{ shrink: true }}
+                <TextField fullWidth label={eventType === 'paid' ? 'Satis Bitisi (opsiyonel)' : 'Bitis (opsiyonel)'} type="datetime-local" InputLabelProps={{ shrink: true }}
                   value={saleEnd} onChange={e => setSaleEnd(e.target.value)} helperText="Bos birakilirsa etkinlik baslangicinda kapanir" />
               </Stack>
               {eventType === 'paid' && (
                 <Stack direction="row" spacing={2}>
-                  <TextField fullWidth label="Kisi Basi Min. Bilet" type="number" value={minTickets} onChange={e => setMinTickets(Number(e.target.value))} />
-                  <TextField fullWidth label="Kisi Basi Max. Bilet" type="number" value={maxTickets} onChange={e => setMaxTickets(Number(e.target.value))} />
+                  <TextField fullWidth label="Kisi Basi Min. Bilet" type="number" value={minTickets}
+                    error={!!errors.minTickets} helperText={errors.minTickets}
+                    InputProps={{ inputProps: { min: 1 } }}
+                    onChange={e => { setMinTickets(Number(e.target.value)); clr('minTickets'); clr('maxTickets'); }} />
+                  <TextField fullWidth label="Kisi Basi Max. Bilet" type="number" value={maxTickets}
+                    error={!!errors.maxTickets} helperText={errors.maxTickets}
+                    InputProps={{ inputProps: { min: 1 } }}
+                    onChange={e => { setMaxTickets(Number(e.target.value)); clr('maxTickets'); }} />
                 </Stack>
               )}
             </Box>
@@ -692,11 +715,11 @@ export default function TicketCreationPage() {
                   {tiers.map((t, i) => (
                     <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2.5, py: 1.2, borderBottom: '1px solid', borderColor: 'divider' }}>
                       <Box><Stack direction="row" spacing={1} alignItems="center"><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: t.color }} /><Typography variant="body2" fontWeight={600}>{t.name}</Typography></Stack><Typography variant="caption" color="text.secondary">{t.quota} kontenjan</Typography></Box>
-                      <Typography variant="body2" fontWeight={700} color="primary.main">₺{t.price.toLocaleString('tr-TR')}</Typography>
+                      <Typography variant="body2" fontWeight={700} color="primary.main">{CURRENCY_SYMBOLS[currency] || currency}{t.price.toLocaleString('tr-TR')}</Typography>
                     </Box>
                   ))}
                   <Box sx={{ px: 2.5, py: 1.2, display: 'flex', justifyContent: 'space-between', bgcolor: 'grey.50', fontWeight: 600, fontSize: 13 }}>
-                    <span>Maks. Gelir</span><span style={{ color: theme.palette.primary.main }}>₺{maxRevenue.toLocaleString('tr-TR')}</span>
+                    <span>Maks. Gelir</span><span style={{ color: theme.palette.primary.main }}>{CURRENCY_SYMBOLS[currency] || currency}{maxRevenue.toLocaleString('tr-TR')}</span>
                   </Box>
                 </SC>
               )}
@@ -706,9 +729,10 @@ export default function TicketCreationPage() {
                   {[
                     { ok: !!organizer, t: 'Organizator secildi' },
                     { ok: !!eventName && !!eventStart, t: 'Etkinlik adi ve tarihi girildi' },
-                    { ok: eventType === 'paid' ? tiers.length > 0 : true, t: eventType === 'paid' ? 'Bilet kategorileri tanimlandi' : 'Kayit formu hazir' },
-                    { ok: !!saleStart, t: eventType === 'paid' ? 'Satis tarihi belirlendi' : 'Kayit tarihi belirlendi' },
+                    { ok: eventType === 'paid' ? tiers.length > 0 && tiers.every(t => t.price > 0) : true, t: eventType === 'paid' ? 'Bilet kategorileri tanimlandi' : 'Kayit formu hazir' },
+                    { ok: eventType === 'invite' ? true : !!saleStart, t: eventType === 'paid' ? 'Satis tarihi belirlendi' : eventType === 'free' ? 'Kayit tarihi belirlendi' : 'Takvim (opsiyonel)', opt: eventType === 'invite' },
                     { ok: !!eventImage, t: eventImage ? 'Gorsel yuklendi' : 'Gorsel yuklenmedi', opt: !eventImage },
+                    ...(eventType === 'paid' && capacity && totalQuota !== Number(capacity) ? [{ ok: false, t: `Bilet kontenjan (${totalQuota}) etkinlik kapasitesi (${capacity}) ile eslesmiyor`, opt: true }] : []),
                   ].map((c, i) => (
                     <Stack key={i} direction="row" spacing={1} alignItems="center">
                       {c.ok ? <CheckIcon sx={{ fontSize: 18, color: 'success.main' }} /> : <WarningIcon sx={{ fontSize: 18, color: 'warning.main' }} />}
@@ -738,7 +762,7 @@ export default function TicketCreationPage() {
                       {tiers.map((t, i) => (
                         <Box key={i} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, border: '1.5px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'grey.50' }}>
                           <Box><Typography variant="body2" fontWeight={700}>{t.name || 'Kategori'}</Typography><Typography variant="caption" color="text.secondary">{t.quota} kontenjan</Typography></Box>
-                          <Typography variant="h6" fontWeight={800} fontFamily="JetBrains Mono, monospace" color="primary.main">₺{t.price.toLocaleString('tr-TR')}</Typography>
+                          <Typography variant="h6" fontWeight={800} fontFamily="JetBrains Mono, monospace" color="primary.main">{CURRENCY_SYMBOLS[currency] || currency}{t.price.toLocaleString('tr-TR')}</Typography>
                         </Box>
                       ))}
                       <Button fullWidth variant="contained" sx={{ mt: 1, borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>Bilet Satin Al</Button>
