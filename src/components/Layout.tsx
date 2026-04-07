@@ -75,6 +75,7 @@ const navSections: NavSection[] = [
             { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
             { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories' },
             { text: 'Etkinlik Oluştur', icon: <TicketIcon />, path: '/event-creation' },
+            { text: 'Bilet Yönetimi', icon: <TicketIcon />, path: '/tickets' },
             { text: 'Oturma Düzeni', icon: <EventSeatIcon />, path: '/seat-map' },
         ],
     },

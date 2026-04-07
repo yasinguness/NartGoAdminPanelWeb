@@ -5,6 +5,8 @@ import {
   VenueTemplate,
   VenueLayoutType,
   SeatMapResponse,
+  OrderResponse,
+  TicketResponse,
 } from '../../types/tickets/ticketTypes';
 
 interface ApiResponse<T> {
@@ -17,7 +19,8 @@ interface ApiResponse<T> {
 }
 
 export const ticketService = {
-  // Bilet Türü İşlemleri
+  // ── Bilet Türü İşlemleri ──────────────────────────────────
+
   createTicketType: async (request: CreateTicketTypeRequest) => {
     const response = await api.post<ApiResponse<TicketTypeResponse>>('/tickets/admin/ticket-types', request);
     return response.data;
@@ -43,6 +46,114 @@ export const ticketService = {
     return response.data;
   },
 
+  // ── Sipariş İşlemleri ─────────────────────────────────────
+
+  getEventOrders: async (eventId: string) => {
+    const response = await api.get<ApiResponse<OrderResponse[]>>(`/tickets/admin/events/${eventId}/orders`);
+    return response.data;
+  },
+
+  // ── Check-in İstatistikleri ───────────────────────────────
+
+  getCheckInStats: async (eventId: string) => {
+    const response = await api.get<ApiResponse<{
+      totalTickets: number;
+      checkedIn: number;
+      notCheckedIn: number;
+      checkInRate: number;
+    }>>(`/tickets/admin/events/${eventId}/checkin-stats`);
+    return response.data;
+  },
+
+  // ── Bilet İşlemleri ───────────────────────────────────────
+
+  getTicketById: async (id: string) => {
+    const response = await api.get<ApiResponse<TicketResponse>>(`/tickets/${id}`);
+    return response.data;
+  },
+
+  cancelTicket: async (id: string) => {
+    const response = await api.post<ApiResponse<TicketResponse>>(`/tickets/${id}/cancel`);
+    return response.data;
+  },
+
+  refundTicket: async (id: string) => {
+    const response = await api.post<ApiResponse<TicketResponse>>(`/tickets/${id}/refund`);
+    return response.data;
+  },
+
+  getTicketQRCode: async (id: string) => {
+    const response = await api.get<ApiResponse<string>>(`/tickets/${id}/qr-code`);
+    return response.data;
+  },
+
+  // ── Koltuk İşlemleri ──────────────────────────────────────
+
+  getSeatMap: async (eventId: string) => {
+    const response = await api.get<ApiResponse<SeatMapResponse>>(`/seats/events/${eventId}/map`);
+    return response.data;
+  },
+
+  reserveSeats: async (eventId: string, seatIds: string[], ttlMinutes?: number) => {
+    const response = await api.post<ApiResponse<{ reservationId: string }>>(`/seats/events/${eventId}/reserve`, {
+      seatIds,
+      ttlMinutes,
+    });
+    return response.data;
+  },
+
+  cancelSeatReservation: async (eventId: string, reservationId: string) => {
+    const response = await api.post<ApiResponse<void>>(`/seats/events/${eventId}/cancel/${reservationId}`);
+    return response.data;
+  },
+
+  // ── Salon Planı Kaydetme (Admin) ──────────────────────────
+
+  saveSeatMapDesign: async (eventId: string, designPayload: Record<string, any>) => {
+    const response = await api.post<ApiResponse<{ designId: string; version: number }>>(
+      `/tickets/admin/events/${eventId}/seat-map`,
+      designPayload
+    );
+    return response.data;
+  },
+
+  getOccupiedSeats: async (eventId: string) => {
+    const response = await api.get<ApiResponse<string[]>>(`/seats/events/${eventId}/occupied`);
+    return response.data;
+  },
+
+  getReservedSeats: async (eventId: string) => {
+    const response = await api.get<ApiResponse<string[]>>(`/seats/events/${eventId}/reserved`);
+    return response.data;
+  },
+
+  // ── Kampanya & Kupon (Doküman Bölüm 8) ────────────────────
+
+  createCoupon: async (params: {
+    code: string;
+    eventId?: string;
+    discountType: 'PERCENTAGE' | 'FIXED';
+    discountValue: number;
+    maxUsage: number;
+    validFrom: string;
+    validUntil: string;
+  }) => {
+    const response = await api.post<ApiResponse<any>>('/tickets/campaigns', params);
+    return response.data;
+  },
+
+  getCampaigns: async (params?: { eventId?: string; status?: string }) => {
+    const response = await api.get<ApiResponse<any[]>>('/tickets/campaigns', { params });
+    return response.data;
+  },
+
+  updateCampaignStatus: async (campaignId: string, status: string) => {
+    const response = await api.patch<ApiResponse<void>>(`/tickets/campaigns/${campaignId}/status`, null, {
+      params: { status },
+    });
+    return response.data;
+  },
+
   // Hazır Şablonlar (Frontend'de static olarak tutulacak)
   getVenueTemplates: (): VenueTemplate[] => {
     return venueTemplates.map(template => ({
@@ -58,6 +169,43 @@ export const ticketService = {
       ...template,
       seatMap: template.seatMap || createMockSeatMap(template.layout),
     } as VenueTemplate;
+  },
+
+  // ── Profil Bazlı Kayıtlı Şablonlar ──────────────────────
+
+  getSavedTemplates: async () => {
+    const response = await api.get<ApiResponse<any[]>>('/tickets/admin/seat-map-templates');
+    return response.data;
+  },
+
+  saveTemplate: async (template: { name: string; description?: string; venueData: Record<string, any> }) => {
+    const response = await api.post<ApiResponse<any>>('/tickets/admin/seat-map-templates', template);
+    return response.data;
+  },
+
+  deleteTemplate: async (templateId: string) => {
+    const response = await api.delete<ApiResponse<void>>(`/tickets/admin/seat-map-templates/${templateId}`);
+    return response.data;
+  },
+
+  // ── Koltuk Durum Yönetimi (Admin) ────────────────────────
+
+  updateSeatStatus: async (eventId: string, seatIds: string[], status: string, assignment?: {
+    ownerName?: string; ownerEmail?: string; note?: string;
+  }) => {
+    const response = await api.post<ApiResponse<void>>(`/tickets/admin/events/${eventId}/seats/status`, {
+      seatIds, status, ...assignment,
+    });
+    return response.data;
+  },
+
+  bulkAssignSeats: async (eventId: string, assignments: Array<{
+    seatId: string; ownerName: string; ownerEmail: string; ticketCode?: string;
+  }>) => {
+    const response = await api.post<ApiResponse<void>>(`/tickets/admin/events/${eventId}/seats/assign`, {
+      assignments,
+    });
+    return response.data;
   },
 };
 

@@ -64,6 +64,51 @@ const CATEGORY_COLORS: Record<string, string> = {
   balkon: '#66bb6a',
 };
 
+// ── Doküman Bölüm 6.2: Doğrulama Renk Sistemi ─────────────────────────────
+type ValidationResult = 'VALID' | 'ALREADY_USED' | 'INVALID' | 'WRONG_EVENT' | 'TOO_EARLY' | 'TRANSFERRED';
+const VALIDATION_COLORS: Record<ValidationResult, { bg: string; fg: string; label: string; icon: 'success' | 'error' | 'warning' | 'info' }> = {
+  VALID:        { bg: '#22c55e', fg: '#fff', label: 'GİRİŞ ONAYLANDI', icon: 'success' },
+  ALREADY_USED: { bg: '#ef4444', fg: '#fff', label: 'BU BİLET ZATEN KULLANILDI', icon: 'error' },
+  INVALID:      { bg: '#dc2626', fg: '#fff', label: 'GEÇERSİZ BİLET', icon: 'error' },
+  WRONG_EVENT:  { bg: '#f59e0b', fg: '#000', label: 'BAŞKA ETKİNLİĞE AİT', icon: 'warning' },
+  TOO_EARLY:    { bg: '#eab308', fg: '#000', label: 'ETKİNLİK HENÜZ BAŞLAMADI', icon: 'warning' },
+  TRANSFERRED:  { bg: '#f97316', fg: '#fff', label: 'TRANSFER EDİLMİŞ BİLET', icon: 'info' },
+};
+
+// ── Sesli Uyarı Sistemi (Web Audio API) ─────────────────────────────────────
+const audioCtxRef = { current: null as AudioContext | null };
+function getAudioCtx(): AudioContext {
+  if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+  return audioCtxRef.current;
+}
+function playBeep(frequency: number, duration: number, type: OscillatorType = 'sine') {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = frequency;
+    gain.gain.value = 0.3;
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  } catch { /* Audio not supported */ }
+}
+function playSuccessSound() {
+  playBeep(880, 0.15, 'sine');
+  setTimeout(() => playBeep(1100, 0.2, 'sine'), 150);
+}
+function playErrorSound() {
+  playBeep(300, 0.3, 'square');
+  setTimeout(() => playBeep(200, 0.4, 'square'), 200);
+}
+function playWarningSound() {
+  playBeep(600, 0.2, 'triangle');
+  setTimeout(() => playBeep(500, 0.2, 'triangle'), 200);
+}
+
 const TURKISH_NAMES = [
   'Ayse Kaya', 'Burak Demir', 'Canan Yildiz', 'Deniz Arslan', 'Elif Sahin',
   'Fatih Celik', 'Gul Ozturk', 'Hakan Acar', 'Irem Polat', 'Kemal Yilmaz',
@@ -226,7 +271,7 @@ export default function GateOpsLiveBoard() {
     }
   }, [mode, eventId, fetchLiveData]);
 
-  // ── Live check-in handler ──────────────────────────────────────────────────
+  // ── Live check-in handler (with sound & color system) ──────────────────────
   const handleLiveCheckIn = useCallback(async (code: string) => {
     if (!eventId) return;
     setScanState('scanning');
@@ -234,6 +279,7 @@ export default function GateOpsLiveBoard() {
       const result = await gateOpsService.validateAndCheckIn(code, eventId);
       if (result.validationStatus === 'SUCCESS') {
         setScanState('success');
+        playSuccessSound();
         const seatDetail = result.seatInfo ? `Sıra ${result.seatInfo.row}-${result.seatInfo.number}` : result.serialNo;
         setOverlayData({
           type: 'success',
@@ -251,10 +297,11 @@ export default function GateOpsLiveBoard() {
         setLogEntries(p => [entry, ...p].slice(0, 50));
       } else if (result.validationStatus === 'ALREADY_USED') {
         setScanState('duplicate');
+        playWarningSound();
         setOverlayData({
           type: 'duplicate',
           name: result.userName || 'Misafir',
-          detail: 'Bu bilet daha önce kullanılmış',
+          detail: VALIDATION_COLORS.ALREADY_USED.label,
           category: '',
         });
         enqueueSnackbar(`${result.userName || 'Misafir'} - Çift tarama`, { variant: 'warning' });
@@ -267,17 +314,21 @@ export default function GateOpsLiveBoard() {
         setLogEntries(p => [entry, ...p].slice(0, 50));
       } else {
         setScanState('error');
+        playErrorSound();
+        // Map validation status to color system
+        const valStatus = result.validationStatus as ValidationResult;
+        const valColor = VALIDATION_COLORS[valStatus] || VALIDATION_COLORS.INVALID;
         setOverlayData({
           type: 'error',
-          name: result.message || 'Geçersiz',
-          detail: result.validationStatus,
+          name: result.userName || result.message || 'Geçersiz',
+          detail: valColor.label,
           category: '',
         });
-        enqueueSnackbar(result.message || 'Geçersiz bilet', { variant: 'error' });
+        enqueueSnackbar(valColor.label, { variant: 'error' });
         const entry: LogEntry = {
           type: 'error',
-          name: result.message || 'Geçersiz',
-          detail: result.validationStatus,
+          name: result.userName || result.message || 'Geçersiz',
+          detail: valColor.label,
           time: timeNow(),
         };
         setLogEntries(p => [entry, ...p].slice(0, 50));
@@ -289,6 +340,7 @@ export default function GateOpsLiveBoard() {
       setTimeout(fetchLiveData, 500);
     } catch (error: any) {
       setScanState('error');
+      playErrorSound();
       setOverlayData({
         type: 'error',
         name: 'Hata',
@@ -327,6 +379,11 @@ export default function GateOpsLiveBoard() {
       setScanState(resultState);
       setOverlayData({ type: resultState, name, detail, category });
       setOverlayVisible(true);
+
+      // Sound feedback
+      if (resultState === 'success') playSuccessSound();
+      else if (resultState === 'duplicate') playWarningSound();
+      else if (resultState === 'error') playErrorSound();
 
       // Update counters
       if (resultState === 'success') {
@@ -618,6 +675,26 @@ export default function GateOpsLiveBoard() {
         {/* === CENTER PANEL === */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', p: 3, gap: 3 }}>
 
+          {/* Anlık Doluluk Sayacı */}
+          <Paper elevation={0} sx={{
+            px: 4, py: 1.5, borderRadius: 3,
+            bgcolor: alpha(occupancyPct > 90 ? theme.palette.error.main : occupancyPct > 70 ? theme.palette.warning.main : theme.palette.success.main, 0.08),
+            border: `1px solid ${alpha(occupancyPct > 90 ? theme.palette.error.main : occupancyPct > 70 ? theme.palette.warning.main : theme.palette.success.main, 0.2)}`,
+            textAlign: 'center',
+          }}>
+            <Stack direction="row" spacing={1.5} alignItems="baseline" justifyContent="center">
+              <Typography variant="h3" fontWeight={900} fontFamily="JetBrains Mono, monospace"
+                sx={{ color: occupancyPct > 90 ? 'error.main' : occupancyPct > 70 ? 'warning.main' : 'success.main', lineHeight: 1 }}>
+                {displayCheckin}
+              </Typography>
+              <Typography variant="h5" fontWeight={400} color="text.disabled" fontFamily="monospace">/</Typography>
+              <Typography variant="h5" fontWeight={700} color="text.secondary" fontFamily="monospace">{displayTotal}</Typography>
+            </Stack>
+            <Typography variant="caption" fontWeight={700} color="text.secondary" textTransform="uppercase" letterSpacing={1}>
+              giriş yaptı · %{occupancyPct} doluluk
+            </Typography>
+          </Paper>
+
           {/* QR Scan Frame */}
           <Box sx={{
             width: 240, height: 240, position: 'relative', borderRadius: 3,
@@ -730,15 +807,37 @@ export default function GateOpsLiveBoard() {
               bgcolor: alpha(theme.palette.background.default, 0.85), backdropFilter: 'blur(6px)',
               animation: `${fadeSlideIn} 0.25s ease`,
             }}>
-              <Paper elevation={8} sx={{ p: 5, borderRadius: 4, textAlign: 'center', minWidth: 300, border: `2px solid ${alpha(glowColor, 0.3)}` }}>
-                {overlayData.type === 'success' && <CheckCircle sx={{ fontSize: 72, color: theme.palette.success.main, mb: 1 }} />}
-                {overlayData.type === 'error' && <Cancel sx={{ fontSize: 72, color: theme.palette.error.main, mb: 1 }} />}
-                {overlayData.type === 'duplicate' && <Warning sx={{ fontSize: 72, color: theme.palette.warning.main, mb: 1 }} />}
+              <Paper elevation={8} sx={{
+                p: 5, borderRadius: 4, textAlign: 'center', minWidth: 340,
+                border: `3px solid ${alpha(glowColor, 0.4)}`,
+                boxShadow: `0 0 40px ${alpha(glowColor, 0.2)}`,
+              }}>
+                {overlayData.type === 'success' && <CheckCircle sx={{ fontSize: 80, color: VALIDATION_COLORS.VALID.bg, mb: 1 }} />}
+                {overlayData.type === 'error' && <Cancel sx={{ fontSize: 80, color: VALIDATION_COLORS.INVALID.bg, mb: 1 }} />}
+                {overlayData.type === 'duplicate' && <Warning sx={{ fontSize: 80, color: VALIDATION_COLORS.ALREADY_USED.bg, mb: 1 }} />}
                 <Typography variant="h5" fontWeight={900} gutterBottom>{overlayData.name}</Typography>
                 <Typography variant="body1" color="text.secondary" gutterBottom>{overlayData.detail}</Typography>
+                {overlayData.category && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {CATEGORY_LABELS[overlayData.category] || overlayData.category}
+                  </Typography>
+                )}
                 <Chip
-                  label={overlayData.type === 'success' ? 'GİRİŞ ONAYLANDI' : overlayData.type === 'error' ? 'GEÇERSİZ BİLET' : 'CIFT TARAMA UYARISI'}
-                  sx={{ fontWeight: 800, bgcolor: alpha(glowColor, 0.15), color: glowColor, fontSize: '0.85rem', height: 32, mt: 1 }}
+                  label={
+                    overlayData.type === 'success' ? VALIDATION_COLORS.VALID.label
+                    : overlayData.type === 'duplicate' ? VALIDATION_COLORS.ALREADY_USED.label
+                    : overlayData.detail || VALIDATION_COLORS.INVALID.label
+                  }
+                  sx={{
+                    fontWeight: 800,
+                    bgcolor: overlayData.type === 'success' ? alpha(VALIDATION_COLORS.VALID.bg, 0.15)
+                      : overlayData.type === 'duplicate' ? alpha(VALIDATION_COLORS.ALREADY_USED.bg, 0.15)
+                      : alpha(VALIDATION_COLORS.INVALID.bg, 0.15),
+                    color: overlayData.type === 'success' ? VALIDATION_COLORS.VALID.bg
+                      : overlayData.type === 'duplicate' ? VALIDATION_COLORS.ALREADY_USED.bg
+                      : VALIDATION_COLORS.INVALID.bg,
+                    fontSize: '0.85rem', height: 36, mt: 1, px: 2,
+                  }}
                 />
               </Paper>
             </Box>
@@ -828,25 +927,51 @@ export default function GateOpsLiveBoard() {
             </Box>
           </Paper>
 
-          {/* Son VIP Girişleri */}
+          {/* Check-in Listesi (Aranabilir) */}
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="caption" fontWeight={800} color="text.secondary" display="block" sx={{ mb: 1 }}>SON VİP GİRİŞLERİ</Typography>
-            <Box sx={{ flex: 1, overflow: 'auto' }}>
-              {vipLog.length === 0 ? (
-                <Typography variant="caption" color="text.disabled">Henüz VIP girişi yok</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="caption" fontWeight={800} color="text.secondary">GİRİŞ LİSTESİ</Typography>
+              <Chip label={`${logEntries.filter(e => e.type === 'success').length} giriş`} size="small"
+                sx={{ height: 18, fontSize: '0.55rem', fontWeight: 700, bgcolor: alpha(theme.palette.success.main, 0.1), color: theme.palette.success.main }} />
+            </Box>
+            <TextField
+              size="small" placeholder="İsim veya bilet ara..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              sx={{ mb: 1, '& .MuiOutlinedInput-root': { borderRadius: 1.5, height: 28, fontSize: '0.7rem' } }}
+              InputProps={{ startAdornment: <Search sx={{ fontSize: 14, mr: 0.5, color: 'text.disabled' }} /> }}
+            />
+            <Box sx={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+              {logEntries.length === 0 ? (
+                <Typography variant="caption" color="text.disabled" textAlign="center" sx={{ mt: 2 }}>Henüz giriş yok</Typography>
               ) : (
-                <Stack spacing={0.5}>
-                  {vipLog.slice(0, 8).map((v, i) => (
-                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 0.5, animation: i === 0 ? `${fadeSlideIn} 0.3s ease` : undefined }}>
-                      <Person sx={{ fontSize: 12, color: '#ffd740' }} />
+                logEntries
+                  .filter(e => {
+                    if (!searchQuery.trim()) return true;
+                    const q = searchQuery.toLowerCase();
+                    return e.name.toLowerCase().includes(q) || e.detail.toLowerCase().includes(q);
+                  })
+                  .slice(0, 30)
+                  .map((entry, i) => (
+                    <Box key={i} sx={{
+                      display: 'flex', alignItems: 'center', gap: 0.5, px: 0.5, py: 0.3, borderRadius: 1,
+                      bgcolor: alpha(
+                        entry.type === 'success' ? theme.palette.success.main :
+                        entry.type === 'duplicate' ? theme.palette.warning.main : theme.palette.error.main,
+                        0.04
+                      ),
+                      animation: i === 0 && !searchQuery ? `${fadeSlideIn} 0.3s ease` : undefined,
+                    }}>
+                      {entry.type === 'success' && <CheckCircle sx={{ fontSize: 12, color: theme.palette.success.main }} />}
+                      {entry.type === 'error' && <Cancel sx={{ fontSize: 12, color: theme.palette.error.main }} />}
+                      {entry.type === 'duplicate' && <Warning sx={{ fontSize: 12, color: theme.palette.warning.main }} />}
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="caption" fontWeight={700} noWrap display="block" sx={{ fontSize: '0.65rem' }}>{v.name}</Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem' }} noWrap>{v.detail}</Typography>
+                        <Typography variant="caption" fontWeight={700} noWrap display="block" sx={{ fontSize: '0.65rem' }}>{entry.name}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem' }} noWrap>{entry.detail}</Typography>
                       </Box>
-                      <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.55rem', color: 'text.disabled', flexShrink: 0 }}>{v.time}</Typography>
+                      <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.55rem', color: 'text.disabled', flexShrink: 0 }}>{entry.time}</Typography>
                     </Box>
-                  ))}
-                </Stack>
+                  ))
               )}
             </Box>
           </Paper>

@@ -27,6 +27,9 @@ import type { TicketTypeResponse, OrderResponse, CheckInStats } from '../../type
 import { EventResponseDTO, EventStatus, ParticipationDTO } from '../../types/events/eventModel';
 import { useEvent } from '../../hooks/useEvent';
 import { PauseModal, CancelModal, DeleteModal } from './components/EventModals';
+import { ticketService } from '../../services/ticket/ticketService';
+import { CreateTicketTypeRequest } from '../../types/tickets/ticketTypes';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 // ─── TYPES ──────────────────────────────────────────────────
 type TabValue = 'genel' | 'biletler' | 'siparisler' | 'katilimcilar' | 'denetim' | 'ayarlar';
@@ -112,6 +115,13 @@ export default function EventDetail() {
 
   const [checkInStats, setCheckInStats] = useState<CheckInStats | null>(null);
   const [checkInLoading, setCheckInLoading] = useState(false);
+
+  // ── Ticket CRUD state ──────────────────────────────────────
+  const [editingTicket, setEditingTicket] = useState<TicketTypeResponse | null>(null);
+  const [showAddTicket, setShowAddTicket] = useState(false);
+  const [ticketForm, setTicketForm] = useState({ name: '', basePrice: 0, capacityTotal: 100, currency: 'TRY', description: '' });
+  const [ticketSaving, setTicketSaving] = useState(false);
+  const [deletingTicketId, setDeletingTicketId] = useState<string | null>(null);
 
   // ── Settings state ────────────────────────────────────────
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -227,6 +237,16 @@ export default function EventDetail() {
     orders.filter(o => o.status === 'PAID').reduce((sum, o) => sum + (o.totalAmount || 0), 0),
     [orders]);
 
+  const refundStats = useMemo(() => {
+    const refunded = orders.filter(o => o.status === 'REFUNDED');
+    const cancelled = orders.filter(o => o.status === 'CANCELLED');
+    return {
+      refundedCount: refunded.length,
+      refundedAmount: refunded.reduce((s, o) => s + (o.totalAmount || 0), 0),
+      cancelledCount: cancelled.length,
+    };
+  }, [orders]);
+
   // ── Handlers ──────────────────────────────────────────────
   const handlePause = async (_reason: string, _note: string) => {
     if (!id) return;
@@ -261,6 +281,61 @@ export default function EventDetail() {
       navigate('/events');
     } catch { enqueueSnackbar('Silme başarısız', { variant: 'error' }); }
     finally { setActionLoading(false); }
+  };
+
+  // ── Ticket CRUD handlers ───────────────────────────────────
+  const handleSaveTicketType = async () => {
+    if (!id || !ticketForm.name.trim()) return;
+    setTicketSaving(true);
+    try {
+      const payload: CreateTicketTypeRequest = {
+        eventId: id,
+        name: ticketForm.name,
+        basePrice: ticketForm.basePrice,
+        capacityTotal: ticketForm.capacityTotal,
+        currency: ticketForm.currency,
+        description: ticketForm.description || undefined,
+        saleStartAt: new Date().toISOString(),
+        saleEndAt: event?.eventTime ? new Date(event.eventTime).toISOString() : new Date().toISOString(),
+      };
+
+      if (editingTicket) {
+        await ticketService.updateTicketType(editingTicket.id, payload);
+        enqueueSnackbar('Bilet tipi güncellendi', { variant: 'success' });
+      } else {
+        await ticketService.createTicketType(payload);
+        enqueueSnackbar('Bilet tipi oluşturuldu', { variant: 'success' });
+      }
+      setShowAddTicket(false);
+      setEditingTicket(null);
+      setTicketForm({ name: '', basePrice: 0, capacityTotal: 100, currency: 'TRY', description: '' });
+      fetchTicketTypes();
+    } catch (err: any) {
+      enqueueSnackbar(err?.response?.data?.message || 'İşlem başarısız', { variant: 'error' });
+    } finally { setTicketSaving(false); }
+  };
+
+  const handleEditTicket = (ticket: TicketTypeResponse) => {
+    setEditingTicket(ticket);
+    setTicketForm({
+      name: ticket.name,
+      basePrice: ticket.basePrice,
+      capacityTotal: ticket.capacityTotal,
+      currency: ticket.currency || 'TRY',
+      description: ticket.description || '',
+    });
+    setShowAddTicket(true);
+  };
+
+  const handleDeleteTicketType = async (ticketId: string) => {
+    setDeletingTicketId(ticketId);
+    try {
+      await ticketService.deleteTicketType(ticketId);
+      enqueueSnackbar('Bilet tipi silindi', { variant: 'success' });
+      fetchTicketTypes();
+    } catch {
+      enqueueSnackbar('Silme başarısız', { variant: 'error' });
+    } finally { setDeletingTicketId(null); }
   };
 
   const handleSettingToggle = async (key: keyof typeof settingsValues, value: boolean) => {
@@ -506,77 +581,252 @@ export default function EventDetail() {
 
         {/* ─── BİLETLER ─── */}
         {activeTab === 'biletler' && (
-          <Box sx={cardSx}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Box>
-                <Typography variant="subtitle2" fontWeight={700}>Bilet Tipleri</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {ticketTypes.length} tip · {ticketTypes.reduce((s, t) => s + (t.capacitySold || 0), 0)} satıldı
-                </Typography>
-              </Box>
-              <Stack direction="row" spacing={1}>
-                <Tooltip title="Yenile">
-                  <IconButton size="small" onClick={fetchTicketTypes} disabled={ticketTypesLoading}>
-                    <RefreshIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Button variant="contained" size="small"
-                  onClick={() => navigate(`/event-creation/${event.id}`)}
-                  sx={{ textTransform: 'none', borderRadius: 2 }}>
-                  + Yeni Bilet Ekle
-                </Button>
-              </Stack>
-            </Box>
-
-            {ticketTypesLoading ? (
-              <TabLoadingState />
-            ) : ticketTypes.length === 0 ? (
-              <EmptyState message="Bu etkinlik için henüz bilet tipi tanımlanmamış." icon="🎫" />
-            ) : (
-              ticketTypes.map(ticket => {
-                const soldPct = ticket.capacityTotal > 0
-                  ? Math.round((ticket.capacitySold / ticket.capacityTotal) * 100) : 0;
-                return (
-                  <Box key={ticket.id} sx={{
-                    display: 'grid', gridTemplateColumns: '1fr auto auto auto',
-                    gap: 2, alignItems: 'center', px: 2.5, py: 2,
-                    borderBottom: '1px solid', borderColor: 'divider',
-                    '&:last-child': { borderBottom: 'none' },
-                    '&:hover': { bgcolor: 'grey.50' },
-                  }}>
-                    <Box>
-                      <Typography variant="body2" fontWeight={700}>{ticket.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {ticket.description || `Kapasite: ${ticket.capacityTotal}`}
-                      </Typography>
-                      <Box sx={{ mt: 0.5 }}>
-                        <LinearProgress variant="determinate" value={soldPct}
-                          sx={{ height: 4, borderRadius: 2, bgcolor: 'grey.200', width: 180,
-                            '& .MuiLinearProgress-bar': { bgcolor: soldPct > 80 ? 'error.main' : 'primary.main', borderRadius: 2 } }} />
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.3, display: 'block' }}>
-                          {ticket.capacitySold} / {ticket.capacityTotal} ({soldPct}%)
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Typography variant="subtitle1" fontWeight={800} fontFamily="JetBrains Mono, monospace" color="primary.main">
-                      {ticket.basePrice > 0 ? `₺${ticket.basePrice.toLocaleString('tr-TR')}` : 'Ücretsiz'}
-                    </Typography>
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Typography variant="body2"><strong>{ticket.capacitySold}</strong> satıldı</Typography>
-                      <Typography variant="caption" color="text.secondary">{ticket.availableCapacity} kaldı</Typography>
-                    </Box>
-                    <Chip
-                      label={STATUS_LABEL_MAP[ticket.status] ?? ticket.status}
-                      size="small"
-                      color={STATUS_COLOR_MAP[ticket.status] ?? 'default'}
-                      variant="outlined"
-                      sx={{ fontWeight: 600 }}
-                    />
+          <Stack spacing={2}>
+            {/* Satış Dağılımı Grafikleri */}
+            {ticketTypes.length > 0 && (
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                {/* Bilet Türü Satış Dağılımı (Pie) */}
+                <Box sx={cardSx}>
+                  <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" fontWeight={700}>Bilet Türü Dağılımı</Typography>
+                    <Typography variant="caption" color="text.secondary">Satış adedi bazında</Typography>
                   </Box>
-                );
-              })
+                  <Box sx={{ px: 2, py: 2, height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={ticketTypes.map((t, i) => ({
+                            name: t.name,
+                            value: t.capacitySold || 0,
+                            fill: ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#ec4899'][i % 6],
+                          }))}
+                          cx="50%" cy="50%"
+                          innerRadius={50} outerRadius={80}
+                          paddingAngle={2}
+                          dataKey="value"
+                          label={({ name, value }) => `${name}: ${value}`}
+                        >
+                          {ticketTypes.map((_, i) => (
+                            <Cell key={i} fill={['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#ec4899'][i % 6]} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Box>
+
+                {/* Kapasite / Satış Karşılaştırma (Bar) */}
+                <Box sx={cardSx}>
+                  <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" fontWeight={700}>Kapasite & Satış</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Toplam {ticketTypes.reduce((s, t) => s + (t.capacitySold || 0), 0)} / {ticketTypes.reduce((s, t) => s + (t.capacityTotal || 0), 0)} satıldı
+                    </Typography>
+                  </Box>
+                  <Box sx={{ px: 2, py: 2, height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={ticketTypes.map(t => ({
+                        name: t.name.length > 12 ? t.name.slice(0, 12) + '…' : t.name,
+                        satilan: t.capacitySold || 0,
+                        kalan: (t.availableCapacity || 0),
+                      }))}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <RechartsTooltip />
+                        <Bar dataKey="satilan" stackId="a" fill="#3b82f6" name="Satılan" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="kalan" stackId="a" fill="#e5e7eb" name="Kalan" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Box>
+              </Box>
             )}
-          </Box>
+
+            {/* Stok Uyarısı */}
+            {ticketTypes.some(t => t.capacityTotal > 0 && (t.availableCapacity / t.capacityTotal) <= 0.2 && t.availableCapacity > 0) && (
+              <Paper sx={{ p: 2, borderRadius: 2, bgcolor: alpha('#f59e0b', 0.08), border: '1px solid', borderColor: alpha('#f59e0b', 0.3) }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Typography sx={{ fontSize: 20 }}>⚠️</Typography>
+                  <Box>
+                    <Typography variant="body2" fontWeight={700} color="warning.dark">Stok Azalıyor!</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {ticketTypes.filter(t => t.capacityTotal > 0 && (t.availableCapacity / t.capacityTotal) <= 0.2 && t.availableCapacity > 0)
+                        .map(t => `${t.name}: ${t.availableCapacity} kaldı`).join(' · ')}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+            )}
+
+            {/* Tükenen Biletler Uyarısı */}
+            {ticketTypes.some(t => t.availableCapacity <= 0 && t.capacityTotal > 0) && (
+              <Paper sx={{ p: 2, borderRadius: 2, bgcolor: alpha('#ef4444', 0.06), border: '1px solid', borderColor: alpha('#ef4444', 0.2) }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Typography sx={{ fontSize: 20 }}>🚫</Typography>
+                  <Box>
+                    <Typography variant="body2" fontWeight={700} color="error.main">Tükenen Biletler</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {ticketTypes.filter(t => t.availableCapacity <= 0 && t.capacityTotal > 0).map(t => t.name).join(', ')} tükendi.
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+            )}
+
+            {/* İade/İptal Özeti (sadece varsa göster) */}
+            {(refundStats.refundedCount > 0 || refundStats.cancelledCount > 0) && (
+              <Paper sx={{ p: 2, borderRadius: 2, bgcolor: alpha('#6b7280', 0.04), border: '1px solid', borderColor: 'divider' }}>
+                <Stack direction="row" spacing={3} alignItems="center">
+                  {refundStats.refundedCount > 0 && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">İade Edilen</Typography>
+                      <Typography variant="body2" fontWeight={700}>{refundStats.refundedCount} bilet · ₺{refundStats.refundedAmount.toLocaleString('tr-TR')}</Typography>
+                    </Box>
+                  )}
+                  {refundStats.cancelledCount > 0 && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">İptal Edilen</Typography>
+                      <Typography variant="body2" fontWeight={700}>{refundStats.cancelledCount} sipariş</Typography>
+                    </Box>
+                  )}
+                </Stack>
+              </Paper>
+            )}
+
+            <Box sx={cardSx}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700}>Bilet Tipleri</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {ticketTypes.length} tip · {ticketTypes.reduce((s, t) => s + (t.capacitySold || 0), 0)} satıldı
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Tooltip title="Yenile">
+                    <IconButton size="small" onClick={fetchTicketTypes} disabled={ticketTypesLoading}>
+                      <RefreshIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Button variant="contained" size="small"
+                    onClick={() => { setEditingTicket(null); setTicketForm({ name: '', basePrice: 0, capacityTotal: 100, currency: 'TRY', description: '' }); setShowAddTicket(true); }}
+                    sx={{ textTransform: 'none', borderRadius: 2 }}>
+                    + Yeni Bilet Ekle
+                  </Button>
+                </Stack>
+              </Box>
+
+              {/* Inline Add/Edit Form */}
+              {showAddTicket && (
+                <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#3b82f6', 0.03) }}>
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
+                    {editingTicket ? `"${editingTicket.name}" Düzenle` : 'Yeni Bilet Tipi'}
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    <Stack direction="row" spacing={1.5}>
+                      <TextField size="small" fullWidth label="Bilet Adı" required value={ticketForm.name}
+                        onChange={e => setTicketForm(f => ({ ...f, name: e.target.value }))} />
+                      <TextField size="small" label="Fiyat (₺)" type="number" value={ticketForm.basePrice}
+                        onChange={e => setTicketForm(f => ({ ...f, basePrice: Number(e.target.value) }))}
+                        sx={{ width: 140 }} InputProps={{ inputProps: { min: 0 } }} />
+                      <TextField size="small" label="Kapasite" type="number" value={ticketForm.capacityTotal}
+                        onChange={e => setTicketForm(f => ({ ...f, capacityTotal: Number(e.target.value) }))}
+                        sx={{ width: 120 }} InputProps={{ inputProps: { min: 1 } }} />
+                    </Stack>
+                    <TextField size="small" fullWidth label="Açıklama (opsiyonel)" value={ticketForm.description}
+                      onChange={e => setTicketForm(f => ({ ...f, description: e.target.value }))} />
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Button size="small" onClick={() => { setShowAddTicket(false); setEditingTicket(null); }}
+                        sx={{ textTransform: 'none' }}>İptal</Button>
+                      <Button size="small" variant="contained" onClick={handleSaveTicketType}
+                        disabled={ticketSaving || !ticketForm.name.trim()}
+                        sx={{ textTransform: 'none', borderRadius: 2 }}>
+                        {ticketSaving ? <CircularProgress size={16} /> : editingTicket ? 'Güncelle' : 'Oluştur'}
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </Box>
+              )}
+
+              {ticketTypesLoading ? (
+                <TabLoadingState />
+              ) : ticketTypes.length === 0 ? (
+                <EmptyState message="Bu etkinlik için henüz bilet tipi tanımlanmamış." icon="🎫" />
+              ) : (
+                ticketTypes.map(ticket => {
+                  const soldPct = ticket.capacityTotal > 0
+                    ? Math.round((ticket.capacitySold / ticket.capacityTotal) * 100) : 0;
+                  const lowStock = ticket.capacityTotal > 0 && (ticket.availableCapacity / ticket.capacityTotal) <= 0.2;
+                  return (
+                    <Box key={ticket.id} sx={{
+                      display: 'grid', gridTemplateColumns: '1fr auto auto auto auto',
+                      gap: 2, alignItems: 'center', px: 2.5, py: 2,
+                      borderBottom: '1px solid', borderColor: 'divider',
+                      '&:last-child': { borderBottom: 'none' },
+                      '&:hover': { bgcolor: 'grey.50' },
+                    }}>
+                      <Box>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Typography variant="body2" fontWeight={700}>{ticket.name}</Typography>
+                          {lowStock && ticket.availableCapacity > 0 && (
+                            <Chip label="Az Kaldı" size="small" color="warning" sx={{ height: 20, fontSize: 10, fontWeight: 700 }} />
+                          )}
+                          {ticket.availableCapacity <= 0 && ticket.capacityTotal > 0 && (
+                            <Chip label="Tükendi" size="small" color="error" sx={{ height: 20, fontSize: 10, fontWeight: 700 }} />
+                          )}
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary">
+                          {ticket.description || `Kapasite: ${ticket.capacityTotal}`}
+                        </Typography>
+                        <Box sx={{ mt: 0.5 }}>
+                          <LinearProgress variant="determinate" value={soldPct}
+                            sx={{ height: 4, borderRadius: 2, bgcolor: 'grey.200', width: 180,
+                              '& .MuiLinearProgress-bar': {
+                                bgcolor: soldPct >= 100 ? 'error.main' : soldPct > 80 ? 'warning.main' : 'primary.main',
+                                borderRadius: 2,
+                              } }} />
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.3, display: 'block' }}>
+                            {ticket.capacitySold} / {ticket.capacityTotal} ({soldPct}%)
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Typography variant="subtitle1" fontWeight={800} fontFamily="JetBrains Mono, monospace" color="primary.main">
+                        {ticket.basePrice > 0 ? `₺${ticket.basePrice.toLocaleString('tr-TR')}` : 'Ücretsiz'}
+                      </Typography>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="body2"><strong>{ticket.capacitySold}</strong> satıldı</Typography>
+                        <Typography variant="caption" color="text.secondary">{ticket.availableCapacity} kaldı</Typography>
+                      </Box>
+                      <Chip
+                        label={STATUS_LABEL_MAP[ticket.status] ?? ticket.status}
+                        size="small"
+                        color={STATUS_COLOR_MAP[ticket.status] ?? 'default'}
+                        variant="outlined"
+                        sx={{ fontWeight: 600 }}
+                      />
+                      <Stack direction="row" spacing={0.5}>
+                        <Tooltip title="Düzenle">
+                          <IconButton size="small" onClick={() => handleEditTicket(ticket)}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Sil">
+                          <IconButton size="small" color="error"
+                            onClick={() => handleDeleteTicketType(ticket.id)}
+                            disabled={deletingTicketId === ticket.id || ticket.capacitySold > 0}>
+                            {deletingTicketId === ticket.id
+                              ? <CircularProgress size={16} />
+                              : <DeleteIcon fontSize="small" />}
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </Box>
+                  );
+                })
+              )}
+            </Box>
+          </Stack>
         )}
 
         {/* ─── SİPARİŞLER ─── */}
@@ -671,7 +921,9 @@ export default function EventDetail() {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Box>
                 <Typography variant="subtitle2" fontWeight={700}>Katılımcı Listesi</Typography>
-                <Typography variant="caption" color="text.secondary">{participants.length} kişi kayıtlı</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {participants.length} kişi kayıtlı · {participants.filter(p => p.status === 'CONFIRMED').length} onaylı
+                </Typography>
               </Box>
               <Stack direction="row" spacing={1} alignItems="center">
                 <TextField size="small" placeholder="İsim ara..."
@@ -679,6 +931,23 @@ export default function EventDetail() {
                   InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 18 }} /></InputAdornment> }}
                   sx={{ width: 180, '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
                 <Button variant="outlined" size="small" startIcon={<DownloadIcon />}
+                  onClick={() => {
+                    const headers = ['Ad', 'Bilet Kodu', 'Durum', 'Ödeme', 'Kayıt Tarihi'];
+                    const rows = resolvedParticipants.map(p => [
+                      p.userName || '—',
+                      p.ticketCode || '—',
+                      p.status || '—',
+                      p.paymentStatus || '—',
+                      p.joinedAt ? format(new Date(p.joinedAt), 'dd.MM.yyyy HH:mm') : '—',
+                    ]);
+                    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `katilimcilar_${event.name.replace(/\s+/g, '_')}.csv`;
+                    a.click(); URL.revokeObjectURL(url);
+                    enqueueSnackbar('CSV indirildi', { variant: 'success' });
+                  }}
                   sx={{ textTransform: 'none', borderRadius: 2 }}>CSV İndir</Button>
                 <Button variant="outlined" size="small" startIcon={<EmailIcon />}
                   sx={{ textTransform: 'none', borderRadius: 2 }}>Toplu Bildirim</Button>
@@ -691,36 +960,60 @@ export default function EventDetail() {
               <EmptyState message="Arama sonucu bulunamadı." icon="🔍" />
             ) : (
               <>
-                {filteredAttendees.slice(attendeesPage * 25, (attendeesPage + 1) * 25).map((attendee, i) => (
-                  <Stack key={attendee.id ?? i} direction="row" spacing={1.5} alignItems="center"
-                    sx={{ px: 2.5, py: 1.2, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' }, '&:hover': { bgcolor: 'grey.50' } }}>
-                    <Avatar src={attendee.userImage}
-                      sx={{ width: 34, height: 34, bgcolor: alpha('#6366f1', 0.12), color: '#6366f1', fontSize: 13, fontWeight: 700 }}>
-                      {(attendee.userName || '?')[0]}
-                    </Avatar>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" fontWeight={500}>{attendee.userName || '—'}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {attendee.ticketCode ? `Bilet: ${attendee.ticketCode}` : ''}
-                        {attendee.joinedAt ? ` · ${format(new Date(attendee.joinedAt), 'dd MMM yyyy', { locale: tr })}` : ''}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      label={STATUS_LABEL_MAP[attendee.status] ?? attendee.status ?? 'Kayıtlı'}
-                      size="small"
-                      color={STATUS_COLOR_MAP[attendee.status ?? ''] ?? 'default'}
-                      variant="outlined"
-                      sx={{ fontWeight: 600, height: 22 }}
-                    />
-                    <Chip
-                      label={STATUS_LABEL_MAP[attendee.paymentStatus] ?? attendee.paymentStatus ?? '—'}
-                      size="small"
-                      color={STATUS_COLOR_MAP[attendee.paymentStatus ?? ''] ?? 'default'}
-                      variant="filled"
-                      sx={{ fontWeight: 600, height: 22 }}
-                    />
-                  </Stack>
-                ))}
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'grey.50' }}>
+                      {['Katılımcı', 'Bilet Kodu', 'Kayıt Tarihi', 'Katılım', 'Ödeme'].map(h => (
+                        <TableCell key={h} sx={{ fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary' }}>
+                          {h}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredAttendees.slice(attendeesPage * 25, (attendeesPage + 1) * 25).map((attendee, i) => (
+                      <TableRow key={attendee.id ?? i} hover>
+                        <TableCell>
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Avatar src={attendee.userImage}
+                              sx={{ width: 30, height: 30, bgcolor: alpha('#6366f1', 0.12), color: '#6366f1', fontSize: 12, fontWeight: 700 }}>
+                              {(attendee.userName || '?')[0]}
+                            </Avatar>
+                            <Typography variant="body2" fontWeight={500}>{attendee.userName || '—'}</Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption" fontFamily="monospace" fontSize={11}>
+                            {attendee.ticketCode || '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption" color="text.secondary">
+                            {attendee.joinedAt ? format(new Date(attendee.joinedAt), 'dd MMM yyyy, HH:mm', { locale: tr }) : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={STATUS_LABEL_MAP[attendee.status] ?? attendee.status ?? 'Kayıtlı'}
+                            size="small"
+                            color={STATUS_COLOR_MAP[attendee.status ?? ''] ?? 'default'}
+                            variant="outlined"
+                            sx={{ fontWeight: 600, height: 22, fontSize: 11 }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={STATUS_LABEL_MAP[attendee.paymentStatus] ?? attendee.paymentStatus ?? '—'}
+                            size="small"
+                            color={STATUS_COLOR_MAP[attendee.paymentStatus ?? ''] ?? 'default'}
+                            variant="filled"
+                            sx={{ fontWeight: 600, height: 22, fontSize: 11 }}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
                 {filteredAttendees.length > 25 && (
                   <TablePagination
                     component="div" count={filteredAttendees.length} page={attendeesPage}

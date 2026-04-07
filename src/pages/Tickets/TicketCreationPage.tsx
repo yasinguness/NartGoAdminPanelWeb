@@ -1,6 +1,6 @@
 /**
- * EventCreationPage — 5-step guided wizard for creating events & tickets
- * Steps: (1) Organizer, (2) Event Type, (3) Event Info, (4) Ticket Config, (5) Preview
+ * EventCreationPage — 7-step guided wizard for creating events & tickets
+ * Steps: (1) Organizer, (2) Event Type, (3) Event Info, (4) Seat Plan, (5) Ticket Config, (6) Refund Policy, (7) Preview
  */
 import { useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -20,6 +20,9 @@ import {
   ContentCopy as CopyIcon, Search as SearchIcon, Link as LinkIcon,
 } from '@mui/icons-material';
 import type { UserDTO } from '../../types/users/userModel';
+import { VenueTemplate, RefundPolicy, DEFAULT_REFUND_POLICY, EventFormat, TicketCategory } from '../../types/tickets/ticketTypes';
+import SeatPlanStep from './steps/SeatPlanStep';
+import RefundPolicyStep from './steps/RefundPolicyStep';
 
 // ─── STYLED ────────────────────────────────────────────
 const StepDot = styled(Box)<{ $active?: boolean; $done?: boolean }>(({ theme, $active, $done }) => ({
@@ -46,11 +49,20 @@ const SH = ({ title, subtitle }: { title: string; subtitle?: string }) => (
 );
 
 // ─── TYPES ─────────────────────────────────────────────
-interface TierItem { id: string; name: string; price: number; quota: number; color: string; }
+interface TierItem { id: string; name: string; price: number; quota: number; color: string; category: TicketCategory; }
 type EventType = 'paid' | 'free' | 'invite';
 type Visibility = 'public' | 'link' | 'draft';
 const TIER_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#ec4899'];
 const CURRENCY_SYMBOLS: Record<string, string> = { TRY: '₺', USD: '$', EUR: '€' };
+const TICKET_CATEGORIES: { value: TicketCategory; label: string }[] = [
+  { value: TicketCategory.STANDARD, label: 'Standart' },
+  { value: TicketCategory.VIP, label: 'VIP' },
+  { value: TicketCategory.EARLY_BIRD, label: 'Erken Kuş' },
+  { value: TicketCategory.STUDENT, label: 'Öğrenci' },
+  { value: TicketCategory.GROUP, label: 'Grup (5+)' },
+  { value: TicketCategory.FREE, label: 'Ücretsiz' },
+  { value: TicketCategory.DONATION, label: 'Bağış' },
+];
 
 export default function TicketCreationPage() {
   const theme = useTheme();
@@ -60,7 +72,7 @@ export default function TicketCreationPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState(1);
-  const TOTAL = 5;
+  const TOTAL = 7;
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -91,18 +103,29 @@ export default function TicketCreationPage() {
   const [eventImage, setEventImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // Step 4: Ticket config
+  // Step 3 extended: Event format, age limit, language
+  const [eventFormat, setEventFormat] = useState<EventFormat>(EventFormat.PHYSICAL);
+  const [ageLimit, setAgeLimit] = useState('');
+  const [eventLanguage, setEventLanguage] = useState('');
+
+  // Step 4: Seat plan (NEW)
+  const [isSeated, setIsSeated] = useState<boolean | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<VenueTemplate | null>(null);
+
+  // Step 5: Ticket config (was Step 4)
   const [tiers, setTiers] = useState<TierItem[]>([
-    { id: '1', name: 'Standart', price: 150, quota: 100, color: '#22c55e' },
+    { id: '1', name: 'Standart', price: 150, quota: 100, color: '#22c55e', category: TicketCategory.STANDARD },
   ]);
   const [currency, setCurrency] = useState('TRY');
   const [saleStart, setSaleStart] = useState('');
   const [saleEnd, setSaleEnd] = useState('');
   const [minTickets, setMinTickets] = useState(1);
   const [maxTickets, setMaxTickets] = useState(10);
-  const [refundPolicy, setRefundPolicy] = useState(true);
   const [waitlist, setWaitlist] = useState(false);
   const [transferable, setTransferable] = useState(true);
+
+  // Step 6: Refund policy (NEW)
+  const [refundPolicyConfig, setRefundPolicyConfig] = useState<RefundPolicy>({ ...DEFAULT_REFUND_POLICY });
 
   // ─── HELPERS ─────────────────────────────────────────
   const clr = (k: string) => { if (errors[k]) setErrors(p => { const n = { ...p }; delete n[k]; return n; }); };
@@ -119,7 +142,8 @@ export default function TicketCreationPage() {
       if (eventStart && eventEnd && new Date(eventStart) >= new Date(eventEnd)) e.eventEnd = 'Bitis baslangictan sonra olmali';
       if (!capacity || Number(capacity) <= 0) e.capacity = 'Kapasite 0\'dan buyuk olmali';
     }
-    if (s === 4 && eventType === 'paid') {
+    if (s === 4 && isSeated === null) e.seatPlan = 'Oturma duzeni secmelisiniz';
+    if (s === 5 && eventType === 'paid') {
       if (tiers.length === 0) e.tiers = 'En az 1 bilet kategorisi ekleyin';
       if (tiers.some(t => !t.name.trim())) e.tierName = 'Tum kategorilerin adi olmali';
       if (tiers.some(t => t.price <= 0)) e.tierPrice = 'Tum bilet fiyatlari 0\'dan buyuk olmali';
@@ -128,7 +152,8 @@ export default function TicketCreationPage() {
       if (minTickets < 1) e.minTickets = 'Minimum en az 1 olmali';
       if (maxTickets < minTickets) e.maxTickets = 'Maksimum minimumdan kucuk olamaz';
     }
-    if (s === 4 && eventType === 'free' && !saleStart) e.saleStart = 'Kayit baslangici zorunludur';
+    if (s === 5 && eventType === 'free' && !saleStart) e.saleStart = 'Kayit baslangici zorunludur';
+    // Step 6 (refund policy) — no required validation, defaults are fine
     setErrors(e);
     if (Object.keys(e).length > 0) { enqueueSnackbar('Lutfen zorunlu alanlari doldurun', { variant: 'warning' }); return false; }
     return true;
@@ -202,13 +227,13 @@ export default function TicketCreationPage() {
   };
 
   // ─── TIER OPS ────────────────────────────────────────
-  const addTier = () => setTiers([...tiers, { id: String(Date.now()), name: '', price: 0, quota: 50, color: TIER_COLORS[tiers.length % TIER_COLORS.length] }]);
+  const addTier = () => setTiers([...tiers, { id: String(Date.now()), name: '', price: 0, quota: 50, color: TIER_COLORS[tiers.length % TIER_COLORS.length], category: TicketCategory.STANDARD }]);
   const removeTier = (id: string) => { if (tiers.length <= 1) { enqueueSnackbar('En az 1 kategori olmali', { variant: 'warning' }); return; } setTiers(tiers.filter(t => t.id !== id)); };
   const updateTier = (id: string, field: keyof TierItem, value: string | number) => setTiers(tiers.map(t => t.id === id ? { ...t, [field]: value } : t));
 
   // ─── PUBLISH ─────────────────────────────────────────
   const handlePublish = async () => {
-    for (let s = 1; s <= 4; s++) { if (!validate(s)) { setStep(s); return; } }
+    for (let s = 1; s <= 6; s++) { if (!validate(s)) { setStep(s); return; } }
     if (!organizer) return;
     setPublishing(true);
     try {
@@ -229,6 +254,14 @@ export default function TicketCreationPage() {
         organizerId: organizer.id,
         organizerName: organizer.displayName || `${organizer.firstName || ''} ${organizer.lastName || ''}`.trim(),
         organizerEmail: organizer.email,
+        // New fields
+        eventFormat,
+        ageLimit: ageLimit ? Number(ageLimit) : undefined,
+        language: eventLanguage || undefined,
+        isSeated: isSeated ?? false,
+        seatMapTemplateId: selectedTemplate?.id,
+        isRefundable: refundPolicyConfig.isRefundable,
+        isTransferable: transferable,
       };
 
       const formData = new FormData();
@@ -260,12 +293,14 @@ export default function TicketCreationPage() {
   // ─── DERIVED ─────────────────────────────────────────
   const maxRevenue = tiers.reduce((s, t) => s + t.price * t.quota, 0);
   const totalQuota = tiers.reduce((s, t) => s + t.quota, 0);
-  const labels = ['Organizator', 'Etkinlik Turu', 'Bilgiler', 'Bilet & Kayit', 'Onizleme'];
+  const labels = ['Organizator', 'Etkinlik Turu', 'Bilgiler', 'Salon Plani', 'Bilet & Kayit', 'Iade Politikasi', 'Onizleme'];
   const subs = [
     'Etkinligi kimin adina olusturuyorsunuz?',
     'Nasil bir etkinlik olusturmak istiyorsunuz?',
     'Temel bilgileri, tarih ve kapasite bilgilerini girin',
+    'Oturma duzeni ve salon planini belirleyin',
     eventType === 'paid' ? 'Bilet fiyatlarini ve satis takvimini belirleyin' : 'Kayit ayarlarini belirleyin',
+    'Bilet iade kurallarini belirleyin',
     'Her seyi kontrol edin ve yayinlayin',
   ];
 
@@ -285,7 +320,7 @@ export default function TicketCreationPage() {
             {eventType === 'paid' ? 'Bilet satisi basladi.' : eventType === 'free' ? 'Kayitlara acildi.' : ''}
           </Typography>
           <Stack direction="row" spacing={2} justifyContent="center">
-            <Button variant="outlined" onClick={() => { setPublished(false); setStep(1); setOrganizer(null); setEventType(null); setEventName(''); setEventDescription(''); setEventStart(''); setEventEnd(''); setCapacity(''); setTiers([{ id: '1', name: 'Standart', price: 150, quota: 100, color: '#22c55e' }]); setSaleStart(''); setSaleEnd(''); setEventImage(null); setImagePreview(null); }}
+            <Button variant="outlined" onClick={() => { setPublished(false); setStep(1); setOrganizer(null); setEventType(null); setEventName(''); setEventDescription(''); setEventStart(''); setEventEnd(''); setCapacity(''); setTiers([{ id: '1', name: 'Standart', price: 150, quota: 100, color: '#22c55e', category: TicketCategory.STANDARD }]); setSaleStart(''); setSaleEnd(''); setEventImage(null); setImagePreview(null); setIsSeated(null); setSelectedTemplate(null); setRefundPolicyConfig({ ...DEFAULT_REFUND_POLICY }); setAgeLimit(''); setEventLanguage(''); setEventFormat(EventFormat.PHYSICAL); }}
               sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, px: 3 }}>+ Yeni Etkinlik</Button>
             <Button variant="contained" onClick={() => navigate('/events')}
               sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, px: 3 }}>Etkinliklere Git</Button>
@@ -311,18 +346,21 @@ export default function TicketCreationPage() {
           </Box>
           <Chip label={`${step} / ${TOTAL}`} size="small" variant="outlined" sx={{ fontWeight: 700, fontFamily: 'monospace' }} />
         </Stack>
-        <Stack direction="row" alignItems="center" sx={{ maxWidth: 680 }}>
-          {[1, 2, 3, 4, 5].map((s, i) => (
-            <Box key={s} sx={{ display: 'flex', alignItems: 'center', flex: i < 4 ? 1 : 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, cursor: s <= step ? 'pointer' : 'default' }} onClick={() => goTo(s)}>
-                <StepDot $active={s === step} $done={s < step}>{s < step ? <CheckIcon sx={{ fontSize: 14 }} /> : s}</StepDot>
-                <Typography variant="caption" fontWeight={600} sx={{ display: { xs: 'none', lg: 'block' }, color: s === step ? 'primary.main' : s < step ? 'text.secondary' : 'text.disabled', whiteSpace: 'nowrap', fontSize: 11 }}>
-                  {labels[i]}
-                </Typography>
+        <Stack direction="row" alignItems="center" sx={{ maxWidth: 880 }}>
+          {labels.map((label, i) => {
+            const s = i + 1;
+            return (
+              <Box key={s} sx={{ display: 'flex', alignItems: 'center', flex: i < TOTAL - 1 ? 1 : 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, cursor: s <= step ? 'pointer' : 'default' }} onClick={() => goTo(s)}>
+                  <StepDot $active={s === step} $done={s < step}>{s < step ? <CheckIcon sx={{ fontSize: 14 }} /> : s}</StepDot>
+                  <Typography variant="caption" fontWeight={600} sx={{ display: { xs: 'none', xl: 'block' }, color: s === step ? 'primary.main' : s < step ? 'text.secondary' : 'text.disabled', whiteSpace: 'nowrap', fontSize: 10 }}>
+                    {label}
+                  </Typography>
+                </Box>
+                {i < TOTAL - 1 && <StepLine $done={s < step} />}
               </Box>
-              {i < 4 && <StepLine $done={s < step} />}
-            </Box>
-          ))}
+            );
+          })}
         </Stack>
       </Box>
 
@@ -500,6 +538,33 @@ export default function TicketCreationPage() {
             </Box>
             <Divider />
             <Box>
+              <SH title="Etkinlik Formati, Yas Siniri & Dil" />
+              <Stack direction="row" spacing={2}>
+                <FormControl fullWidth>
+                  <InputLabel>Format</InputLabel>
+                  <Select value={eventFormat} label="Format" onChange={e => setEventFormat(e.target.value as EventFormat)}>
+                    <MenuItem value={EventFormat.PHYSICAL}>Fiziksel</MenuItem>
+                    <MenuItem value={EventFormat.ONLINE}>Online</MenuItem>
+                    <MenuItem value={EventFormat.HYBRID}>Hibrit</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField fullWidth label="Yas Siniri (opsiyonel)" type="number" value={ageLimit}
+                  onChange={e => setAgeLimit(e.target.value)} placeholder="Orn: 18"
+                  InputProps={{ inputProps: { min: 0 } }} />
+                <FormControl fullWidth>
+                  <InputLabel>Dil</InputLabel>
+                  <Select value={eventLanguage} label="Dil" onChange={e => setEventLanguage(e.target.value)}>
+                    <MenuItem value="">Belirtilmemis</MenuItem>
+                    <MenuItem value="tr">Turkce</MenuItem>
+                    <MenuItem value="en">English</MenuItem>
+                    <MenuItem value="de">Deutsch</MenuItem>
+                    <MenuItem value="fr">Francais</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Box>
+            <Divider />
+            <Box>
               <SH title="Kapak Gorseli" />
               <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} style={{ display: 'none' }} />
               {imagePreview ? (
@@ -542,8 +607,22 @@ export default function TicketCreationPage() {
           </Stack>
         )}
 
-        {/* ─── STEP 4: BİLET & KAYIT ─── */}
+        {/* ─── STEP 4: SALON PLANI (NEW) ─── */}
         {step === 4 && (
+          <Stack spacing={3}>
+            <SeatPlanStep
+              isSeated={isSeated}
+              onSeatedChange={setIsSeated}
+              selectedTemplate={selectedTemplate}
+              onTemplateSelect={setSelectedTemplate}
+              capacity={Number(capacity) || 0}
+            />
+            {errors.seatPlan && <Typography variant="caption" color="error">{errors.seatPlan}</Typography>}
+          </Stack>
+        )}
+
+        {/* ─── STEP 5: BİLET & KAYIT ─── */}
+        {step === 5 && (
           <Stack spacing={3.5}>
             <Paper variant="outlined" sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, borderRadius: 2.5, bgcolor: 'grey.50' }}>
               <Typography sx={{ fontSize: 24 }}>{eventType === 'paid' ? '🎟️' : eventType === 'free' ? '🎁' : '🔒'}</Typography>
@@ -558,17 +637,21 @@ export default function TicketCreationPage() {
                 <Box>
                   <SH title="Bilet Kategorileri" />
                   <SC>
-                    <Box sx={{ px: 2.5, py: 1, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', display: 'grid', gridTemplateColumns: '1fr 140px 100px 40px', gap: 1.5, fontSize: 11, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      <Box>Bilet Adi</Box><Box>Fiyat ({CURRENCY_SYMBOLS[currency] || currency})</Box><Box>Kontenjan</Box><Box />
+                    <Box sx={{ px: 2.5, py: 1, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', display: 'grid', gridTemplateColumns: '1fr 130px 120px 90px 40px', gap: 1.5, fontSize: 11, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      <Box>Bilet Adi</Box><Box>Kategori</Box><Box>Fiyat ({CURRENCY_SYMBOLS[currency] || currency})</Box><Box>Kontenjan</Box><Box />
                     </Box>
                     {tiers.map(t => (
-                      <Box key={t.id} sx={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 40px', gap: 1.5, alignItems: 'center', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', '&:last-of-type': { borderBottom: 'none' }, '&:hover': { bgcolor: 'grey.50' } }}>
+                      <Box key={t.id} sx={{ display: 'grid', gridTemplateColumns: '1fr 130px 120px 90px 40px', gap: 1.5, alignItems: 'center', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', '&:last-of-type': { borderBottom: 'none' }, '&:hover': { bgcolor: 'grey.50' } }}>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: t.color, flexShrink: 0 }} />
                           <TextField variant="standard" value={t.name} fullWidth placeholder="Kategori adi"
                             InputProps={{ disableUnderline: true, sx: { fontWeight: 600, fontSize: 14 } }}
                             onChange={e => updateTier(t.id, 'name', e.target.value)} />
                         </Stack>
+                        <Select size="small" value={t.category} onChange={e => updateTier(t.id, 'category', e.target.value)}
+                          sx={{ '& .MuiOutlinedInput-notchedOutline': { borderRadius: 2 }, fontSize: 12 }}>
+                          {TICKET_CATEGORIES.map(c => <MenuItem key={c.value} value={c.value} sx={{ fontSize: 12 }}>{c.label}</MenuItem>)}
+                        </Select>
                         <TextField variant="outlined" size="small" type="number" value={t.price}
                           error={!!errors.tierPrice && t.price <= 0}
                           InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, color: 'text.secondary', fontSize: 13 }}>{CURRENCY_SYMBOLS[currency] || currency}</Typography>, inputProps: { min: 1, step: 1 } }}
@@ -665,7 +748,6 @@ export default function TicketCreationPage() {
               <SC><Box sx={{ px: 2.5 }}>
                 {[
                   ...(eventType === 'paid' ? [
-                    { name: 'Iade politikasi aktif', desc: 'Etkinlikten once iade kabul edilir', value: refundPolicy, setter: setRefundPolicy },
                     { name: 'Isim transferine izin ver', desc: 'Bileti baskasina devredebilir', value: transferable, setter: setTransferable },
                   ] : []),
                   { name: 'Bekleme listesi', desc: 'Kapasite doldugunda bekleme listesi', value: waitlist, setter: setWaitlist },
@@ -680,8 +762,15 @@ export default function TicketCreationPage() {
           </Stack>
         )}
 
-        {/* ─── STEP 5: ÖNİZLEME ─── */}
-        {step === 5 && (
+        {/* ─── STEP 6: İADE POLİTİKASI (NEW) ─── */}
+        {step === 6 && (
+          <Stack spacing={3}>
+            <RefundPolicyStep policy={refundPolicyConfig} onChange={setRefundPolicyConfig} />
+          </Stack>
+        )}
+
+        {/* ─── STEP 7: ÖNİZLEME ─── */}
+        {step === 7 && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
             <Stack spacing={2}>
               <SH title="Etkinlik Ozeti" subtitle="Yayinlamadan once bilgileri gozden gecirin." />
@@ -710,7 +799,7 @@ export default function TicketCreationPage() {
                 <SC>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="subtitle2" fontWeight={700}>Bilet Kategorileri</Typography>
-                    <Button size="small" onClick={() => goTo(4)} sx={{ textTransform: 'none', fontSize: 12 }}>Duzenle</Button>
+                    <Button size="small" onClick={() => goTo(5)} sx={{ textTransform: 'none', fontSize: 12 }}>Duzenle</Button>
                   </Box>
                   {tiers.map((t, i) => (
                     <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2.5, py: 1.2, borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -729,8 +818,10 @@ export default function TicketCreationPage() {
                   {[
                     { ok: !!organizer, t: 'Organizator secildi' },
                     { ok: !!eventName && !!eventStart, t: 'Etkinlik adi ve tarihi girildi' },
+                    { ok: isSeated !== null, t: isSeated ? 'Numarali koltuk secildi' : isSeated === false ? 'Serbest giris secildi' : 'Salon plani belirlenmedi' },
                     { ok: eventType === 'paid' ? tiers.length > 0 && tiers.every(t => t.price > 0) : true, t: eventType === 'paid' ? 'Bilet kategorileri tanimlandi' : 'Kayit formu hazir' },
                     { ok: eventType === 'invite' ? true : !!saleStart, t: eventType === 'paid' ? 'Satis tarihi belirlendi' : eventType === 'free' ? 'Kayit tarihi belirlendi' : 'Takvim (opsiyonel)', opt: eventType === 'invite' },
+                    { ok: refundPolicyConfig.isRefundable, t: refundPolicyConfig.isRefundable ? 'Iade politikasi aktif' : 'Iade kapali', opt: true },
                     { ok: !!eventImage, t: eventImage ? 'Gorsel yuklendi' : 'Gorsel yuklenmedi', opt: !eventImage },
                     ...(eventType === 'paid' && capacity && totalQuota !== Number(capacity) ? [{ ok: false, t: `Bilet kontenjan (${totalQuota}) etkinlik kapasitesi (${capacity}) ile eslesmiyor`, opt: true }] : []),
                   ].map((c, i) => (

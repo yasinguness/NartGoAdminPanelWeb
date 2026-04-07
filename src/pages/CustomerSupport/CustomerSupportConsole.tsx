@@ -247,6 +247,29 @@ export default function CustomerSupportConsole() {
                         </Button>
                     </Stack>
 
+                    {/* İade Politikası Bilgi Kartı */}
+                    <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', mb: 2 }}>
+                        <Typography variant="caption" fontWeight={800} color="#166534" display="block" sx={{ mb: 0.5 }}>İADE POLİTİKASI</Typography>
+                        <Stack spacing={0.3}>
+                            {[
+                                { rule: '7+ gün önce', pct: '%100', auto: true },
+                                { rule: '3–7 gün önce', pct: '%75', auto: true },
+                                { rule: '1–3 gün önce', pct: '%50', auto: false },
+                                { rule: 'Son 24 saat', pct: 'İade yok', auto: false },
+                            ].map((r, i) => (
+                                <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#334155' }}>{r.rule}</Typography>
+                                    <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.65rem', color: r.pct === 'İade yok' ? '#dc2626' : '#166534' }}>
+                                        {r.pct} {r.auto ? '(oto)' : '(manuel)'}
+                                    </Typography>
+                                </Box>
+                            ))}
+                        </Stack>
+                        <Typography variant="caption" sx={{ fontSize: '0.55rem', color: '#6b7280', mt: 0.5, display: 'block' }}>
+                            Platform komisyonu iade edilmez. Organizatör farklı politika belirlemiş olabilir.
+                        </Typography>
+                    </Box>
+
                     <Box sx={{ mt: 'auto' }}>
                         <TextField 
                             fullWidth 

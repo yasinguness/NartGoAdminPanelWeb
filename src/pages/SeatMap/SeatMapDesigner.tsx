@@ -20,14 +20,19 @@ import {
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import {
-  VenueConfig, VenueType, Seat, SeatCategory, SectionConfig, DEFAULT_CATEGORIES,
+  VenueConfig, VenueType, Seat, SeatCategory, SeatStatus, SeatAssignment, SectionConfig, DEFAULT_CATEGORIES,
   VENUE_TEMPLATES, generateVenueSeats, drawStageThemed, drawSeatThemed,
   drawStandingZone, drawSectionLabelThemed, getCategoryColor, findSeatAtPoint,
   computeStats, SEAT_SIZE, DARK_THEME, LIGHT_THEME, DrawTheme,
   updateSection, addRowToSection, removeRowFromSection, updateRow,
   updateSectionSeatCount, addSection, removeSection,
+  serializeVenueDesign, validateVenueDesign, StageConfig,
 } from './venueEngine';
 import { api } from '../../services/api';
+import { ticketService } from '../../services/ticket/ticketService';
+import StageEditor from './components/StageEditor';
+import SavedTemplatesPanel from './components/SavedTemplatesPanel';
+import SeatActionPanel from './components/SeatActionPanel';
 
 interface EventSummary {
   id: string;
@@ -180,6 +185,8 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
   const [isPainting, setIsPainting] = useState(false);
 
   const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [soldSeats, setSoldSeats] = useState<Set<string>>(new Set());
   const [tip, setTip] = useState<{ x: number; y: number; seat: Seat } | null>(null);
@@ -187,7 +194,8 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
 
   // Section editor
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
-  const [leftTab, setLeftTab] = useState<'templates' | 'sections'>('templates');
+  const [leftTab, setLeftTab] = useState<'templates' | 'sections' | 'stage' | 'saved'>('templates');
+  const [showStageEditor, setShowStageEditor] = useState(false);
 
   const MAX_SELECT = 8;
 
@@ -210,14 +218,38 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
     if (t) { setVenue(t.generate()); setVp({ x: 0, y: 0, zoom: 1 }); setEditingSectionId(null); }
   }, []);
 
-  const switchMode = useCallback((m: 'edit' | 'preview') => {
+  const switchMode = useCallback(async (m: 'edit' | 'preview') => {
     setMode(m); setSelectedSeats([]); setHoveredSeat(null); setEditingSectionId(null);
     if (m === 'preview') {
-      const sold = new Set<string>();
-      seats.forEach(s => { if (s.status !== 'disabled' && Math.random() < 0.15) sold.add(s.id); });
-      setSoldSeats(sold);
+      // Try fetching real occupied seats from backend; fallback to simulation
+      try {
+        const [occupiedRes, reservedRes] = await Promise.allSettled([
+          ticketService.getOccupiedSeats(event.id),
+          ticketService.getReservedSeats(event.id),
+        ]);
+        const sold = new Set<string>();
+        if (occupiedRes.status === 'fulfilled' && occupiedRes.value?.data) {
+          occupiedRes.value.data.forEach((id: string) => sold.add(id));
+        }
+        if (reservedRes.status === 'fulfilled' && reservedRes.value?.data) {
+          reservedRes.value.data.forEach((id: string) => sold.add(id));
+        }
+        // If backend returned data, use it; otherwise simulate
+        if (sold.size > 0) {
+          setSoldSeats(sold);
+        } else {
+          // Fallback: simulate 15% sold
+          seats.forEach(s => { if (s.status !== 'disabled' && Math.random() < 0.15) sold.add(s.id); });
+          setSoldSeats(sold);
+        }
+      } catch {
+        // Fallback: simulate 15% sold
+        const sold = new Set<string>();
+        seats.forEach(s => { if (s.status !== 'disabled' && Math.random() < 0.15) sold.add(s.id); });
+        setSoldSeats(sold);
+      }
     }
-  }, [seats]);
+  }, [seats, event.id]);
 
   // Screen → world
   const s2w = useCallback((sx: number, sy: number): [number, number] => {
@@ -249,16 +281,27 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
     });
   }, [soldSeats, enqueueSnackbar]);
 
+  // Edit mode: Shift+click = select seat, normal click = paint
+  const editSelectSeat = useCallback((seat: Seat) => {
+    setSelectedSeats(prev => {
+      if (prev.find(s => s.id === seat.id)) return prev.filter(s => s.id !== seat.id);
+      return [...prev, seat];
+    });
+  }, []);
+
   // Mouse handlers
   const onDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (e.button === 1 || e.altKey) { setIsPanning(true); setPanStart({ x: e.clientX, y: e.clientY }); return; }
     const [wx, wy] = s2w(e.clientX, e.clientY);
     const seat = findSeatAtPoint(seats, wx, wy);
     if (seat) {
-      if (mode === 'edit') { setIsPainting(true); paintSeat(seat); }
+      if (mode === 'edit') {
+        if (e.shiftKey) { editSelectSeat(seat); } // Shift+click = select for bulk actions
+        else { setIsPainting(true); paintSeat(seat); }
+      }
       else previewClick(seat);
-    } else { setIsPanning(true); setPanStart({ x: e.clientX, y: e.clientY }); }
-  }, [s2w, seats, mode, paintSeat, previewClick]);
+    } else { setIsPanning(true); setPanStart({ x: e.clientX, y: e.clientY }); setSelectedSeats([]); }
+  }, [s2w, seats, mode, paintSeat, previewClick, editSelectSeat]);
 
   const onMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isPanning) {
@@ -457,6 +500,11 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
         <TextField size="small" label="Bölüm Adı" value={sec.name}
           onChange={e => setVenue(updateSection(venue, sec.id, { name: e.target.value }))} />
 
+        <TextField size="small" label="Blok Etiketi (opsiyonel)" placeholder="Ör: A Blok, Tribün 1"
+          value={sec.blockLabel || ''}
+          onChange={e => setVenue(updateSection(venue, sec.id, { blockLabel: e.target.value }))}
+          helperText={`${seats.filter(s => s.sectionId === sec.id).length} koltuk`} />
+
         <Stack direction="row" spacing={1}>
           <TextField size="small" label="Sıra Sayısı" type="number" value={sec.rows.length}
             onChange={e => {
@@ -577,15 +625,45 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <Button size="small" startIcon={!isMobile ? <SaveIcon sx={{ fontSize: '13px !important' }} /> : undefined}
-            onClick={() => enqueueSnackbar(`"${event.name}" koltuk haritasi kaydedildi`, { variant: 'success' })}
+          <Button size="small" disabled={saving}
+            startIcon={!isMobile ? (saving ? <CircularProgress size={12} /> : <SaveIcon sx={{ fontSize: '13px !important' }} />) : undefined}
+            onClick={async () => {
+              const errors = validateVenueDesign(venue, seats);
+              if (errors.length > 0) {
+                errors.forEach(e => enqueueSnackbar(e, { variant: 'warning' }));
+                return;
+              }
+              setSaving(true);
+              try {
+                const payload = serializeVenueDesign(venue, seats, categories);
+                await ticketService.saveSeatMapDesign(event.id, payload);
+                enqueueSnackbar(`"${event.name}" koltuk haritası kaydedildi`, { variant: 'success' });
+              } catch (err: any) {
+                enqueueSnackbar(err?.response?.data?.message || 'Kaydetme başarısız', { variant: 'error' });
+              } finally { setSaving(false); }
+            }}
             sx={{ px: 1.25, py: 0.5, borderRadius: 2, fontSize: 11, fontWeight: 600, textTransform: 'none', color: textSecondary, background: alpha(border, 0.3), border: `1px solid ${border}`, '&:hover': { background: alpha(border, 0.5) } }}>
-            {isMobile ? '💾' : 'Kaydet'}
+            {isMobile ? '💾' : saving ? 'Kaydediliyor...' : 'Kaydet'}
           </Button>
-          <Button size="small" startIcon={!isMobile ? <CheckIcon sx={{ fontSize: '13px !important' }} /> : undefined}
-            onClick={() => { enqueueSnackbar(`"${event.name}" koltuk haritasi yayina alindi!`, { variant: 'success' }); }}
+          <Button size="small" disabled={publishing || saving}
+            startIcon={!isMobile ? (publishing ? <CircularProgress size={12} /> : <CheckIcon sx={{ fontSize: '13px !important' }} />) : undefined}
+            onClick={async () => {
+              const errors = validateVenueDesign(venue, seats);
+              if (errors.length > 0) {
+                errors.forEach(e => enqueueSnackbar(e, { variant: 'warning' }));
+                return;
+              }
+              setPublishing(true);
+              try {
+                const payload = { ...serializeVenueDesign(venue, seats, categories), published: true };
+                await ticketService.saveSeatMapDesign(event.id, payload);
+                enqueueSnackbar(`"${event.name}" koltuk haritası yayına alındı!`, { variant: 'success' });
+              } catch (err: any) {
+                enqueueSnackbar(err?.response?.data?.message || 'Yayınlama başarısız', { variant: 'error' });
+              } finally { setPublishing(false); }
+            }}
             sx={{ px: 1.25, py: 0.5, borderRadius: 2, fontSize: 11, fontWeight: 600, textTransform: 'none', color: '#fff', background: green, '&:hover': { background: '#0ea271' } }}>
-            {isMobile ? '✓' : 'Yayinla'}
+            {isMobile ? '✓' : publishing ? 'Yayınlanıyor...' : 'Yayınla'}
           </Button>
         </Box>
       </Box>
@@ -599,10 +677,15 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
 
             {/* Tab switcher */}
             <Box sx={{ display: 'flex', borderBottom: `1px solid ${border}` }}>
-              {(['templates', 'sections'] as const).map(tab => (
-                <Box key={tab} onClick={() => setLeftTab(tab)}
-                  sx={{ flex: 1, py: 1, textAlign: 'center', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: leftTab === tab ? primary : textDisabled, borderBottom: leftTab === tab ? `2px solid ${primary}` : '2px solid transparent', transition: 'all 0.15s' }}>
-                  {tab === 'templates' ? 'Şablonlar' : 'Bölümler'}
+              {([
+                { key: 'templates' as const, label: 'Şablonlar' },
+                { key: 'sections' as const, label: 'Bölümler' },
+                { key: 'stage' as const, label: 'Sahne' },
+                { key: 'saved' as const, label: 'Kayıtlı' },
+              ]).map(tab => (
+                <Box key={tab.key} onClick={() => setLeftTab(tab.key)}
+                  sx={{ flex: 1, py: 1, textAlign: 'center', cursor: 'pointer', fontSize: 10, fontWeight: 600, color: leftTab === tab.key ? primary : textDisabled, borderBottom: leftTab === tab.key ? `2px solid ${primary}` : '2px solid transparent', transition: 'all 0.15s' }}>
+                  {tab.label}
                 </Box>
               ))}
             </Box>
@@ -694,6 +777,28 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
                   </Button>
                 </Box>
               </>)}
+
+              {/* Stage tab */}
+              {leftTab === 'stage' && (
+                <Box sx={{ p: 1.5 }}>
+                  <StageEditor
+                    stage={venue.stage}
+                    onChange={(newStage: StageConfig) => setVenue({ ...venue, stage: newStage })}
+                    onClose={() => setLeftTab('templates')}
+                  />
+                </Box>
+              )}
+
+              {/* Saved templates tab */}
+              {leftTab === 'saved' && (
+                <Box sx={{ p: 1.5 }}>
+                  <SavedTemplatesPanel
+                    currentVenue={venue}
+                    currentCategories={categories}
+                    onLoadTemplate={(v, c) => { setVenue(v); }}
+                  />
+                </Box>
+              )}
             </Box>
 
             {/* Section editor drawer */}
@@ -729,6 +834,23 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
             onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onUp}
             style={{ width: '100%', height: '100%', cursor: isPanning ? 'grabbing' : hoveredSeat ? 'pointer' : 'grab', touchAction: 'none' }}
           />
+          {/* Seat Action Panel (seçili koltuklar varsa) */}
+          {mode === 'edit' && selectedSeats.length > 0 && (
+            <Box sx={{ position: 'absolute', bottom: 16, left: 16, right: 200, zIndex: 12 }}>
+              <SeatActionPanel
+                selectedSeats={selectedSeats}
+                eventId={event.id}
+                onStatusChange={(seatIds, status, assignment) => {
+                  setSeats(prev => prev.map(s =>
+                    seatIds.includes(s.id) ? { ...s, status: status as SeatStatus, assignment } : s
+                  ));
+                  setSelectedSeats([]);
+                }}
+                onClearSelection={() => setSelectedSeats([])}
+              />
+            </Box>
+          )}
+
           {/* Zoom controls */}
           <Box sx={{ position: 'absolute', bottom: 16, right: 16, display: 'flex', flexDirection: 'column', gap: 0.5, zIndex: 10 }}>
             <IconButton onClick={() => setVp(v => ({ ...v, zoom: Math.min(3, v.zoom + 0.15) }))}
@@ -809,7 +931,7 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
 
       {/* TOOLTIP */}
       {tip && (
-        <Box sx={{ position: 'fixed', zIndex: 200, left: tip.x, top: tip.y, background: surface, border: `1px solid ${border}`, borderRadius: 2, p: '6px 10px', pointerEvents: 'none', boxShadow: muiTheme.shadows[8], whiteSpace: 'nowrap' }}>
+        <Box sx={{ position: 'fixed', zIndex: 200, left: tip.x, top: tip.y, background: surface, border: `1px solid ${border}`, borderRadius: 2, p: '6px 10px', pointerEvents: 'none', boxShadow: muiTheme.shadows[8], whiteSpace: 'nowrap', maxWidth: 220 }}>
           <Typography sx={{ fontWeight: 700, color: textDisabled, fontSize: 9, textTransform: 'uppercase', mb: 0.25 }}>{tip.seat.sectionName} · Sıra {tip.seat.rowLabel}</Typography>
           <Typography sx={{ fontSize: 12, fontWeight: 800, color: textPrimary }}>Koltuk {tip.seat.seatNumber}</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
@@ -817,6 +939,30 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
             <Typography sx={{ fontSize: 10, color: textSecondary }}>{categories.find(c => c.id === tip.seat.category)?.name}</Typography>
             {mode === 'preview' && <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, color: green, fontSize: 10, ml: 0.5 }}>₺{categories.find(c => c.id === tip.seat.category)?.price}</Typography>}
           </Box>
+          {/* Durum bilgisi */}
+          {tip.seat.status !== 'available' && (
+            <Typography sx={{ fontSize: 9, fontWeight: 700, mt: 0.5, color:
+              tip.seat.status === 'sold' ? '#ef4444' :
+              tip.seat.status === 'reserved' ? '#f59e0b' :
+              tip.seat.status === 'blocked' ? '#6b7280' :
+              tip.seat.status === 'manual_assigned' ? '#8b5cf6' :
+              textDisabled
+            }}>
+              {tip.seat.status === 'sold' ? '● Satıldı' :
+               tip.seat.status === 'reserved' ? '● Rezerve' :
+               tip.seat.status === 'blocked' ? '● Bloke' :
+               tip.seat.status === 'manual_assigned' ? '● Manuel Atama' :
+               tip.seat.status === 'disabled' ? '● Devre Dışı' : ''}
+            </Typography>
+          )}
+          {/* Sahip bilgisi */}
+          {tip.seat.assignment && (
+            <Box sx={{ mt: 0.5, pt: 0.5, borderTop: `1px solid ${border}` }}>
+              <Typography sx={{ fontSize: 9, color: textSecondary }}>{tip.seat.assignment.ownerName}</Typography>
+              <Typography sx={{ fontSize: 8, color: textDisabled, fontFamily: 'monospace' }}>{tip.seat.assignment.ownerEmail}</Typography>
+            </Box>
+          )}
+          {mode === 'edit' && <Typography sx={{ fontSize: 8, color: textDisabled, mt: 0.5 }}>Shift+tıkla: Seç</Typography>}
         </Box>
       )}
 

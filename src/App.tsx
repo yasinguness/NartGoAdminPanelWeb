@@ -45,6 +45,7 @@ import SeatMapDesigner from './pages/SeatMap/SeatMapDesigner';
 import EventOperations from './pages/AdminOperations/EventOperations';
 import Settings from './pages/Settings';
 import AuditLog from './pages/AuditLog/AuditLog';
+import TicketManagement from './pages/Tickets/TicketManagement';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,6 +101,7 @@ function App() {
                 <Route path="event/raffle-live" element={<RaffleLivePage />} />
                 <Route path="event-creation" element={<TicketCreationPage />} />
                 <Route path="event-creation/:eventId" element={<TicketCreationPage />} />
+                <Route path="tickets" element={<TicketManagement />} />
                 <Route path="seat-map" element={<SeatMapDesigner />} />
                 <Route path="associations/:associationId/:ownerId" element={<AssociationDetails />} />
                 <Route path="gamification" element={<GamificationSettings />} />

@@ -11,7 +11,31 @@
 
 export type VenueType = 'proscenium' | 'arena' | 'amphitheater' | 'thrust' | 'stadium' | 'openair';
 export type StageShape = 'rectangle' | 'semicircle' | 'circle' | 'thrust' | 'oval';
-export type SeatStatus = 'available' | 'sold' | 'reserved' | 'disabled' | 'blocked';
+export type SeatStatus = 'available' | 'sold' | 'reserved' | 'disabled' | 'blocked' | 'manual_assigned';
+
+// ─── Koltuk sahip bilgisi (manuel atama veya satış) ──────────────────────
+export interface SeatAssignment {
+  ownerName?: string;
+  ownerEmail?: string;
+  ticketCode?: string;
+  assignedAt?: string;
+  assignedBy?: string; // admin email
+  note?: string;
+}
+
+// ─── Profil Bazlı Kayıtlı Şablon ───────────────────────────────────────
+export interface SavedVenueTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string; // admin email
+  thumbnail?: string; // base64 preview image
+  venue: VenueConfig;
+  categories: SeatCategory[];
+  isDefault?: boolean; // platform varsayılanı mı
+}
 
 export interface SeatCategory {
   id: string;
@@ -25,6 +49,8 @@ export const DEFAULT_CATEGORIES: SeatCategory[] = [
   { id: 'vip', name: 'VIP', color: '#a855f7', price: 280 },
   { id: 'standard', name: 'Standart', color: '#3b82f6', price: 120 },
   { id: 'economy', name: 'Ekonomi', color: '#6b7280', price: 80 },
+  { id: 'wheelchair', name: 'Engelli', color: '#0ea5e9', price: 120 },
+  { id: 'reserved', name: 'Rezerve', color: '#9ca3af', price: 0 },
 ];
 
 export interface StageConfig {
@@ -39,6 +65,10 @@ export interface StageConfig {
 export interface SectionConfig {
   id: string;
   name: string;
+  /** Block label for user-facing display (e.g. "A Blok", "Tribün 1") */
+  blockLabel?: string;
+  /** Seat number range description (e.g. "1-100 arası koltuklar") */
+  seatRangeDesc?: string;
   /** World-space offset of section origin */
   offsetX: number;
   offsetY: number;
@@ -52,6 +82,8 @@ export interface SectionConfig {
   rows: RowConfig[];
   /** Default category for new seats */
   defaultCategory: string;
+  /** Section-level color override (for category renklendirme) */
+  colorOverride?: string;
 }
 
 export interface RowConfig {
@@ -78,6 +110,8 @@ export interface Seat {
   y: number;
   category: string;
   status: SeatStatus;
+  /** Atama bilgisi (manuel bilet veya satış) */
+  assignment?: SeatAssignment;
 }
 
 export interface StandingZone {
@@ -969,4 +1003,80 @@ export function computeStats(seats: Seat[], categories: SeatCategory[]) {
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const maxRevenue = categories.reduce((acc, c) => acc + (counts[c.id] || 0) * c.price, 0);
   return { counts, total, maxRevenue };
+}
+
+// ─── SERIALIZATION (for backend persistence) ──────────────────────────────
+
+/** Convert venue config + seats to a JSON-safe payload for API */
+export function serializeVenueDesign(venue: VenueConfig, seats: Seat[], categories: SeatCategory[]) {
+  const sectionSummaries = venue.sections.map(s => {
+    const sectionSeats = seats.filter(seat => seat.sectionId === s.id);
+    const totalSeats = sectionSeats.length;
+    const availableSeats = sectionSeats.filter(seat => seat.status === 'available').length;
+    const blockedSeats = sectionSeats.filter(seat => seat.status === 'blocked' || seat.status === 'disabled').length;
+    return {
+      id: s.id,
+      name: s.name,
+      blockLabel: s.blockLabel || s.name,
+      seatRangeDesc: s.seatRangeDesc || `${totalSeats} koltuk`,
+      totalSeats,
+      availableSeats,
+      blockedSeats,
+      defaultCategory: s.defaultCategory,
+      rows: s.rows.length,
+    };
+  });
+
+  const stats = computeStats(seats, categories);
+
+  return {
+    venueType: venue.type,
+    venueName: venue.name,
+    stage: venue.stage,
+    sections: venue.sections,
+    standingZones: venue.standingZones,
+    categories,
+    sectionSummaries,
+    totalSeats: stats.total,
+    maxRevenue: stats.maxRevenue,
+    // Per-seat data: only changed seats (category overrides and status)
+    seatOverrides: seats
+      .filter(s => s.status !== 'available' || s.category !== venue.sections.find(sec => sec.id === s.sectionId)?.defaultCategory)
+      .map(s => ({
+        id: s.id,
+        category: s.category,
+        status: s.status,
+      })),
+  };
+}
+
+/** Validate venue config before save */
+export function validateVenueDesign(venue: VenueConfig, seats: Seat[]): string[] {
+  const errors: string[] = [];
+
+  if (!venue.name?.trim()) errors.push('Mekan adı zorunludur');
+  if (venue.sections.length === 0) errors.push('En az bir bölüm tanımlanmalıdır');
+  if (seats.length === 0) errors.push('En az bir koltuk olmalıdır');
+
+  for (const section of venue.sections) {
+    if (!section.name?.trim()) errors.push(`Bölüm "${section.id}" adı boş`);
+    if (section.rows.length === 0) errors.push(`"${section.name}" bölümünde sıra yok`);
+    for (const row of section.rows) {
+      if (row.seatCount <= 0) errors.push(`"${section.name}" ${row.label}. sırada koltuk yok`);
+    }
+  }
+
+  const availableCount = seats.filter(s => s.status === 'available').length;
+  if (availableCount === 0) errors.push('Satışa açık koltuk yok — en az bir koltuk "available" olmalı');
+
+  return errors;
+}
+
+/** Generate block label from section (e.g. "A Blok · 1-150 arası") */
+export function generateBlockLabel(section: SectionConfig, seats: Seat[]): string {
+  const sectionSeats = seats.filter(s => s.sectionId === section.id);
+  if (sectionSeats.length === 0) return section.name;
+  const minSeat = Math.min(...sectionSeats.map(s => s.seatNumber));
+  const maxSeat = Math.max(...sectionSeats.map(s => s.seatNumber));
+  return `${section.blockLabel || section.name} · ${minSeat}-${maxSeat} arası koltuklar`;
 }
