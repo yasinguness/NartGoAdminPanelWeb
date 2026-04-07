@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: 'https://api.nartgo.net',
+          target: env.VITE_API_BASE_URL?.replace(/\/api\/v1$/, '') || 'https://api.nartgo.net',
           changeOrigin: true,
           secure: true,
           rewrite: (path) => {

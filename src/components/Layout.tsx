@@ -43,6 +43,7 @@ import {
     ManageSearch as AuditIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import { usePageTracking } from '../hooks/analytics/useAnalytics';
 import { useRole } from '../hooks/useRole';
 import { useState } from 'react';
 
@@ -139,6 +140,7 @@ const navSections: NavSection[] = [
             { text: 'Cihazlar', icon: <DevicesIcon />, path: '/devices' },
             { text: 'Oyunlaştırma', icon: <EmojiEventsIcon />, path: '/gamification' },
             { text: 'Audit Log', icon: <AuditIcon />, path: '/audit-log' },
+            { text: 'Panel Analitik', icon: <TrendingUpIcon />, path: '/analytics' },
             { text: 'Ayarlar', icon: <SettingsIcon />, path: '/settings' },
         ],
     },
@@ -151,6 +153,9 @@ export default function Layout() {
     const location = useLocation();
     const { roles, userName, isEditorOnly } = useRole();
     const { logout } = useAuth();
+
+    // Analytics: track every page navigation
+    usePageTracking();
 
     const visibleSections = useMemo(() => {
         return navSections.filter((s) => {

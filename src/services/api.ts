@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { AuthService } from './auth.service';
 
-const BASE_URL = 'https://api.nartgo.net/api/v1'; // Direct API subdomain usage
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.nartgo.net/api/v1';
 const authService = new AuthService();
 
 export const api = axios.create({

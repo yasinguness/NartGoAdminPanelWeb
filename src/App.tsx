@@ -46,6 +46,7 @@ import EventOperations from './pages/AdminOperations/EventOperations';
 import Settings from './pages/Settings';
 import AuditLog from './pages/AuditLog/AuditLog';
 import TicketManagement from './pages/Tickets/TicketManagement';
+import AnalyticsDashboard from './pages/Analytics/AnalyticsDashboard';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -110,6 +111,7 @@ function App() {
                 <Route path="sub-merchants/:id" element={<SubMerchantDetails />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="audit-log" element={<AuditLog />} />
+                <Route path="analytics" element={<AnalyticsDashboard />} />
               </Route>
             </Routes>
           </BrowserRouter>

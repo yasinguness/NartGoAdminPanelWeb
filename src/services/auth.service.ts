@@ -6,7 +6,7 @@ import { ApiResponse } from '../types/api';
 
 export class AuthService extends ApiService {
     constructor() {
-        super('https://api.nartgo.net/api/v1');
+        super(import.meta.env.VITE_API_BASE_URL || 'https://api.nartgo.net/api/v1');
     }
 
     async login(email: string, password: string): Promise<LoginResponseData> {
