@@ -162,7 +162,14 @@ export default function SavedTemplatesPanel({
                     {tpl.name}
                   </Typography>
                   <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem' }}>
-                    {tpl.venue.sections.length} bölüm · {tpl.venue.type}
+                    {tpl.venue.sections.length} bölüm · {
+                        tpl.venue.type === 'proscenium' ? 'Klasik Tiyatro' :
+                        tpl.venue.type === 'amphitheater' ? 'Amfitiyatro' :
+                        tpl.venue.type === 'arena' ? 'Arena (360°)' :
+                        tpl.venue.type === 'thrust' ? 'Thrust Sahne' :
+                        tpl.venue.type === 'stadium' ? 'Stadyum' :
+                        tpl.venue.type === 'openair' ? 'Açık Hava' : tpl.venue.type
+                    }
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={0}>

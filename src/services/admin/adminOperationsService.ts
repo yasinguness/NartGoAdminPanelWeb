@@ -79,6 +79,16 @@ export const adminOperationsService = {
   getCheckInStats: (eventId: string) =>
     unwrap<CheckInStats>(api.get(`/tickets/admin/events/${eventId}/checkin-stats`)),
 
+  getAttendees: (eventId: string) =>
+    unwrap<GenericApiData>(api.get(`/tickets/admin/events/${eventId}/attendees`)),
+
+  getCheckInLogs: (eventId: string) =>
+    unwrap<GenericApiData>(api.get(`/tickets/admin/events/${eventId}/checkin-logs`)),
+
+  /** Giriş yapan kullanıcının yetkili olduğu etkinlikler (admin: tümü, organizatör: kendininkiler) */
+  getMyEvents: () =>
+    unwrap<GenericApiData>(api.get('/events/admin/my-events')),
+
   bulkCancelRefundOrders: (eventId: string, payload: BulkOrderActionRequest) =>
     unwrap<GenericApiData>(api.post(`/tickets/admin/events/${eventId}/orders/bulk-cancel-refund`, payload)),
 
@@ -138,4 +148,15 @@ export const adminOperationsService = {
 
   parseQr: (payload: QrParseRequest) =>
     unwrap<GenericApiData>(api.post('/tickets/checkin/qr/parse', payload)),
+
+  // ── Event Notifications ──────────────────────────────────
+  sendEventNotification: (payload: {
+    title: string;
+    content: string;
+    type: string;
+    priority?: string;
+    emailList: string[];
+    additionalData?: Record<string, unknown>;
+  }) =>
+    unwrap<GenericApiData>(api.post('/notifications/admin/bulk/send-specific', payload)),
 };

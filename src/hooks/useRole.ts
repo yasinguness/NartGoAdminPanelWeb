@@ -1,56 +1,66 @@
 import { useMemo } from 'react';
 import { useAuthStore } from '../store/authStore';
+import {
+  normalizeRole,
+  hasOrganizerRole,
+  canAccessPath,
+  getDefaultPath,
+  getFallbackPath,
+  ROLES,
+} from '../config/roles';
 
 /**
- * Role-based access control hook.
+ * Merkezi rol tabanlı erişim kontrolü hook'u.
  *
- * Keycloak roles from JWT: ADMIN, EDITOR, MODERATOR, USER
- *
- * ADMIN: Tüm sayfalara erişim
- * EDITOR: Sadece İçerik/Makale sayfaları — kendi oluşturduklarını yönetir
- * MODERATOR: İçerik + Feed moderasyonu
+ * Tüm yetki kararları `config/roles.ts` üzerinden alınır.
+ * Bu hook sadece roller dizisini parse eder ve yardımcı flag'ler sunar.
  */
 export function useRole() {
   const user = useAuthStore((state) => state.user);
 
   return useMemo(() => {
-    const normalizeIdentity = (value?: string | null) => (value || '').trim().toLowerCase();
     const roles: string[] = [];
 
-    // Parse roles from user object
+    // Parse roles from user object — Set, Array, or string
     if (user?.role) {
       if (user.role instanceof Set) {
-        user.role.forEach((r) => roles.push(String(r).toUpperCase()));
+        user.role.forEach((r) => roles.push(normalizeRole(String(r))));
       } else if (Array.isArray(user.role)) {
-        (user.role as string[]).forEach((r) => roles.push(String(r).toUpperCase()));
+        (user.role as string[]).forEach((r) => roles.push(normalizeRole(String(r))));
       } else if (typeof user.role === 'string') {
-        roles.push((user.role as string).toUpperCase());
+        roles.push(normalizeRole(user.role as string));
       }
     }
 
-    const isAdmin = roles.includes('ADMIN');
-    const isEditor = roles.includes('EDITOR');
-    const isModerator = roles.includes('MODERATOR');
+    const isAdmin = roles.includes(ROLES.ADMIN);
+    const isEditor = roles.includes(ROLES.EDITOR);
+    const isOrganizer = hasOrganizerRole(roles);
+    const isAssociation = roles.includes(ROLES.ASSOCIATION);
+
+    const normalizeIdentity = (value?: string | null) => (value || '').trim().toLowerCase();
 
     return {
       roles,
       isAdmin,
       isEditor,
-      isModerator,
-      /** Editor can only access content pages */
-      isEditorOnly: isEditor && !isAdmin,
-      /** Check if user has any of the given roles */
-      hasRole: (...checkRoles: string[]) => checkRoles.some((r) => roles.includes(r.toUpperCase())),
-      /** Check if user can access a specific route */
-      canAccess: (path: string): boolean => {
-        if (isAdmin) return true;
-        if (isEditor && !isAdmin) {
-          // Editor can only access dashboard and content/article routes
-          return path === '/dashboard' || path === '/content' || path.startsWith('/content/');
-        }
-        return true;
-      },
-      /** Check if user owns a resource (email or display name match) */
+      isOrganizer,
+      isAssociation,
+      isEditorOnly: isEditor && !isAdmin && !isOrganizer,
+
+      /** Kullanıcı bu path'e erişebilir mi? */
+      canAccess: (path: string) => canAccessPath(path, roles),
+
+      /** Varsayılan landing path */
+      defaultPath: getDefaultPath(roles),
+
+      /** Yetkisiz sayfada nereye yönlendirilsin? */
+      fallbackPath: getFallbackPath(roles),
+
+      /** Verilen rollerden herhangi birine sahip mi? */
+      hasRole: (...checkRoles: string[]) =>
+        checkRoles.some((r) => roles.includes(normalizeRole(r))),
+
+      /** Resource ownership kontrolü (editor kendi içeriğini görebilir) */
       isOwner: (resourceAuthor?: string): boolean => {
         if (isAdmin) return true;
         const resourceIdentity = normalizeIdentity(resourceAuthor);
@@ -61,9 +71,8 @@ export function useRole() {
         if (!resourceIdentity) return false;
         return resourceIdentity === userEmail || (!!userFullName && resourceIdentity === userFullName);
       },
-      /** Current user email */
+
       userEmail: user?.email || '',
-      /** Current user display name */
       userName: user?.firstName && user?.lastName
         ? `${user.firstName} ${user.lastName}`
         : user?.email || '',

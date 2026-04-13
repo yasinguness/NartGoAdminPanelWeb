@@ -87,6 +87,9 @@ export interface OrderDetailResponse {
   totalAmount: number;
   currency: string;
   iyzicoPaymentId?: string;
+  userEmail?: string;
+  customerName?: string;
+  customerPhone?: string;
   createdAt?: string;
   paidAt?: string;
   items: OrderItemResponse[];
@@ -105,9 +108,16 @@ export interface OrderItemResponse {
 export interface OrderTicketResponse {
   id: string;
   ticketTypeId: string;
+  ticketTypeName?: string;
   status?: string;
   serialNo?: string;
   issuedAt?: string;
+  seatRow?: string;
+  seatNumber?: number;
+  seatCategoryName?: string;
+  sequenceNumber?: number;
+  pricePaid?: number;
+  seatInfo?: { rowLabel: string; seatNumber: number; categoryName?: string };
 }
 
 // ─── Filtre ─────────────────────────────────────────────────

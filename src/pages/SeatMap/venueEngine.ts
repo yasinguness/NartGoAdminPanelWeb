@@ -70,8 +70,8 @@ export interface SectionConfig {
   /** Seat number range description (e.g. "1-100 arası koltuklar") */
   seatRangeDesc?: string;
   /** World-space offset of section origin */
-  offsetX: number;
-  offsetY: number;
+  x: number;
+  y: number;
   /** Section rotation in degrees (around its own origin) */
   rotation: number;
   /** 0 = straight rows, >0 = curved rows with this radius for innermost row */
@@ -195,8 +195,8 @@ export function generateSectionSeats(section: SectionConfig): Seat[] {
           sectionName: section.name,
           rowLabel: row.label,
           seatNumber: s + 1,
-          x: section.offsetX + wx,
-          y: section.offsetY + wy,
+          x: section.x + wx,
+          y: section.y + wy,
           category: section.defaultCategory,
           status: 'available',
         });
@@ -224,8 +224,8 @@ export function generateSectionSeats(section: SectionConfig): Seat[] {
           sectionName: section.name,
           rowLabel: row.label,
           seatNumber: s + 1,
-          x: section.offsetX + wx,
-          y: section.offsetY + wy,
+          x: section.x + wx,
+          y: section.y + wy,
           category: section.defaultCategory,
           status: 'available',
         });
@@ -298,7 +298,7 @@ const prosceniumTemplate = (): VenueConfig => ({
     {
       id: 'orch-center',
       name: 'Orkestra',
-      offsetX: 0, offsetY: 120,
+      x: 0, y: 120,
       rotation: 0,
       curveRadius: 0, arcSpan: 0,
       defaultCategory: 'premium',
@@ -308,7 +308,7 @@ const prosceniumTemplate = (): VenueConfig => ({
     {
       id: 'mid-center',
       name: 'Orta Bölüm',
-      offsetX: 0, offsetY: 230,
+      x: 0, y: 230,
       rotation: 0,
       curveRadius: 0, arcSpan: 0,
       defaultCategory: 'vip',
@@ -318,7 +318,7 @@ const prosceniumTemplate = (): VenueConfig => ({
     {
       id: 'rear',
       name: 'Arka Bölüm',
-      offsetX: 0, offsetY: 370,
+      x: 0, y: 370,
       rotation: 0,
       curveRadius: 0, arcSpan: 0,
       defaultCategory: 'standard',
@@ -328,7 +328,7 @@ const prosceniumTemplate = (): VenueConfig => ({
     {
       id: 'balcony',
       name: 'Balkon',
-      offsetX: 0, offsetY: 540,
+      x: 0, y: 540,
       rotation: 0,
       curveRadius: 0, arcSpan: 0,
       defaultCategory: 'economy',
@@ -347,7 +347,7 @@ const arenaTemplate = (): VenueConfig => ({
     {
       id: 'north',
       name: 'Kuzey',
-      offsetX: 0, offsetY: -80,
+      x: 0, y: -80,
       rotation: 0,
       curveRadius: 160, arcSpan: 80,
       defaultCategory: 'premium',
@@ -357,7 +357,7 @@ const arenaTemplate = (): VenueConfig => ({
     {
       id: 'south',
       name: 'Güney',
-      offsetX: 0, offsetY: 80,
+      x: 0, y: 80,
       rotation: 180,
       curveRadius: 160, arcSpan: 80,
       defaultCategory: 'standard',
@@ -367,7 +367,7 @@ const arenaTemplate = (): VenueConfig => ({
     {
       id: 'east',
       name: 'Doğu',
-      offsetX: 80, offsetY: 0,
+      x: 80, y: 0,
       rotation: 90,
       curveRadius: 160, arcSpan: 60,
       defaultCategory: 'vip',
@@ -377,7 +377,7 @@ const arenaTemplate = (): VenueConfig => ({
     {
       id: 'west',
       name: 'Batı',
-      offsetX: -80, offsetY: 0,
+      x: -80, y: 0,
       rotation: -90,
       curveRadius: 160, arcSpan: 60,
       defaultCategory: 'vip',
@@ -396,7 +396,7 @@ const amphitheaterTemplate = (): VenueConfig => ({
     {
       id: 'main',
       name: 'Ana Salon',
-      offsetX: 0, offsetY: 80,
+      x: 0, y: 80,
       rotation: 0,
       curveRadius: 180, arcSpan: 160,
       defaultCategory: 'standard',
@@ -421,7 +421,7 @@ const thrustTemplate = (): VenueConfig => ({
     {
       id: 'front',
       name: 'Ön',
-      offsetX: 0, offsetY: 160,
+      x: 0, y: 160,
       rotation: 0,
       curveRadius: 0, arcSpan: 0,
       defaultCategory: 'premium',
@@ -431,7 +431,7 @@ const thrustTemplate = (): VenueConfig => ({
     {
       id: 'left',
       name: 'Sol Kanat',
-      offsetX: -180, offsetY: 20,
+      x: -180, y: 20,
       rotation: -70,
       curveRadius: 0, arcSpan: 0,
       defaultCategory: 'vip',
@@ -441,7 +441,7 @@ const thrustTemplate = (): VenueConfig => ({
     {
       id: 'right',
       name: 'Sağ Kanat',
-      offsetX: 180, offsetY: 20,
+      x: 180, y: 20,
       rotation: 70,
       curveRadius: 0, arcSpan: 0,
       defaultCategory: 'vip',
@@ -460,7 +460,7 @@ const stadiumTemplate = (): VenueConfig => ({
     {
       id: 'north-trib',
       name: 'Kuzey Tribün',
-      offsetX: 0, offsetY: -120,
+      x: 0, y: -120,
       rotation: 0,
       curveRadius: 320, arcSpan: 90,
       defaultCategory: 'standard',
@@ -470,7 +470,7 @@ const stadiumTemplate = (): VenueConfig => ({
     {
       id: 'south-trib',
       name: 'Güney Tribün',
-      offsetX: 0, offsetY: 120,
+      x: 0, y: 120,
       rotation: 180,
       curveRadius: 320, arcSpan: 90,
       defaultCategory: 'standard',
@@ -480,7 +480,7 @@ const stadiumTemplate = (): VenueConfig => ({
     {
       id: 'east-trib',
       name: 'Doğu Tribün (VIP)',
-      offsetX: 180, offsetY: 0,
+      x: 180, y: 0,
       rotation: 90,
       curveRadius: 320, arcSpan: 50,
       defaultCategory: 'vip',
@@ -490,7 +490,7 @@ const stadiumTemplate = (): VenueConfig => ({
     {
       id: 'west-trib',
       name: 'Batı Tribün',
-      offsetX: -180, offsetY: 0,
+      x: -180, y: 0,
       rotation: -90,
       curveRadius: 320, arcSpan: 50,
       defaultCategory: 'economy',
@@ -509,7 +509,7 @@ const openairTemplate = (): VenueConfig => ({
     {
       id: 'vip-seated',
       name: 'VIP Oturma',
-      offsetX: 0, offsetY: 120,
+      x: 0, y: 120,
       rotation: 0,
       curveRadius: 400, arcSpan: 60,
       defaultCategory: 'premium',
@@ -519,7 +519,7 @@ const openairTemplate = (): VenueConfig => ({
     {
       id: 'general-seated',
       name: 'Oturma Alanı',
-      offsetX: 0, offsetY: 280,
+      x: 0, y: 280,
       rotation: 0,
       curveRadius: 500, arcSpan: 70,
       defaultCategory: 'standard',
@@ -858,8 +858,8 @@ export function addSection(venue: VenueConfig): VenueConfig {
   const newSection: SectionConfig = {
     id,
     name: `Bölüm ${venue.sections.length + 1}`,
-    offsetX: 0,
-    offsetY: (lastSection?.offsetY ?? 0) + 200,
+    x: 0,
+    y: (lastSection?.y ?? 0) + 200,
     rotation: 0,
     curveRadius: 0,
     arcSpan: 0,
@@ -1079,4 +1079,69 @@ export function generateBlockLabel(section: SectionConfig, seats: Seat[]): strin
   const minSeat = Math.min(...sectionSeats.map(s => s.seatNumber));
   const maxSeat = Math.max(...sectionSeats.map(s => s.seatNumber));
   return `${section.blockLabel || section.name} · ${minSeat}-${maxSeat} arası koltuklar`;
+}
+
+/**
+ * Deserialize a saved venue design back into VenueConfig + seat overrides.
+ * This is the inverse of serializeVenueDesign.
+ * @param saved - The object that was saved to backend via saveSeatMapDesign
+ * @returns { venue, seatOverrides } or null if data is invalid
+ */
+export function deserializeVenueDesign(saved: Record<string, any>): {
+  venue: VenueConfig;
+  seatOverrides: { id: string; category: string; status: SeatStatus }[];
+} | null {
+  if (!saved || !saved.sections || !Array.isArray(saved.sections)) return null;
+
+  const venueType = (saved.venueType as VenueType) || 'theater';
+  const venueName = saved.venueName || 'Yüklenen Düzen';
+
+  // Reconstruct stage
+  const stage: StageConfig = saved.stage || {
+    x: 0, y: -200, width: 400, height: 80,
+    shape: 'rectangle', label: 'SAHNE',
+  };
+
+  // Reconstruct sections
+  const sections: SectionConfig[] = (saved.sections as any[]).map((s: any) => ({
+    id: s.id || `sec-${Math.random().toString(36).slice(2)}`,
+    name: s.name || 'Bölüm',
+    x: s.x ?? 0,
+    y: s.y ?? 0,
+    rotation: s.rotation ?? 0,
+    curveRadius: s.curveRadius ?? 0,
+    arcSpan: s.arcSpan ?? 180,
+    defaultCategory: s.defaultCategory || 'standard',
+    blockLabel: s.blockLabel || s.name || '',
+    seatRangeDesc: s.seatRangeDesc || '',
+    rows: Array.isArray(s.rows) ? s.rows.map((r: any, ri: number) => ({
+      label: r.label || String.fromCharCode(65 + ri),
+      seatCount: r.seatCount ?? 16,
+      seatSpacing: r.seatSpacing ?? 26,
+      rowGap: r.rowGap ?? 28,
+      aisleAfter: r.aisleAfter || [],
+      aisleWidth: r.aisleWidth || 20,
+    })) : [{ label: 'A', seatCount: 16, seatSpacing: 26, rowGap: 28, aisleAfter: [], aisleWidth: 20 }],
+  }));
+
+  const standingZones = Array.isArray(saved.standingZones) ? saved.standingZones : [];
+
+  const venue: VenueConfig = {
+    type: venueType,
+    name: venueName,
+    stage,
+    sections,
+    standingZones,
+  };
+
+  // Seat overrides (category/status changes)
+  const seatOverrides = Array.isArray(saved.seatOverrides)
+    ? saved.seatOverrides.map((o: any) => ({
+        id: o.id,
+        category: o.category || 'standard',
+        status: (o.status || 'available') as SeatStatus,
+      }))
+    : [];
+
+  return { venue, seatOverrides };
 }

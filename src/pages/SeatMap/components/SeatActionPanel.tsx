@@ -136,7 +136,9 @@ export default function SeatActionPanel({
             </Stack>
             <Stack direction="row" justifyContent="space-between">
               <Typography variant="caption" color="text.secondary">Kategori</Typography>
-              <Typography variant="caption" fontWeight={700}>{singleSeat.category}</Typography>
+              <Typography variant="caption" fontWeight={700}>
+                {selectedSeats[0]?.category ? (DEFAULT_CATEGORIES.find(c => c.id === singleSeat!.category)?.name || singleSeat!.category) : '-'}
+              </Typography>
             </Stack>
             {singleSeat.assignment && (
               <>

@@ -10,7 +10,7 @@ export const api = axios.create({
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     },
-    withCredentials: true, // CORS için önemli
+    withCredentials: !import.meta.env.DEV,
 });
 
 // Add request interceptor to add auth token

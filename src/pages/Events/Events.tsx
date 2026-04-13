@@ -4,6 +4,8 @@
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useRole } from '../../hooks/useRole';
+import { adminOperationsService } from '../../services/admin/adminOperationsService';
 import {
   Box,
   Typography,
@@ -27,6 +29,7 @@ import {
   Switch,
   Autocomplete,
   CircularProgress,
+  Skeleton,
   alpha,
   Grid,
   Paper,
@@ -55,6 +58,7 @@ import {
   ArrowForwardIos as ChevronIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
+import { formatDate, formatTime } from '../../utils/dateUtils';
 import { debounce } from 'lodash';
 import { useSnackbar } from 'notistack';
 
@@ -139,8 +143,10 @@ export default function Events() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { isAdmin } = useRole();
+
   const {
-    events,
+    events: allEvents,
     loading,
     getPopularEvents,
     createEvent,
@@ -150,15 +156,26 @@ export default function Events() {
     updateActiveStatus,
   } = useEvent();
 
+  // Organizatör kendi etkinliklerini görür
+  const [myEvents, setMyEvents] = useState<EventResponseDTO[]>([]);
+  const events = isAdmin ? allEvents : myEvents;
 
   // ─── DATA FETCHING ────────────────────────────────
   const fetchEventsData = useCallback(async () => {
-    const searchParams: EventSearchDTO = {
-      keyword: searchQuery,
-      isUpcoming: true,
-    };
-    await getPopularEvents(searchParams, page, rowsPerPage);
-  }, [getPopularEvents, page, rowsPerPage, searchQuery]);
+    if (isAdmin) {
+      const searchParams: EventSearchDTO = {
+        keyword: searchQuery,
+        isUpcoming: true,
+      };
+      await getPopularEvents(searchParams, page, rowsPerPage);
+    } else {
+      try {
+        const res = await adminOperationsService.getMyEvents();
+        const list = Array.isArray(res) ? res : (res as any)?.data ?? [];
+        setMyEvents(list);
+      } catch { setMyEvents([]); }
+    }
+  }, [isAdmin, getPopularEvents, page, rowsPerPage, searchQuery]);
 
   useEffect(() => { fetchEventsData(); }, [fetchEventsData]);
 
@@ -245,14 +262,7 @@ export default function Events() {
           subtitle="Topluluk etkinliklerinizi ve biletlerinizi organize edin, takip edin ve yönetin."
           actions={
             <Stack direction="row" spacing={1}>
-              <Button
-                variant="outlined"
-                startIcon={<PersonIcon />}
-                onClick={handleOpenCreateDialog}
-                sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600 }}
-              >
-                Kullanıcı Adına Oluştur
-              </Button>
+             
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
@@ -352,8 +362,28 @@ export default function Events() {
         {/* ═══ EVENTS LIST ═══ */}
         <Stack spacing={2}>
           {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <Box key={i} sx={{ height: 100, borderRadius: 4, bgcolor: 'background.paper', opacity: 0.6, animation: 'pulse 1.5s infinite' }} />
+            Array.from({ length: 5 }).map((_, i) => (
+              <Box key={i} sx={{ ...glassCardSx, p: 2.5 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 48px' }, gap: 3, alignItems: 'center' }}>
+                  <Skeleton variant="rounded" width={80} height={80} sx={{ borderRadius: 3 }} />
+                  <Box>
+                    <Skeleton variant="text" width="70%" height={24} />
+                    <Skeleton variant="text" width="40%" height={16} sx={{ mt: 0.5 }} />
+                  </Box>
+                  <Box>
+                    <Skeleton variant="text" width="60%" height={14} />
+                    <Skeleton variant="text" width="80%" height={18} sx={{ mt: 0.5 }} />
+                    <Skeleton variant="text" width="30%" height={14} />
+                  </Box>
+                  <Box>
+                    <Skeleton variant="text" width="50%" height={14} />
+                    <Skeleton variant="rounded" width="100%" height={8} sx={{ mt: 1, borderRadius: 4 }} />
+                    <Skeleton variant="text" width="40%" height={14} sx={{ mt: 0.5 }} />
+                  </Box>
+                  <Skeleton variant="rounded" width={60} height={24} sx={{ borderRadius: 2 }} />
+                  <Skeleton variant="circular" width={32} height={32} />
+                </Box>
+              </Box>
             ))
           ) : filteredEvents.length === 0 ? (
             <Box sx={{ py: 10, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 4 }}>
@@ -404,10 +434,10 @@ export default function Events() {
                     <Box>
                       <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase">Tarih & Saat</Typography>
                       <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
-                        {event.eventTime ? format(new Date(event.eventTime), 'dd MMM yyyy') : '—'}
+                        {formatDate(event.eventTime)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {event.eventTime ? format(new Date(event.eventTime), 'HH:mm') : '--:--'}
+                        {formatTime(event.eventTime)}
                       </Typography>
                     </Box>
 

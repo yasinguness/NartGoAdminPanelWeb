@@ -90,12 +90,12 @@ export const ticketService = {
   // ── Koltuk İşlemleri ──────────────────────────────────────
 
   getSeatMap: async (eventId: string) => {
-    const response = await api.get<ApiResponse<SeatMapResponse>>(`/seats/events/${eventId}/map`);
+    const response = await api.get<ApiResponse<SeatMapResponse>>(`/tickets/seats/events/${eventId}/map`);
     return response.data;
   },
 
   reserveSeats: async (eventId: string, seatIds: string[], ttlMinutes?: number) => {
-    const response = await api.post<ApiResponse<{ reservationId: string }>>(`/seats/events/${eventId}/reserve`, {
+    const response = await api.post<ApiResponse<{ reservationId: string }>>(`/tickets/seats/events/${eventId}/reserve`, {
       seatIds,
       ttlMinutes,
     });
@@ -103,7 +103,7 @@ export const ticketService = {
   },
 
   cancelSeatReservation: async (eventId: string, reservationId: string) => {
-    const response = await api.post<ApiResponse<void>>(`/seats/events/${eventId}/cancel/${reservationId}`);
+    const response = await api.post<ApiResponse<void>>(`/tickets/seats/events/${eventId}/cancel/${reservationId}`);
     return response.data;
   },
 
@@ -117,13 +117,92 @@ export const ticketService = {
     return response.data;
   },
 
+  // Admin seat map — zengin detay + stats
+  getAdminSeatMap: async (eventId: string) => {
+    const response = await api.get<ApiResponse<SeatMapResponse>>(`/tickets/admin/events/${eventId}/seat-map`);
+    return response.data;
+  },
+
+  // Layout meta kaydet
+  saveLayoutMeta: async (eventId: string, layout: {
+    layoutMeta?: Record<string, any>;
+    stagePosition?: Record<string, any>;
+    mapping?: Record<string, any>;
+  }) => {
+    const response = await api.put<ApiResponse<{ eventId: string; savedAt: string }>>(
+      `/tickets/admin/events/${eventId}/seat-map/layout`, layout
+    );
+    return response.data;
+  },
+
+  // Manuel satış
+  manualSellSeat: async (eventId: string, seatId: string, note?: string) => {
+    const response = await api.post<ApiResponse<any>>(
+      `/tickets/admin/events/${eventId}/seats/${seatId}/manual-sell`,
+      { note: note || '', adminEmail: 'admin' }
+    );
+    return response.data;
+  },
+
+  // Manuel satış iptal
+  manualUnsellSeat: async (eventId: string, seatId: string) => {
+    const response = await api.post<ApiResponse<any>>(
+      `/tickets/admin/events/${eventId}/seats/${seatId}/manual-unsell`,
+      { adminEmail: 'admin' }
+    );
+    return response.data;
+  },
+
+  // Toplu koltuk işlemi
+  batchSeatOperation: async (eventId: string, seatIds: string[], action: string, note?: string) => {
+    const response = await api.post<ApiResponse<{ action: string; succeeded: number; skipped: number }>>(
+      `/tickets/admin/events/${eventId}/seats/batch`,
+      { seatIds, action, note: note || '', adminEmail: 'admin' }
+    );
+    return response.data;
+  },
+
+  // Koltuk istatistikleri (available, sold, reserved, blocked, occupancyRate)
+  getSeatStats: async (eventId: string) => {
+    const response = await api.get<ApiResponse<{
+      total: number; available: number; reserved: number;
+      sold: number; blocked: number; occupancyRate: number;
+    }>>(`/tickets/admin/events/${eventId}/seats/stats`);
+    return response.data;
+  },
+
+  // Tekil koltuk detayı (manuel satış bilgisi, erişilebilirlik, disable durumu)
+  getSeatDetail: async (eventId: string, seatId: string) => {
+    const response = await api.get<ApiResponse<Record<string, any>>>(
+      `/tickets/admin/events/${eventId}/seats/${seatId}`
+    );
+    return response.data;
+  },
+
+  // Bölge listesi (quota, sold count, ticketTypeId ile)
+  getSeatCategories: async (eventId: string) => {
+    const response = await api.get<ApiResponse<Array<{
+      id: string; name: string; basePrice: number; color: string;
+      quota: number; ticketTypeId: string; totalSeats: number; soldSeats: number;
+    }>>>(`/tickets/admin/events/${eventId}/seat-categories`);
+    return response.data;
+  },
+
+  // Audit log (koltuk işlem geçmişi)
+  getSeatAuditLog: async (eventId: string, page = 0, size = 50) => {
+    const response = await api.get<ApiResponse<Array<Record<string, any>>>>(
+      `/tickets/admin/events/${eventId}/seats/audit?page=${page}&size=${size}`
+    );
+    return response.data;
+  },
+
   getOccupiedSeats: async (eventId: string) => {
-    const response = await api.get<ApiResponse<string[]>>(`/seats/events/${eventId}/occupied`);
+    const response = await api.get<ApiResponse<string[]>>(`/tickets/seats/events/${eventId}/occupied`);
     return response.data;
   },
 
   getReservedSeats: async (eventId: string) => {
-    const response = await api.get<ApiResponse<string[]>>(`/seats/events/${eventId}/reserved`);
+    const response = await api.get<ApiResponse<string[]>>(`/tickets/seats/events/${eventId}/reserved`);
     return response.data;
   },
 

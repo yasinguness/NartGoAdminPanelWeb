@@ -26,7 +26,7 @@ const SHAPES: { value: StageShape; label: string; icon: string }[] = [
   { value: 'oval', label: 'Oval', icon: '⬮' },
 ];
 
-const STAGE_COLORS = ['#2D5A33', '#16461C', '#1a365d', '#4a1942', '#8B4513', '#1e293b', '#0f172a'];
+
 
 export default function StageEditor({ stage, onChange, onClose }: StageEditorProps) {
   const theme = useTheme();
@@ -103,20 +103,7 @@ export default function StageEditor({ stage, onChange, onClose }: StageEditorPro
         placeholder="SAHNE"
         sx={{ mb: 1.5 }} />
 
-      {/* Renk */}
-      <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>Renk</Typography>
-      <Stack direction="row" spacing={0.5}>
-        {STAGE_COLORS.map(c => (
-          <Box key={c} onClick={() => update({ ...stage, label: stage.label } as any)}
-            sx={{
-              width: 24, height: 24, borderRadius: 1, bgcolor: c, cursor: 'pointer',
-              border: '2px solid', borderColor: 'transparent',
-              '&:hover': { transform: 'scale(1.15)' },
-              transition: 'all 0.15s',
-            }}
-          />
-        ))}
-      </Stack>
+
 
       {/* Sürükle ipucu */}
       <Typography variant="caption" color="text.disabled" sx={{ mt: 2, display: 'block', fontSize: '0.65rem' }}>

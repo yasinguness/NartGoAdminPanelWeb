@@ -2,17 +2,16 @@ import { useState } from 'react';
 import {
     Box,
     Button,
-    Container,
     TextField,
     Typography,
-    Paper,
     Alert,
     InputAdornment,
     IconButton,
     useTheme,
     useMediaQuery,
-    Avatar,
     alpha,
+    CircularProgress,
+    Stack,
 } from '@mui/material';
 import {
     Visibility,
@@ -25,17 +24,22 @@ import { useAuth } from '../hooks/useAuth';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
+    const assetBaseUrl = import.meta.env.BASE_URL.endsWith('/')
+        ? import.meta.env.BASE_URL
+        : `${import.meta.env.BASE_URL}/`;
+    const backgroundImageUrl = `url(${assetBaseUrl}background.jpg)`;
+    const logoUrl = `${assetBaseUrl}NartGo_icon.svg`;
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [emailError, setEmailError] = useState('');
     const { login, isLoading, error } = useAuth();
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
     const validateEmail = () => {
         if (email && !EMAIL_REGEX.test(email)) {
-            setEmailError('Geçerli bir e-posta adresi girin');
+            setEmailError('Gecerli bir e-posta adresi girin');
         } else {
             setEmailError('');
         }
@@ -45,7 +49,7 @@ export default function Login() {
         e.preventDefault();
         if (!email || !password) return;
         if (!EMAIL_REGEX.test(email)) {
-            setEmailError('Geçerli bir e-posta adresi girin');
+            setEmailError('Gecerli bir e-posta adresi girin');
             return;
         }
         try {
@@ -56,186 +60,240 @@ export default function Login() {
     };
 
     return (
-        <Box
-            sx={{
-                minHeight: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                width: '100vw',
-            }}
-        >
-            <Container
-                component="main"
-                maxWidth={false}
-                sx={{
-                    width: '100vw',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    minHeight: '100vh',
-                    p: 0,
-                }}
-            >
-                <Paper
-                    elevation={24}
+        <Box sx={{ display: 'flex', minHeight: '100vh', width: '100vw', overflow: 'hidden' }}>
+            {/* Sol — Arkaplan gorseli */}
+            {!isMobile && (
+                <Box
                     sx={{
-                        padding: { xs: 3, sm: 5 },
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        width: { xs: '100%', sm: 420 },
-                        maxWidth: 480,
-                        borderRadius: 3,
-                        background: alpha(theme.palette.background.paper, 0.95),
-                        backdropFilter: 'blur(20px)',
-                        m: { xs: 0, sm: 4 },
+                        flex: 1,
+                        position: 'relative',
+                        backgroundImage: backgroundImageUrl,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
                     }}
                 >
-                    {/* Logo */}
-                    <Avatar
-                        sx={{
-                            width: 56,
-                            height: 56,
-                            bgcolor: theme.palette.primary.main,
-                            color: theme.palette.primary.contrastText,
-                            fontSize: '1.5rem',
-                            fontWeight: 800,
-                            mb: 2,
-                            boxShadow: `0 8px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
-                        }}
-                    >
-                        N
-                    </Avatar>
-
+                    {/* Koyu gradient overlay */}
                     <Box
                         sx={{
-                            width: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            mb: 4,
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'linear-gradient(135deg, rgba(13,31,18,0.7) 0%, rgba(13,31,18,0.4) 50%, rgba(13,31,18,0.6) 100%)',
                         }}
-                    >
+                    />
+
+                    {/* Sol alt branding */}
+                    <Box sx={{ position: 'absolute', bottom: 48, left: 48, zIndex: 1 }}>
+                        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+                            <Box
+                                component="img"
+                                src={logoUrl}
+                                alt="NartGo"
+                                sx={{ width: 36, height: 36, filter: 'brightness(0) invert(1)' }}
+                            />
+                            <Typography variant="h5" sx={{ color: '#fff', fontWeight: 800, letterSpacing: -0.5 }}>
+                                NartGo
+                            </Typography>
+                        </Stack>
                         <Typography
-                            component="h1"
                             variant="h4"
                             sx={{
+                                color: '#fff',
                                 fontWeight: 800,
-                                color: theme.palette.primary.main,
-                                mb: 0.5,
-                                letterSpacing: -0.5,
+                                lineHeight: 1.2,
+                                maxWidth: 400,
+                                mb: 1.5,
                             }}
                         >
-                            Nartgo
+                            Kuzey Kafkasya
+                            <br />
+                            Diaspora Platformu
                         </Typography>
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            align="center"
-                            sx={{ fontWeight: 500 }}
-                        >
-                            Yönetim paneline giriş yapın
+                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', maxWidth: 360 }}>
+                            Etkinlik, topluluk ve kulturel miras yonetimi icin tek platform.
                         </Typography>
                     </Box>
 
-                    <Box
-                        component="form"
-                        onSubmit={handleSubmit}
+                    {/* Sol ust copyright */}
+                    <Typography
+                        variant="caption"
                         sx={{
-                            width: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 2.5,
+                            position: 'absolute',
+                            bottom: 20,
+                            right: 24,
+                            color: 'rgba(255,255,255,0.35)',
+                            fontSize: 11,
+                            zIndex: 1,
                         }}
                     >
+                        NartGo
+                    </Typography>
+                </Box>
+            )}
+
+            {/* Sag — Giris formu */}
+            <Box
+                sx={{
+                    width: { xs: '100%', md: 480 },
+                    minWidth: { md: 480 },
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    px: { xs: 3, sm: 6 },
+                    py: 6,
+                    bgcolor: 'background.paper',
+                    position: 'relative',
+                    // Mobilde arkaplan gorseli
+                    ...(isMobile && {
+                        backgroundImage: backgroundImageUrl,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                    }),
+                }}
+            >
+                {/* Mobil overlay */}
+                {isMobile && (
+                    <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px)' }} />
+                )}
+
+                <Box sx={{ width: '100%', maxWidth: 360, position: 'relative', zIndex: 1 }}>
+                    {/* Logo + Baslik */}
+                    <Box sx={{ textAlign: 'center', mb: 5 }}>
+                        <Box
+                            component="img"
+                            src={logoUrl}
+                            alt="NartGo"
+                            sx={{ width: 48, height: 48, mb: 2 }}
+                        />
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: -0.5 }}>
+                            Yonetim Paneli
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            Hesabinizla giris yapin
+                        </Typography>
+                    </Box>
+
+                    {/* Form */}
+                    <Box component="form" onSubmit={handleSubmit}>
                         {error && (
-                            <Alert severity="error" sx={{ borderRadius: 2 }}>
-                                {error.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.'}
+                            <Alert
+                                severity="error"
+                                sx={{ mb: 2.5, borderRadius: 2, fontSize: 13 }}
+                            >
+                                {error.message || 'Giris basarisiz. Bilgilerinizi kontrol edin.'}
                             </Alert>
                         )}
 
-                        <TextField
-                            required
-                            fullWidth
-                            id="email"
-                            label="E-posta Adresi"
-                            name="email"
-                            autoComplete="email"
-                            autoFocus
-                            value={email}
-                            onChange={(e) => {
-                                setEmail(e.target.value);
-                                if (emailError) setEmailError('');
-                            }}
-                            onBlur={validateEmail}
-                            error={!!emailError}
-                            helperText={emailError}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <EmailIcon color={emailError ? 'error' : 'primary'} />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
+                        <Stack spacing={2.5}>
+                            <TextField
+                                required
+                                fullWidth
+                                id="email"
+                                label="E-posta"
+                                name="email"
+                                autoComplete="email"
+                                autoFocus
+                                value={email}
+                                onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    if (emailError) setEmailError('');
+                                }}
+                                onBlur={validateEmail}
+                                error={!!emailError}
+                                helperText={emailError}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <EmailIcon sx={{ color: emailError ? 'error.main' : 'text.secondary', fontSize: 20 }} />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        bgcolor: alpha(theme.palette.grey[100], 0.5),
+                                        '&:hover': { bgcolor: alpha(theme.palette.grey[100], 0.8) },
+                                        '&.Mui-focused': { bgcolor: 'transparent' },
+                                    },
+                                }}
+                            />
 
-                        <TextField
-                            required
-                            fullWidth
-                            name="password"
-                            label="Şifre"
-                            type={showPassword ? 'text' : 'password'}
-                            id="password"
-                            autoComplete="current-password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <LockIcon color="primary" />
-                                    </InputAdornment>
-                                ),
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <IconButton
-                                            type="button"
-                                            aria-label="şifre görünürlüğünü değiştir"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            edge="end"
-                                        >
-                                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
+                            <TextField
+                                required
+                                fullWidth
+                                name="password"
+                                label="Sifre"
+                                type={showPassword ? 'text' : 'password'}
+                                id="password"
+                                autoComplete="current-password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                edge="end"
+                                                size="small"
+                                            >
+                                                {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        bgcolor: alpha(theme.palette.grey[100], 0.5),
+                                        '&:hover': { bgcolor: alpha(theme.palette.grey[100], 0.8) },
+                                        '&.Mui-focused': { bgcolor: 'transparent' },
+                                    },
+                                }}
+                            />
 
-                        <Button
-                            type="submit"
-                            fullWidth
-                            variant="contained"
-                            size="large"
-                            disabled={isLoading || !email || !password}
-                            sx={{
-                                mt: 1,
-                                py: 1.5,
-                                borderRadius: 2,
-                                textTransform: 'none',
-                                fontSize: '1rem',
-                                fontWeight: 700,
-                                boxShadow: `0 8px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
-                                '&:hover': {
-                                    boxShadow: `0 12px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
-                                },
-                            }}
-                        >
-                            {isLoading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
-                        </Button>
+                            <Button
+                                type="submit"
+                                fullWidth
+                                variant="contained"
+                                size="large"
+                                disabled={isLoading || !email || !password}
+                                disableElevation
+                                sx={{
+                                    py: 1.5,
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    fontSize: 15,
+                                    fontWeight: 700,
+                                    mt: 0.5,
+                                    bgcolor: '#0D1F12',
+                                    '&:hover': { bgcolor: '#1a3320' },
+                                }}
+                            >
+                                {isLoading ? (
+                                    <CircularProgress size={22} sx={{ color: '#fff' }} />
+                                ) : (
+                                    'Giris Yap'
+                                )}
+                            </Button>
+                        </Stack>
                     </Box>
-                </Paper>
-            </Container>
+
+                    {/* Alt bilgi */}
+                    <Typography
+                        variant="caption"
+                        color="text.disabled"
+                        sx={{ display: 'block', textAlign: 'center', mt: 4, fontSize: 11 }}
+                    >
+                        NartGo &copy; {new Date().getFullYear()} &middot; NartGo
+                    </Typography>
+                </Box>
+            </Box>
         </Box>
     );
 }

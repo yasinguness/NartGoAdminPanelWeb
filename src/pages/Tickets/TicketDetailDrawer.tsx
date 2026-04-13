@@ -313,8 +313,8 @@ export default function TicketDetailDrawer({
               <Stack direction="row" spacing={1} justifyContent="flex-end">
                 <Button size="small" onClick={() => setShowCancelForm(false)} sx={{ textTransform: 'none' }}>Vazgeç</Button>
                 <Button size="small" variant="contained" color="error"
-                  onClick={() => { onCancel?.(ticket.id, cancelReason); setShowCancelForm(false); setCancelReason(''); }}
-                  disabled={cancelLoading}
+                  onClick={() => { if (!cancelReason.trim()) return; onCancel?.(ticket.id, cancelReason); setShowCancelForm(false); setCancelReason(''); }}
+                  disabled={cancelLoading || !cancelReason.trim()}
                   sx={{ textTransform: 'none' }}>
                   {cancelLoading ? <CircularProgress size={16} /> : 'İptal Et'}
                 </Button>
@@ -330,7 +330,7 @@ export default function TicketDetailDrawer({
               <Stack direction="row" spacing={1} justifyContent="flex-end">
                 <Button size="small" onClick={() => setShowRefundForm(false)} sx={{ textTransform: 'none' }}>Vazgeç</Button>
                 <Button size="small" variant="contained" color="warning"
-                  onClick={() => { onRefund?.(ticket.id, cancelReason); setShowRefundForm(false); setCancelReason(''); }}
+                  onClick={() => { if (!cancelReason.trim()) return; onRefund?.(ticket.id, cancelReason); setShowRefundForm(false); setCancelReason(''); }}
                   disabled={refundLoading}
                   sx={{ textTransform: 'none' }}>
                   {refundLoading ? <CircularProgress size={16} /> : 'İade Et'}

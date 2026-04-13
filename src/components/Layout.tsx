@@ -53,6 +53,7 @@ interface NavItem {
     text: string;
     icon: React.ReactNode;
     path: string;
+    allowedRoles?: string[];
 }
 
 interface NavSection {
@@ -64,25 +65,21 @@ interface NavSection {
 const navSections: NavSection[] = [
     {
         title: 'Genel',
-        allowedRoles: ['ADMIN', 'MODERATOR'],
         items: [
             { text: 'Kontrol Paneli', icon: <DashboardIcon />, path: '/dashboard' },
         ],
     },
     {
         title: 'Etkinlik Yönetimi',
-        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
             { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories' },
             { text: 'Etkinlik Oluştur', icon: <TicketIcon />, path: '/event-creation' },
             { text: 'Bilet Yönetimi', icon: <TicketIcon />, path: '/tickets' },
-            { text: 'Oturma Düzeni', icon: <EventSeatIcon />, path: '/seat-map' },
         ],
     },
     {
         title: 'İşletme Yönetimi',
-        allowedRoles: ['ADMIN'],
         items: [
             { text: 'İşletmeler', icon: <BusinessIcon />, path: '/businesses' },
             { text: 'İşletme Talepleri', icon: <FactCheckIcon />, path: '/business-claims' },
@@ -91,18 +88,14 @@ const navSections: NavSection[] = [
     },
     {
         title: 'Satış & Finans',
-        allowedRoles: ['ADMIN'],
         items: [
-            { text: 'Satış Merkezi', icon: <TrendingUpIcon />, path: '/sales-command' },
-            { text: 'Gişe', icon: <PointOfSaleIcon />, path: '/box-office' },
-            { text: 'Mekan Envanteri', icon: <HomeWork />, path: '/venue-inventory' },
+            { text: 'Satış Özeti', icon: <TrendingUpIcon />, path: '/sales-command' },
             { text: 'Ödeme & Mutabakat', icon: <AccountBalanceIcon />, path: '/settlement-finance' },
             { text: 'Alt Bayiler', icon: <AccountBalanceIcon />, path: '/sub-merchants' },
         ],
     },
     {
         title: 'Kullanıcılar',
-        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users' },
             { text: 'Dernekler', icon: <HomeWork />, path: '/associations' },
@@ -110,14 +103,12 @@ const navSections: NavSection[] = [
     },
     {
         title: 'İçerik',
-        allowedRoles: ['ADMIN', 'MODERATOR', 'EDITOR'],
         items: [
             { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
         ],
     },
     {
         title: 'İçerik Yönetimi',
-        allowedRoles: ['ADMIN', 'MODERATOR'],
         items: [
             { text: 'Bildirimler', icon: <NotificationsIcon />, path: '/notifications' },
             { text: 'Video Akışı', icon: <FeedIcon />, path: '/feeds' },
@@ -127,15 +118,12 @@ const navSections: NavSection[] = [
     },
     {
         title: 'Operasyonlar',
-        allowedRoles: ['ADMIN'],
         items: [
-            { text: 'Kapı Operasyonları', icon: <SensorsIcon />, path: '/gate-ops' },
             { text: 'Müşteri Destek', icon: <SupportIcon />, path: '/customer-support' },
         ],
     },
     {
         title: 'Sistem',
-        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Cihazlar', icon: <DevicesIcon />, path: '/devices' },
             { text: 'Oyunlaştırma', icon: <EmojiEventsIcon />, path: '/gamification' },
@@ -151,18 +139,20 @@ export default function Layout() {
     const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
-    const { roles, userName, isEditorOnly } = useRole();
+    const { roles, userName, isEditorOnly, isAdmin, canAccess } = useRole();
     const { logout } = useAuth();
 
     // Analytics: track every page navigation
     usePageTracking();
 
     const visibleSections = useMemo(() => {
-        return navSections.filter((s) => {
-            if (!s.allowedRoles || s.allowedRoles.length === 0) return true;
-            return s.allowedRoles.some((r) => roles.includes(r));
-        });
-    }, [roles]);
+        return navSections
+            .map((s) => ({
+                ...s,
+                items: s.items.filter((item) => canAccess(item.path)),
+            }))
+            .filter((s) => s.items.length > 0);
+    }, [canAccess]);
 
     const isZenMode = location.pathname.includes('seat-map') && new URLSearchParams(location.search).get('zen') === 'true';
 
@@ -390,8 +380,8 @@ export default function Layout() {
                     </Box>
                 </Box>
 
-                {/* Notifications shortcut — hidden for editors */}
-                {!isEditorOnly && (
+                {/* Notifications shortcut */}
+                {canAccess('/notifications') && (
                     <Tooltip title="Bildirimler">
                         <IconButton size="small" onClick={() => navigate('/notifications')}
                             sx={{ color: theme.palette.text.secondary, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}>
@@ -400,8 +390,8 @@ export default function Layout() {
                     </Tooltip>
                 )}
 
-                {/* Settings shortcut — hidden for editors */}
-                {!isEditorOnly && (
+                {/* Settings shortcut */}
+                {canAccess('/settings') && (
                     <Tooltip title="Ayarlar">
                         <IconButton size="small" onClick={() => navigate('/settings')}
                             sx={{ color: theme.palette.text.secondary, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}>

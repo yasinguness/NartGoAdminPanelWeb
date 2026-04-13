@@ -45,6 +45,13 @@ export const eventService = {
     },
 
     // Event Operations
+    getAllEvents: async (params?: { page?: number; size?: number; status?: string }) => {
+        const response = await api.get<ApiResponse<PageResponseDto<EventResponseDTO>>>('/events', {
+            params: { page: params?.page ?? 0, size: params?.size ?? 100, status: params?.status },
+        });
+        return response.data;
+    },
+
     getEventById: async (id: string) => {
         const response = await api.get<ApiResponse<EventResponseDTO>>(`/events/${id}`);
         return response.data;

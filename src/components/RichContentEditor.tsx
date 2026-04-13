@@ -17,6 +17,7 @@ import {
   ContentPaste as PasteIcon,
 } from '@mui/icons-material';
 import type { ContentBlock, ContentBlockType } from '../types/notification.types';
+import RichTextInput from './RichTextInput';
 
 interface RichContentEditorProps {
   blocks: ContentBlock[];
@@ -252,9 +253,14 @@ export default function RichContentEditor({ blocks, onChange, compact, onImageUp
               <ParagraphIcon sx={{ color: 'text.disabled', fontSize: 16 }} />
               {blockActions(index)}
             </Stack>
-            <TextField fullWidth variant="standard" placeholder="Metin yazın..." multiline minRows={2}
-              value={block.text} onChange={(e) => updateBlock(index, { ...block, text: e.target.value })}
-              InputProps={{ disableUnderline: true, sx: { fontSize: 15, lineHeight: 1.8, color: 'text.primary' } }}
+            <RichTextInput
+              value={block.text}
+              onChange={(html) => updateBlock(index, { ...block, text: html })}
+              placeholder="Metin yazın..."
+              minHeight={60}
+              fontSize={15}
+              lineHeight={1.8}
+              compact
             />
           </Box>
         );
@@ -402,9 +408,16 @@ export default function RichContentEditor({ blocks, onChange, compact, onImageUp
               {blockActions(index)}
             </Stack>
             <Box sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: block.variant === 'info' ? 'info.main' : block.variant === 'warning' ? 'warning.main' : 'success.main', bgcolor: alpha(block.variant === 'info' ? theme.palette.info.main : block.variant === 'warning' ? theme.palette.warning.main : theme.palette.success.main, 0.06), borderLeft: '4px solid', borderLeftColor: block.variant === 'info' ? 'info.main' : block.variant === 'warning' ? 'warning.main' : 'success.main' }}>
-              <TextField fullWidth variant="standard" placeholder="Bilgi kutusu içeriği..." multiline
-                value={block.text} onChange={(e) => updateBlock(index, { ...block, text: e.target.value })}
-                InputProps={{ disableUnderline: true, sx: { fontSize: 14, fontWeight: 500 } }} />
+              <RichTextInput
+                value={block.text}
+                onChange={(html) => updateBlock(index, { ...block, text: html })}
+                placeholder="Bilgi kutusu içeriği..."
+                minHeight={40}
+                fontSize={14}
+                lineHeight={1.6}
+                compact
+                sx={{ border: 'none', borderRadius: 0, '&:focus': { borderColor: 'transparent' } }}
+              />
             </Box>
           </Box>
         );
@@ -414,9 +427,16 @@ export default function RichContentEditor({ blocks, onChange, compact, onImageUp
           <Box>
             <Stack direction="row" justifyContent="flex-end">{blockActions(index)}</Stack>
             <Box sx={{ pl: 3, borderLeft: '4px solid', borderColor: 'primary.main', py: 1 }}>
-              <TextField fullWidth variant="standard" placeholder="Alıntı metni..." multiline
-                value={block.text} onChange={(e) => updateBlock(index, { ...block, text: e.target.value })}
-                InputProps={{ disableUnderline: true, sx: { fontSize: 16, fontStyle: 'italic', lineHeight: 1.6 } }} />
+              <RichTextInput
+                value={block.text}
+                onChange={(html) => updateBlock(index, { ...block, text: html })}
+                placeholder="Alıntı metni..."
+                minHeight={40}
+                fontSize={16}
+                lineHeight={1.6}
+                compact
+                sx={{ border: 'none', borderRadius: 0, fontStyle: 'italic' }}
+              />
               <TextField fullWidth variant="standard" placeholder="— Yazar"
                 value={block.author || ''} onChange={(e) => updateBlock(index, { ...block, author: e.target.value })}
                 InputProps={{ disableUnderline: true, sx: { fontSize: 13, color: 'text.secondary', mt: 0.5 } }} />
@@ -485,6 +505,30 @@ export default function RichContentEditor({ blocks, onChange, compact, onImageUp
   );
 }
 
+// ─── HELPERS ────────────────────────────────────────────
+/** Check if text contains HTML tags — if so, render with dangerouslySetInnerHTML */
+function hasHtml(text: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(text);
+}
+
+/** Shared sx for sanitized inline-HTML rendering */
+const inlineHtmlSx = {
+  '& a': { color: 'primary.main', textDecoration: 'underline' },
+  '& code': { fontFamily: 'monospace', bgcolor: 'action.hover', borderRadius: 0.5, px: 0.5, fontSize: '0.9em' },
+  '& b, & strong': { fontWeight: 700 },
+  '& i, & em': { fontStyle: 'italic' },
+  '& u': { textDecoration: 'underline' },
+  '& s, & strike': { textDecoration: 'line-through' },
+};
+
+/** Render text that may contain inline HTML (bold, italic, links, etc.) */
+function HtmlText({ text, sx, ...rest }: { text: string; sx?: Record<string, unknown>; [k: string]: unknown }) {
+  if (hasHtml(text)) {
+    return <Box component="span" dangerouslySetInnerHTML={{ __html: text }} sx={{ ...inlineHtmlSx, ...sx }} {...rest} />;
+  }
+  return <>{text}</>;
+}
+
 // ─── CONTENT RENDERER ───────────────────────────────────
 export function RichContentRenderer({ blocks, mobile }: { blocks: ContentBlock[]; mobile?: boolean }) {
   const theme = useTheme();
@@ -494,19 +538,34 @@ export function RichContentRenderer({ blocks, mobile }: { blocks: ContentBlock[]
       {blocks.map((block, i) => {
         switch (block.type) {
           case 'heading':
-            return <Typography key={i} variant={block.level === 1 ? 'h5' : block.level === 2 ? 'h6' : 'subtitle1'} fontWeight={700} sx={{ mt: i > 0 ? 2 : 0, mb: 1, lineHeight: 1.3 }}>{block.text}</Typography>;
+            return (
+              <Typography key={i} variant={block.level === 1 ? 'h5' : block.level === 2 ? 'h6' : 'subtitle1'} fontWeight={700} sx={{ mt: i > 0 ? 2 : 0, mb: 1, lineHeight: 1.3 }}>
+                <HtmlText text={block.text} />
+              </Typography>
+            );
           case 'paragraph':
-            return <Typography key={i} variant="body2" sx={{ mb: 1.5, lineHeight: 1.8, color: 'text.primary', fontSize: mobile ? 14 : 15, whiteSpace: 'pre-wrap' }}>{block.text}</Typography>;
+            return hasHtml(block.text) ? (
+              <Box key={i} dangerouslySetInnerHTML={{ __html: block.text }}
+                sx={{ mb: 1.5, lineHeight: 1.8, color: 'text.primary', fontSize: mobile ? 14 : 15, ...inlineHtmlSx }} />
+            ) : (
+              <Typography key={i} variant="body2" sx={{ mb: 1.5, lineHeight: 1.8, color: 'text.primary', fontSize: mobile ? 14 : 15, whiteSpace: 'pre-wrap' }}>{block.text}</Typography>
+            );
           case 'bullet_list':
             return (
-              <Box key={i} component="ul" sx={{ pl: 3, mb: 1.5, '& li': { mb: 0.5, fontSize: mobile ? 14 : 15, lineHeight: 1.7, color: 'text.primary' } }}>
-                {block.items.map((item, j) => <li key={j}>{item}</li>)}
+              <Box key={i} component="ul" sx={{ pl: 3, mb: 1.5, '& li': { mb: 0.5, fontSize: mobile ? 14 : 15, lineHeight: 1.7, color: 'text.primary' }, ...inlineHtmlSx }}>
+                {block.items.map((item, j) => hasHtml(item)
+                  ? <li key={j} dangerouslySetInnerHTML={{ __html: item }} />
+                  : <li key={j}>{item}</li>
+                )}
               </Box>
             );
           case 'ordered_list':
             return (
-              <Box key={i} component="ol" sx={{ pl: 3, mb: 1.5, '& li': { mb: 0.5, fontSize: mobile ? 14 : 15, lineHeight: 1.7, color: 'text.primary' } }}>
-                {block.items.map((item, j) => <li key={j}>{item}</li>)}
+              <Box key={i} component="ol" sx={{ pl: 3, mb: 1.5, '& li': { mb: 0.5, fontSize: mobile ? 14 : 15, lineHeight: 1.7, color: 'text.primary' }, ...inlineHtmlSx }}>
+                {block.items.map((item, j) => hasHtml(item)
+                  ? <li key={j} dangerouslySetInnerHTML={{ __html: item }} />
+                  : <li key={j}>{item}</li>
+                )}
               </Box>
             );
           case 'image':
@@ -521,13 +580,23 @@ export function RichContentRenderer({ blocks, mobile }: { blocks: ContentBlock[]
           case 'callout':
             return (
               <Box key={i} sx={{ p: 2, my: 1.5, borderRadius: 2, borderLeft: '4px solid', borderLeftColor: block.variant === 'info' ? 'info.main' : block.variant === 'warning' ? 'warning.main' : 'success.main', bgcolor: alpha(block.variant === 'info' ? theme.palette.info.main : block.variant === 'warning' ? theme.palette.warning.main : theme.palette.success.main, 0.06) }}>
-                <Typography variant="body2" fontWeight={500} sx={{ fontSize: mobile ? 13 : 14, whiteSpace: 'pre-wrap' }}>{block.text}</Typography>
+                {hasHtml(block.text) ? (
+                  <Box dangerouslySetInnerHTML={{ __html: block.text }}
+                    sx={{ fontSize: mobile ? 13 : 14, fontWeight: 500, ...inlineHtmlSx }} />
+                ) : (
+                  <Typography variant="body2" fontWeight={500} sx={{ fontSize: mobile ? 13 : 14, whiteSpace: 'pre-wrap' }}>{block.text}</Typography>
+                )}
               </Box>
             );
           case 'quote':
             return (
               <Box key={i} sx={{ pl: 2.5, borderLeft: '3px solid', borderColor: 'primary.main', my: 2 }}>
-                <Typography variant="body2" sx={{ fontStyle: 'italic', lineHeight: 1.6, fontSize: mobile ? 14 : 15, whiteSpace: 'pre-wrap' }}>{block.text}</Typography>
+                {hasHtml(block.text) ? (
+                  <Box dangerouslySetInnerHTML={{ __html: block.text }}
+                    sx={{ fontStyle: 'italic', lineHeight: 1.6, fontSize: mobile ? 14 : 15, ...inlineHtmlSx }} />
+                ) : (
+                  <Typography variant="body2" sx={{ fontStyle: 'italic', lineHeight: 1.6, fontSize: mobile ? 14 : 15, whiteSpace: 'pre-wrap' }}>{block.text}</Typography>
+                )}
                 {block.author && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>— {block.author}</Typography>}
               </Box>
             );

@@ -27,26 +27,31 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: env.VITE_API_BASE_URL?.replace(/\/api\/v1$/, '') || 'https://api.nartgo.net',
+          target: env.VITE_API_PROXY_TARGET || 'https://api.nartgo.net',
           changeOrigin: true,
-          secure: true,
+          secure: false,
           rewrite: (path) => {
+            // Local backend doesn't have /api/v1 prefix — strip it
+            if (env.VITE_API_STRIP_PREFIX === 'true') {
+              return path.replace(/^\/api\/v1/, '');
+            }
             const version = env.VITE_API_VERSION || 'v1';
-            // If the path already contains the version, don't add it again
             if (path.includes(`/${version}/`)) {
               return path;
             }
             return path.replace(/^\/api/, `/api/${version}`);
           },
           configure: (proxy, options) => {
-            proxy.on('error', (err, req, res) => {
-              console.log('proxy error', err);
-            });
             proxy.on('proxyReq', (proxyReq, req, res) => {
+              // Strip browser Origin header — backend CORS rejects localhost
+              proxyReq.removeHeader('origin');
               console.log('Sending Request to Target:', req.method, req.url);
             });
             proxy.on('proxyRes', (proxyRes, req, res) => {
               console.log('Received Response from Target:', proxyRes.statusCode, req.url);
+            });
+            proxy.on('error', (err, req, res) => {
+              console.log('proxy error', err);
             });
           },
           headers: {

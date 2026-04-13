@@ -23,7 +23,10 @@ const PREVIEWS = [
 interface CoverImageEditorProps {
   value: CoverMediaRequest | undefined;
   onChange: (value: CoverMediaRequest | undefined) => void;
-  onUpload: (file: File, onProgress: (p: number) => void) => Promise<string>;
+  /** Aninda upload — verilmezse local preview kullanilir */
+  onUpload?: (file: File, onProgress: (p: number) => void) => Promise<string>;
+  /** Secilen dosyayi parent'a bildir (deferred upload icin) */
+  onFileSelect?: (file: File | null) => void;
   onRequestCrop?: (file: File) => Promise<File | null>;
   disabled?: boolean;
 }
@@ -33,6 +36,7 @@ export default function CoverImageEditor({
   value,
   onChange,
   onUpload,
+  onFileSelect,
   onRequestCrop,
   disabled = false,
 }: CoverImageEditorProps) {
@@ -69,21 +73,32 @@ export default function CoverImageEditor({
       file = cropped;
     }
 
+    // Deferred upload: dosyayi parent'a bildir, local preview goster
+    if (!onUpload) {
+      const localUrl = URL.createObjectURL(file);
+      onChange({ originalUrl: localUrl, focalPointX: 0.5, focalPointY: 0.33 });
+      onFileSelect?.(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Immediate upload (legacy)
     setUploading(true);
     setProgress(0);
     try {
       const url = await onUpload(file, setProgress);
       onChange({ originalUrl: url, focalPointX: 0.5, focalPointY: 0.33 });
+      onFileSelect?.(file);
     } catch {
-      // Fallback: local blob preview
       const url = URL.createObjectURL(file);
       onChange({ originalUrl: url, focalPointX: 0.5, focalPointY: 0.33 });
+      onFileSelect?.(file);
     } finally {
       setUploading(false);
       setProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [onChange, onUpload, onRequestCrop]);
+  }, [onChange, onUpload, onFileSelect, onRequestCrop]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];

@@ -64,7 +64,7 @@ export interface RefundPolicy {
 
 // Varsayılan İade Politikası (Doküman Bölüm 7.1)
 export const DEFAULT_REFUND_POLICY: RefundPolicy = {
-  isRefundable: true,
+  isRefundable: false,
   platformFeeRefundable: false,
   tiers: [
     { minDaysBefore: 7, maxDaysBefore: null, refundPercentage: 100, requiresManualApproval: false },
@@ -133,12 +133,25 @@ export interface Seat {
   label?: string;
 }
 
+// Admin endpoint'ten dönen zengin koltuk detayı
+export interface OccupiedSeatDetail {
+  seatNumber: number;
+  status: 'SOLD' | 'LOCKED' | 'RESERVED' | 'DISABLED';
+  isManual: boolean;
+  manualNote?: string;
+  ownerName?: string;
+  ticketNumber?: string;
+  lockedUntil?: string;
+}
+
 // Koltuk Sırası (Backend: SeatRowResponse)
 export interface SeatRowResponse {
   rowId: string;
   rowLabel: string;
   availableSeats: number[];
   occupiedSeats: number[];
+  blockedSeats?: number[];
+  occupiedSeatDetails?: OccupiedSeatDetail[];
 }
 
 // Koltuk Kategorisi (Backend: SeatCategoryResponse)
@@ -148,6 +161,18 @@ export interface SeatCategoryResponse {
   basePrice: number;
   ticketTypeId: string;
   rows: SeatRowResponse[];
+}
+
+// Koltuk haritası istatistikleri (admin endpoint'te)
+export interface SeatMapStats {
+  totalSeats: number;
+  availableSeats: number;
+  occupiedSeats: number;
+  lockedSeats: number;
+  disabledSeats: number;
+  manualSoldSeats: number;
+  maxRevenue: number;
+  currentRevenue: number;
 }
 
 // Koltuk Haritası Response (Backend: SeatMapResponse)
@@ -164,6 +189,7 @@ export interface SeatMapResponse {
   rowLabelOrder?: string[];
   rowLabelToCategoryId?: Record<string, string>;
   categories: SeatCategoryResponse[];
+  stats?: SeatMapStats;
 }
 
 // Rezervasyon Request/Response

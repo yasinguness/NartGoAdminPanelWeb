@@ -68,6 +68,7 @@ export interface EventResponseDTO {
     isPaid: boolean;
     isFeatured: boolean;
     isPrivate: boolean;
+    checkInEnabled?: boolean;
     registrationDeadline: string;
     cancellationPolicy: string;
     additionalInfo: string;

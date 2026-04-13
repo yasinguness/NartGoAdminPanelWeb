@@ -1,306 +1,407 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { customerSupportService } from '../../services/customer-support/customerSupport.service';
 import {
-  Box,
-  Typography,
-  Paper,
-  Grid,
-  Stack,
-  Button,
-  TextField,
-  InputAdornment,
-  Avatar,
-  Divider,
-  Chip,
-  IconButton,
-  Tooltip,
+  Box, Typography, Paper, Stack, Button, TextField, InputAdornment,
+  Avatar, Divider, Chip, CircularProgress, Table, TableBody, TableCell,
+  TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions,
+  IconButton, alpha, useTheme,
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  Phone as PhoneIcon,
   Email as EmailIcon,
-  History as HistoryIcon,
-  Receipt as OrderIcon,
-  ConfirmationNumber as TicketIcon,
-  WarningAmber as WarningIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
+  Phone as PhoneIcon,
   Send as SendIcon,
-  Security as SecurityIcon,
   MoneyOff as RefundIcon,
-  Autorenew as ResetIcon,
-  EditNote as NoteIcon,
+  CheckCircle as CheckedIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
+  ConfirmationNumber as TicketIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { useSnackbar } from 'notistack';
+import { PageContainer } from '../../components/Page';
 
-const COLORS = {
-  success: '#10b981',
-  error: '#ef4444',
-  warning: '#f59e0b',
-  primary: '#3b82f6',
-  neutral: '#64748b',
-  background: '#f8fafc',
+const STATUS: Record<string, { label: string; color: string }> = {
+  ACTIVE: { label: 'Aktif', color: '#10b981' },
+  CHECKED_IN: { label: 'Giriş Yaptı', color: '#3b82f6' },
+  USED: { label: 'Kullanildi', color: '#64748b' },
+  CANCELLED: { label: 'Iptal', color: '#ef4444' },
+  REFUNDED: { label: 'Iade Edildi', color: '#f59e0b' },
+  CREATED: { label: 'Oluşturuldu', color: '#64748b' },
 };
 
+const ORDER_STATUS: Record<string, { label: string; color: string }> = {
+  PAID: { label: 'Odendi', color: '#10b981' },
+  COMPLETED: { label: 'Tamamlandi', color: '#10b981' },
+  REFUNDED: { label: 'Iade Edildi', color: '#f59e0b' },
+  CANCELLED: { label: 'Iptal', color: '#ef4444' },
+  PENDING: { label: 'Bekliyor', color: '#64748b' },
+};
 
 export default function CustomerSupportConsole() {
+  const theme = useTheme();
+  const { enqueueSnackbar } = useSnackbar();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [customer, setCustomer] = useState<any>(null);
-  const [timeline, setTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [agentNote, setAgentNote] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const performSearch = async (query: string) => {
-    if (!query.trim()) return;
+  // Iade dialog
+  const [refundDialog, setRefundDialog] = useState(false);
+  const [refundOrder, setRefundOrder] = useState<any>(null);
+  const [refundNote, setRefundNote] = useState('');
+
+  // Bilet yeniden gonderme dialog
+  const [resendTicket, setResendTicket] = useState<any>(null);
+
+  const performSearch = async () => {
+    const q = searchQuery.trim();
+    if (!q) return;
     setLoading(true);
     setHasSearched(true);
+    setCustomer(null);
     try {
-      const results = await customerSupportService.searchCustomer(query);
-      if (results && results.length > 0) {
-        setCustomer(results[0]);
-        const tl = await customerSupportService.getCustomerTimeline(results[0].id);
-        setTimeline(tl || []);
-      } else {
-        setCustomer(null);
-        setTimeline([]);
+      const results = await customerSupportService.searchCustomer(q);
+      const list = results?.data ?? results ?? [];
+      if (Array.isArray(list) && list.length > 0) {
+        setCustomer(list[0]);
       }
-    } catch (err) {
-      // silently handled
-      setCustomer(null);
-      setTimeline([]);
+    } catch {
+      enqueueSnackbar('Arama başarısız', { variant: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      performSearch(searchQuery);
+  const handleResendTicket = async () => {
+    if (!customer || !resendTicket) return;
+    setActionLoading(true);
+    try {
+      await customerSupportService.resendTicketAction(customer.id, resendTicket.orderId);
+      enqueueSnackbar('Bilet e-posta olarak yeniden gonderildi', { variant: 'success' });
+      setResendTicket(null);
+    } catch {
+      enqueueSnackbar('Gönderim başarısız', { variant: 'error' });
+    } finally {
+      setActionLoading(false);
     }
   };
 
+  const handleRefund = async () => {
+    if (!customer || !refundOrder) return;
+    setActionLoading(true);
+    try {
+      await customerSupportService.refundOrder(customer.id, refundOrder.orderId, refundNote || undefined);
+      enqueueSnackbar('İade işlemi başlatıldı', { variant: 'success' });
+      setRefundDialog(false);
+      setRefundOrder(null);
+      setRefundNote('');
+      // Profili yenile
+      performSearch();
+    } catch {
+      enqueueSnackbar('İade başarısız', { variant: 'error' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const cardSx = { borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' };
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 'calc(100vh - 64px)', bgcolor: '#f1f5f9' }}>
-      
-      {/* 1. Omni-Search Top Bar */}
-      <Box sx={{ p: 3, bgcolor: '#ffffff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'center' }}>
-         <TextField 
-            fullWidth
-            placeholder="İsim, TC, E-Posta, Telefon, Sipariş ID (ORD-) veya Bilet ID (TCK-)..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={handleSearch}
-            sx={{ 
-                maxWidth: 800, 
-                bgcolor: '#f8fafc',
-                '& .MuiOutlinedInput-root': { borderRadius: 4, pr: 1 },
-                '& fieldset': { borderColor: '#cbd5e1' }
-            }}
-            InputProps={{
-                startAdornment: <InputAdornment position="start"><SearchIcon color="primary" sx={{ ml: 1, fontSize: 28 }} /></InputAdornment>,
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <Button variant="contained" disableElevation sx={{ borderRadius: 3, fontWeight: 700 }} onClick={() => {if(searchQuery.trim()) setHasSearched(true)}}>
-                       SORGULA
-                    </Button>
-                  </InputAdornment>
-                )
-            }}
-         />
+    <PageContainer title="Müşteri Destek">
+      {/* Baslik */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" fontWeight={800}>Müşteri Destek</Typography>
+        <Typography variant="body2" color="text.secondary">
+          E-posta, telefon veya sipariş numarası ile bilet sahibi arayın
+        </Typography>
       </Box>
 
+      {/* Arama */}
+      <Paper sx={{ ...cardSx, p: 2, mb: 3 }}>
+        <TextField
+          fullWidth
+          placeholder="E-posta adresi, telefon numarası veya sipariş no..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && performSearch()}
+          InputProps={{
+            startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'text.secondary' }} /></InputAdornment>,
+            endAdornment: (
+              <InputAdornment position="end">
+                <Button
+                  variant="contained" disableElevation size="small"
+                  onClick={performSearch}
+                  disabled={loading || !searchQuery.trim()}
+                  sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none', px: 3 }}
+                >
+                  {loading ? <CircularProgress size={18} color="inherit" /> : 'Ara'}
+                </Button>
+              </InputAdornment>
+            ),
+          }}
+          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+        />
+      </Paper>
+
+      {/* Sonuc */}
       {loading ? (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <ResetIcon sx={{ fontSize: 60, color: COLORS.primary, animation: 'spin 2s linear infinite', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" fontWeight={700}>Aranıyor...</Typography>
-            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <CircularProgress size={32} />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>Araniyor...</Typography>
         </Box>
-      ) : hasSearched && customer ? (
-          <Box sx={{ display: 'flex', flex: 1, p: 3, gap: 3, overflow: 'hidden' }}>
-            
-            {/* LEFT PANEL: 360 Profile & Timeline */}
-            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3, overflow: 'auto' }}>
-                
-                {/* 360 Customer Profile Header */}
-                <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-                    <Avatar sx={{ width: 80, height: 80, bgcolor: '#eff6ff', color: '#1e3a8a', fontSize: '2rem', fontWeight: 800 }}>
-                        {customer?.name?.charAt(0) || '?'}
-                    </Avatar>
-                    <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="h4" fontWeight={800} color="#0f172a">{customer?.name || ''}</Typography>
-                        <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', color: '#64748b' }}>
-                                <EmailIcon sx={{ fontSize: 18, mr: 0.5 }} /> <Typography variant="body2" fontWeight={600}>{customer?.email || ''}</Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', color: '#64748b' }}>
-                                <PhoneIcon sx={{ fontSize: 18, mr: 0.5 }} /> <Typography variant="body2" fontWeight={600}>{customer?.phone || ''}</Typography>
-                            </Box>
-                            <Typography variant="body2" fontWeight={600} color="#94a3b8">Biletix ID: {customer?.id || ''}</Typography>
-                        </Stack>
-                    </Box>
-
-                    <Divider orientation="vertical" flexItem />
-
-                    <Box sx={{ textAlign: 'center', px: 2 }}>
-                       <Typography variant="caption" color="text.secondary" fontWeight={700}>YAŞAM BOYU DEĞER</Typography>
-                       <Typography variant="h5" fontWeight={800} color={COLORS.success}>{customer?.ltv || '-'}</Typography>
-                    </Box>
-                    <Box sx={{ textAlign: 'center', px: 2 }}>
-                       <Typography variant="caption" color="text.secondary" fontWeight={700}>KATILIM</Typography>
-                       <Typography variant="h5" fontWeight={800}>{customer?.eventsAttended || 0} <Typography component="span" variant="body2" color="text.secondary" fontWeight={600}>Etkinlik</Typography></Typography>
-                    </Box>
-                    <Box sx={{ textAlign: 'center', pl: 2 }}>
-                       <Typography variant="caption" color="text.secondary" fontWeight={700}>RİSK SKORU</Typography>
-                       <Chip label={customer?.riskStatus === 'LOW' ? 'GÜVENİLİR' : customer?.riskStatus ? 'RİSKLİ' : '-'} color={customer?.riskStatus === 'LOW' ? 'success' : 'error'} size="small" sx={{ display: 'flex', fontWeight: 800, mt: 0.5 }} />
-                    </Box>
-                </Paper>
-
-                {/* Unified Omnichannel Timeline */}
-                <Paper elevation={0} sx={{ flex: 1, borderRadius: 4, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    
-                    <Box sx={{ p: 3, borderBottom: '1px solid #f1f5f9', bgcolor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="h6" fontWeight={800} display="flex" alignItems="center">
-                            <HistoryIcon sx={{ mr: 1, color: COLORS.primary }} /> Birleştirilmiş Müşteri Geçmişi
-                        </Typography>
-                        <Stack direction="row" spacing={1}>
-                            <Chip label="Tümü" size="small" sx={{ bgcolor: '#334155', color: 'white', fontWeight: 700 }} />
-                            <Chip label="Siparişler" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
-                            <Chip label="Destek Çağrıları" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
-                            <Chip label="Kapı İşlemleri" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
-                        </Stack>
-                    </Box>
-                    
-                    <Box sx={{ p: 4, flex: 1, overflow: 'auto', position: 'relative' }}>
-                        {/* Vertical Timeline Guide */}
-                        <Box sx={{ position: 'absolute', top: 40, bottom: 40, left: 45, width: 2, bgcolor: '#e2e8f0' }} />
-
-                        <Stack spacing={4}>
-                            {timeline.length === 0 ? (
-                                <Box sx={{ textAlign: 'center', color: 'text.secondary', mt: 4 }}>Zaman çizelgesi henüz yüklenmedi.</Box>
-                            ) : timeline.map((item) => (
-                                <Box key={item.id} sx={{ display: 'flex', position: 'relative' }}>
-                                    <Box sx={{ 
-                                        width: 32, height: 32, borderRadius: '50%', bgcolor: 'white', 
-                                        border: `2px solid ${item.color || COLORS.primary}`, display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                                        color: item.color || COLORS.primary, zIndex: 2, mt: 0.5, mr: 3
-                                    }}>
-                                        {item.icon || <HistoryIcon fontSize="small"/>}
-                                    </Box>
-                                    <Box sx={{ flex: 1 }}>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                                            <Typography variant="subtitle1" fontWeight={800}>{item.title}</Typography>
-                                            <Typography variant="caption" fontWeight={700} color="text.secondary">{item.time}</Typography>
-                                        </Box>
-                                        <Typography variant="body2" color="#475569" sx={{ mb: 1, lineHeight: 1.6 }}>{item.desc}</Typography>
-                                        {item.type === 'CALL' ? (
-                                             <Chip label={`Ajan: ${item.actor}`} size="small" sx={{ bgcolor: '#fef3c7', color: '#b45309', fontWeight: 700, fontSize: '0.7rem' }} />
-                                        ) : (
-                                            <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace' }}>KAYNAK: {item.actor}</Typography>
-                                        )}
-                                    </Box>
-                                </Box>
-                            ))}
-                        </Stack>
-                    </Box>
-                </Paper>
-            </Box>
-
-            {/* RIGHT PANEL: Executive Operations Dashboard */}
-            <Box sx={{ width: 380, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                
-                {/* Son Sipariş Kartı (Quick Order Context) */}
-                <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid #e2e8f0' }}>
-                    <Typography variant="caption" fontWeight={700} color="text.secondary">AKTİF SİPARİŞ BAĞLAMI</Typography>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, mb: 3 }}>
-                        <Typography variant="h5" fontWeight={800} sx={{ fontFamily: 'monospace' }}>{customer?.recentOrder || '-'}</Typography>
-                        <Chip label="ÖDENDİ" size="small" sx={{ bgcolor: 'rgba(16,185,129,0.1)', color: COLORS.success, fontWeight: 800 }} />
-                    </Box>
-                    <Divider sx={{ mb: 3 }} />
-                    <Stack spacing={2}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Typography variant="body2" color="text.secondary">Zorlu PSM Yaz Konseri</Typography>
-                            <Typography variant="body2" fontWeight={700}>2x VIP</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Typography variant="body2" color="text.secondary">Tutar (Kredi Kartı)</Typography>
-                            <Typography variant="body2" fontWeight={800}>₺900</Typography>
-                        </Box>
-                    </Stack>
-                </Paper>
-
-                {/* Acil Oprasyon Menüsü */}
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: '#ffffff', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ mb: 3 }}>Operasyon & Karar Yüzeyi</Typography>
-                    
-                    <Stack spacing={1.5} sx={{ mb: 4 }}>
-                        <Button variant="outlined" disableElevation startIcon={<SendIcon />} sx={{ justifyContent: 'flex-start', py: 1.5, borderColor: '#cbd5e1', color: '#334155', fontWeight: 700 }}>
-                            BİLETİ (EMAIL/SMS) YENİDEN GÖNDER
-                        </Button>
-                        <Button variant="outlined" disableElevation startIcon={<ResetIcon />} sx={{ justifyContent: 'flex-start', py: 1.5, borderColor: '#cbd5e1', color: '#334155', fontWeight: 700 }}>
-                            GİRİŞ DURUMUNU SIFIRLA
-                        </Button>
-                        <Button variant="outlined" disableElevation startIcon={<RefundIcon />} sx={{ justifyContent: 'flex-start', py: 1.5, borderColor: 'rgba(239, 68, 68, 0.3)', color: COLORS.error, fontWeight: 700, bgcolor: 'rgba(239, 68, 68, 0.05)' }}>
-                            SİPARİŞİ İPTAL & İADE ET
-                        </Button>
-                        <Button variant="outlined" disableElevation startIcon={<SecurityIcon />} sx={{ justifyContent: 'flex-start', py: 1.5, borderColor: 'rgba(245, 158, 11, 0.3)', color: COLORS.warning, fontWeight: 700, bgcolor: 'rgba(245, 158, 11, 0.05)' }}>
-                            MÜŞTERİYİ ŞÜPHELİ İŞARETLE
-                        </Button>
-                    </Stack>
-
-                    {/* İade Politikası Bilgi Kartı */}
-                    <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', mb: 2 }}>
-                        <Typography variant="caption" fontWeight={800} color="#166534" display="block" sx={{ mb: 0.5 }}>İADE POLİTİKASI</Typography>
-                        <Stack spacing={0.3}>
-                            {[
-                                { rule: '7+ gün önce', pct: '%100', auto: true },
-                                { rule: '3–7 gün önce', pct: '%75', auto: true },
-                                { rule: '1–3 gün önce', pct: '%50', auto: false },
-                                { rule: 'Son 24 saat', pct: 'İade yok', auto: false },
-                            ].map((r, i) => (
-                                <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#334155' }}>{r.rule}</Typography>
-                                    <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.65rem', color: r.pct === 'İade yok' ? '#dc2626' : '#166534' }}>
-                                        {r.pct} {r.auto ? '(oto)' : '(manuel)'}
-                                    </Typography>
-                                </Box>
-                            ))}
-                        </Stack>
-                        <Typography variant="caption" sx={{ fontSize: '0.55rem', color: '#6b7280', mt: 0.5, display: 'block' }}>
-                            Platform komisyonu iade edilmez. Organizatör farklı politika belirlemiş olabilir.
-                        </Typography>
-                    </Box>
-
-                    <Box sx={{ mt: 'auto' }}>
-                        <TextField 
-                            fullWidth 
-                            multiline 
-                            rows={3} 
-                            placeholder="Müşteri görüşme notu veya aksiyon sebebi girin..." 
-                            value={agentNote}
-                            onChange={(e) => setAgentNote(e.target.value)}
-                            sx={{ bgcolor: '#f8fafc', '& fieldset': { borderColor: '#cbd5e1' }, mb: 2 }}
-                        />
-                        <Button variant="contained" fullWidth disableElevation sx={{ py: 1.5, fontWeight: 800, bgcolor: '#0f172a' }} startIcon={<NoteIcon />}>
-                            AJAN NOTU KAYDET
-                        </Button>
-                    </Box>
-                </Paper>
-
-            </Box>
-          </Box>
       ) : hasSearched && !customer ? (
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
-              <SearchIcon sx={{ fontSize: 80, color: '#94a3b8', mb: 3 }} />
-              <Typography variant="h5" fontWeight={700} color="text.secondary">Sonuç Bulunamadı</Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>Arama kriterlerinize uygun müşteri bulunamadı. Farklı bir sorgu deneyin.</Typography>
-          </Box>
+        <Paper sx={{ ...cardSx, p: 6, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 40, mb: 1 }}>🔍</Typography>
+          <Typography variant="h6" fontWeight={700} color="text.secondary">Sonuc Bulunamadi</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Farklı bir e-posta veya sipariş numarası deneyin.
+          </Typography>
+        </Paper>
+      ) : customer ? (
+        <Stack spacing={3}>
+          {/* Müşteri Profili */}
+          <Paper sx={{ ...cardSx, p: 3 }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ sm: 'center' }}>
+              <Avatar sx={{ width: 56, height: 56, bgcolor: alpha(theme.palette.primary.main, 0.1), color: theme.palette.primary.main, fontWeight: 800, fontSize: 22 }}>
+                {(customer.name || customer.email || '?')[0]?.toUpperCase()}
+              </Avatar>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" fontWeight={800}>
+                  {customer.name || customer.email?.split('@')[0] || 'Bilinmiyor'}
+                </Typography>
+                <Stack direction="row" spacing={3} sx={{ mt: 0.5 }} flexWrap="wrap">
+                  {customer.email && (
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      <EmailIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">{customer.email}</Typography>
+                    </Stack>
+                  )}
+                  {customer.phone && (
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      <PhoneIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">{customer.phone}</Typography>
+                    </Stack>
+                  )}
+                </Stack>
+              </Box>
+              <Stack direction="row" spacing={2}>
+                <Box sx={{ textAlign: 'center', px: 2 }}>
+                  <Typography variant="h5" fontWeight={800} color="primary.main">
+                    {customer.eventsAttended ?? customer.orderCount ?? 0}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>Etkinlik</Typography>
+                </Box>
+                <Box sx={{ textAlign: 'center', px: 2 }}>
+                  <Typography variant="h5" fontWeight={800}>
+                    {customer.ticketCount ?? 0}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>Bilet</Typography>
+                </Box>
+              </Stack>
+            </Stack>
+          </Paper>
+
+          {/* Siparişler & Biletler */}
+          <Paper sx={{ ...cardSx, overflow: 'hidden' }}>
+            <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="subtitle1" fontWeight={700}>Siparişler & Biletler</Typography>
+            </Box>
+
+            {(!customer.orders || customer.orders.length === 0) && (!customer.tickets || customer.tickets.length === 0) ? (
+              <Box sx={{ p: 5, textAlign: 'center' }}>
+                <Typography sx={{ fontSize: 36, mb: 1 }}>🎫</Typography>
+                <Typography variant="body2" color="text.secondary">Bu müşteri için sipariş veya bilet bulunamadı.</Typography>
+              </Box>
+            ) : (
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    {['Etkinlik', 'Bilet No', 'Bilet Türü', 'Koltuk', 'Durum', 'Tarih', 'İşlemler'].map(h => (
+                      <TableCell key={h} sx={{ fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', bgcolor: 'grey.50' }}>
+                        {h}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {(customer.tickets || customer.orders || []).map((item: any, i: number) => {
+                    const st = item.status || item.ticketStatus || '';
+                    const statusInfo = STATUS[st] || ORDER_STATUS[st] || { label: st, color: '#64748b' };
+                    const isCheckedIn = st === 'CHECKED_IN' || st === 'USED';
+                    const isRefundable = st === 'ACTIVE' || st === 'PAID' || st === 'COMPLETED';
+
+                    return (
+                      <TableRow key={item.id || item.ticketId || i} hover>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ maxWidth: 200 }} noWrap>
+                            {item.eventName || '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption" fontFamily="monospace" fontSize={11}>
+                            {item.serialNo || item.ticketCode || item.orderReference || '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption">{item.ticketTypeName || item.ticketType || '—'}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption" fontFamily="monospace">
+                            {item.seatInfo || item.seat || '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: statusInfo.color }} />
+                            <Typography variant="caption" fontWeight={600} sx={{ color: statusInfo.color }}>
+                              {statusInfo.label}
+                            </Typography>
+                            {isCheckedIn && item.checkInTime && (
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
+                                ({format(new Date(item.checkInTime), 'HH:mm', { locale: tr })})
+                              </Typography>
+                            )}
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.issuedAt || item.createdAt
+                              ? format(new Date(item.issuedAt || item.createdAt), 'dd MMM yyyy', { locale: tr })
+                              : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={0.5}>
+                            <Button
+                              size="small" variant="text"
+                              startIcon={<SendIcon sx={{ fontSize: 14 }} />}
+                              onClick={() => setResendTicket(item)}
+                              sx={{ textTransform: 'none', fontSize: 11, fontWeight: 600, minWidth: 0, px: 1 }}
+                            >
+                              Gönder
+                            </Button>
+                            {isRefundable && (
+                              <Button
+                                size="small" variant="text" color="error"
+                                startIcon={<RefundIcon sx={{ fontSize: 14 }} />}
+                                onClick={() => { setRefundOrder(item); setRefundDialog(true); }}
+                                sx={{ textTransform: 'none', fontSize: 11, fontWeight: 600, minWidth: 0, px: 1 }}
+                              >
+                                Iade
+                              </Button>
+                            )}
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </Paper>
+        </Stack>
       ) : (
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
-              <SecurityIcon sx={{ fontSize: 80, color: '#94a3b8', mb: 3 }} />
-              <Typography variant="h5" fontWeight={700} color="text.secondary">Müşteri Destek & 360° Profil</Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>Yukarıdaki araç çubuğundan isim, e-posta veya ID ile sorgulama yapın.</Typography>
-          </Box>
+        /* Bos state — ilk yukleme */
+        <Paper sx={{ ...cardSx, p: 8, textAlign: 'center' }}>
+          <TicketIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+          <Typography variant="h6" fontWeight={700} color="text.secondary">Müşteri Destek</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Bilet sahibinin e-posta adresini girerek sipariş ve bilet bilgilerini görüntüleyebilirsiniz.
+          </Typography>
+        </Paper>
       )}
-    </Box>
+
+      {/* Bilet Yeniden Gönderme Dialog */}
+      <Dialog open={!!resendTicket} onClose={() => setResendTicket(null)} maxWidth="xs" fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>
+          Bileti Yeniden Gönder
+          <IconButton onClick={() => setResendTicket(null)} sx={{ position: 'absolute', right: 8, top: 8 }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ bgcolor: alpha(theme.palette.info.main, 0.06), border: '1px solid', borderColor: alpha(theme.palette.info.main, 0.2), borderRadius: 2, p: 2, mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              <strong>{customer?.email}</strong> adresine bilet bilgileri ve QR kodu tekrar gönderilecek.
+            </Typography>
+            {resendTicket && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Bilet: {resendTicket.serialNo || resendTicket.ticketCode || resendTicket.orderReference}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setResendTicket(null)} variant="text" color="inherit">Vazgeç</Button>
+          <Button onClick={handleResendTicket} variant="contained" disabled={actionLoading}
+            startIcon={actionLoading ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
+            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}>
+            Gönder
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Iade Dialog */}
+      <Dialog open={refundDialog} onClose={() => { setRefundDialog(false); setRefundNote(''); }} maxWidth="sm" fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>
+          Sipariş İade Et
+          <IconButton onClick={() => { setRefundDialog(false); setRefundNote(''); }} sx={{ position: 'absolute', right: 8, top: 8 }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ bgcolor: alpha(theme.palette.error.main, 0.06), border: '1px solid', borderColor: alpha(theme.palette.error.main, 0.2), borderRadius: 2, p: 2, mt: 1, mb: 2 }}>
+            <Typography variant="body2" color="error.dark">
+              <strong>Bu işlem geri alınamaz.</strong> Ödeme iyzico üzerinden iade edilecek ve bilet iptal olacak.
+            </Typography>
+          </Box>
+          {refundOrder && (
+            <Stack spacing={1} sx={{ mb: 2 }}>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">Müşteri</Typography>
+                <Typography variant="body2" fontWeight={600}>{customer?.email}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">Sipariş / Bilet</Typography>
+                <Typography variant="body2" fontWeight={600} fontFamily="monospace">
+                  {refundOrder.serialNo || refundOrder.orderReference || '—'}
+                </Typography>
+              </Stack>
+              {refundOrder.totalAmount && (
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="body2" color="text.secondary">Tutar</Typography>
+                  <Typography variant="body2" fontWeight={800} color="error.main">
+                    ₺{Number(refundOrder.totalAmount).toLocaleString('tr-TR')}
+                  </Typography>
+                </Stack>
+              )}
+            </Stack>
+          )}
+          <TextField
+            fullWidth multiline rows={2}
+            label="İade Sebebi (Opsiyonel)"
+            placeholder="Müşteri talebi, teknik sorun vs..."
+            value={refundNote}
+            onChange={e => setRefundNote(e.target.value)}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => { setRefundDialog(false); setRefundNote(''); }} variant="text" color="inherit">Vazgeç</Button>
+          <Button onClick={handleRefund} variant="contained" color="error" disabled={actionLoading}
+            startIcon={actionLoading ? <CircularProgress size={16} color="inherit" /> : <RefundIcon />}
+            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}>
+            Iade Et
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </PageContainer>
   );
 }

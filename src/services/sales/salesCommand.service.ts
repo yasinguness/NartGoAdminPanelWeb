@@ -1,34 +1,33 @@
 import { api } from '../api';
 
+const unwrap = async <T>(request: Promise<{ data: { data: T } }>): Promise<T> => {
+    const response = await request;
+    return response.data?.data;
+};
+
 class SalesCommandService {
-    async getSalesDashboard(eventId: string): Promise<any> {
-        const response = await api.get(` /tickets/sales-command/dashboard`, { params: { eventId } });
-        return response.data;
+    getSalesDashboard(eventId: string) {
+        return unwrap<any>(api.get('/tickets/sales-command/dashboard', { params: { eventId } }));
     }
 
-    async getSalesVelocity(eventId: string, intervalMinutes: number = 60): Promise<any[]> {
-        const response = await api.get(`/tickets/sales-command/velocity`, { params: { eventId, intervalMinutes } });
-        return response.data;
+    getSalesVelocity(eventId: string, intervalMinutes = 60) {
+        return unwrap<any[]>(api.get('/tickets/sales-command/velocity', { params: { eventId, intervalMinutes } }));
     }
 
-    async getOrderFeed(eventId: string, params?: any): Promise<any[]> {
-        const response = await api.get(`/tickets/sales-command/orders`, { params: { eventId, ...params } });
-        return response.data;
+    getOrderFeed(eventId: string, status?: string, limit = 50) {
+        return unwrap<any[]>(api.get('/tickets/sales-command/orders', { params: { eventId, status, limit } }));
     }
 
-    async getChannelBreakdown(eventId: string): Promise<any> {
-        const response = await api.get(`/tickets/sales-command/channels`, { params: { eventId } });
-        return response.data;
+    getChannelBreakdown(eventId: string) {
+        return unwrap<any>(api.get('/tickets/sales-command/channels', { params: { eventId } }));
     }
 
-    async getOrderLifecycle(orderId: string): Promise<any> {
-        const response = await api.get(`/tickets/sales-command/orders/${orderId}/lifecycle`);
-        return response.data;
+    getOrderLifecycle(orderId: string) {
+        return unwrap<any>(api.get(`/tickets/sales-command/orders/${orderId}/lifecycle`));
     }
 
-    async getRiskExposure(eventId: string): Promise<any> {
-        const response = await api.get(`/tickets/sales-command/risk`, { params: { eventId } });
-        return response.data;
+    getRiskExposure(eventId: string) {
+        return unwrap<any>(api.get('/tickets/sales-command/risk', { params: { eventId } }));
     }
 }
 

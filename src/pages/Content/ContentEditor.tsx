@@ -26,38 +26,16 @@ import {
 } from '../../types/article/articleModel';
 import type { ArticleCreateRequest, ArticleDto, CoverMediaRequest } from '../../types/article/articleModel';
 import RichContentEditor, { RichContentRenderer } from '../../components/RichContentEditor';
+import RichTextInput from '../../components/RichTextInput';
 import CoverImageEditor from '../../components/CoverImageEditor';
 import OptionalImageCropDialog from '../../components/OptionalImageCropDialog';
 import type { ContentBlock } from '../../types/notification.types';
 import { useRole } from '../../hooks/useRole';
-
-// ─── UTILS ──────────────────────────────────────────
-function slugify(text: string): string {
-  const trMap: Record<string, string> = {
-    'ç': 'c', 'Ç': 'c', 'ğ': 'g', 'Ğ': 'g', 'ı': 'i', 'İ': 'i',
-    'ö': 'o', 'Ö': 'o', 'ş': 's', 'Ş': 's', 'ü': 'u', 'Ü': 'u',
-  };
-  return text
-    .split('').map(c => trMap[c] || c).join('')
-    .toLowerCase().trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function sanitizeFileName(fileName: string): string {
-  const dotIndex = fileName.lastIndexOf('.');
-  const baseName = dotIndex >= 0 ? fileName.slice(0, dotIndex) : fileName;
-  const extension = dotIndex >= 0 ? fileName.slice(dotIndex + 1).toLowerCase() : 'jpg';
-  const safeBase = slugify(baseName) || 'image';
-  return `${safeBase}.${extension.replace(/[^a-z0-9]/g, '') || 'jpg'}`;
-}
-
-function buildUploadPath(prefix: string, file: File): string {
-  const timestamp = Date.now();
-  return `${prefix}/${timestamp}-${sanitizeFileName(file.name)}`;
-}
+import {
+  slugify, buildUploadPath, sanitizeHtml, isDataUrl, looksLikeHtml,
+  normalizeHtmlInput, htmlToBlocks, blocksToHtml, blocksToPlainText,
+  hasMeaningfulBlockContent,
+} from './contentEditorUtils';
 
 const initialForm: ArticleCreateRequest = {
   title: '', slug: '', summary: '', body: '',
@@ -67,242 +45,6 @@ const initialForm: ArticleCreateRequest = {
 };
 
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
-
-function sanitizeHtml(html: string): string {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  // Remove unsafe tags entirely
-  doc.querySelectorAll('script, style, iframe, link, object, embed, form, input, button, noscript').forEach(el => el.remove());
-  // Normalize copied images that use lazy-loading attributes or srcset.
-  doc.querySelectorAll('img').forEach((img) => {
-    const currentSrc = img.getAttribute('src')?.trim();
-    const dataSrc = img.getAttribute('data-src')?.trim()
-      || img.getAttribute('data-original')?.trim()
-      || img.getAttribute('data-lazy-src')?.trim();
-    const srcSet = img.getAttribute('srcset')?.split(',')[0]?.trim().split(' ')[0];
-    const fallbackSrc = currentSrc || dataSrc || srcSet || '';
-    if (fallbackSrc) {
-      img.setAttribute('src', fallbackSrc.startsWith('//') ? `https:${fallbackSrc}` : fallbackSrc);
-    }
-  });
-  // Strip event handlers and javascript: hrefs from every element
-  doc.querySelectorAll('*').forEach(el => {
-    Array.from(el.attributes).forEach(attr => {
-      if (attr.name.startsWith('on') || (attr.name === 'href' && attr.value.trim().toLowerCase().startsWith('javascript:'))) {
-        el.removeAttribute(attr.name);
-      }
-    });
-  });
-  // Return just the body content (strips <html>/<head> if user pasted full page)
-  return doc.body.innerHTML;
-}
-
-function isDataUrl(value?: string | null): boolean {
-  return !!value && value.trim().toLowerCase().startsWith('data:');
-}
-
-function looksLikeHtml(value: string): boolean {
-  return /<\/?[a-z][\s\S]*>/i.test(value);
-}
-
-function looksLikeImageUrl(value: string): boolean {
-  return /^https?:\/\/\S+\.(png|jpe?g|gif|webp|avif|svg)(\?\S*)?$/i.test(value.trim());
-}
-
-function normalizeHtmlInput(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  if (looksLikeHtml(trimmed)) return sanitizeHtml(trimmed);
-  if (looksLikeImageUrl(trimmed)) return `<p><img src="${escapeHtml(trimmed)}" alt="" /></p>`;
-  return value;
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function stripHtmlToText(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .trim();
-}
-
-function htmlToBlocks(html?: string): ContentBlock[] {
-  if (!html?.trim()) return [];
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const nodes = Array.from(doc.body.children);
-  const blocks: ContentBlock[] = [];
-
-  for (const node of nodes) {
-    const tag = node.tagName.toLowerCase();
-
-    if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
-      blocks.push({
-        type: 'heading',
-        level: Number(tag[1]) as 1 | 2 | 3,
-        text: (node.textContent || '').trim(),
-      });
-      continue;
-    }
-
-    if (tag === 'p') {
-      const text = stripHtmlToText(node.innerHTML);
-      if (text) blocks.push({ type: 'paragraph', text });
-      continue;
-    }
-
-    if (tag === 'ul' || tag === 'ol') {
-      const items = Array.from(node.querySelectorAll('li'))
-        .map((li) => (li.textContent || '').trim())
-        .filter(Boolean);
-      if (items.length) {
-        blocks.push({
-          type: tag === 'ul' ? 'bullet_list' : 'ordered_list',
-          items,
-        });
-      }
-      continue;
-    }
-
-    if (tag === 'figure') {
-      const img = node.querySelector('img');
-      if (img?.getAttribute('src')) {
-        blocks.push({
-          type: 'image',
-          url: img.getAttribute('src') || '',
-          caption: node.querySelector('figcaption')?.textContent?.trim() || '',
-          width: 'full',
-        });
-      }
-      continue;
-    }
-
-    if (tag === 'img') {
-      const src = node.getAttribute('src');
-      if (src) {
-        blocks.push({ type: 'image', url: src, caption: node.getAttribute('alt') || '', width: 'full' });
-      }
-      continue;
-    }
-
-    if (tag === 'hr') {
-      blocks.push({ type: 'divider' });
-      continue;
-    }
-
-    if (tag === 'blockquote') {
-      const variant = node.getAttribute('data-callout');
-      const footer = node.querySelector('footer');
-      const footerText = footer?.textContent?.trim() || '';
-      if (variant === 'info' || variant === 'warning' || variant === 'success') {
-        blocks.push({ type: 'callout', text: stripHtmlToText(node.innerHTML), variant });
-      } else {
-        const quoteText = stripHtmlToText(node.innerHTML.replace(footer?.outerHTML || '', ''));
-        blocks.push({ type: 'quote', text: quoteText, author: footerText });
-      }
-      continue;
-    }
-
-    const fallbackText = stripHtmlToText(node.innerHTML);
-    if (fallbackText) {
-      blocks.push({ type: 'paragraph', text: fallbackText });
-    }
-  }
-
-  if (blocks.length > 0) return blocks;
-
-  const text = stripHtmlToText(html);
-  return text ? [{ type: 'paragraph', text }] : [];
-}
-
-function blocksToHtml(blocks: ContentBlock[]): string {
-  return blocks
-    .map((block) => {
-      switch (block.type) {
-        case 'heading':
-          return `<h${block.level}>${escapeHtml(block.text || '')}</h${block.level}>`;
-        case 'paragraph':
-          return `<p>${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</p>`;
-        case 'bullet_list':
-          return `<ul>${block.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
-        case 'ordered_list':
-          return `<ol>${block.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ol>`;
-        case 'image':
-          if (!block.url) return '';
-          return `<figure><img src="${escapeHtml(block.url)}" alt="${escapeHtml(block.caption || '')}" />${block.caption ? `<figcaption>${escapeHtml(block.caption)}</figcaption>` : ''
-            }</figure>`;
-        case 'divider':
-          return '<hr />';
-        case 'callout':
-          return `<blockquote data-callout="${block.variant}">${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</blockquote>`;
-        case 'quote':
-          return `<blockquote><p>${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</p>${block.author ? `<footer>${escapeHtml(block.author)}</footer>` : ''
-            }</blockquote>`;
-        default:
-          return '';
-      }
-    })
-    .filter(Boolean)
-    .join('\n');
-}
-
-function blocksToPlainText(blocks: ContentBlock[]): string {
-  return blocks
-    .map((block) => {
-      switch (block.type) {
-        case 'heading':
-        case 'paragraph':
-        case 'callout':
-        case 'quote':
-          return [block.text, block.type === 'quote' ? block.author : ''].filter(Boolean).join(' ');
-        case 'bullet_list':
-        case 'ordered_list':
-          return block.items.join(' ');
-        case 'image':
-          return block.caption || '';
-        default:
-          return '';
-      }
-    })
-    .filter(Boolean)
-    .join(' ');
-}
-
-function hasMeaningfulBlockContent(blocks: ContentBlock[]): boolean {
-  return blocks.some((block) => {
-    switch (block.type) {
-      case 'heading':
-      case 'paragraph':
-      case 'callout':
-      case 'quote':
-        return Boolean(block.text?.trim() || (block.type === 'quote' && block.author?.trim()));
-      case 'bullet_list':
-      case 'ordered_list':
-        return block.items.some((item) => item.trim());
-      case 'image':
-        return Boolean(block.url?.trim());
-      case 'divider':
-        return true;
-      default:
-        return false;
-    }
-  });
-}
-
 // ─── COMPONENT ──────────────────────────────────────
 export default function ContentEditor() {
   const { id } = useParams<{ id: string }>();
@@ -825,38 +567,25 @@ export default function ContentEditor() {
                       {/* Info bar */}
                       <Box sx={{ px: 2.5, py: 1.25, bgcolor: alpha('#1a5c28', 0.04), borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="caption" fontWeight={600} color="#1a5c28" sx={{ fontSize: 11 }}>
-                          Sayfayı tarayıcıda aç → Tüm metni seç (Ctrl+A) → Kopyala (Ctrl+C) → Buraya yapıştır. (İçerik doğrudan düzenlenebilir)
+                          Metni biçimlendirin, bağlantı ekleyin veya başka sayfadan HTML yapıştırın — otomatik temizlenir.
                         </Typography>
                       </Box>
-                      <Box sx={{ bgcolor: '#FAFAFA' }}>
-                        <TextField
-                          fullWidth
-                          multiline
-                          minRows={18}
-                          value={form.body || ''}
-                          onChange={(event) => updateField('body', normalizeHtmlInput(event.target.value))}
-                          placeholder="Buraya HTML, düz metin veya görsel URL'si yapıştırın..."
-                          InputProps={{
-                            sx: {
-                              alignItems: 'flex-start',
-                              px: 2,
-                              py: 2,
-                              fontSize: 15,
-                              lineHeight: 1.7,
-                              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                              '& textarea': { minHeight: 400 },
-                            },
-                          }}
-                          sx={{ '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
-                        />
-                        <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
-                            {wordCount} kelime · ~{readTime} dk okuma
-                          </Typography>
-                          <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
-                            {(form.body || '').replace(/<[^>]*>/g, '').length} karakter
-                          </Typography>
-                        </Box>
+                      <RichTextInput
+                        value={form.body || ''}
+                        onChange={(html) => updateField('body', html)}
+                        placeholder="Buraya HTML yapıştırın veya metin yazıp biçimlendirin..."
+                        minHeight={400}
+                        fontSize={15}
+                        lineHeight={1.7}
+                        sx={{ borderRadius: 0, border: 'none' }}
+                      />
+                      <Box sx={{ px: 2.5, py: 1, borderTop: '0.5px solid #E5E7EB', bgcolor: '#F9FAFB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                          {wordCount} kelime · ~{readTime} dk okuma
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                          {(form.body || '').replace(/<[^>]*>/g, '').length} karakter
+                        </Typography>
                       </Box>
                     </Paper>
                   )}

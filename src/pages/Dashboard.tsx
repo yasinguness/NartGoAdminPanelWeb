@@ -66,6 +66,7 @@ import { adminLoginStatsService } from '../services/auth/adminLoginStatsService'
 import { campaignService } from '../services/notification/campaignService';
 import { api } from '../services/api';
 import { useRole } from '../hooks/useRole';
+import OrganizerDashboard from './OrganizerDashboard';
 import type {
   LoginStatsOverviewDto,
   RecentLoggedInUserDto,
@@ -214,7 +215,12 @@ export default function Dashboard() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  const { userName, isAdmin } = useRole();
+  const { userName, isAdmin, isOrganizer } = useRole();
+
+  // Organizatör → kendi dashboard'unu göster
+  if (isOrganizer && !isAdmin) {
+    return <OrganizerDashboard />;
+  }
 
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<LoginStatsOverviewDto | null>(null);
@@ -553,7 +559,7 @@ export default function Dashboard() {
           </Typography>
           <Grid container spacing={2}>
             {[
-              { icon: <EventIcon fontSize="small" />, label: 'Etkinlik Oluştur', desc: 'Yeni etkinlik ekle', color: theme.palette.warning.main, path: '/events' },
+              { icon: <EventIcon fontSize="small" />, label: 'Etkinlik Yönet', desc: 'Yeni etkinlik ekle', color: theme.palette.warning.main, path: '/events' },
               { icon: <TicketIcon fontSize="small" />, label: 'Etkinlik Oluştur', desc: 'Yeni etkinlik & bilet', color: theme.palette.info.main, path: '/event-creation' },
               { icon: <SeatIcon fontSize="small" />, label: 'Oturma Düzeni', desc: 'Salon planı tasarla', color: theme.palette.success.main, path: '/seat-map' },
               { icon: <StoreIcon fontSize="small" />, label: 'İşletme Ekle', desc: 'Yeni işletme kaydet', color: theme.palette.primary.main, path: '/businesses' },
