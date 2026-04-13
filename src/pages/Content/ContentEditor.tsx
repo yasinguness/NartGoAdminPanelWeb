@@ -573,6 +573,7 @@ export default function ContentEditor() {
                       <RichTextInput
                         value={form.body || ''}
                         onChange={(html) => updateField('body', html)}
+                        onImageUpload={handleBlockImageUpload}
                         placeholder="Buraya HTML yapıştırın veya metin yazıp biçimlendirin..."
                         minHeight={400}
                         fontSize={15}

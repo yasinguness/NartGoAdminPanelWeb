@@ -17,6 +17,7 @@ import {
   LinkOff as LinkOffIcon,
   Code as CodeIcon,
   FormatClear as ClearIcon,
+  Image as ImageIcon,
 } from '@mui/icons-material';
 
 interface RichTextInputProps {
@@ -36,6 +37,8 @@ interface RichTextInputProps {
   sx?: Record<string, unknown>;
   /** Show a compact single-row toolbar */
   compact?: boolean;
+  /** Upload and insert an image into the HTML */
+  onImageUpload?: (file: File) => Promise<string | null>;
 }
 
 const TOOLBAR_ACTIONS = [
@@ -55,12 +58,15 @@ export default function RichTextInput({
   hideToolbar = false,
   sx: sxProp,
   compact = false,
+  onImageUpload,
 }: RichTextInputProps) {
   const theme = useTheme();
   const editorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isInternalChange = useRef(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
   const savedRange = useRef<Range | null>(null);
 
   // Sync external value → contentEditable (only when not typing internally)
@@ -95,6 +101,20 @@ export default function RichTextInput({
     execCommand(cmd);
   }, [execCommand]);
 
+  const saveSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      savedRange.current = sel.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  const restoreSelection = useCallback(() => {
+    if (!savedRange.current) return;
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(savedRange.current);
+  }, []);
+
   // Link insert
   const openLinkDialog = useCallback(() => {
     const sel = window.getSelection();
@@ -110,12 +130,7 @@ export default function RichTextInput({
   const insertLink = useCallback(() => {
     setLinkDialogOpen(false);
     editorRef.current?.focus();
-    // Restore saved selection
-    if (savedRange.current) {
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(savedRange.current);
-    }
+    restoreSelection();
     if (linkUrl.trim()) {
       execCommand('createLink', linkUrl.trim());
       // Make links open in new tab
@@ -129,11 +144,49 @@ export default function RichTextInput({
     }
     savedRange.current = null;
     handleInput();
-  }, [linkUrl, execCommand, handleInput]);
+  }, [linkUrl, execCommand, handleInput, restoreSelection]);
 
   const removeLink = useCallback(() => {
     execCommand('unlink');
   }, [execCommand]);
+
+  const insertImage = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+
+    setUploadingImage(true);
+    try {
+      editorRef.current?.focus();
+      restoreSelection();
+
+      let imageUrl: string | null = null;
+      if (onImageUpload) {
+        imageUrl = await onImageUpload(file);
+      } else {
+        imageUrl = await new Promise<string | null>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        });
+      }
+
+      if (!imageUrl) return;
+
+      restoreSelection();
+      document.execCommand('insertHTML', false, `<img src="${imageUrl}" alt="${file.name.replace(/"/g, '&quot;')}" />`);
+      handleInput();
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      savedRange.current = null;
+    }
+  }, [handleInput, onImageUpload, restoreSelection]);
+
+  const handleImageFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await insertImage(file);
+  }, [insertImage]);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -231,6 +284,23 @@ export default function RichTextInput({
 
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.5 }} />
 
+          <Tooltip title={uploadingImage ? 'Görsel yükleniyor...' : 'Görsel Ekle'} arrow>
+            <span>
+              <IconButton
+                size="small"
+                disabled={uploadingImage}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  saveSelection();
+                  fileInputRef.current?.click();
+                }}
+                sx={toolbarBtnSx}
+              >
+                <ImageIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+
           <Tooltip title="Kod" arrow>
             <IconButton size="small" onMouseDown={(e) => {
               e.preventDefault();
@@ -254,11 +324,20 @@ export default function RichTextInput({
       )}
 
       {/* Editable Area */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageFileChange}
+        style={{ display: 'none' }}
+      />
       <Box
         ref={editorRef}
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
+        onMouseUp={saveSelection}
+        onKeyUp={saveSelection}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
         data-placeholder={placeholder}
@@ -286,6 +365,13 @@ export default function RichTextInput({
           '& a': {
             color: 'primary.main',
             textDecoration: 'underline',
+          },
+          '& img': {
+            maxWidth: '100%',
+            height: 'auto',
+            display: 'block',
+            margin: '12px auto',
+            borderRadius: 8,
           },
           '& code': {
             fontFamily: 'monospace',

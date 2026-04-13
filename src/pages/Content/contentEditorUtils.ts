@@ -113,6 +113,12 @@ export function htmlToBlocks(html?: string): ContentBlock[] {
       continue;
     }
     if (tag === 'p') {
+      const containsMedia = node.querySelector('img, figure, video, audio, iframe');
+      if (containsMedia) {
+        const sanitized = sanitizeHtml(node.outerHTML);
+        if (sanitized.trim()) blocks.push({ type: 'paragraph', text: sanitized });
+        continue;
+      }
       const text = stripHtmlToText(node.innerHTML);
       if (text) blocks.push({ type: 'paragraph', text });
       continue;
