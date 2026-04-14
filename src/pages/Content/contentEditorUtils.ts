@@ -42,6 +42,11 @@ export function sanitizeHtml(html: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   doc.querySelectorAll('script, style, iframe, link, object, embed, form, input, button, noscript').forEach(el => el.remove());
+  // Remove HTML comment nodes (clipboard artifacts like <!--StartFragment-->)
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_COMMENT);
+  const comments: Comment[] = [];
+  while (walker.nextNode()) comments.push(walker.currentNode as Comment);
+  comments.forEach(c => c.remove());
   doc.querySelectorAll('img').forEach((img) => {
     const currentSrc = img.getAttribute('src')?.trim();
     const dataSrc = img.getAttribute('data-src')?.trim()
@@ -97,6 +102,50 @@ export function stripHtmlToText(html: string): string {
 }
 
 // ─── BLOCK ↔ HTML CONVERSION ────────────────────────
+
+/** Remove browser clipboard artifacts — both real and escaped forms */
+function stripClipboardComments(html: string): string {
+  return html
+    .replace(/<!--\s*(?:Start|End)Fragment\s*-->/g, '')
+    .replace(/&lt;!--\s*(?:Start|End)Fragment\s*--&gt;/g, '');
+}
+
+/**
+ * Detect double-escaped HTML in an element.
+ * When escapeHtml() was mistakenly applied to HTML content, tags like <div>
+ * become &lt;div&gt; and entities like &nbsp; become &amp;nbsp;.
+ * After one DOMParser pass, the textContent reveals the original HTML patterns.
+ */
+function isDoubleEscaped(node: Element): boolean {
+  const decoded = (node.textContent || '').trim();
+  if (!decoded) return false;
+  // Decoded text has HTML tag patterns (from &lt;tag&gt;)
+  if (looksLikeHtml(decoded)) return true;
+  // Decoded text has literal entity names (from &amp;nbsp; → visible &nbsp;)
+  if (/&(nbsp|amp|lt|gt|quot|#\d+|#x[0-9a-f]+);/i.test(decoded)) return true;
+  // Decoded text has HTML comments (from &lt;!--...--&gt;)
+  if (/<!--[\s\S]*?-->/.test(decoded)) return true;
+  return false;
+}
+
+/**
+ * Extract paragraph inner HTML, recovering double-escaped content when needed.
+ * Returns sanitized HTML string ready to be stored as block text.
+ */
+function extractParagraphHtml(node: Element): string {
+  // 1. Actual media elements present → use innerHTML (not outerHTML to avoid double <p>)
+  if (node.querySelector('img, figure, video, audio, iframe')) {
+    return stripClipboardComments(sanitizeHtml(node.innerHTML));
+  }
+  // 2. Double-escaped content: &lt;div&gt;, &amp;nbsp; etc. became visible text
+  if (isDoubleEscaped(node)) {
+    const decoded = stripClipboardComments((node.textContent || '').trim());
+    return sanitizeHtml(decoded);
+  }
+  // 3. Normal paragraph — preserve inline formatting (bold, italic, links…)
+  return stripClipboardComments(node.innerHTML.trim());
+}
+
 export function htmlToBlocks(html?: string): ContentBlock[] {
   if (!html?.trim()) return [];
 
@@ -113,13 +162,7 @@ export function htmlToBlocks(html?: string): ContentBlock[] {
       continue;
     }
     if (tag === 'p') {
-      const containsMedia = node.querySelector('img, figure, video, audio, iframe');
-      if (containsMedia) {
-        const sanitized = sanitizeHtml(node.outerHTML);
-        if (sanitized.trim()) blocks.push({ type: 'paragraph', text: sanitized });
-        continue;
-      }
-      const text = stripHtmlToText(node.innerHTML);
+      const text = extractParagraphHtml(node);
       if (text) blocks.push({ type: 'paragraph', text });
       continue;
     }
@@ -153,8 +196,15 @@ export function htmlToBlocks(html?: string): ContentBlock[] {
       }
       continue;
     }
-    const fallbackText = stripHtmlToText(node.innerHTML);
-    if (fallbackText) blocks.push({ type: 'paragraph', text: fallbackText });
+    // Fallback: check for double-escaped content, otherwise preserve innerHTML
+    if (isDoubleEscaped(node)) {
+      const decoded = stripClipboardComments((node.textContent || '').trim());
+      const sanitized = sanitizeHtml(decoded);
+      if (sanitized.trim()) blocks.push({ type: 'paragraph', text: sanitized });
+    } else {
+      const fallback = stripClipboardComments(node.innerHTML.trim());
+      if (fallback) blocks.push({ type: 'paragraph', text: fallback });
+    }
   }
 
   if (blocks.length > 0) return blocks;
@@ -163,26 +213,30 @@ export function htmlToBlocks(html?: string): ContentBlock[] {
 }
 
 export function blocksToHtml(blocks: ContentBlock[]): string {
+  /** If text already contains HTML tags, return as-is; otherwise escape it. */
+  const safeText = (t: string) => (looksLikeHtml(t) ? t : escapeHtml(t));
+  const safeNl   = (t: string) => safeText(t).replace(/\n/g, '<br />');
+
   return blocks
     .map((block) => {
       switch (block.type) {
         case 'heading':
-          return `<h${block.level}>${escapeHtml(block.text || '')}</h${block.level}>`;
+          return `<h${block.level}>${safeText(block.text || '')}</h${block.level}>`;
         case 'paragraph':
-          return `<p>${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</p>`;
+          return `<p>${safeNl(block.text || '')}</p>`;
         case 'bullet_list':
-          return `<ul>${block.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+          return `<ul>${block.items.map(item => `<li>${safeText(item)}</li>`).join('')}</ul>`;
         case 'ordered_list':
-          return `<ol>${block.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ol>`;
+          return `<ol>${block.items.map(item => `<li>${safeText(item)}</li>`).join('')}</ol>`;
         case 'image':
           if (!block.url) return '';
           return `<figure><img src="${escapeHtml(block.url)}" alt="${escapeHtml(block.caption || '')}" />${block.caption ? `<figcaption>${escapeHtml(block.caption)}</figcaption>` : ''}</figure>`;
         case 'divider':
           return '<hr />';
         case 'callout':
-          return `<blockquote data-callout="${block.variant}">${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</blockquote>`;
+          return `<blockquote data-callout="${block.variant}">${safeNl(block.text || '')}</blockquote>`;
         case 'quote':
-          return `<blockquote><p>${escapeHtml(block.text || '').replace(/\n/g, '<br />')}</p>${block.author ? `<footer>${escapeHtml(block.author)}</footer>` : ''}</blockquote>`;
+          return `<blockquote><p>${safeNl(block.text || '')}</p>${block.author ? `<footer>${escapeHtml(block.author)}</footer>` : ''}</blockquote>`;
         default:
           return '';
       }
@@ -199,7 +253,7 @@ export function blocksToPlainText(blocks: ContentBlock[]): string {
         case 'paragraph':
         case 'callout':
         case 'quote':
-          return [block.text, block.type === 'quote' ? block.author : ''].filter(Boolean).join(' ');
+          return [stripHtmlToText(block.text || ''), block.type === 'quote' ? block.author : ''].filter(Boolean).join(' ');
         case 'bullet_list':
         case 'ordered_list':
           return block.items.join(' ');

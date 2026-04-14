@@ -429,6 +429,7 @@ export default function EventDetail() {
         isRegistrationOpen: data.isRegistrationOpen,
         isPrivate: data.isPrivate,
         thumbnailUrl: imageUrl,
+        organizerId: event.organizerId,
         address: data.address ? {
           city: data.address.city || '',
           district: data.address.district || '',

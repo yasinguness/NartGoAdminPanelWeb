@@ -13,6 +13,7 @@ import {
   DragIndicator as DragIcon,
 } from '@mui/icons-material';
 import { SeatCategory, SeatStatus, type SeatSection } from '../../../types/tickets/ticketTypes';
+import { trLetterAt, getNextLetterAfter } from '../../../utils/trAlphabet';
 
 const SECTION_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#ec4899', '#14b8a6', '#f97316'];
 
@@ -74,7 +75,11 @@ export default function CustomSeatEditor({ sections, onChange }: CustomSeatEdito
   const addRow = (sectionId: string) => {
     onChange(sections.map(s => {
       if (s.id !== sectionId) return s;
-      const nextLabel = String.fromCharCode(65 + s.rows.length); // A, B, C...
+      const usedLabels = s.rows.map(r => r.label);
+      const lastRow = s.rows[s.rows.length - 1];
+      const nextLabel = lastRow
+        ? getNextLetterAfter(lastRow.label, usedLabels)
+        : trLetterAt(s.rows.length);
       const seatsPerRow = s.rows.length > 0 ? s.rows[s.rows.length - 1].seats.length : 10;
       return {
         ...s,

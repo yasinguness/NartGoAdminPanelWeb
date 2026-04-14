@@ -17,47 +17,9 @@ import { useSnackbar } from 'notistack';
 import {
   seatTemplateService, SeatTemplateRow, SeatTemplateCategory,
 } from '../../services/ticket/seatTemplateService';
+import { getNextAvailableLetter, getNextLetterAfter } from '../../utils/trAlphabet';
 
 const STEPS = ['Dosya Yükle', 'Önizleme & Düzenleme', 'Kategori Tanımla'];
-
-/** Genişletilmiş Türkçe alfabe — Q, W, X dahil. Sıra isimleri bu listeden atanır. */
-const TR_ALPHABET = [
-  'A', 'B', 'C', 'Ç', 'D', 'E', 'F', 'G', 'Ğ', 'H',
-  'I', 'İ', 'J', 'K', 'L', 'M', 'N', 'O', 'Ö', 'P',
-  'Q', 'R', 'S', 'Ş', 'T', 'U', 'Ü', 'V', 'W', 'X',
-  'Y', 'Z',
-];
-
-/** Kullanılmayan bir sonraki harfi bul */
-function getNextAvailableLetter(usedNames: string[]): string {
-  const usedSet = new Set(usedNames.map(n => n.toUpperCase()));
-  for (const letter of TR_ALPHABET) {
-    if (!usedSet.has(letter)) return letter;
-  }
-  // Tüm harfler tükendiyse AA, AB... devam et
-  for (let i = 1; i <= 99; i++) {
-    const name = `${TR_ALPHABET[i % TR_ALPHABET.length]}${i}`;
-    if (!usedSet.has(name)) return name;
-  }
-  return `S${usedNames.length + 1}`;
-}
-
-/** Alfabe sırasındaki bir sonraki harfi bul (son sıradan sonra gelen) */
-function getNextLetterAfter(lastRowName: string, usedNames: string[]): string {
-  const usedSet = new Set(usedNames.map(n => n.toUpperCase()));
-  const upper = lastRowName.toUpperCase();
-  const idx = TR_ALPHABET.indexOf(upper);
-
-  // Son sıra alfabede bulunuyorsa, ondan sonraki ilk kullanılmayan harfi ver
-  if (idx >= 0) {
-    for (let i = idx + 1; i < TR_ALPHABET.length; i++) {
-      if (!usedSet.has(TR_ALPHABET[i])) return TR_ALPHABET[i];
-    }
-  }
-
-  // Bulunamadıysa genel fallback
-  return getNextAvailableLetter(usedNames);
-}
 
 const DEFAULT_COLORS = [
   '#FFD700', '#4CAF50', '#2196F3', '#FF5722', '#9C27B0',

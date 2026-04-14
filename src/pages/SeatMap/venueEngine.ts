@@ -254,6 +254,8 @@ export function generateVenueSeats(venue: VenueConfig): Seat[] {
 
 // ─── HELPER: Row builder ────────────────────────────────────────────────────
 
+import { TR_ALPHABET, trLetterAt, getNextLetterAfter } from '../../utils/trAlphabet';
+
 export function makeRows(count: number, seatsPerRow: number, opts: {
   seatSpacing?: number;
   rowGap?: number;
@@ -262,11 +264,13 @@ export function makeRows(count: number, seatsPerRow: number, opts: {
 } = {}): RowConfig[] {
   const sp = opts.seatSpacing ?? 26;
   const rg = opts.rowGap ?? 28;
-  const startCode = opts.startLabel?.charCodeAt(0) ?? 65; // 'A'
+  const startIdx = opts.startLabel
+    ? Math.max(0, TR_ALPHABET.indexOf(opts.startLabel.toUpperCase()))
+    : 0;
   const rows: RowConfig[] = [];
 
   for (let i = 0; i < count; i++) {
-    const label = String.fromCharCode(startCode + i);
+    const label = trLetterAt(startIdx + i);
     rows.push({
       label,
       seatCount: seatsPerRow,
@@ -402,7 +406,7 @@ const amphitheaterTemplate = (): VenueConfig => ({
       defaultCategory: 'standard',
       rows: [
         ...makeRows(3, 22, { seatSpacing: 24, rowGap: 28 }).map((r, i) => ({
-          ...r, label: String.fromCharCode(65 + i),
+          ...r, label: trLetterAt(i),
         })),
         ...makeRows(4, 26, { seatSpacing: 24, rowGap: 28, startLabel: 'D' }),
         ...makeRows(4, 30, { seatSpacing: 24, rowGap: 28, startLabel: 'H' }),
@@ -792,7 +796,10 @@ export function addRowToSection(venue: VenueConfig, sectionId: string): VenueCon
     sections: venue.sections.map(s => {
       if (s.id !== sectionId) return s;
       const lastRow = s.rows[s.rows.length - 1];
-      const nextLabel = String.fromCharCode((lastRow?.label || '@').charCodeAt(0) + 1);
+      const usedLabels = s.rows.map(r => r.label);
+      const nextLabel = lastRow
+        ? getNextLetterAfter(lastRow.label, usedLabels)
+        : trLetterAt(0);
       return {
         ...s,
         rows: [...s.rows, {
@@ -1115,7 +1122,7 @@ export function deserializeVenueDesign(saved: Record<string, any>): {
     blockLabel: s.blockLabel || s.name || '',
     seatRangeDesc: s.seatRangeDesc || '',
     rows: Array.isArray(s.rows) ? s.rows.map((r: any, ri: number) => ({
-      label: r.label || String.fromCharCode(65 + ri),
+      label: r.label || trLetterAt(ri),
       seatCount: r.seatCount ?? 16,
       seatSpacing: r.seatSpacing ?? 26,
       rowGap: r.rowGap ?? 28,

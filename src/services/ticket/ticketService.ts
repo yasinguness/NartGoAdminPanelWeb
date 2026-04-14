@@ -8,6 +8,7 @@ import {
   OrderResponse,
   TicketResponse,
 } from '../../types/tickets/ticketTypes';
+import { TR_ALPHABET } from '../../utils/trAlphabet';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -564,12 +565,16 @@ function generateRows(
   startY: number
 ): any[] {
   const rows: any[] = [];
-  const startCharCode = startRow.charCodeAt(0);
-  const endCharCode = endRow.charCodeAt(0);
-  
-  for (let i = startCharCode; i <= endCharCode; i++) {
-    const rowLabel = String.fromCharCode(i);
-    const rowIndex = i - startCharCode;
+  const startIdx = TR_ALPHABET.indexOf(startRow.toUpperCase());
+  const endIdx = TR_ALPHABET.indexOf(endRow.toUpperCase());
+  // Fallback to charCode-based range if letters not in TR_ALPHABET
+  const useCharCode = startIdx < 0 || endIdx < 0;
+  const rangeStart = useCharCode ? startRow.charCodeAt(0) : startIdx;
+  const rangeEnd = useCharCode ? endRow.charCodeAt(0) : endIdx;
+
+  for (let i = rangeStart; i <= rangeEnd; i++) {
+    const rowLabel = useCharCode ? String.fromCharCode(i) : TR_ALPHABET[i];
+    const rowIndex = i - rangeStart;
     
     const seats = [];
     for (let j = 1; j <= seatsPerRow; j++) {

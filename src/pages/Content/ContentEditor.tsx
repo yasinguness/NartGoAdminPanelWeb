@@ -101,9 +101,13 @@ export default function ContentEditor() {
       featured: found.featured, breakingNews: found.breakingNews,
     };
     const nextBlocks = htmlToBlocks(found.body);
+    // Normalize body through blocks→html round-trip to fix any double-escaped content
+    if (nextBlocks.length > 0) {
+      formData.body = blocksToHtml(nextBlocks);
+    }
     setForm(formData);
     setRichBlocks(nextBlocks);
-    if (found.body && looksLikeHtml(found.body)) {
+    if (formData.body && looksLikeHtml(formData.body)) {
       setEditorMode('html');
     }
     setAutoSlug(false);

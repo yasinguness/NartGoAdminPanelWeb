@@ -208,6 +208,11 @@ export default function RichTextInput({
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
       doc.querySelectorAll('script, style, iframe, link, object, embed, form, input, button, noscript').forEach(el => el.remove());
+      // Remove clipboard comment artifacts (<!--StartFragment--> etc.)
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_COMMENT);
+      const comments: Comment[] = [];
+      while (walker.nextNode()) comments.push(walker.currentNode as Comment);
+      comments.forEach(c => c.remove());
       doc.querySelectorAll('*').forEach(el => {
         // Remove event handlers
         Array.from(el.attributes).forEach(attr => {
