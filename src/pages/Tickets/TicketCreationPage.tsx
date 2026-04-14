@@ -215,12 +215,16 @@ export default function TicketCreationPage() {
     { ok: !!eventAddress?.description, t: eventAddress?.description ? 'Mekan seçildi' : 'Mekan belirlenmedi', blocker: true },
     { ok: isSeated !== null, t: isSeated ? 'Numaralı koltuk seçildi' : isSeated === false ? 'Serbest giriş seçildi' : 'Salon planı belirlenmedi', blocker: true },
     { ok: eventType === 'paid' ? tiers.length > 0 && tiers.every(t => !isFreeCategory(t.category) ? t.price > 0 : true) : true, t: eventType === 'paid' ? 'Bilet kategorileri tanımlandı' : 'Kayıt formu hazır', blocker: true },
-    { ok: eventType === 'invite' ? true : !!saleStartDate, t: eventType === 'paid' ? 'Satış tarihi belirlendi' : eventType === 'free' ? 'Kayıt tarihi belirlendi' : 'Takvim (opsiyonel)', blocker: eventType !== 'invite' },
-    { ok: refundPolicyConfig.isRefundable, t: (refundPolicyConfig.isRefundable ? 'İade politikası aktif' : 'İade politikası belirlenmedi (opsiyonel)'), blocker: false },
+    ...(eventType === 'paid'
+      ? [{ ok: !!saleStartDate, t: 'Satış tarihi belirlendi', blocker: true }]
+      : []),
+    ...(eventType === 'paid'
+      ? [{ ok: refundPolicyConfig.isRefundable, t: refundPolicyConfig.isRefundable ? 'İade politikası aktif' : 'İade politikası belirlenmedi (opsiyonel)', blocker: false }]
+      : []),
     { ok: !!coverMedia?.originalUrl, t: (coverMedia?.originalUrl ? 'Kapak görseli yüklendi' : 'Kapak görseli yüklenmedi'), blocker: false },
     ...(eventType === 'paid' && capacity && tiers.reduce((s,t)=>s+t.quota,0) !== Number(capacity) ? [{ ok: false, t: `Kontenjan uyuşmazlığı: ${tiers.reduce((s,t)=>s+t.quota,0)} bilet / ${capacity} kapasite`, blocker: false, action: () => setStep(5), actionLabel: 'Düzelt' }] : []),
-    ...(tiers.some(t => isSuspiciousName(t.name)) ? [{ ok: false, t: 'Bazı bilet kategorilerinde anlamsız isimler var', blocker: false, action: () => setStep(5), actionLabel: 'Düzelt' }] : []),
-  ], [effectiveOrganizer, eventName, eventStartDate, eventAddress, isSeated, eventType, tiers, saleStartDate, refundPolicyConfig, coverMedia, capacity]);
+    ...(eventType === 'paid' && tiers.some(t => isSuspiciousName(t.name)) ? [{ ok: false, t: 'Bazı bilet kategorilerinde anlamsız isimler var', blocker: false, action: () => setStep(5), actionLabel: 'Düzelt' }] : []),
+  ], [effectiveOrganizer, eventName, eventStartDate, eventAddress, isSeated, eventType, tiers, refundPolicyConfig, coverMedia, capacity, saleStartDate]);
 
   const blockers = useMemo(() => checks.filter(c => !c.ok && c.blocker), [checks]);
   const warnings = useMemo(() => checks.filter(c => !c.ok && !c.blocker), [checks]);
@@ -1175,11 +1179,11 @@ export default function TicketCreationPage() {
             { ok: !!eventName && !!eventStartDate, t: 'Etkinlik adı ve tarihi girildi', blocker: true },
             { ok: isSeated !== null, t: isSeated ? 'Numaralı koltuk seçildi' : isSeated === false ? 'Serbest giriş seçildi' : 'Salon planı belirlenmedi', blocker: true },
             { ok: eventType === 'paid' ? tiers.length > 0 && tiers.every(t => !isFreeCategory(t.category) ? t.price > 0 : true) : true, t: eventType === 'paid' ? 'Bilet kategorileri tanımlandı' : 'Kayıt formu hazır', blocker: true },
-            { ok: eventType === 'invite' ? true : !!saleStartDate, t: eventType === 'paid' ? 'Satış tarihi belirlendi' : eventType === 'free' ? 'Kayıt tarihi belirlendi' : 'Takvim (opsiyonel)', blocker: eventType !== 'invite' },
-            { ok: refundPolicyConfig.isRefundable, t: refundPolicyConfig.isRefundable ? 'İade politikası aktif' : 'İade politikası belirlenmedi (opsiyonel)', blocker: false },
+            ...(eventType === 'paid' ? [{ ok: !!saleStartDate, t: 'Satış tarihi belirlendi', blocker: true }] : []),
+            ...(eventType === 'paid' ? [{ ok: refundPolicyConfig.isRefundable, t: refundPolicyConfig.isRefundable ? 'İade politikası aktif' : 'İade politikası belirlenmedi (opsiyonel)', blocker: false }] : []),
             { ok: !!coverMedia?.originalUrl, t: coverMedia?.originalUrl ? 'Kapak görseli yüklendi' : 'Kapak görseli yüklenmedi', blocker: false },
             ...(eventType === 'paid' && capacity && totalQuotaCount !== Number(capacity) ? [{ ok: false, t: `Kontenjan uyuşmazlığı: ${totalQuotaCount} bilet / ${capacity} kapasite`, blocker: false, action: () => goTo(5), actionLabel: 'Düzelt' }] : []),
-            ...(tiers.some(t => isSuspiciousName(t.name)) ? [{ ok: false, t: 'Bazı bilet kategorilerinde anlamsız isimler var', blocker: false, action: () => goTo(5), actionLabel: 'Düzelt' }] : []),
+            ...(eventType === 'paid' && tiers.some(t => isSuspiciousName(t.name)) ? [{ ok: false, t: 'Bazı bilet kategorilerinde anlamsız isimler var', blocker: false, action: () => goTo(5), actionLabel: 'Düzelt' }] : []),
           ];
           const blockers = checks.filter(c => !c.ok && c.blocker);
           const warnings = checks.filter(c => !c.ok && !c.blocker);
@@ -1307,7 +1311,7 @@ export default function TicketCreationPage() {
                             : <WarningIcon sx={{ fontSize: 18, color: 'warning.main' }} />}
                         <Typography variant="body2" fontWeight={c.ok ? 500 : 600} sx={{ flex: 1, color: c.ok ? 'text.primary' : c.blocker ? 'error.main' : 'text.secondary' }}>
                           {c.t}
-                          {!c.ok && !c.blocker && <Typography component="span" variant="caption" color="text.disabled" sx={{ ml: 0.5 }}>(opsiyonel)</Typography>}
+                          {!c.ok && !c.blocker && !c.t.includes('(opsiyonel)') && <Typography component="span" variant="caption" color="text.disabled" sx={{ ml: 0.5 }}>(opsiyonel)</Typography>}
                         </Typography>
                         {c.action && <Button size="small" onClick={c.action} sx={{ textTransform: 'none', fontSize: 11, minWidth: 0, color: 'primary.main' }}>{c.actionLabel}</Button>}
                       </Stack>
