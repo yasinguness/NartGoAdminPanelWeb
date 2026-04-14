@@ -20,6 +20,45 @@ import {
 
 const STEPS = ['Dosya Yükle', 'Önizleme & Düzenleme', 'Kategori Tanımla'];
 
+/** Genişletilmiş Türkçe alfabe — Q, W, X dahil. Sıra isimleri bu listeden atanır. */
+const TR_ALPHABET = [
+  'A', 'B', 'C', 'Ç', 'D', 'E', 'F', 'G', 'Ğ', 'H',
+  'I', 'İ', 'J', 'K', 'L', 'M', 'N', 'O', 'Ö', 'P',
+  'Q', 'R', 'S', 'Ş', 'T', 'U', 'Ü', 'V', 'W', 'X',
+  'Y', 'Z',
+];
+
+/** Kullanılmayan bir sonraki harfi bul */
+function getNextAvailableLetter(usedNames: string[]): string {
+  const usedSet = new Set(usedNames.map(n => n.toUpperCase()));
+  for (const letter of TR_ALPHABET) {
+    if (!usedSet.has(letter)) return letter;
+  }
+  // Tüm harfler tükendiyse AA, AB... devam et
+  for (let i = 1; i <= 99; i++) {
+    const name = `${TR_ALPHABET[i % TR_ALPHABET.length]}${i}`;
+    if (!usedSet.has(name)) return name;
+  }
+  return `S${usedNames.length + 1}`;
+}
+
+/** Alfabe sırasındaki bir sonraki harfi bul (son sıradan sonra gelen) */
+function getNextLetterAfter(lastRowName: string, usedNames: string[]): string {
+  const usedSet = new Set(usedNames.map(n => n.toUpperCase()));
+  const upper = lastRowName.toUpperCase();
+  const idx = TR_ALPHABET.indexOf(upper);
+
+  // Son sıra alfabede bulunuyorsa, ondan sonraki ilk kullanılmayan harfi ver
+  if (idx >= 0) {
+    for (let i = idx + 1; i < TR_ALPHABET.length; i++) {
+      if (!usedSet.has(TR_ALPHABET[i])) return TR_ALPHABET[i];
+    }
+  }
+
+  // Bulunamadıysa genel fallback
+  return getNextAvailableLetter(usedNames);
+}
+
 const DEFAULT_COLORS = [
   '#FFD700', '#4CAF50', '#2196F3', '#FF5722', '#9C27B0',
   '#00BCD4', '#FF9800', '#E91E63', '#607D8B', '#795548',
@@ -94,8 +133,11 @@ export default function SeatTemplateWizard() {
   };
 
   const addRow = () => {
+    const usedNames = rows.map(r => r.name);
     const lastRow = rows[rows.length - 1];
-    const nextName = lastRow ? String.fromCharCode(lastRow.name.charCodeAt(0) + 1) : 'A';
+    const nextName = lastRow
+      ? getNextLetterAfter(lastRow.name, usedNames)
+      : getNextAvailableLetter(usedNames);
     setRows(prev => [...prev, { name: nextName, seatCount: lastRow?.seatCount || 22 }]);
   };
 
@@ -505,25 +547,30 @@ export default function SeatTemplateWizard() {
                 '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.03) },
               }}
             >
-              {editingRow === idx ? (
-                <>
-                  <TextField
-                    size="small" value={row.name}
-                    onChange={(e) => updateRow(idx, 'name', e.target.value)}
-                    sx={{ width: 70 }}
-                    label="Sıra"
-                  />
-                  <TextField
-                    size="small" type="number" value={row.seatCount}
-                    onChange={(e) => updateRow(idx, 'seatCount', parseInt(e.target.value) || 0)}
-                    sx={{ width: 90 }}
-                    label="Koltuk"
-                  />
-                  <IconButton size="small" color="primary" onClick={() => setEditingRow(null)}>
-                    <CheckIcon fontSize="small" />
-                  </IconButton>
-                </>
-              ) : (
+              {editingRow === idx ? (() => {
+                const isDuplicate = rows.some((r, i) => i !== idx && r.name.toUpperCase() === row.name.toUpperCase());
+                return (
+                  <>
+                    <TextField
+                      size="small" value={row.name}
+                      onChange={(e) => updateRow(idx, 'name', e.target.value.toUpperCase())}
+                      sx={{ width: 80 }}
+                      label="Sıra"
+                      error={isDuplicate}
+                      helperText={isDuplicate ? 'Bu harf kullanılıyor' : ''}
+                    />
+                    <TextField
+                      size="small" type="number" value={row.seatCount}
+                      onChange={(e) => updateRow(idx, 'seatCount', parseInt(e.target.value) || 0)}
+                      sx={{ width: 90 }}
+                      label="Koltuk"
+                    />
+                    <IconButton size="small" color="primary" onClick={() => { if (!isDuplicate) setEditingRow(null); }}>
+                      <CheckIcon fontSize="small" />
+                    </IconButton>
+                  </>
+                );
+              })() : (
                 <>
                   <Typography sx={{ width: 40, fontWeight: 700, fontFamily: 'monospace' }}>
                     {row.name}
@@ -556,9 +603,18 @@ export default function SeatTemplateWizard() {
           ))}
         </Paper>
 
-        <Button startIcon={<AddIcon />} onClick={addRow} sx={{ mt: 1 }}>
-          Sıra Ekle
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+          <Button startIcon={<AddIcon />} onClick={addRow}>
+            Sıra Ekle ({(() => {
+              const usedNames = rows.map(r => r.name);
+              const lastRow = rows[rows.length - 1];
+              return lastRow ? getNextLetterAfter(lastRow.name, usedNames) : getNextAvailableLetter(usedNames);
+            })()})
+          </Button>
+          <Typography variant="caption" color="text.disabled">
+            Türkçe alfabe sırasına göre (Ç, Ğ, İ, Ö, Ş, Ü dahil)
+          </Typography>
+        </Stack>
       </Box>
 
       {/* Sağ: Preview */}
