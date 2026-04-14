@@ -3,7 +3,7 @@
  * Steps: (1) Organizer, (2) Event Type, (3) Event Info, (4) Seat Plan, (5) Ticket Config, (6) Refund Policy, (7) Preview
  */
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { ticketService } from '../../services/ticket/ticketService';
 import { userService } from '../../services/user/userService';
@@ -85,6 +85,8 @@ export default function TicketCreationPage() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { eventId } = useParams<{ eventId?: string }>();
+  const [searchParams] = useSearchParams();
+  const isConvertMode = searchParams.get('convert') === 'true' && !!eventId;
   const { enqueueSnackbar } = useSnackbar();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isAdmin } = useRole();
@@ -95,6 +97,7 @@ export default function TicketCreationPage() {
   const [published, setPublished] = useState(false);
   const [savedAsDraft, setSavedAsDraft] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [convertLoading, setConvertLoading] = useState(false);
 
   // Step 1 (admin only): Organizer search
   const [orgSearch, setOrgSearch] = useState('');
@@ -189,6 +192,75 @@ export default function TicketCreationPage() {
       })
       .catch(() => {});
   }, []);
+
+  // ─── CONVERT MODE: Mevcut etkinliği fetch et ve pre-fill et ──
+  useEffect(() => {
+    if (!isConvertMode || !eventId) return;
+    setConvertLoading(true);
+    api.get(`/events/${eventId}`)
+      .then(res => {
+        const ev = res.data?.data;
+        if (!ev) return;
+
+        // Pre-fill: Step 2 → ücretli
+        setEventType('paid');
+
+        // Pre-fill: Step 3 — etkinlik bilgileri
+        setEventName(ev.name || '');
+        setEventDescription(ev.description || '');
+        if (ev.eventTime) setEventStartDate(new Date(ev.eventTime));
+        if (ev.endTime) setEventEndDate(new Date(ev.endTime));
+        if (ev.category?.id) setEventCategoryId(ev.category.id);
+        setCapacity(String(ev.maxParticipants || ''));
+        if (ev.isPrivate) setVisibility('link');
+
+        // Pre-fill: Step 4 — mekan
+        if (ev.address) {
+          setEventAddress({
+            description: ev.address.description || ev.address.street || '',
+            city: ev.address.city || '',
+            district: ev.address.district || '',
+            country: ev.address.country || 'Türkiye',
+            countryCode: ev.address.countryCode || 'TR',
+            street: ev.address.street || '',
+            postalCode: ev.address.postalCode || '',
+            latitude: ev.address.latitude,
+            longitude: ev.address.longitude,
+          });
+        }
+
+        // Serbest giriş default (ücretsiz etkinlik numaralı koltuk olmaz)
+        setIsSeated(false);
+
+        // Kapak görseli
+        const thumb = ev.thumbnailUrl || ev.image;
+        if (thumb) {
+          setCoverMedia({ originalUrl: thumb, mediaType: 'IMAGE' } as any);
+        }
+
+        // Organizatör (admin için)
+        if (isAdmin && ev.organizerId) {
+          setOrganizer({
+            id: ev.organizerId,
+            displayName: ev.organizerName || '',
+            email: ev.organizerEmail || '',
+            firstName: ev.organizerName?.split(' ')[0] || '',
+            lastName: ev.organizerName?.split(' ').slice(1).join(' ') || '',
+          } as any);
+        }
+
+        // Convert modunda Step 4'ten başla (salon planı + bilet ayarları)
+        // Admin: step 4, non-admin: step 3 (çünkü step=logicalStep - 1)
+        setStep(isAdmin ? 4 : 3);
+
+        enqueueSnackbar('Etkinlik bilgileri yüklendi — salon planı ve bilet ayarlarını tamamlayın', { variant: 'info' });
+      })
+      .catch(() => {
+        enqueueSnackbar('Etkinlik bilgileri yüklenemedi', { variant: 'error' });
+        navigate('/events');
+      })
+      .finally(() => setConvertLoading(false));
+  }, [isConvertMode, eventId]);
 
   // ─── HELPERS ─────────────────────────────────────────
   /** Detect gibberish/test names like "asdasd", "asfasd" */
@@ -502,15 +574,50 @@ export default function TicketCreationPage() {
         } : isSeated === false ? { enabled: false } : undefined,
       };
 
-      const formData = new FormData();
-      formData.append('request', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
-      if (eventImage) formData.append('image', eventImage);
+      if (isConvertMode && eventId) {
+        // ── CONVERT MODE: Mevcut ücretsiz etkinliği ücretliye dönüştür ──
+        // 1) Etkinliği güncelle (isPaid=true)
+        await api.put(`/events/admin/${eventId}`, {
+          ...payload,
+          isPaid: true,
+          status: 'ACTIVE',
+        });
 
-      const eventRes = await api.post('/events/admin', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      const createdId = eventRes.data?.data?.id || eventId;
-      setSavedAsDraft(isDraft);
-      setPublished(true);
-      enqueueSnackbar(isDraft ? 'Etkinlik taslak olarak kaydedildi' : 'Etkinlik başarıyla yayınlandı!', { variant: 'success' });
+        // 2) Bilet türlerini oluştur
+        if (isPaid && tiers.length > 0) {
+          for (const t of tiers) {
+            await ticketService.createTicketType({
+              eventId,
+              name: t.name,
+              basePrice: t.price,
+              capacityTotal: t.quota,
+              currency,
+              saleStartAt: saleStartDate ? saleStartDate.toISOString() : undefined,
+              saleEndAt: saleEndDate ? saleEndDate.toISOString() : (eventStartDate ? eventStartDate.toISOString() : undefined),
+            } as any);
+          }
+        }
+
+        // 3) Salon planı varsa seating config gönder
+        if (isSeated && payload.seating) {
+          try {
+            await api.post(`/tickets/admin/events/${eventId}/seating/backfill`, null, { params: { force: true } });
+          } catch { /* seating config opsiyonel */ }
+        }
+
+        setPublished(true);
+        enqueueSnackbar('Etkinlik biletli etkinliğe dönüştürüldü!', { variant: 'success' });
+      } else {
+        // ── NORMAL MODE: Yeni etkinlik oluştur ──
+        const formData = new FormData();
+        formData.append('request', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+        if (eventImage) formData.append('image', eventImage);
+
+        await api.post('/events/admin', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        setSavedAsDraft(isDraft);
+        setPublished(true);
+        enqueueSnackbar(isDraft ? 'Etkinlik taslak olarak kaydedildi' : 'Etkinlik başarıyla yayınlandı!', { variant: 'success' });
+      }
     } catch (err: any) {
       enqueueSnackbar(err?.response?.data?.message || 'Etkinlik oluşturulamadı', { variant: 'error' });
     } finally { setPublishing(false); }
@@ -591,20 +698,45 @@ export default function TicketCreationPage() {
           <Box sx={{ width: 88, height: 88, borderRadius: '50%', mx: 'auto', mb: 3, bgcolor: alpha(theme.palette.success.main, 0.1), border: '3px solid', borderColor: 'success.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CelebrationIcon sx={{ fontSize: 40, color: 'success.main' }} />
           </Box>
-          <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>{savedAsDraft ? 'Taslak Kaydedildi!' : 'Etkinlik Yayınlandı!'}</Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 420, mx: 'auto', mb: 1 }}>
-            <strong>{eventName}</strong> etkinliği <strong>{effectiveOrganizer?.displayName || effectiveOrganizer?.email}</strong> adına oluşturuldu.
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
+            {isConvertMode ? 'Etkinlik Dönüştürüldü!' : savedAsDraft ? 'Taslak Kaydedildi!' : 'Etkinlik Yayınlandı!'}
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480, mx: 'auto', mb: 1 }}>
+            {isConvertMode
+              ? <><strong>{eventName}</strong> etkinliği biletli etkinliğe dönüştürüldü. Bilet satışı başlatılabilir.</>
+              : <><strong>{eventName}</strong> etkinliği <strong>{effectiveOrganizer?.displayName || effectiveOrganizer?.email}</strong> adına oluşturuldu.</>
+            }
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            {eventType === 'paid' ? 'Bilet satışı başladı.' : eventType === 'free' ? 'Kayıtlara açıldı.' : ''}
+            {isConvertMode ? `${tiers.length} bilet türü oluşturuldu.` : eventType === 'paid' ? 'Bilet satışı başladı.' : eventType === 'free' ? 'Kayıtlara açıldı.' : ''}
           </Typography>
           <Stack direction="row" spacing={2} justifyContent="center">
-            <Button variant="outlined" onClick={() => { setPublished(false); setStep(1); setOrganizer(null); setEventType(null); setEventName(''); setEventDescription(''); setEventStartDate(null); setEventEndDate(null); setCapacity(''); setTiers([{ id: '1', name: 'Standart', price: 150, quota: 100, color: '#22c55e', category: TicketCategory.STANDARD }]); setSaleStartDate(null); setSaleEndDate(null); setEventImage(null); setImagePreview(null); setCoverMedia(undefined); setCoverFile(null); setIsSeated(null); setSelectedTemplate(null); setCustomSections([]); setSeatEditorMode(false); setRefundPolicyConfig({ ...DEFAULT_REFUND_POLICY }); setAgeLimit(''); setEventLanguage(''); setEventFormat(EventFormat.PHYSICAL); setEventAddress(null); }}
-              sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, px: 3 }}>+ Yeni Etkinlik</Button>
-            <Button variant="contained" onClick={() => navigate('/events')}
-              sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, px: 3 }}>Etkinliklere Git</Button>
+            {isConvertMode ? (
+              <Button variant="contained" onClick={() => navigate(`/events/${eventId}`)}
+                sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, px: 3 }}>Etkinlik Detayına Git</Button>
+            ) : (
+              <>
+                <Button variant="outlined" onClick={() => { setPublished(false); setStep(1); setOrganizer(null); setEventType(null); setEventName(''); setEventDescription(''); setEventStartDate(null); setEventEndDate(null); setCapacity(''); setTiers([{ id: '1', name: 'Standart', price: 150, quota: 100, color: '#22c55e', category: TicketCategory.STANDARD }]); setSaleStartDate(null); setSaleEndDate(null); setEventImage(null); setImagePreview(null); setCoverMedia(undefined); setCoverFile(null); setIsSeated(null); setSelectedTemplate(null); setCustomSections([]); setSeatEditorMode(false); setRefundPolicyConfig({ ...DEFAULT_REFUND_POLICY }); setAgeLimit(''); setEventLanguage(''); setEventFormat(EventFormat.PHYSICAL); setEventAddress(null); }}
+                  sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, px: 3 }}>+ Yeni Etkinlik</Button>
+                <Button variant="contained" onClick={() => navigate('/events')}
+                  sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, px: 3 }}>Etkinliklere Git</Button>
+              </>
+            )}
           </Stack>
         </Box></Fade>
+      </Box>
+    );
+  }
+
+  // ─── CONVERT LOADING ─────────────────────────────────
+  if (convertLoading) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 15, textAlign: 'center' }}>
+        <CircularProgress size={48} sx={{ mb: 3 }} />
+        <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>Etkinlik Bilgileri Yükleniyor</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Mevcut etkinlik bilgileri alınıyor ve form dolduruluyor...
+        </Typography>
       </Box>
     );
   }
@@ -616,12 +748,18 @@ export default function TicketCreationPage() {
       <Box sx={{ bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', position:  'inherit', top: 56, zIndex: 10 }}>
         {/* Top row: back + title + step counter */}
         <Box sx={{ px: { xs: 2, sm: 4 }, pt: 1.5, pb: 1 }}>
-          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5, cursor: 'pointer' }} onClick={() => navigate('/events')}>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5, cursor: 'pointer' }} onClick={() => isConvertMode ? navigate(`/events/${eventId}`) : navigate('/events')}>
             <BackIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-            <Typography variant="caption" color="text.secondary" sx={{ '&:hover': { color: 'primary.main' } }}>Etkinliklere Dön</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ '&:hover': { color: 'primary.main' } }}>
+              {isConvertMode ? 'Etkinlik Detayına Dön' : 'Etkinliklere Dön'}
+            </Typography>
           </Stack>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Box>
+              {isConvertMode && (
+                <Chip label="🎫 Biletli Etkinliğe Dönüştürme" size="small" color="primary" variant="outlined"
+                  sx={{ fontWeight: 700, fontSize: 10, height: 22, mb: 0.5 }} />
+              )}
               <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.3 }}>{labels[step - 1]}</Typography>
               <Typography variant="caption" color="text.secondary">{subs[step - 1]}</Typography>
             </Box>
@@ -665,6 +803,28 @@ export default function TicketCreationPage() {
 
       {/* Content */}
       <Box sx={{ flex: 1, px: { xs: 2, sm: 4 }, py: 3, pb: 14, maxWidth: 820, width: '100%' }}>
+
+        {/* ── CONVERT MODE: Mevcut etkinlik bilgileri özet bandı ── */}
+        {isConvertMode && logicalStep >= 4 && (
+          <Paper variant="outlined" sx={{
+            mb: 3, p: 2, borderRadius: 2.5,
+            border: '1px solid', borderColor: t => alpha(t.palette.info.main, 0.3),
+            bgcolor: t => alpha(t.palette.info.main, 0.04),
+          }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Typography fontSize={20}>🎫</Typography>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle2" fontWeight={700}>
+                  {eventName} — Biletli Etkinliğe Dönüştürülüyor
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {eventStartDate ? format(eventStartDate, 'dd MMM yyyy HH:mm', { locale: tr }) : ''} · {eventAddress?.description || ''} · Kapasite: {capacity || '?'}
+                </Typography>
+              </Box>
+              <Chip label="Ücretli" size="small" color="primary" sx={{ fontWeight: 700 }} />
+            </Stack>
+          </Paper>
+        )}
 
         {/* ─── STEP 1: ORGANİZATÖR (admin only) ─── */}
         {logicalStep === 1 && isAdmin && (
@@ -950,75 +1110,105 @@ export default function TicketCreationPage() {
 
                   {/* ── NUMARALI KOLTUK: salon planından gelen bölgeler ── */}
                   {isSeated && seatPlanSections.length > 0 ? (
-                    <Stack spacing={2}>
+                    <Stack spacing={1.5}>
+                      {/* Tablo başlığı */}
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1 }}>
+                        <Box sx={{ width: 14 }} />
+                        <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ flex: 1.5 }}>Bölge</Typography>
+                        <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ width: 100, textAlign: 'center' }}>Sıralar</Typography>
+                        <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ width: 80, textAlign: 'center' }}>Koltuk</Typography>
+                        <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ flex: 1 }}>Fiyat</Typography>
+                      </Stack>
+
                       {seatPlanSections.map((sec) => {
                         const tier = tiers.find(t => t.id === sec.id);
                         const price = tier?.price || 0;
+                        // Sıra etiketlerini bul
+                        const sectionRows = (sec as any).rows || [];
+                        const rowLabels = sectionRows.map?.((r: any) => r.label || r.rowLabel || '') || [];
+                        const rowRange = rowLabels.length > 1
+                          ? `${rowLabels[0]}–${rowLabels[rowLabels.length - 1]}`
+                          : rowLabels[0] || '';
                         return (
-                          <Paper key={sec.id} variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 1.5, bgcolor: alpha(sec.color, 0.06), borderBottom: '1px solid', borderColor: 'divider' }}>
-                              <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: sec.color, flexShrink: 0 }} />
-                              <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>{sec.name}</Typography>
-                              <Chip size="small" label={CATEGORY_TR[sec.category] || sec.category} variant="outlined" sx={{ fontWeight: 600, fontSize: 10, height: 22 }} />
-                            </Box>
-                            <Box sx={{ px: 2.5, py: 2 }}>
-                              <Stack direction="row" spacing={2} alignItems="flex-end">
-                                {/* Kapasite — readonly */}
+                          <Paper key={sec.id} variant="outlined" sx={{
+                            borderRadius: 2.5, overflow: 'hidden',
+                            border: '1px solid', borderColor: 'divider',
+                            transition: 'border-color 0.2s',
+                            '&:hover': { borderColor: sec.color },
+                          }}>
+                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ px: 2, py: 1.5 }}>
+                              {/* Renk + isim */}
+                              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: sec.color, flexShrink: 0 }} />
+                              <Box sx={{ flex: 1.5, minWidth: 0 }}>
+                                <Typography variant="subtitle2" fontWeight={700} noWrap>{sec.name}</Typography>
+                                <Chip size="small" label={CATEGORY_TR[sec.category] || sec.category} variant="outlined"
+                                  sx={{ fontWeight: 600, fontSize: 9, height: 18, mt: 0.3 }} />
+                              </Box>
+
+                              {/* Sıralar */}
+                              <Box sx={{ width: 100, textAlign: 'center' }}>
+                                {rowRange ? (
+                                  <Chip label={rowRange} size="small"
+                                    sx={{ height: 22, fontSize: 11, fontWeight: 700, fontFamily: 'monospace', bgcolor: alpha(sec.color, 0.1) }} />
+                                ) : (
+                                  <Typography variant="caption" color="text.disabled">—</Typography>
+                                )}
+                              </Box>
+
+                              {/* Koltuk sayısı */}
+                              <Box sx={{ width: 80, textAlign: 'center' }}>
+                                <Typography variant="body2" fontWeight={800} fontFamily="monospace">
+                                  {sec.seatCount}
+                                </Typography>
+                              </Box>
+
+                              {/* Fiyat input */}
+                              <Box sx={{ flex: 1 }}>
                                 <TextField
-                                  label="Kapasite"
-                                  size="small"
-                                  fullWidth
-                                  value={`${sec.seatCount} koltuk`}
-                                  disabled
-                                  helperText="Salon planından"
-                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                                />
-                                {/* Fiyat — editable */}
-                                <TextField
-                                  label={`Fiyat (${CURRENCY_SYMBOLS[currency] || currency})`}
                                   type="number"
                                   size="small"
                                   fullWidth
                                   value={price || ''}
                                   placeholder="0"
                                   InputProps={{
-                                    startAdornment: <Typography sx={{ mr: 0.5, color: 'text.secondary', fontSize: 13 }}>{CURRENCY_SYMBOLS[currency] || currency}</Typography>,
+                                    startAdornment: <Typography sx={{ mr: 0.5, color: 'text.secondary', fontSize: 13, fontWeight: 600 }}>{CURRENCY_SYMBOLS[currency] || currency}</Typography>,
                                     inputProps: { min: 0, step: 1 },
                                   }}
-                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 }, '& .MuiOutlinedInput-input': { fontWeight: 700, fontFamily: 'monospace' } }}
                                   onFocus={e => e.target.select()}
                                   onChange={e => {
                                     const newPrice = e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0;
                                     if (tier) {
                                       updateTier(tier.id, 'price', newPrice);
                                     } else {
-                                      // Salon planından gelen bölge için yeni tier oluştur
                                       setTiers(prev => [...prev, { id: sec.id, name: sec.name, price: newPrice, quota: sec.seatCount, color: sec.color, category: TicketCategory.STANDARD }]);
                                     }
                                   }}
                                 />
-                              </Stack>
-                            </Box>
+                              </Box>
+                            </Stack>
                           </Paper>
                         );
                       })}
                       {errors.tierPrice && <Typography variant="caption" color="error">{errors.tierPrice}</Typography>}
 
-                      {/* Özet */}
-                      <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-                        <Paper variant="outlined" sx={{ flex: 1, p: 1.5, borderRadius: 2, textAlign: 'center' }}>
-                          <Typography variant="h6" fontWeight={800} fontFamily="JetBrains Mono, monospace" color="info.main">{computedCapacity}</Typography>
-                          <Typography variant="caption" color="text.secondary" fontWeight={600}>Koltuk (salon planından)</Typography>
-                        </Paper>
-                        <Paper variant="outlined" sx={{ flex: 1, p: 1.5, borderRadius: 2, textAlign: 'center' }}>
-                          <Typography variant="h6" fontWeight={800} fontFamily="JetBrains Mono, monospace" color="success.main">{CURRENCY_SYMBOLS[currency] || currency}{seatedMaxRevenue.toLocaleString('tr-TR')}</Typography>
-                          <Typography variant="caption" color="text.secondary" fontWeight={600}>Maks. Gelir</Typography>
-                        </Paper>
-                        <Paper variant="outlined" sx={{ flex: 1, p: 1.5, borderRadius: 2, textAlign: 'center' }}>
-                          <Typography variant="h6" fontWeight={800} fontFamily="JetBrains Mono, monospace" color="warning.main">{seatPlanSections.length}</Typography>
-                          <Typography variant="caption" color="text.secondary" fontWeight={600}>Bölge</Typography>
-                        </Paper>
-                      </Stack>
+                      {/* Özet — tek satır, kompakt */}
+                      <Paper variant="outlined" sx={{ borderRadius: 2.5, overflow: 'hidden', mt: 1 }}>
+                        <Stack direction="row" divider={<Divider orientation="vertical" flexItem />}>
+                          <Box sx={{ flex: 1, py: 1.5, textAlign: 'center' }}>
+                            <Typography variant="h6" fontWeight={800} fontFamily="monospace" color="info.main">{computedCapacity}</Typography>
+                            <Typography variant="caption" color="text.secondary" fontWeight={600}>Toplam Koltuk</Typography>
+                          </Box>
+                          <Box sx={{ flex: 1, py: 1.5, textAlign: 'center' }}>
+                            <Typography variant="h6" fontWeight={800} fontFamily="monospace" color="success.main">{CURRENCY_SYMBOLS[currency] || currency}{seatedMaxRevenue.toLocaleString('tr-TR')}</Typography>
+                            <Typography variant="caption" color="text.secondary" fontWeight={600}>Maks. Gelir</Typography>
+                          </Box>
+                          <Box sx={{ flex: 1, py: 1.5, textAlign: 'center' }}>
+                            <Typography variant="h6" fontWeight={800} fontFamily="monospace" color="warning.main">{seatPlanSections.length}</Typography>
+                            <Typography variant="caption" color="text.secondary" fontWeight={600}>Bölge</Typography>
+                          </Box>
+                        </Stack>
+                      </Paper>
                     </Stack>
                   ) : (
                     /* ── SERBEST GİRİŞ: tam düzenlenebilir bilet kartları ── */
@@ -1454,17 +1644,17 @@ export default function TicketCreationPage() {
         <Button variant="outlined" startIcon={<BackIcon />} onClick={goBack} disabled={step === 1}
           sx={{ textTransform: 'none', borderRadius: 2.5, fontWeight: 600, visibility: step === 1 ? 'hidden' : 'visible' }}>Geri</Button>
         <Typography variant="caption" color="text.disabled" sx={{ display: { xs: 'none', sm: 'block' } }}>
-          {step === TOTAL ? (hasBlockers ? `${blockers.length} zorunlu alan eksik` : 'Yayınlamadan önce bilgileri kontrol edin') : 'Tüm * alanları zorunlu'}
+          {step === TOTAL ? (hasBlockers ? `${blockers.length} zorunlu alan eksik` : (isConvertMode ? 'Dönüştürmeden önce bilgileri kontrol edin' : 'Yayınlamadan önce bilgileri kontrol edin')) : 'Tüm * alanları zorunlu'}
         </Typography>
         <Stack direction="row" spacing={1.5}>
-          {step === TOTAL && (
+          {step === TOTAL && !isConvertMode && (
             <Button variant="outlined" onClick={() => handlePublish(true)} disabled={publishing}
               sx={{ textTransform: 'none', borderRadius: 2.5, fontWeight: 600, px: 2.5 }}>Taslak Kaydet</Button>
           )}
           <Button variant="contained" onClick={goNext} disabled={publishing || (step === TOTAL && hasBlockers)}
             endIcon={step === TOTAL ? <SendIcon /> : <ForwardIcon />}
             sx={{ textTransform: 'none', borderRadius: 2.5, fontWeight: 600, px: 3, bgcolor: (step === TOTAL && !hasBlockers) ? theme.palette.primary.main : undefined }}>
-            {publishing ? 'Yayınlanıyor...' : step === TOTAL ? 'Etkinliği Yayınla' : 'Devam Et'}
+            {publishing ? (isConvertMode ? 'Dönüştürülüyor...' : 'Yayınlanıyor...') : step === TOTAL ? (isConvertMode ? 'Biletli Etkinliğe Dönüştür' : 'Etkinliği Yayınla') : 'Devam Et'}
           </Button>
         </Stack>
       </Box>

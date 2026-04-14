@@ -1633,6 +1633,56 @@ export default function EventDetail() {
               </Box>
             </Box>
 
+            {/* Biletli Etkinliğe Dönüştür — sadece ücretsiz etkinliklerde */}
+            {!event.isPaid && (
+              <Box sx={{
+                border: '1.5px solid', borderColor: t => alpha(t.palette.primary.main, 0.3),
+                borderRadius: 3, overflow: 'hidden',
+                bgcolor: t => alpha(t.palette.primary.main, 0.03),
+              }}>
+                <Box sx={{ px: 2.5, py: 2 }}>
+                  <Stack direction="row" spacing={2} alignItems="flex-start">
+                    <Box sx={{
+                      width: 44, height: 44, borderRadius: 2,
+                      bgcolor: t => alpha(t.palette.primary.main, 0.1),
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <Typography fontSize={22}>🎫</Typography>
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
+                        Biletli Etkinliğe Dönüştür
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.6 }}>
+                        Bu etkinlik şu an <strong>ücretsiz</strong>.
+                        Biletli etkinliğe dönüştürerek bilet satışı başlatabilirsiniz.
+                        Mevcut {event.currentParticipants || 0} katılımcı korunur.
+                      </Typography>
+                      <Stack spacing={0.5} sx={{ mb: 2 }}>
+                        {[
+                          'Bilet türleri ve fiyatları belirlenir',
+                          'Salon planı atanabilir (numaralı koltuk)',
+                          'Satış takvimi ve iade politikası tanımlanır',
+                        ].map((item, i) => (
+                          <Stack key={i} direction="row" spacing={1} alignItems="center">
+                            <CheckCircleIcon sx={{ fontSize: 14, color: 'primary.main' }} />
+                            <Typography variant="caption" color="text.secondary">{item}</Typography>
+                          </Stack>
+                        ))}
+                      </Stack>
+                      <Button
+                        variant="contained"
+                        onClick={() => navigate(`/event-creation/${event.id}?convert=true`)}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, px: 3 }}
+                      >
+                        🎫 Biletli Etkinliğe Dönüştür
+                      </Button>
+                    </Box>
+                  </Stack>
+                </Box>
+              </Box>
+            )}
+
             {/* Danger Zone */}
             <Box sx={{
               border: '1.5px solid', borderColor: t => alpha(t.palette.error.main, 0.3),

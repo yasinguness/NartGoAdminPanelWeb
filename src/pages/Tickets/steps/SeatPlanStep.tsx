@@ -2,7 +2,7 @@
  * SeatPlanStep — Mekan & Salon planı adımı
  * Step 4: Mekan seçimi (Google Places) + Oturma düzeni + Şablon seçimi
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Grid, Chip, Stack, alpha, useTheme, styled, Fade, Tooltip,
   TextField, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton,
@@ -18,6 +18,7 @@ import {
   Close as CloseIcon,
   Edit as EditIcon,
   Visibility as PreviewIcon,
+  Bookmark as BookmarkIcon,
 } from '@mui/icons-material';
 import {
   VenueLayoutType,
@@ -29,6 +30,7 @@ import {
 import { ticketService } from '../../../services/ticket/ticketService';
 import GooglePlacesInput, { type AddressValue } from '../../../components/GooglePlacesInput';
 import CustomSeatEditor from './CustomSeatEditor';
+import { seatTemplateService, type SeatTemplate } from '../../../services/ticket/seatTemplateService';
 
 // ─── Types ────────────────────────────────────────────────
 // LocationDetails replaced by AddressValue from GooglePlacesInput
@@ -271,6 +273,88 @@ export default function SeatPlanStep({
   const [templates] = useState<VenueTemplate[]>(() => ticketService.getVenueTemplates());
   const [previewTemplate, setPreviewTemplate] = useState<VenueTemplate | null>(null);
 
+  // Kayıtlı salon planları
+  const [savedTemplates, setSavedTemplates] = useState<SeatTemplate[]>([]);
+  const [savedTemplatesLoading, setSavedTemplatesLoading] = useState(false);
+
+  useEffect(() => {
+    if (isSeated === true) {
+      setSavedTemplatesLoading(true);
+      seatTemplateService.listTemplates()
+        .then(res => { if (res.success) setSavedTemplates(res.data || []); })
+        .catch(() => {})
+        .finally(() => setSavedTemplatesLoading(false));
+    }
+  }, [isSeated]);
+
+  /** Kayıtlı şablonu SeatSection[]'a dönüştür (editörde düzenlenebilir) */
+  const savedTemplateToSections = (tpl: SeatTemplate): SeatSection[] => {
+    const layout = tpl.layout;
+    if (!layout?.rows) return [];
+
+    const cats = layout.categories || [];
+    // Sıra → kategori eşleşmesi
+    const rowToCat = new Map<string, { name: string; color: string }>();
+    for (const cat of cats) {
+      for (const rowName of cat.rows || []) {
+        rowToCat.set(rowName, { name: cat.name, color: cat.color });
+      }
+    }
+
+    // Kategorilere göre grupla
+    const sectionMap = new Map<string, { name: string; color: string; category: string; rows: { label: string; seats: number }[] }>();
+
+    for (const row of layout.rows) {
+      const cat = rowToCat.get(row.name) || { name: 'Genel', color: '#4CAF50' };
+      const key = cat.name;
+      if (!sectionMap.has(key)) {
+        sectionMap.set(key, { name: cat.name, color: cat.color, category: 'STANDARD', rows: [] });
+      }
+      sectionMap.get(key)!.rows.push({ label: row.name, seats: row.seatCount });
+    }
+
+    // Eğer hiç kategori yoksa tek section oluştur
+    if (sectionMap.size === 0) {
+      return [{
+        id: `sec-saved-0-${Date.now()}`,
+        name: tpl.name,
+        offsetX: 0, offsetY: 0,
+        color: '#4CAF50',
+        category: SeatCategory.STANDARD,
+        basePrice: 0,
+        rows: layout.rows.map((r, ri) => ({
+          id: `row-saved-0-${ri}-${Date.now()}`,
+          label: r.name,
+          seats: Array.from({ length: r.seatCount }, (_, si) => ({
+            id: `seat-saved-0-${ri}-${si}-${Date.now()}`,
+            number: si + 1,
+            status: SeatStatus.AVAILABLE,
+            category: SeatCategory.STANDARD,
+          })),
+        })),
+      }];
+    }
+
+    return Array.from(sectionMap.entries()).map(([key, sec], i) => ({
+      id: `sec-saved-${i}-${Date.now()}`,
+      name: sec.name,
+      offsetX: 0, offsetY: i * 100,
+      color: sec.color,
+      category: sec.category as SeatCategory,
+      basePrice: 0,
+      rows: sec.rows.map((r, ri) => ({
+        id: `row-saved-${i}-${ri}-${Date.now()}`,
+        label: r.label,
+        seats: Array.from({ length: r.seats }, (_, si) => ({
+          id: `seat-saved-${i}-${ri}-${si}-${Date.now()}`,
+          number: si + 1,
+          status: SeatStatus.AVAILABLE,
+          category: sec.category as SeatCategory,
+        })),
+      })),
+    }));
+  };
+
   // Location handlers moved to GooglePlacesInput component
 
   return (
@@ -393,6 +477,101 @@ export default function SeatPlanStep({
             {!editorMode ? (
               <>
                 <Grid container spacing={2}>
+
+                  {/* ══ 1) KAYITLI SALON PLANLARI — en üstte ══ */}
+                  {savedTemplatesLoading && (
+                    <Grid item xs={12}>
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ py: 2 }}>
+                        <CircularProgress size={18} />
+                        <Typography variant="caption" color="text.secondary">Kayıtlı planlar yükleniyor...</Typography>
+                      </Stack>
+                    </Grid>
+                  )}
+                  {savedTemplates.length > 0 && (
+                    <Grid item xs={12}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <BookmarkIcon sx={{ fontSize: 18, color: '#16a34a' }} />
+                        <Typography variant="subtitle2" fontWeight={700} color="#16a34a">
+                          Kayıtlı Salon Planları
+                        </Typography>
+                        <Chip label={`${savedTemplates.length} plan`} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: alpha('#16a34a', 0.1), color: '#16a34a' }} />
+                      </Stack>
+                    </Grid>
+                  )}
+                  {savedTemplates.map((saved) => {
+                    const savedTotalSeats = saved.totalSeats || saved.layout?.rows?.reduce((s, r) => s + r.seatCount, 0) || 0;
+                    const isSelected = selectedTemplate?.id === `saved:${saved.id}`;
+                    const savedCats = saved.layout?.categories || [];
+                    const savedRows = saved.layout?.rows || [];
+                    return (
+                      <Grid item xs={12} sm={6} md={4} key={`saved-${saved.id}`}>
+                        <TemplateCard
+                          $selected={isSelected}
+                          elevation={0}
+                          onClick={() => {
+                            if (isSelected) {
+                              onTemplateSelect(null);
+                            } else {
+                              onTemplateSelect({ id: `saved:${saved.id}`, name: saved.name, description: saved.description || '', type: VenueLayoutType.THEATER, capacity: savedTotalSeats, thumbnail: '', layout: { sections: [] }, seatMap: { sections: [] } } as unknown as VenueTemplate);
+                              onCustomSectionsChange(savedTemplateToSections(saved));
+                              onEditorModeChange(true);
+                            }
+                          }}
+                        >
+                          {isSelected && <Box sx={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, borderRadius: '50%', bgcolor: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(22,163,74,0.3)' }}><CheckIcon sx={{ color: '#fff', fontSize: 16 }} /></Box>}
+                          <Stack spacing={1.5}>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                              <Box sx={{ width: 42, height: 42, borderRadius: 2, bgcolor: alpha('#16a34a', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid', borderColor: alpha('#16a34a', 0.25) }}>
+                                <BookmarkIcon sx={{ color: '#16a34a', fontSize: 24 }} />
+                              </Box>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="subtitle2" fontWeight={700} noWrap>{saved.name}</Typography>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>{savedTotalSeats} koltuk · {savedRows.length} sıra · özelleştirilebilir</Typography>
+                              </Box>
+                            </Stack>
+
+                            {/* Kategori breakdown veya sıra özeti */}
+                            {savedCats.length > 0 ? (
+                              <Stack spacing={0.5}>
+                                {savedCats.map(cat => {
+                                  const catSeats = savedRows.filter(r => cat.rows?.includes(r.name)).reduce((s, r) => s + r.seatCount, 0);
+                                  const rowRange = cat.rows?.length ? `${cat.rows[0]}–${cat.rows[cat.rows.length - 1]}` : '';
+                                  return (
+                                    <Stack key={cat.name} direction="row" spacing={1} alignItems="center">
+                                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: cat.color, flexShrink: 0 }} />
+                                      <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>{cat.name}</Typography>
+                                      <Typography variant="caption" color="text.disabled" fontSize={10}>{rowRange}</Typography>
+                                      <Typography variant="caption" fontWeight={700} fontFamily="monospace" fontSize={11}>{catSeats}</Typography>
+                                    </Stack>
+                                  );
+                                })}
+                              </Stack>
+                            ) : (
+                              <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                                {savedRows.slice(0, 8).map(r => (
+                                  <Chip key={r.name} label={`${r.name}:${r.seatCount}`} size="small"
+                                    sx={{ height: 18, fontSize: 9, fontWeight: 600, bgcolor: alpha('#16a34a', 0.08) }} />
+                                ))}
+                                {savedRows.length > 8 && <Chip label={`+${savedRows.length - 8}`} size="small" sx={{ height: 18, fontSize: 9, color: 'text.disabled' }} />}
+                              </Stack>
+                            )}
+                          </Stack>
+                        </TemplateCard>
+                      </Grid>
+                    );
+                  })}
+
+                  {/* ══ 2) HAZIR ŞABLONLAR ══ */}
+                  {savedTemplates.length > 0 && (
+                    <Grid item xs={12}>
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                        <GridIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                        <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
+                          Hazır Şablonlar
+                        </Typography>
+                      </Stack>
+                    </Grid>
+                  )}
                   {templates.map((tmpl) => {
                     const def = TEMPLATE_DEFS[tmpl.type] || { icon: '📍', description: '', defaultSections: [] };
                     const isSelected = selectedTemplate?.id === tmpl.id;
@@ -416,7 +595,6 @@ export default function SeatPlanStep({
                                 <Typography variant="caption" color="text.secondary" fontWeight={600}>{totalCap} koltuk · özelleştirilebilir</Typography>
                               </Box>
                             </Stack>
-                            {/* Bolge bazli kapasite breakdown */}
                             <Stack spacing={0.5}>
                               {def.defaultSections.map(sec => {
                                 const secCap = sec.rows.reduce((s, r) => s + r.seats, 0);
@@ -439,7 +617,8 @@ export default function SeatPlanStep({
                       </Grid>
                     );
                   })}
-                  {/* Özel Düzen */}
+
+                  {/* ══ 3) ÖZEL DÜZEN ══ */}
                   <Grid item xs={12} sm={6} md={4}>
                     <TemplateCard $selected={selectedTemplate?.id === '__custom__'} elevation={0}
                       onClick={() => { onTemplateSelect({ id: '__custom__', name: 'Özel Düzen', description: '', type: VenueLayoutType.GENERAL_ADMISSION, capacity: 0, thumbnail: '', layout: { sections: [] }, seatMap: { sections: [] } } as unknown as VenueTemplate); onCustomSectionsChange([]); onEditorModeChange(true); }}>
