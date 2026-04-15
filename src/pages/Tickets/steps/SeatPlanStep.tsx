@@ -27,6 +27,7 @@ import {
   SeatCategory,
   SeatStatus,
 } from '../../../types/tickets/ticketTypes';
+import { generateSeatNumbers } from '../../../utils/seatNumbering';
 import { ticketService } from '../../../services/ticket/ticketService';
 import GooglePlacesInput, { type AddressValue } from '../../../components/GooglePlacesInput';
 import CustomSeatEditor from './CustomSeatEditor';
@@ -165,9 +166,9 @@ function templateToSections(def: TemplateDefinition): SeatSection[] {
     rows: sec.rows.map((r, ri) => ({
       id: `row-tmpl-${i}-${ri}-${Date.now()}`,
       label: r.label,
-      seats: Array.from({ length: r.seats }, (_, si) => ({
+      seats: generateSeatNumbers(r.seats).map((num, si) => ({
         id: `seat-tmpl-${i}-${ri}-${si}-${Date.now()}`,
-        number: si + 1,
+        number: num,
         status: SeatStatus.AVAILABLE,
         category: sec.category as SeatCategory,
       })),

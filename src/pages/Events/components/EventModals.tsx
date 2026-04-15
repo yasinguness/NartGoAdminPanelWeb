@@ -579,9 +579,11 @@ interface EditEventModalProps {
   initialData: EditEventData;
   loading?: boolean;
   isPaid?: boolean;
+  eventId?: string;
+  seatingEnabled?: boolean;
 }
 
-export function EditEventModal({ open, onClose, onSave, initialData, loading, isPaid }: EditEventModalProps) {
+export function EditEventModal({ open, onClose, onSave, initialData, loading, isPaid, eventId, seatingEnabled }: EditEventModalProps) {
   const [form, setForm] = useState<EditEventData>(initialData);
   const [activeTab, setActiveTab] = useState(0);
 
@@ -716,6 +718,25 @@ export function EditEventModal({ open, onClose, onSave, initialData, loading, is
                       slotProps={{ textField: { fullWidth: true, helperText: 'Belirtilmezse etkinlik başlangıcına kadar açık kalır' } }} />
                   </Stack>
                 </LocalizationProvider>
+              </Box>
+            )}
+
+            {seatingEnabled && eventId && (
+              <Box sx={{ bgcolor: 'grey.50', borderRadius: 2, p: 2 }}>
+                <Typography variant="caption" fontWeight={600} color="text.secondary" textTransform="uppercase" letterSpacing={0.5} sx={{ mb: 1, display: 'block' }}>
+                  Oturma Düzeni
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  Bu etkinlik koltuklu düzende çalışıyor. Salon planı, kategori, sıra ve koltuk yapısını seat map ekranından düzenleyebilirsiniz.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  href={`/admin/events/${eventId}/seat-map`}
+                  sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
+                >
+                  Koltuk Düzenini Düzenle
+                </Button>
               </Box>
             )}
 

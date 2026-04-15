@@ -28,6 +28,7 @@ import type {
   SeatMapResponse, SeatCategoryResponse, SeatRowResponse,
   OccupiedSeatDetail, SeatMapStats,
 } from '../../types/tickets/ticketTypes';
+import { NUMBERING_MODES, type SeatNumberingMode } from '../../utils/seatNumbering';
 
 // ── Internal seat model (flattened from API response) ───
 interface SeatDetail {
@@ -168,6 +169,14 @@ export default function SeatMapLive() {
 
   // Audit logs
   const [auditLogs, setAuditLogs] = useState<Array<Record<string, any>>>([]);
+
+  // Numbering mode
+  const [numberingMode, setNumberingMode] = useState<SeatNumberingMode>('ltr');
+  const [renumbering, setRenumbering] = useState(false);
+
+  // Drag-to-select (rubber band)
+  const [dragSelect, setDragSelect] = useState<{ startX: number; startY: number; curX: number; curY: number } | null>(null);
+  const isDraggingRef = useRef(false);
 
   // ── Ordered rows from API ───────────────────────────
   const rowOrder = useMemo(() => seatMapData?.rowLabelOrder || [...new Set(allSeats.map(s => s.rowLabel))].sort(), [seatMapData, allSeats]);
@@ -494,6 +503,72 @@ export default function SeatMapLive() {
     return () => el.removeEventListener('wheel', handler);
   }, [handleZoom]);
 
+  // ── Drag-to-select handlers ─────────────────────────
+  /** Convert mouse event to SVG viewBox coordinates */
+  const toSvgCoords = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    const scaleX = svgWidth / rect.width;
+    const scaleY = svgHeight / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  }, [svgWidth, svgHeight]);
+
+  const handleSvgMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    // Only start drag on left button, on the SVG background (not on a seat)
+    if (e.button !== 0) return;
+    const target = e.target as Element;
+    if (target.closest('g[style]')) return; // clicked on a seat <g>
+    const coords = toSvgCoords(e);
+    isDraggingRef.current = false;
+    setDragSelect({ startX: coords.x, startY: coords.y, curX: coords.x, curY: coords.y });
+  }, [toSvgCoords]);
+
+  const handleSvgMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (!dragSelect) return;
+    isDraggingRef.current = true;
+    const coords = toSvgCoords(e);
+    setDragSelect(prev => prev ? { ...prev, curX: coords.x, curY: coords.y } : null);
+  }, [dragSelect, toSvgCoords]);
+
+  const handleSvgMouseUp = useCallback(() => {
+    if (!dragSelect || !isDraggingRef.current) {
+      setDragSelect(null);
+      return;
+    }
+
+    // Compute selection rectangle
+    const x1 = Math.min(dragSelect.startX, dragSelect.curX);
+    const y1 = Math.min(dragSelect.startY, dragSelect.curY);
+    const x2 = Math.max(dragSelect.startX, dragSelect.curX);
+    const y2 = Math.max(dragSelect.startY, dragSelect.curY);
+
+    // Only select if drag area is large enough (> 5px in viewBox coords)
+    if (x2 - x1 > 5 || y2 - y1 > 5) {
+      // Find seats within the rectangle
+      const selected = new Set<string>();
+      rowOrder.forEach((rowLabel, ri) => {
+        const rowSeats = allSeats.filter(s => s.rowLabel === rowLabel).sort((a, b) => a.seatNumber - b.seatNumber);
+        const rowY = PADDING_TOP + ri * ROW_HEIGHT;
+        rowSeats.forEach((seat, si) => {
+          const seatX = SEAT_START_X + si * (SEAT_SIZE + SEAT_GAP);
+          // Check if seat center is inside the drag rectangle
+          const cx = seatX + SEAT_SIZE / 2;
+          const cy = rowY + SEAT_SIZE / 2;
+          if (cx >= x1 && cx <= x2 && cy >= y1 && cy <= y2) {
+            selected.add(seat.key);
+          }
+        });
+      });
+
+      if (selected.size > 0) {
+        setSelectedKeys(selected);
+      }
+    }
+
+    setDragSelect(null);
+    isDraggingRef.current = false;
+  }, [dragSelect, allSeats, rowOrder]);
+
   // ── Render ──────────────────────────────────────────
   if (loading) {
     return (
@@ -606,6 +681,48 @@ export default function SeatMapLive() {
           )}
         </Box>
 
+        {/* Numbering mode */}
+        <Box sx={{ px: 2, pb: 1.5 }}>
+          <Divider sx={{ mb: 1.5 }} />
+          <Typography sx={{ fontSize: 9, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>
+            Numaralandırma
+          </Typography>
+          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+            {NUMBERING_MODES.map(m => (
+              <Chip
+                key={m.value}
+                label={m.label}
+                size="small"
+                variant={numberingMode === m.value ? 'filled' : 'outlined'}
+                color={numberingMode === m.value ? 'primary' : 'default'}
+                onClick={() => setNumberingMode(m.value)}
+                sx={{ cursor: 'pointer', fontWeight: numberingMode === m.value ? 700 : 400, fontSize: 10 }}
+              />
+            ))}
+          </Stack>
+          <Typography sx={{ fontSize: 9, color: 'text.disabled', mb: 1 }}>
+            {NUMBERING_MODES.find(m => m.value === numberingMode)?.example}
+          </Typography>
+          <Button
+            fullWidth size="small" variant="outlined"
+            disabled={renumbering}
+            startIcon={renumbering ? <CircularProgress size={14} /> : <EditIcon />}
+            onClick={async () => {
+              setRenumbering(true);
+              try {
+                await ticketService.renumberSeats(eventId!, numberingMode);
+                enqueueSnackbar('Koltuk numaraları güncellendi', { variant: 'success' });
+                fetchData();
+              } catch {
+                enqueueSnackbar('Numaralandırma güncellenemedi', { variant: 'error' });
+              } finally { setRenumbering(false); }
+            }}
+            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600, fontSize: 11 }}
+          >
+            {renumbering ? 'Uygulanıyor...' : 'Numaralandırmayı Uygula'}
+          </Button>
+        </Box>
+
         {/* Recent audit logs */}
         {auditLogs.length > 0 && (
           <Box sx={{ px: 2, pb: 1 }}>
@@ -660,7 +777,12 @@ export default function SeatMapLive() {
             </Stack>
 
             {/* SVG Canvas */}
-            <svg width={svgWidth * zoom} height={svgHeight * zoom} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ marginTop: 8 }}>
+            <svg width={svgWidth * zoom} height={svgHeight * zoom} viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              style={{ marginTop: 8, cursor: dragSelect ? 'crosshair' : 'default' }}
+              onMouseDown={handleSvgMouseDown}
+              onMouseMove={handleSvgMouseMove}
+              onMouseUp={handleSvgMouseUp}
+              onMouseLeave={handleSvgMouseUp}>
               {/* Stage */}
               <g transform={`translate(${svgWidth / 2}, 15)`}>
                 <rect x={-60} y={0} width={120} height={22} rx={4}
@@ -677,9 +799,14 @@ export default function SeatMapLive() {
 
                 return (
                   <g key={rowLabel}>
-                    {/* Left row label */}
+                    {/* Left row label — click to select entire row */}
                     <text x={ROW_LABEL_X} y={y + SEAT_SIZE / 2 + 4} textAnchor="middle"
-                      fontSize={10} fontWeight={600} fontFamily="monospace" fill={theme.palette.text.disabled}>
+                      fontSize={10} fontWeight={600} fontFamily="monospace" fill={theme.palette.text.disabled}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        const rowKeys = allSeats.filter(s => s.rowLabel === rowLabel).map(s => s.key);
+                        setSelectedKeys(new Set(rowKeys));
+                      }}>
                       {rowLabel}
                     </text>
 
@@ -721,6 +848,19 @@ export default function SeatMapLive() {
                   </g>
                 );
               })}
+
+              {/* Drag selection rectangle */}
+              {dragSelect && isDraggingRef.current && (() => {
+                const x = Math.min(dragSelect.startX, dragSelect.curX);
+                const y = Math.min(dragSelect.startY, dragSelect.curY);
+                const w = Math.abs(dragSelect.curX - dragSelect.startX);
+                const h = Math.abs(dragSelect.curY - dragSelect.startY);
+                return (
+                  <rect x={x} y={y} width={w} height={h}
+                    fill="rgba(59, 130, 246, 0.12)" stroke="#3b82f6" strokeWidth={1}
+                    strokeDasharray="4 2" rx={2} style={{ pointerEvents: 'none' }} />
+                );
+              })()}
             </svg>
 
             {/* Legend */}
@@ -743,7 +883,7 @@ export default function SeatMapLive() {
             </Stack>
 
             <Typography sx={{ mt: 1, fontSize: 10, color: 'text.disabled', textAlign: 'center' }}>
-              Ctrl+tıkla: çoklu seç · Shift+tıkla: aralık · Ctrl+A: tümü · Esc: temizle · R: yenile · Ctrl+kaydır: zoom
+              Sürükle: toplu seç · Ctrl+tıkla: çoklu seç · Shift+tıkla: aralık · Ctrl+A: tümü · Esc: temizle · R: yenile · Ctrl+kaydır: zoom
             </Typography>
           </Box>
         )}
@@ -769,7 +909,7 @@ export default function SeatMapLive() {
                   sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}>Kapat</Button>
               </>
             )}
-            {selectedSeats.some(s => s.status === 'DISABLED' || s.status === 'LOCKED') && (
+            {selectedSeats.some(s => s.status === 'DISABLED' || s.status === 'LOCKED' || s.status === 'BLOCKED') && (
               <Button size="small" variant="outlined" color="success" startIcon={<UnblockIcon />}
                 onClick={doUnblock} sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}>Aç</Button>
             )}
@@ -990,7 +1130,7 @@ export default function SeatMapLive() {
             <ListItemText>Kapat</ListItemText>
           </MenuItem>,
         ]}
-        {(contextMenu?.seat.status === 'DISABLED' || contextMenu?.seat.status === 'LOCKED') && (
+        {(contextMenu?.seat.status === 'DISABLED' || contextMenu?.seat.status === 'LOCKED' || contextMenu?.seat.status === 'BLOCKED') && (
           <MenuItem onClick={() => { doUnblock(); setContextMenu(null); }}>
             <ListItemIcon><UnblockIcon fontSize="small" color="success" /></ListItemIcon>
             <ListItemText>Aç / Aktif Et</ListItemText>

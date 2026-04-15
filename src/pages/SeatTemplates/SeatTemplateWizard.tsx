@@ -18,6 +18,7 @@ import {
   seatTemplateService, SeatTemplateRow, SeatTemplateCategory,
 } from '../../services/ticket/seatTemplateService';
 import { getNextAvailableLetter, getNextLetterAfter } from '../../utils/trAlphabet';
+import { generateSeatNumbers, NUMBERING_MODES, type SeatNumberingMode } from '../../utils/seatNumbering';
 
 const STEPS = ['Dosya Yükle', 'Önizleme & Düzenleme', 'Kategori Tanımla'];
 
@@ -44,9 +45,10 @@ export default function SeatTemplateWizard() {
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [confidence, setConfidence] = useState(0);
 
-  // Step 2 - Stage position
+  // Step 2 - Stage position & numbering
   type StagePosition = 'bottom' | 'top';
   const [stagePosition, setStagePosition] = useState<StagePosition>('bottom');
+  const [numberingMode, setNumberingMode] = useState<SeatNumberingMode>('ltr');
 
   // Step 3 - Categories
   const [categories, setCategories] = useState<SeatTemplateCategory[]>([]);
@@ -181,6 +183,7 @@ export default function SeatTemplateWizard() {
         rows,
         categories: categories.length > 0 ? categories : undefined,
         stagePosition,
+        numberingMode,
       });
       if (res.success) {
         enqueueSnackbar(`"${templateName}" şablonu kaydedildi (${totalSeats} koltuk)`, { variant: 'success' });
@@ -257,7 +260,7 @@ export default function SeatTemplateWizard() {
                 {Array.from({ length: row.seatCount }).map((_, i) => (
                   <Tooltip
                     key={i}
-                    title={fullscreen ? `${row.name}-${i + 1}` : ''}
+                    title={fullscreen ? `${row.name}-${generateSeatNumbers(row.seatCount, numberingMode)[i]}` : ''}
                     arrow
                     placement="top"
                     disableHoverListener={!fullscreen}
@@ -577,6 +580,29 @@ export default function SeatTemplateWizard() {
             Türkçe alfabe sırasına göre (Ç, Ğ, İ, Ö, Ş, Ü dahil)
           </Typography>
         </Stack>
+
+        {/* Numbering mode */}
+        <Paper variant="outlined" sx={{ mt: 2, p: 2, borderRadius: 2 }}>
+          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+            Koltuk Numaralandırma Düzeni
+          </Typography>
+          <Stack direction="row" spacing={0.5}>
+            {NUMBERING_MODES.map(m => (
+              <Chip
+                key={m.value}
+                label={m.label}
+                size="small"
+                variant={numberingMode === m.value ? 'filled' : 'outlined'}
+                color={numberingMode === m.value ? 'primary' : 'default'}
+                onClick={() => setNumberingMode(m.value)}
+                sx={{ cursor: 'pointer', fontWeight: numberingMode === m.value ? 700 : 400, fontSize: 11 }}
+              />
+            ))}
+          </Stack>
+          <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
+            {NUMBERING_MODES.find(m => m.value === numberingMode)?.description} — örn: {NUMBERING_MODES.find(m => m.value === numberingMode)?.example}
+          </Typography>
+        </Paper>
       </Box>
 
       {/* Sağ: Preview */}

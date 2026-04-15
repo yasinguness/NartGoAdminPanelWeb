@@ -84,6 +84,8 @@ export interface SectionConfig {
   defaultCategory: string;
   /** Section-level color override (for category renklendirme) */
   colorOverride?: string;
+  /** Koltuk numaralandırma düzeni — tüm sıralara uygulanır (sıra bazlı override için RowConfig.numberingMode) */
+  numberingMode?: import('../../utils/seatNumbering').SeatNumberingMode;
 }
 
 export interface RowConfig {
@@ -97,6 +99,8 @@ export interface RowConfig {
   aisleAfter: number[];
   /** Aisle width in px */
   aisleWidth: number;
+  /** Sıra bazlı numaralandırma düzeni — section seviyesini override eder */
+  numberingMode?: import('../../utils/seatNumbering').SeatNumberingMode;
 }
 
 export interface Seat {
@@ -159,6 +163,10 @@ export function generateSectionSeats(section: SectionConfig): Seat[] {
     const row = section.rows[ri];
     currentY += row.rowGap;
 
+    // Resolve numbering mode: row-level > section-level > default (ltr)
+    const mode = row.numberingMode || section.numberingMode || 'ltr';
+    const seatNumbers = generateSeatNumbers(row.seatCount, mode);
+
     if (section.curveRadius > 0 && section.arcSpan > 0) {
       // ── CURVED ROW ──
       const radius = section.curveRadius + currentY;
@@ -171,7 +179,6 @@ export function generateSectionSeats(section: SectionConfig): Seat[] {
       const effectiveCount = row.seatCount + totalAisles; // conceptual slots
       const angleStep = spanRad / Math.max(effectiveCount - 1, 1);
 
-      let seatIdx = 0;
       let slotIdx = 0;
       for (let s = 0; s < row.seatCount; s++) {
         // Check if we need an aisle gap before this seat
@@ -179,29 +186,25 @@ export function generateSectionSeats(section: SectionConfig): Seat[] {
           slotIdx++; // skip a slot for the aisle
         }
         const angle = startAngle + slotIdx * angleStep;
-        // In our local coordinate system: angle 0 = straight ahead (negative Y = toward stage)
-        // Canvas: +Y is down. So seat at angle θ from center:
-        //   localX = radius * sin(θ)
-        //   localY = -radius * cos(θ) + curveRadius + currentY (adjust so center of curve is at origin)
         const localX = radius * Math.sin(angle);
         const localY = radius * (1 - Math.cos(angle));
 
         // Apply section rotation and offset
         const [wx, wy] = rotatePoint(localX, localY, section.rotation);
+        const num = seatNumbers[s];
 
         seats.push({
-          id: `${section.id}-${row.label}-${s + 1}`,
+          id: `${section.id}-${row.label}-${num}`,
           sectionId: section.id,
           sectionName: section.name,
           rowLabel: row.label,
-          seatNumber: s + 1,
+          seatNumber: num,
           x: section.x + wx,
           y: section.y + wy,
           category: section.defaultCategory,
           status: 'available',
         });
 
-        seatIdx++;
         slotIdx++;
       }
     } else {
@@ -217,13 +220,14 @@ export function generateSectionSeats(section: SectionConfig): Seat[] {
         const localY = currentY;
 
         const [wx, wy] = rotatePoint(localX, localY, section.rotation);
+        const num = seatNumbers[s];
 
         seats.push({
-          id: `${section.id}-${row.label}-${s + 1}`,
+          id: `${section.id}-${row.label}-${num}`,
           sectionId: section.id,
           sectionName: section.name,
           rowLabel: row.label,
-          seatNumber: s + 1,
+          seatNumber: num,
           x: section.x + wx,
           y: section.y + wy,
           category: section.defaultCategory,
@@ -255,6 +259,7 @@ export function generateVenueSeats(venue: VenueConfig): Seat[] {
 // ─── HELPER: Row builder ────────────────────────────────────────────────────
 
 import { TR_ALPHABET, trLetterAt, getNextLetterAfter } from '../../utils/trAlphabet';
+import { generateSeatNumbers } from '../../utils/seatNumbering';
 
 export function makeRows(count: number, seatsPerRow: number, opts: {
   seatSpacing?: number;

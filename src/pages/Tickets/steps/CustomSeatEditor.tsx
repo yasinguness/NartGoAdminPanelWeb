@@ -14,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import { SeatCategory, SeatStatus, type SeatSection } from '../../../types/tickets/ticketTypes';
 import { trLetterAt, getNextLetterAfter } from '../../../utils/trAlphabet';
+import { generateSeatNumbers, NUMBERING_MODES, type SeatNumberingMode } from '../../../utils/seatNumbering';
 
 const SECTION_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#ec4899', '#14b8a6', '#f97316'];
 
@@ -50,9 +51,9 @@ export default function CustomSeatEditor({ sections, onChange }: CustomSeatEdito
         {
           id: `row-${Date.now()}-1`,
           label: 'A',
-          seats: Array.from({ length: 10 }, (_, i) => ({
+          seats: generateSeatNumbers(10).map((num, i) => ({
             id: `seat-${Date.now()}-1-${i}`,
-            number: i + 1,
+            number: num,
             status: SeatStatus.AVAILABLE,
             category: idx === 0 ? SeatCategory.STANDARD : SeatCategory.PREMIUM,
           })),
@@ -86,9 +87,9 @@ export default function CustomSeatEditor({ sections, onChange }: CustomSeatEdito
         rows: [...s.rows, {
           id: `row-${Date.now()}`,
           label: nextLabel,
-          seats: Array.from({ length: seatsPerRow }, (_, i) => ({
+          seats: generateSeatNumbers(seatsPerRow, (s as any).numberingMode).map((num, i) => ({
             id: `seat-${Date.now()}-${i}`,
-            number: i + 1,
+            number: num,
             status: SeatStatus.AVAILABLE,
             category: s.category,
           })),
@@ -109,27 +110,22 @@ export default function CustomSeatEditor({ sections, onChange }: CustomSeatEdito
     const safeCount = Math.max(1, Math.min(50, count));
     onChange(sections.map(s => {
       if (s.id !== sectionId) return s;
+      const mode: SeatNumberingMode = (s as any).numberingMode || 'ltr';
       return {
         ...s,
         rows: s.rows.map(r => {
           if (r.id !== rowId) return r;
-          const currentCount = r.seats.length;
-          if (safeCount === currentCount) return r;
-          if (safeCount > currentCount) {
-            return {
-              ...r,
-              seats: [
-                ...r.seats,
-                ...Array.from({ length: safeCount - currentCount }, (_, i) => ({
-                  id: `seat-${Date.now()}-${currentCount + i}`,
-                  number: currentCount + i + 1,
-                  status: SeatStatus.AVAILABLE,
-                  category: s.category,
-                })),
-              ],
-            };
-          }
-          return { ...r, seats: r.seats.slice(0, safeCount) };
+          // Regenerate all seat numbers with the correct mode
+          const numbers = generateSeatNumbers(safeCount, mode);
+          return {
+            ...r,
+            seats: numbers.map((num, i) => ({
+              id: r.seats[i]?.id || `seat-${Date.now()}-${i}`,
+              number: num,
+              status: r.seats[i]?.status || SeatStatus.AVAILABLE,
+              category: r.seats[i]?.category || s.category,
+            })),
+          };
         }),
       };
     }));
@@ -213,6 +209,38 @@ export default function CustomSeatEditor({ sections, onChange }: CustomSeatEdito
                       sx={{ minWidth: 80, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                       InputProps={{ sx: { height: 40 } }}
                     />
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Numaralandırma</InputLabel>
+                      <Select
+                        value={(section as any).numberingMode || 'ltr'}
+                        label="Numaralandırma"
+                        onChange={e => {
+                          const mode = e.target.value as SeatNumberingMode;
+                          const updated = {
+                            ...section,
+                            numberingMode: mode,
+                            rows: section.rows.map(r => ({
+                              ...r,
+                              seats: generateSeatNumbers(r.seats.length, mode).map((num, i) => ({
+                                ...r.seats[i],
+                                number: num,
+                              })),
+                            })),
+                          };
+                          onChange(sections.map(s => s.id === section.id ? updated : s));
+                        }}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        {NUMBERING_MODES.map(m => (
+                          <MenuItem key={m.value} value={m.value}>
+                            <Stack>
+                              <Typography sx={{ fontSize: 13 }}>{m.label}</Typography>
+                              <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>{m.example}</Typography>
+                            </Stack>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   </Stack>
 
                   <Divider sx={{ mb: 2 }} />

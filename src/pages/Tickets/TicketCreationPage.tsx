@@ -27,7 +27,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 import type { UserDTO } from '../../types/users/userModel';
-import { VenueTemplate, RefundPolicy, DEFAULT_REFUND_POLICY, EventFormat, TicketCategory, type SeatSection } from '../../types/tickets/ticketTypes';
+import { VenueTemplate, VenueLayoutType, RefundPolicy, DEFAULT_REFUND_POLICY, EventFormat, TicketCategory, SeatCategory, SeatStatus, type SeatSection } from '../../types/tickets/ticketTypes';
 import SeatPlanStep from './steps/SeatPlanStep';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import RefundPolicyStep from './steps/RefundPolicyStep';
@@ -62,7 +62,15 @@ const SH = ({ title, subtitle }: { title: string; subtitle?: string }) => (
 );
 
 // ─── TYPES ─────────────────────────────────────────────
-interface TierItem { id: string; name: string; price: number; quota: number; color: string; category: TicketCategory; }
+interface TierItem {
+  id: string;
+  name: string;
+  price: number;
+  quota: number;
+  color: string;
+  category: TicketCategory;
+  ticketTypeId?: string;
+}
 type EventType = 'paid' | 'free' | 'invite';
 type Visibility = 'public' | 'link' | 'draft';
 const TIER_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#ec4899'];
@@ -87,6 +95,7 @@ export default function TicketCreationPage() {
   const { eventId } = useParams<{ eventId?: string }>();
   const [searchParams] = useSearchParams();
   const isConvertMode = searchParams.get('convert') === 'true' && !!eventId;
+  const isEditMode = searchParams.get('edit') === 'true' && !!eventId;
   const { enqueueSnackbar } = useSnackbar();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isAdmin } = useRole();
@@ -98,6 +107,8 @@ export default function TicketCreationPage() {
   const [savedAsDraft, setSavedAsDraft] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [convertLoading, setConvertLoading] = useState(false);
+  const [existingStatus, setExistingStatus] = useState('ACTIVE');
+  const [loadedTicketTypeIds, setLoadedTicketTypeIds] = useState<string[]>([]);
 
   // Step 1 (admin only): Organizer search
   const [orgSearch, setOrgSearch] = useState('');
@@ -193,19 +204,26 @@ export default function TicketCreationPage() {
       .catch(() => {});
   }, []);
 
-  // ─── CONVERT MODE: Mevcut etkinliği fetch et ve pre-fill et ──
+  // ─── CONVERT / EDIT MODE: Mevcut etkinliği fetch et ve pre-fill et ──
   useEffect(() => {
-    if (!isConvertMode || !eventId) return;
+    if ((!isConvertMode && !isEditMode) || !eventId) return;
     setConvertLoading(true);
-    api.get(`/events/${eventId}`)
-      .then(res => {
-        const ev = res.data?.data;
+
+    Promise.all([
+      api.get(`/events/${eventId}`),
+      ticketService.getEventTicketTypes(eventId).catch(() => ({ data: { data: [] } } as any)),
+      api.get(`/tickets/admin/events/${eventId}/seat-map`).catch(() => ({ data: { data: null } } as any)),
+    ])
+      .then(([eventRes, ticketTypesRes, seatMapRes]) => {
+        const ev = eventRes.data?.data;
         if (!ev) return;
 
-        // Pre-fill: Step 2 → ücretli
-        setEventType('paid');
+        const existingTicketTypes = ticketTypesRes?.data?.data ?? [];
+        const seatMap = seatMapRes?.data?.data ?? null;
+        setLoadedTicketTypeIds(existingTicketTypes.map((tt: any) => tt.id).filter(Boolean));
+        setExistingStatus(ev.status || 'ACTIVE');
 
-        // Pre-fill: Step 3 — etkinlik bilgileri
+        setEventType(ev.isPaid ? 'paid' : 'free');
         setEventName(ev.name || '');
         setEventDescription(ev.description || '');
         if (ev.eventTime) setEventStartDate(new Date(ev.eventTime));
@@ -214,7 +232,6 @@ export default function TicketCreationPage() {
         setCapacity(String(ev.maxParticipants || ''));
         if (ev.isPrivate) setVisibility('link');
 
-        // Pre-fill: Step 4 — mekan
         if (ev.address) {
           setEventAddress({
             description: ev.address.description || ev.address.street || '',
@@ -229,16 +246,9 @@ export default function TicketCreationPage() {
           });
         }
 
-        // Serbest giriş default (ücretsiz etkinlik numaralı koltuk olmaz)
-        setIsSeated(false);
-
-        // Kapak görseli
         const thumb = ev.thumbnailUrl || ev.image;
-        if (thumb) {
-          setCoverMedia({ originalUrl: thumb, mediaType: 'IMAGE' } as any);
-        }
+        if (thumb) setCoverMedia({ originalUrl: thumb, mediaType: 'IMAGE' } as any);
 
-        // Organizatör (admin için)
         if (isAdmin && ev.organizerId) {
           setOrganizer({
             id: ev.organizerId,
@@ -249,18 +259,82 @@ export default function TicketCreationPage() {
           } as any);
         }
 
-        // Convert modunda Step 4'ten başla (salon planı + bilet ayarları)
-        // Admin: step 4, non-admin: step 3 (çünkü step=logicalStep - 1)
-        setStep(isAdmin ? 4 : 3);
+        if (existingTicketTypes.length > 0) {
+          setCurrency(existingTicketTypes[0]?.currency || 'TRY');
+          if (existingTicketTypes[0]?.saleStartAt) setSaleStartDate(new Date(existingTicketTypes[0].saleStartAt));
+          if (existingTicketTypes[0]?.saleEndAt) setSaleEndDate(new Date(existingTicketTypes[0].saleEndAt));
+        }
 
-        enqueueSnackbar('Etkinlik bilgileri yüklendi — salon planı ve bilet ayarlarını tamamlayın', { variant: 'info' });
+        if (seatMap?.enabled && Array.isArray(seatMap.categories) && seatMap.categories.length > 0) {
+          setIsSeated(true);
+          setSelectedTemplate({
+            id: '__custom__',
+            name: 'Mevcut Düzen',
+            description: '',
+            type: VenueLayoutType.GENERAL_ADMISSION,
+            capacity: 0,
+            thumbnail: '',
+            layout: { sections: [] },
+            seatMap: { sections: [] },
+          } as unknown as VenueTemplate);
+          setSeatEditorMode(true);
+
+          setCustomSections(seatMap.categories.map((cat: any, idx: number) => ({
+            id: cat.categoryId,
+            name: cat.categoryName,
+            offsetX: 0,
+            offsetY: idx * 100,
+            color: (seatMap.categoryIdToColor || {})[cat.categoryId] || TIER_COLORS[idx % TIER_COLORS.length],
+            category: SeatCategory.STANDARD,
+            basePrice: Number(cat.basePrice || 0),
+            rows: (cat.rows || []).map((row: any, rowIdx: number) => ({
+              id: `${cat.categoryId}-${row.rowLabel || rowIdx}`,
+              label: row.rowLabel || String.fromCharCode(65 + rowIdx),
+              seats: Array.from({ length: (row.availableSeats?.length || 0) + (row.occupiedSeats?.length || 0) }, (_, seatIdx) => ({
+                id: `${cat.categoryId}-${row.rowLabel || rowIdx}-${seatIdx + 1}`,
+                number: seatIdx + 1,
+                status: SeatStatus.AVAILABLE,
+                category: SeatCategory.STANDARD,
+              })),
+            })),
+          })));
+
+          setTiers(seatMap.categories.map((cat: any, idx: number) => ({
+            id: cat.categoryId,
+            name: cat.categoryName,
+            price: Number(cat.basePrice || 0),
+            quota: (cat.rows || []).reduce((sum: number, row: any) => sum + (row.availableSeats?.length || 0) + (row.occupiedSeats?.length || 0), 0),
+            color: (seatMap.categoryIdToColor || {})[cat.categoryId] || TIER_COLORS[idx % TIER_COLORS.length],
+            category: TicketCategory.STANDARD,
+            ticketTypeId: cat.ticketTypeId,
+          })));
+        } else {
+          setIsSeated(false);
+          setTiers(existingTicketTypes.map((tt: any, idx: number) => ({
+            id: tt.id,
+            name: tt.name,
+            price: Number(tt.basePrice || 0),
+            quota: Number(tt.capacityTotal || 0),
+            color: TIER_COLORS[idx % TIER_COLORS.length],
+            category: TicketCategory.STANDARD,
+            ticketTypeId: tt.id,
+          })));
+        }
+
+        setStep(isAdmin ? 4 : 3);
+        enqueueSnackbar(
+          isEditMode
+            ? 'Etkinlik düzenleme modunda yüklendi'
+            : 'Etkinlik bilgileri yüklendi — salon planı ve bilet ayarlarını tamamlayın',
+          { variant: 'info' }
+        );
       })
       .catch(() => {
         enqueueSnackbar('Etkinlik bilgileri yüklenemedi', { variant: 'error' });
         navigate('/events');
       })
       .finally(() => setConvertLoading(false));
-  }, [isConvertMode, eventId]);
+  }, [isConvertMode, isEditMode, eventId, isAdmin, enqueueSnackbar, navigate]);
 
   // ─── HELPERS ─────────────────────────────────────────
   /** Detect gibberish/test names like "asdasd", "asfasd" */
@@ -574,19 +648,75 @@ export default function TicketCreationPage() {
         } : isSeated === false ? { enabled: false } : undefined,
       };
 
-      if (isConvertMode && eventId) {
+      if (isEditMode && eventId) {
+        await api.put(`/events/${eventId}`, {
+          ...payload,
+          isPaid,
+          maxParticipants: isPaid ? computedCapacity : Number(capacity || computedCapacity || 0),
+          ticketPrice: isPaid && tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0,
+          isSeated: isSeated ?? false,
+          isRegistrationOpen: true,
+          status: existingStatus,
+          seating: payload.seating,
+        });
+
+        if (isPaid && tiers.length > 0) {
+          const currentTicketTypeIds = new Set<string>();
+          for (const t of tiers) {
+            const ticketPayload = {
+              eventId,
+              name: t.name,
+              basePrice: t.price,
+              capacityTotal: t.quota,
+              currency,
+              saleStartAt: saleStartDate ? saleStartDate.toISOString() : undefined,
+              saleEndAt: saleEndDate ? saleEndDate.toISOString() : (eventStartDate ? eventStartDate.toISOString() : undefined),
+            } as any;
+
+            if (t.ticketTypeId) {
+              currentTicketTypeIds.add(t.ticketTypeId);
+              await ticketService.updateTicketType(t.ticketTypeId, ticketPayload);
+            } else {
+              const created = await ticketService.createTicketType(ticketPayload);
+              const createdId = created?.data?.id;
+              if (createdId) currentTicketTypeIds.add(createdId);
+            }
+          }
+
+          const removedTicketTypeIds = loadedTicketTypeIds.filter(id => !currentTicketTypeIds.has(id));
+          for (const removedId of removedTicketTypeIds) {
+            try {
+              await ticketService.deleteTicketType(removedId);
+            } catch {
+              enqueueSnackbar('Bazı eski bilet tipleri silinemedi', { variant: 'warning' });
+            }
+          }
+        }
+
+        if (isSeated && payload.seating) {
+          try {
+            await api.post(`/tickets/admin/events/${eventId}/seating/backfill`, null, { params: { force: true } });
+          } catch { /* best effort */ }
+        }
+
+        setPublished(true);
+        enqueueSnackbar('Etkinlik güncellendi!', { variant: 'success' });
+      } else if (isConvertMode && eventId) {
         // ── CONVERT MODE: Mevcut ücretsiz etkinliği ücretliye dönüştür ──
         // Kapasite = bilet kontenjanları toplamı (eski etkinlik kapasitesi değil)
         const convertCapacity = isPaid ? tiers.reduce((s, t) => s + t.quota, 0) : computedCapacity;
 
-        // 1) Etkinliği güncelle (isPaid=true) — endpoint: PUT /events/{id}
+        // 1) Etkinliği güncelle (isPaid=true) — convert akışında seating payload'ı da gönderilmeli.
+        // Aksi halde ticket type oluşsa da ticket-service backfill'i boş seating config ile çalışıyor.
         await api.put(`/events/${eventId}`, {
+          ...payload,
           isPaid: true,
           maxParticipants: convertCapacity,
           ticketPrice: isPaid && tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0,
           isSeated: isSeated ?? false,
           isRegistrationOpen: true,
           status: 'ACTIVE',
+          seating: payload.seating,
         });
 
         // 2) Bilet türlerini oluştur
@@ -625,7 +755,7 @@ export default function TicketCreationPage() {
         enqueueSnackbar(isDraft ? 'Etkinlik taslak olarak kaydedildi' : 'Etkinlik başarıyla yayınlandı!', { variant: 'success' });
       }
     } catch (err: any) {
-      enqueueSnackbar(err?.response?.data?.message || 'Etkinlik oluşturulamadı', { variant: 'error' });
+      enqueueSnackbar(err?.response?.data?.message || (isEditMode ? 'Etkinlik güncellenemedi' : 'Etkinlik oluşturulamadı'), { variant: 'error' });
     } finally { setPublishing(false); }
   };
 
@@ -707,19 +837,21 @@ export default function TicketCreationPage() {
             <CelebrationIcon sx={{ fontSize: 40, color: 'success.main' }} />
           </Box>
           <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
-            {isConvertMode ? 'Etkinlik Dönüştürüldü!' : savedAsDraft ? 'Taslak Kaydedildi!' : 'Etkinlik Yayınlandı!'}
+            {isEditMode ? 'Etkinlik Güncellendi!' : isConvertMode ? 'Etkinlik Dönüştürüldü!' : savedAsDraft ? 'Taslak Kaydedildi!' : 'Etkinlik Yayınlandı!'}
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480, mx: 'auto', mb: 1 }}>
-            {isConvertMode
+            {isEditMode
+              ? <><strong>{eventName}</strong> etkinliğinin detayları ve bilet yapısı güncellendi.</>
+              : isConvertMode
               ? <><strong>{eventName}</strong> etkinliği biletli etkinliğe dönüştürüldü. Bilet satışı başlatılabilir.</>
               : <><strong>{eventName}</strong> etkinliği <strong>{effectiveOrganizer?.displayName || effectiveOrganizer?.email}</strong> adına oluşturuldu.</>
             }
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            {isConvertMode ? `${tiers.length} bilet türü oluşturuldu.` : eventType === 'paid' ? 'Bilet satışı başladı.' : eventType === 'free' ? 'Kayıtlara açıldı.' : ''}
+            {isEditMode ? `${tiers.length} bilet türü senkronize edildi.` : isConvertMode ? `${tiers.length} bilet türü oluşturuldu.` : eventType === 'paid' ? 'Bilet satışı başladı.' : eventType === 'free' ? 'Kayıtlara açıldı.' : ''}
           </Typography>
           <Stack direction="row" spacing={2} justifyContent="center">
-            {isConvertMode ? (
+            {(isConvertMode || isEditMode) ? (
               <Button variant="contained" onClick={() => navigate(`/events/${eventId}`)}
                 sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, px: 3 }}>Etkinlik Detayına Git</Button>
             ) : (
@@ -756,16 +888,16 @@ export default function TicketCreationPage() {
       <Box sx={{ bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', position:  'inherit', top: 56, zIndex: 10 }}>
         {/* Top row: back + title + step counter */}
         <Box sx={{ px: { xs: 2, sm: 4 }, pt: 1.5, pb: 1 }}>
-          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5, cursor: 'pointer' }} onClick={() => isConvertMode ? navigate(`/events/${eventId}`) : navigate('/events')}>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5, cursor: 'pointer' }} onClick={() => (isConvertMode || isEditMode) ? navigate(`/events/${eventId}`) : navigate('/events')}>
             <BackIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
             <Typography variant="caption" color="text.secondary" sx={{ '&:hover': { color: 'primary.main' } }}>
-              {isConvertMode ? 'Etkinlik Detayına Dön' : 'Etkinliklere Dön'}
+              {(isConvertMode || isEditMode) ? 'Etkinlik Detayına Dön' : 'Etkinliklere Dön'}
             </Typography>
           </Stack>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Box>
-              {isConvertMode && (
-                <Chip label="🎫 Biletli Etkinliğe Dönüştürme" size="small" color="primary" variant="outlined"
+              {(isConvertMode || isEditMode) && (
+                <Chip label={isEditMode ? '✏️ Etkinlik Düzenleme' : '🎫 Biletli Etkinliğe Dönüştürme'} size="small" color="primary" variant="outlined"
                   sx={{ fontWeight: 700, fontSize: 10, height: 22, mb: 0.5 }} />
               )}
               <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.3 }}>{labels[step - 1]}</Typography>
@@ -813,7 +945,7 @@ export default function TicketCreationPage() {
       <Box sx={{ flex: 1, px: { xs: 2, sm: 4 }, py: 3, pb: 14, maxWidth: 820, width: '100%' }}>
 
         {/* ── CONVERT MODE: Mevcut etkinlik bilgileri özet bandı ── */}
-        {isConvertMode && logicalStep >= 4 && (
+        {(isConvertMode || isEditMode) && logicalStep >= 4 && (
           <Paper variant="outlined" sx={{
             mb: 3, p: 2, borderRadius: 2.5,
             border: '1px solid', borderColor: t => alpha(t.palette.info.main, 0.3),
@@ -823,13 +955,13 @@ export default function TicketCreationPage() {
               <Typography fontSize={20}>🎫</Typography>
               <Box sx={{ flex: 1 }}>
                 <Typography variant="subtitle2" fontWeight={700}>
-                  {eventName} — Biletli Etkinliğe Dönüştürülüyor
+                  {eventName} — {isEditMode ? 'Etkinlik Düzenleniyor' : 'Biletli Etkinliğe Dönüştürülüyor'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   {eventStartDate ? format(eventStartDate, 'dd MMM yyyy HH:mm', { locale: tr }) : ''} · {eventAddress?.description || ''} · Kapasite: {capacity || '?'}
                 </Typography>
               </Box>
-              <Chip label="Ücretli" size="small" color="primary" sx={{ fontWeight: 700 }} />
+              <Chip label={isEditMode ? 'Düzenleme' : 'Ücretli'} size="small" color="primary" sx={{ fontWeight: 700 }} />
             </Stack>
           </Paper>
         )}
@@ -1652,17 +1784,17 @@ export default function TicketCreationPage() {
         <Button variant="outlined" startIcon={<BackIcon />} onClick={goBack} disabled={step === 1}
           sx={{ textTransform: 'none', borderRadius: 2.5, fontWeight: 600, visibility: step === 1 ? 'hidden' : 'visible' }}>Geri</Button>
         <Typography variant="caption" color="text.disabled" sx={{ display: { xs: 'none', sm: 'block' } }}>
-          {step === TOTAL ? (hasBlockers ? `${blockers.length} zorunlu alan eksik` : (isConvertMode ? 'Dönüştürmeden önce bilgileri kontrol edin' : 'Yayınlamadan önce bilgileri kontrol edin')) : 'Tüm * alanları zorunlu'}
+          {step === TOTAL ? (hasBlockers ? `${blockers.length} zorunlu alan eksik` : (isEditMode ? 'Kaydetmeden önce bilgileri kontrol edin' : isConvertMode ? 'Dönüştürmeden önce bilgileri kontrol edin' : 'Yayınlamadan önce bilgileri kontrol edin')) : 'Tüm * alanları zorunlu'}
         </Typography>
         <Stack direction="row" spacing={1.5}>
-          {step === TOTAL && !isConvertMode && (
+          {step === TOTAL && !isConvertMode && !isEditMode && (
             <Button variant="outlined" onClick={() => handlePublish(true)} disabled={publishing}
               sx={{ textTransform: 'none', borderRadius: 2.5, fontWeight: 600, px: 2.5 }}>Taslak Kaydet</Button>
           )}
           <Button variant="contained" onClick={goNext} disabled={publishing || (step === TOTAL && hasBlockers)}
             endIcon={step === TOTAL ? <SendIcon /> : <ForwardIcon />}
             sx={{ textTransform: 'none', borderRadius: 2.5, fontWeight: 600, px: 3, bgcolor: (step === TOTAL && !hasBlockers) ? theme.palette.primary.main : undefined }}>
-            {publishing ? (isConvertMode ? 'Dönüştürülüyor...' : 'Yayınlanıyor...') : step === TOTAL ? (isConvertMode ? 'Biletli Etkinliğe Dönüştür' : 'Etkinliği Yayınla') : 'Devam Et'}
+            {publishing ? (isEditMode ? 'Kaydediliyor...' : isConvertMode ? 'Dönüştürülüyor...' : 'Yayınlanıyor...') : step === TOTAL ? (isEditMode ? 'Değişiklikleri Kaydet' : isConvertMode ? 'Biletli Etkinliğe Dönüştür' : 'Etkinliği Yayınla') : 'Devam Et'}
           </Button>
         </Stack>
       </Box>

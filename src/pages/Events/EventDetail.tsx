@@ -578,6 +578,11 @@ export default function EventDetail() {
     enqueueSnackbar('Bağlantı kopyalandı', { variant: 'success' });
   };
 
+  const openEditWizard = () => {
+    if (!event?.id) return;
+    navigate(`/event-creation/${event.id}?edit=true`);
+  };
+
   // ── Loading / Not found ───────────────────────────────────
   if (loading) {
     return (
@@ -649,7 +654,7 @@ export default function EventDetail() {
               Duraklat
             </Button>
             <Button variant="outlined" size="small" startIcon={<EditIcon />}
-              onClick={() => setEditOpen(true)}
+              onClick={openEditWizard}
               sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
               Düzenle
             </Button>
@@ -707,7 +712,7 @@ export default function EventDetail() {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="subtitle2" fontWeight={700}>Etkinlik Detayları</Typography>
                 <Button size="small" startIcon={<EditIcon />}
-                  onClick={() => setEditOpen(true)}
+                  onClick={openEditWizard}
                   sx={{ textTransform: 'none' }}>Düzenle</Button>
               </Box>
               {(() => {
@@ -776,7 +781,7 @@ export default function EventDetail() {
                 ) : (
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                     <Typography variant="body2" color="text.disabled">Açıklama eklenmemiş</Typography>
-                    <Button size="small" onClick={() => setEditOpen(true)} sx={{ textTransform: 'none', fontSize: 12, minWidth: 0, p: 0, color: 'primary.main' }}>Düzenle</Button>
+                    <Button size="small" onClick={openEditWizard} sx={{ textTransform: 'none', fontSize: 12, minWidth: 0, p: 0, color: 'primary.main' }}>Düzenle</Button>
                   </Stack>
                 )}
               </Box>
@@ -1734,6 +1739,8 @@ export default function EventDetail() {
       {event && (
         <EditEventModal open={editOpen} onClose={() => setEditOpen(false)} onSave={handleEditEvent} loading={actionLoading}
           isPaid={event.isPaid}
+          eventId={event.id}
+          seatingEnabled={Boolean((event as any).seatingConfig?.enabled)}
           initialData={{
             name: event.name || '',
             description: event.description || '',

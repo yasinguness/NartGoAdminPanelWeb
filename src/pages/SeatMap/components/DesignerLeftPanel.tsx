@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Box, Typography, Button, IconButton, TextField, Divider, alpha } from '@mui/material';
+import { Box, Typography, Button, IconButton, TextField, Divider, alpha, Chip, Stack } from '@mui/material';
 import { SelectAll, EventSeat, TableRows, Stadium, LinearScale, Delete } from '@mui/icons-material';
 import type { VenueConfig, Seat, SeatCategory } from '../venueEngine';
+import { NUMBERING_MODES, type SeatNumberingMode } from '../../../utils/seatNumbering';
 
 interface Props {
   venue: VenueConfig;
@@ -138,14 +139,50 @@ export default function DesignerLeftPanel({ categories, currentTool, onToolChang
             </Box>
           </Box>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>Renk</Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
              {COLOR_OPTIONS.map(c => (
                <Box key={c} sx={{
                  width: 20, height: 20, borderRadius: '50%', bgcolor: c, cursor: 'pointer',
                  border: activeSection.color === c ? '2px solid #000' : 'none'
+               }} onClick={() => {
+                 onVenueChange({
+                   ...venue,
+                   sections: venue.sections.map(s =>
+                     s.id === activeSection.id ? { ...s, colorOverride: c } : s
+                   ),
+                 });
                }} />
              ))}
           </Box>
+
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Numaralandırma</Typography>
+          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+            {NUMBERING_MODES.map(m => {
+              const currentMode: SeatNumberingMode =
+                (venue.sections.find(s => s.id === activeSection.id) as any)?.numberingMode || 'ltr';
+              return (
+                <Chip
+                  key={m.value}
+                  label={m.label}
+                  size="small"
+                  variant={currentMode === m.value ? 'filled' : 'outlined'}
+                  color={currentMode === m.value ? 'primary' : 'default'}
+                  onClick={() => {
+                    onVenueChange({
+                      ...venue,
+                      sections: venue.sections.map(s =>
+                        s.id === activeSection.id ? { ...s, numberingMode: m.value as any } : s
+                      ),
+                    });
+                  }}
+                  sx={{ cursor: 'pointer', fontWeight: currentMode === m.value ? 700 : 400, fontSize: 10 }}
+                />
+              );
+            })}
+          </Stack>
+          <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block', fontSize: 10 }}>
+            {NUMBERING_MODES.find(m => m.value === ((venue.sections.find(s => s.id === activeSection.id) as any)?.numberingMode || 'ltr'))?.example}
+          </Typography>
         </Box>
       )}
 

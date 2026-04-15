@@ -1,4 +1,5 @@
 import { api } from '../api';
+import type { SeatNumberingMode } from '../../utils/seatNumbering';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -79,6 +80,7 @@ export const seatTemplateService = {
     categories?: SeatTemplateCategory[];
     organizerId?: string;
     stagePosition?: 'top' | 'bottom';
+    numberingMode?: SeatNumberingMode;
   }) => {
     const response = await api.post<ApiResponse<{ id: string; name: string; totalSeats: number; createdAt: string }>>(
       '/tickets/admin/seat-templates',

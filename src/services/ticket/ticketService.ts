@@ -9,6 +9,7 @@ import {
   TicketResponse,
 } from '../../types/tickets/ticketTypes';
 import { TR_ALPHABET } from '../../utils/trAlphabet';
+import { generateSeatNumbers, type SeatNumberingMode } from '../../utils/seatNumbering';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -287,6 +288,15 @@ export const ticketService = {
     });
     return response.data;
   },
+
+  /** Koltuk numaralarını yeniden düzenle (numaralandırma moduna göre) */
+  renumberSeats: async (eventId: string, numberingMode: SeatNumberingMode) => {
+    const response = await api.post<ApiResponse<void>>(
+      `/tickets/admin/events/${eventId}/seats/renumber`,
+      { numberingMode },
+    );
+    return response.data;
+  },
 };
 
 // Hazır Mekan Şablonları
@@ -558,11 +568,12 @@ const venueTemplates: any[] = [
 
 // Yardımcı fonksiyon: Sıra oluşturma
 function generateRows(
-  startRow: string, 
-  endRow: string, 
-  seatsPerRow: number, 
-  startX: number, 
-  startY: number
+  startRow: string,
+  endRow: string,
+  seatsPerRow: number,
+  startX: number,
+  startY: number,
+  numberingMode: SeatNumberingMode = 'ltr',
 ): any[] {
   const rows: any[] = [];
   const startIdx = TR_ALPHABET.indexOf(startRow.toUpperCase());
@@ -575,21 +586,19 @@ function generateRows(
   for (let i = rangeStart; i <= rangeEnd; i++) {
     const rowLabel = useCharCode ? String.fromCharCode(i) : TR_ALPHABET[i];
     const rowIndex = i - rangeStart;
-    
-    const seats = [];
-    for (let j = 1; j <= seatsPerRow; j++) {
-      seats.push({
-        id: `seat-${rowLabel}-${j}`,
-        row: rowLabel,
-        number: j,
-        status: 'AVAILABLE',
-        category: 'STANDARD',
-        x: startX + (j - 1) * 35,
-        y: startY + rowIndex * 40,
-        label: `${rowLabel}${j}`,
-      });
-    }
-    
+
+    const seatNumbers = generateSeatNumbers(seatsPerRow, numberingMode);
+    const seats = seatNumbers.map((num, si) => ({
+      id: `seat-${rowLabel}-${num}`,
+      row: rowLabel,
+      number: num,
+      status: 'AVAILABLE',
+      category: 'STANDARD',
+      x: startX + si * 35,
+      y: startY + rowIndex * 40,
+      label: `${rowLabel}${num}`,
+    }));
+
     rows.push({
       id: `row-${rowLabel}`,
       label: rowLabel,
@@ -598,7 +607,7 @@ function generateRows(
       offsetY: rowIndex * 40,
     });
   }
-  
+
   return rows;
 }
 
