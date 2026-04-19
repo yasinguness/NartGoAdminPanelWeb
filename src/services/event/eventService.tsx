@@ -78,6 +78,7 @@ export const eventService = {
         const response = await api.get<ApiResponse<PageResponseDto<EventResponseDTO>>>('/events/popular/all', {
             params: {
                 ...searchDTO,
+                status: searchDTO.status || 'ALL',
                 page,
                 size,
                 sort: 'popularityScore,desc'

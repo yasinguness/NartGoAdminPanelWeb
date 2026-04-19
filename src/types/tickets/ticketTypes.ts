@@ -152,6 +152,8 @@ export interface SeatRowResponse {
   occupiedSeats: number[];
   blockedSeats?: number[];
   occupiedSeatDetails?: OccupiedSeatDetail[];
+  /** Fiziksel pozisyon sırası (soldan sağa). center-out vb. modlarda seat numarasından farklı. */
+  seatOrder?: number[];
 }
 
 // Koltuk Kategorisi (Backend: SeatCategoryResponse)
@@ -190,6 +192,8 @@ export interface SeatMapResponse {
   rowLabelToCategoryId?: Record<string, string>;
   categories: SeatCategoryResponse[];
   stats?: SeatMapStats;
+  /** Aktif koltuk numaralandırma modu */
+  numberingMode?: 'ltr' | 'rtl' | 'center-out';
 }
 
 // Rezervasyon Request/Response

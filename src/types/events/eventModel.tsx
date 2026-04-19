@@ -97,6 +97,7 @@ export interface EventSearchDTO {
     longitude?: number;
     radius?: number;
     sortBy?: string;
+    status?: string;
 }
 
 export interface UpcomingEventDTO {

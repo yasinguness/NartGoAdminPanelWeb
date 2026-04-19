@@ -20,6 +20,8 @@ import {
   QrCode as QrIcon,
   WarningAmber as WarningIcon,
   AccessTime as AccessTimeIcon,
+  PlayArrow as ResumeIcon,
+  Done as CompleteIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -318,6 +320,28 @@ export default function EventDetail() {
     finally { setActionLoading(false); }
   };
 
+  const handleResume = async () => {
+    if (!id) return;
+    setActionLoading(true);
+    try {
+      await adminOperationsService.resumeEvent(id);
+      enqueueSnackbar('Etkinlik yeniden aktif edildi', { variant: 'success' });
+      await fetchEvent();
+    } catch { enqueueSnackbar('İşlem başarısız', { variant: 'error' }); }
+    finally { setActionLoading(false); }
+  };
+
+  const handleComplete = async () => {
+    if (!id) return;
+    setActionLoading(true);
+    try {
+      await eventService.updateEventStatus(id, EventStatus.COMPLETED);
+      enqueueSnackbar('Etkinlik tamamlandı olarak işaretlendi', { variant: 'success' });
+      await fetchEvent();
+    } catch { enqueueSnackbar('İşlem başarısız', { variant: 'error' }); }
+    finally { setActionLoading(false); }
+  };
+
   const handleCancel = async (reason: string) => {
     if (!id) return;
     setActionLoading(true);
@@ -602,9 +626,13 @@ export default function EventDetail() {
     );
   }
 
-  const statusColor = event.status === EventStatus.ACTIVE ? 'success' : 'default';
+  const statusColor = event.status === EventStatus.ACTIVE ? 'success'
+    : event.status === EventStatus.CANCELLED ? 'error'
+    : event.status === EventStatus.COMPLETED ? 'info'
+    : event.status === EventStatus.PASSIVE ? 'warning'
+    : 'default';
   const statusLabel = event.status === EventStatus.ACTIVE ? 'Aktif'
-    : event.status === EventStatus.CANCELLED ? 'İptal'
+    : event.status === EventStatus.CANCELLED ? 'İptal Edildi'
     : event.status === EventStatus.COMPLETED ? 'Tamamlandı'
     : event.status === EventStatus.PASSIVE ? 'Duraklatıldı'
     : String(event.status);
@@ -648,21 +676,70 @@ export default function EventDetail() {
             </Stack>
           </Box>
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" size="small" startIcon={<PauseIcon />}
-              onClick={() => setPauseOpen(true)}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
-              Duraklat
-            </Button>
-            <Button variant="outlined" size="small" startIcon={<EditIcon />}
-              onClick={openEditWizard}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
-              Düzenle
-            </Button>
-            <Button variant="outlined" size="small" color="error" startIcon={<CancelIcon />}
-              onClick={() => setCancelOpen(true)}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
-              İptal Et
-            </Button>
+            {/* ACTIVE → Duraklat, Düzenle, İptal, Tamamla */}
+            {event.status === EventStatus.ACTIVE && (
+              <>
+                <Button variant="outlined" size="small" startIcon={<PauseIcon />}
+                  onClick={() => setPauseOpen(true)} disabled={actionLoading}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                  Duraklat
+                </Button>
+                <Button variant="outlined" size="small" startIcon={<EditIcon />}
+                  onClick={openEditWizard}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                  Düzenle
+                </Button>
+                <Button variant="outlined" size="small" color="warning" startIcon={<CompleteIcon />}
+                  onClick={handleComplete} disabled={actionLoading}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                  Tamamla
+                </Button>
+                <Button variant="outlined" size="small" color="error" startIcon={<CancelIcon />}
+                  onClick={() => setCancelOpen(true)} disabled={actionLoading}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                  İptal Et
+                </Button>
+              </>
+            )}
+
+            {/* PASSIVE → Devam Et, Düzenle, İptal */}
+            {event.status === EventStatus.PASSIVE && (
+              <>
+                <Button variant="contained" size="small" color="success" startIcon={<ResumeIcon />}
+                  onClick={handleResume} disabled={actionLoading}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                  Devam Ettir
+                </Button>
+                <Button variant="outlined" size="small" startIcon={<EditIcon />}
+                  onClick={openEditWizard}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                  Düzenle
+                </Button>
+                <Button variant="outlined" size="small" color="error" startIcon={<CancelIcon />}
+                  onClick={() => setCancelOpen(true)} disabled={actionLoading}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                  İptal Et
+                </Button>
+              </>
+            )}
+
+            {/* COMPLETED → Tekrar Aktif Et */}
+            {event.status === EventStatus.COMPLETED && (
+              <Button variant="outlined" size="small" color="success" startIcon={<ResumeIcon />}
+                onClick={handleResume} disabled={actionLoading}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                Tekrar Aktif Et
+              </Button>
+            )}
+
+            {/* CANCELLED → Tekrar Aktif Et */}
+            {event.status === EventStatus.CANCELLED && (
+              <Button variant="outlined" size="small" color="success" startIcon={<ResumeIcon />}
+                onClick={handleResume} disabled={actionLoading}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                Tekrar Aktif Et
+              </Button>
+            )}
           </Stack>
         </Stack>
 
@@ -1604,6 +1681,64 @@ export default function EventDetail() {
         {/* ─── AYARLAR ─── */}
         {activeTab === 'ayarlar' && (
           <Stack spacing={2}>
+            {/* ── Etkinlik Durumu ── */}
+            <Box sx={cardSx}>
+              <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="subtitle2" fontWeight={700}>Etkinlik Durumu</Typography>
+              </Box>
+              <Box sx={{ p: 2.5 }}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                  <Chip label={statusLabel} size="small" color={statusColor as any}
+                    sx={{ fontWeight: 700, fontSize: 12 }} />
+                  <Typography variant="caption" color="text.secondary">
+                    {event.status === EventStatus.ACTIVE && 'Etkinlik aktif ve bilet satışına açık.'}
+                    {event.status === EventStatus.PASSIVE && 'Etkinlik duraklatıldı. Bilet satışı ve görünürlük kapalı.'}
+                    {event.status === EventStatus.COMPLETED && 'Etkinlik tamamlandı.'}
+                    {event.status === EventStatus.CANCELLED && 'Etkinlik iptal edildi.'}
+                  </Typography>
+                </Stack>
+
+                <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                  Durum Değiştir
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {event.status !== EventStatus.ACTIVE && (
+                    <Button size="small" variant="outlined" color="success" startIcon={<ResumeIcon />}
+                      onClick={handleResume} disabled={actionLoading}
+                      sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                      {event.status === EventStatus.PASSIVE ? 'Devam Ettir' : 'Tekrar Aktif Et'}
+                    </Button>
+                  )}
+                  {event.status === EventStatus.ACTIVE && (
+                    <Button size="small" variant="outlined" color="warning" startIcon={<PauseIcon />}
+                      onClick={() => setPauseOpen(true)} disabled={actionLoading}
+                      sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                      Duraklat
+                    </Button>
+                  )}
+                  {(event.status === EventStatus.ACTIVE || event.status === EventStatus.PASSIVE) && (
+                    <Button size="small" variant="outlined" startIcon={<CompleteIcon />}
+                      onClick={handleComplete} disabled={actionLoading}
+                      sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                      Tamamlandı İşaretle
+                    </Button>
+                  )}
+                  {event.status !== EventStatus.CANCELLED && (
+                    <Button size="small" variant="outlined" color="error" startIcon={<CancelIcon />}
+                      onClick={() => setCancelOpen(true)} disabled={actionLoading}
+                      sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                      İptal Et
+                    </Button>
+                  )}
+                  <Button size="small" variant="outlined" color="error" startIcon={<DeleteIcon />}
+                    onClick={() => setDeleteOpen(true)} disabled={actionLoading}
+                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                    Sil
+                  </Button>
+                </Stack>
+              </Box>
+            </Box>
+
             <Box sx={cardSx}>
               <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography variant="subtitle2" fontWeight={700}>Görünürlük & Satış</Typography>

@@ -181,10 +181,34 @@ export default function SeatMapLive() {
   // ── Ordered rows from API ───────────────────────────
   const rowOrder = useMemo(() => seatMapData?.rowLabelOrder || [...new Set(allSeats.map(s => s.rowLabel))].sort(), [seatMapData, allSeats]);
 
+  // ── seatOrder per row (from API: physical left→right position order) ──
+  const seatOrderMap = useMemo(() => {
+    const map: Record<string, number[]> = {};
+    if (!seatMapData) return map;
+    seatMapData.categories.forEach(cat => {
+      cat.rows.forEach(row => {
+        if (row.seatOrder?.length) {
+          map[row.rowLabel] = row.seatOrder;
+        }
+      });
+    });
+    return map;
+  }, [seatMapData]);
+
+  /** Sort seats by physical position: seatOrder if available, otherwise by seatNumber */
+  const sortByPosition = useCallback((seats: SeatDetail[], rowLabel: string): SeatDetail[] => {
+    const order = seatOrderMap[rowLabel];
+    if (!order?.length) return seats.sort((a, b) => a.seatNumber - b.seatNumber);
+    const posMap = new Map(order.map((num, idx) => [num, idx]));
+    return seats.sort((a, b) => (posMap.get(a.seatNumber) ?? a.seatNumber) - (posMap.get(b.seatNumber) ?? b.seatNumber));
+  }, [seatOrderMap]);
+
   // SVG dimensions
   const maxCols = useMemo(() => {
     const byRow: Record<string, number> = {};
-    allSeats.forEach(s => { byRow[s.rowLabel] = Math.max(byRow[s.rowLabel] || 0, s.seatNumber); });
+    allSeats.forEach(s => {
+      byRow[s.rowLabel] = (byRow[s.rowLabel] || 0) + 1;
+    });
     return Math.max(...Object.values(byRow), 0);
   }, [allSeats]);
 
@@ -296,6 +320,18 @@ export default function SeatMapLive() {
         setAllSeats(seats);
         setCategories(buildCategories(data, seats));
         setStats(data.stats || calculateStats(data));
+        // Sync numbering mode from API response
+        if (data.numberingMode) {
+          setNumberingMode(data.numberingMode);
+        } else {
+          // Detect from seatOrder: if first row has seatOrder and it's not sequential, infer mode
+          const firstRow = data.categories[0]?.rows?.[0];
+          if (firstRow?.seatOrder?.length && firstRow.seatOrder[0] === 1 && firstRow.seatOrder[1] === 3) {
+            setNumberingMode('center-out');
+          } else if (firstRow?.seatOrder?.length && firstRow.seatOrder[0] > firstRow.seatOrder[1]) {
+            setNumberingMode('rtl');
+          }
+        }
       }
 
       // Audit logs
@@ -547,7 +583,7 @@ export default function SeatMapLive() {
       // Find seats within the rectangle
       const selected = new Set<string>();
       rowOrder.forEach((rowLabel, ri) => {
-        const rowSeats = allSeats.filter(s => s.rowLabel === rowLabel).sort((a, b) => a.seatNumber - b.seatNumber);
+        const rowSeats = sortByPosition(allSeats.filter(s => s.rowLabel === rowLabel), rowLabel);
         const rowY = PADDING_TOP + ri * ROW_HEIGHT;
         rowSeats.forEach((seat, si) => {
           const seatX = SEAT_START_X + si * (SEAT_SIZE + SEAT_GAP);
@@ -793,7 +829,7 @@ export default function SeatMapLive() {
 
               {/* Rows — using rowLabelOrder from API */}
               {rowOrder.map((rowLabel, ri) => {
-                const rowSeats = allSeats.filter(s => s.rowLabel === rowLabel).sort((a, b) => a.seatNumber - b.seatNumber);
+                const rowSeats = sortByPosition(allSeats.filter(s => s.rowLabel === rowLabel), rowLabel);
                 const y = PADDING_TOP + ri * ROW_HEIGHT;
                 if (rowSeats.length === 0) return null;
 
