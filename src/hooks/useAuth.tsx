@@ -57,6 +57,8 @@ export const useAuth = () => {
     const logout = () => {
         authService.logout();
         logoutStore();
+        // Session flag'lerini temizle — yeni login'de auto-redirect tekrar çalışsın
+        sessionStorage.removeItem('organizer_auto_redirect_done');
         navigate('/login');
     };
 

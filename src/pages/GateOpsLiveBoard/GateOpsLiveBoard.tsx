@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { useDefaultEvent } from '../../hooks/useDefaultEvent';
 import {
   Box,
   Typography,
@@ -166,10 +167,22 @@ export default function GateOpsLiveBoard() {
   // URL params
   const { eventId: paramEventId } = useParams<{ eventId?: string }>();
   const [searchParams] = useSearchParams();
-  const eventId = paramEventId || searchParams.get('eventId') || '';
+  const urlEventId = paramEventId || searchParams.get('eventId') || '';
+
+  // Kullanıcının aktif tek etkinliği varsa auto-select
+  const { defaultEventId, events, mustSelect } = useDefaultEvent();
+  const [manualEventId, setManualEventId] = useState('');
+  const eventId = urlEventId || manualEventId || defaultEventId || '';
 
   // Mode
   const [mode, setMode] = useState<'demo' | 'live'>(eventId ? 'live' : 'demo');
+
+  // defaultEventId yüklendiğinde live moda geç
+  useEffect(() => {
+    if (!urlEventId && defaultEventId && mode === 'demo') {
+      setMode('live');
+    }
+  }, [defaultEventId, urlEventId, mode]);
 
   // Core state (used in demo mode, partially updated in live mode)
   const [counts, setCounts] = useState({ checkin: 0, errors: 0, dups: 0, vip: 0 });

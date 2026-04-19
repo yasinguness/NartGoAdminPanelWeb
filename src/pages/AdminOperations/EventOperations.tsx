@@ -141,6 +141,21 @@ export default function EventOperations() {
             setSelectedEvent(eventResponse.data);
             setEventCapacity(eventResponse.data.maxParticipants ?? 0);
           }
+        } else {
+          // Route'da ID yok — kullanıcının aktif tek etkinliği varsa auto-select
+          const now = Date.now();
+          const activeEvents = loadedEvents.filter((e: any) => {
+            if (e.status === 'CANCELLED' || e.status === 'COMPLETED') return false;
+            if (e.eventTime) {
+              const endTime = e.endTime ? new Date(e.endTime).getTime() : new Date(e.eventTime).getTime() + 24 * 60 * 60 * 1000;
+              return endTime >= now;
+            }
+            return true;
+          });
+          if (activeEvents.length === 1) {
+            setSelectedEvent(activeEvents[0]);
+            setEventCapacity(activeEvents[0].maxParticipants ?? 0);
+          }
         }
       } catch (error) {
         enqueueSnackbar('Etkinlik seçenekleri yüklenemedi', { variant: 'error' });
@@ -240,35 +255,65 @@ export default function EventOperations() {
       <PageSection title="Bağlam" subtitle="Admin isteklerinin hedeflemesi gereken etkinliği seçin.">
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
-            <Autocomplete
-              options={events}
-              loading={eventsLoading}
-              value={selectedEvent}
-              onChange={(_, value) => {
-                setSelectedEvent(value);
-                if (value) {
-                  navigate(`/event-operations/${value.id}`);
+            {/* Aktif etkinlik sayısını hesapla — tek aktif varsa sadece Chip göster */}
+            {(() => {
+              const now = Date.now();
+              const activeEvents = events.filter((e: any) => {
+                if (e.status === 'CANCELLED' || e.status === 'COMPLETED') return false;
+                if (e.eventTime) {
+                  const endTime = e.endTime ? new Date(e.endTime).getTime() : new Date(e.eventTime).getTime() + 86400000;
+                  return endTime >= now;
                 }
-              }}
-              getOptionLabel={(option) => `${option.name} (${option.id})`}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Hedef etkinlik"
-                  placeholder="Yüklenen etkinliklerde ara"
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {eventsLoading ? <CircularProgress size={18} color="inherit" /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
+                return true;
+              });
+              const showDropdown = activeEvents.length > 1 || events.length > 1;
+
+              if (!showDropdown && selectedEvent) {
+                return (
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Chip label="Tek Etkinlik" color="primary" size="small" sx={{ fontWeight: 700 }} />
+                      <Typography variant="body2" fontWeight={600}>{selectedEvent.name}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                        Otomatik seçildi
+                      </Typography>
+                    </Stack>
+                  </Paper>
+                );
+              }
+
+              return (
+                <Autocomplete
+                  options={events}
+                  loading={eventsLoading}
+                  value={selectedEvent}
+                  onChange={(_, value) => {
+                    setSelectedEvent(value);
+                    if (value) {
+                      navigate(`/event-operations/${value.id}`);
+                    }
                   }}
+                  getOptionLabel={(option) => `${option.name}`}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Hedef etkinlik"
+                      placeholder="Etkinliklerde ara"
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {eventsLoading ? <CircularProgress size={18} color="inherit" /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
                 />
-              )}
-            />
+              );
+            })()}
           </Grid>
           <Grid item xs={12} md={4}>
             <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>

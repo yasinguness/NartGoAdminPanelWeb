@@ -45,6 +45,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { usePageTracking } from '../hooks/analytics/useAnalytics';
 import { useRole } from '../hooks/useRole';
+import { useDefaultEvent } from '../hooks/useDefaultEvent';
 import { useState } from 'react';
 
 const DRAWER_W = 260;
@@ -62,6 +63,10 @@ interface NavSection {
     allowedRoles?: string[];
 }
 
+// Role path'lerden otomatik türetilir — Layout item.allowedRoles'u kullanmaz,
+// onun yerine canAccess(path) ROLE_ROUTE_MAP'e bakar.
+// Ama yine de organizasyon/group başlığı için allowedRoles set edilir,
+// böylece section tamamen gizlenir (tüm öğeleri filtrelense bile).
 const navSections: NavSection[] = [
     {
         title: 'Genel',
@@ -71,16 +76,34 @@ const navSections: NavSection[] = [
     },
     {
         title: 'Etkinlik Yönetimi',
+        allowedRoles: ['ADMIN', 'EVENT_ORGANIZATOR'],
         items: [
             { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
-            { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories' },
             { text: 'Etkinlik Oluştur', icon: <TicketIcon />, path: '/event-creation' },
             { text: 'Bilet Yönetimi', icon: <TicketIcon />, path: '/tickets' },
             { text: 'Salon Planları', icon: <EventSeatIcon />, path: '/seat-templates' },
+            { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories', allowedRoles: ['ADMIN'] },
+        ],
+    },
+    {
+        title: 'İçerik',
+        allowedRoles: ['ADMIN', 'EDITOR'],
+        items: [
+            { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
+        ],
+    },
+    {
+        title: 'Satış & Finans',
+        allowedRoles: ['ADMIN', 'EVENT_ORGANIZATOR'],
+        items: [
+            { text: 'Satış Özeti', icon: <TrendingUpIcon />, path: '/sales-command' },
+            { text: 'Ödeme & Mutabakat', icon: <AccountBalanceIcon />, path: '/settlement-finance', allowedRoles: ['ADMIN'] },
+            { text: 'Alt Bayiler', icon: <AccountBalanceIcon />, path: '/sub-merchants', allowedRoles: ['ADMIN'] },
         ],
     },
     {
         title: 'İşletme Yönetimi',
+        allowedRoles: ['ADMIN'],
         items: [
             { text: 'İşletmeler', icon: <BusinessIcon />, path: '/businesses' },
             { text: 'İşletme Talepleri', icon: <FactCheckIcon />, path: '/business-claims' },
@@ -88,30 +111,19 @@ const navSections: NavSection[] = [
         ],
     },
     {
-        title: 'Satış & Finans',
-        items: [
-            { text: 'Satış Özeti', icon: <TrendingUpIcon />, path: '/sales-command' },
-            { text: 'Ödeme & Mutabakat', icon: <AccountBalanceIcon />, path: '/settlement-finance' },
-            { text: 'Alt Bayiler', icon: <AccountBalanceIcon />, path: '/sub-merchants' },
-        ],
-    },
-    {
         title: 'Kullanıcılar',
+        allowedRoles: ['ADMIN', 'ASSOCIATION'],
         items: [
-            { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users' },
+            { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users', allowedRoles: ['ADMIN'] },
             { text: 'Dernekler', icon: <HomeWork />, path: '/associations' },
         ],
     },
     {
-        title: 'İçerik',
-        items: [
-            { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
-        ],
-    },
-    {
-        title: 'İçerik Yönetimi',
+        title: 'Bildirim & İçerik Moderasyonu',
+        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Bildirimler', icon: <NotificationsIcon />, path: '/notifications' },
+            { text: 'Bildirim Takvimi', icon: <NotificationsIcon />, path: '/notification-calendar' },
             { text: 'Video Akışı', icon: <FeedIcon />, path: '/feeds' },
             { text: 'Bültenler', icon: <CampaignIcon />, path: '/bulletins' },
             { text: 'Kampanya Motoru', icon: <LocalActivityIcon />, path: '/campaign-engine' },
@@ -119,12 +131,14 @@ const navSections: NavSection[] = [
     },
     {
         title: 'Operasyonlar',
+        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Müşteri Destek', icon: <SupportIcon />, path: '/customer-support' },
         ],
     },
     {
         title: 'Sistem',
+        allowedRoles: ['ADMIN'],
         items: [
             { text: 'Cihazlar', icon: <DevicesIcon />, path: '/devices' },
             { text: 'Oyunlaştırma', icon: <EmojiEventsIcon />, path: '/gamification' },
@@ -140,20 +154,41 @@ export default function Layout() {
     const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
-    const { roles, userName, isEditorOnly, isAdmin, canAccess } = useRole();
+    const { roles, userName, isEditorOnly, isAdmin, isOrganizer, canAccess } = useRole();
     const { logout } = useAuth();
+
+    // Organizator için aktif etkinlik sayısı (sidebar context indicator)
+    const { events, defaultEventId } = useDefaultEvent();
+    const showEventContext = (isOrganizer || isAdmin) && !isEditorOnly;
 
     // Analytics: track every page navigation
     usePageTracking();
 
     const visibleSections = useMemo(() => {
         return navSections
+            .filter((s) => {
+                // Section-level rol kontrolü — tüm allowedRoles listesinden en az biri eşleşmeli
+                if (s.allowedRoles && s.allowedRoles.length > 0) {
+                    return isAdmin || s.allowedRoles.some(r => roles.map(x => x.toUpperCase()).includes(r.toUpperCase()));
+                }
+                return true;
+            })
             .map((s) => ({
                 ...s,
-                items: s.items.filter((item) => canAccess(item.path)),
+                items: s.items
+                    .filter((item) => {
+                        // Item-level allowedRoles varsa önce onu kontrol et
+                        if (item.allowedRoles && item.allowedRoles.length > 0) {
+                            if (!isAdmin && !item.allowedRoles.some(r => roles.map(x => x.toUpperCase()).includes(r.toUpperCase()))) {
+                                return false;
+                            }
+                        }
+                        // Sonra ROLE_ROUTE_MAP kontrolü (default-deny)
+                        return canAccess(item.path);
+                    }),
             }))
             .filter((s) => s.items.length > 0);
-    }, [canAccess]);
+    }, [canAccess, isAdmin, roles]);
 
     const isZenMode = location.pathname.includes('seat-map') && new URLSearchParams(location.search).get('zen') === 'true';
 
@@ -178,51 +213,88 @@ export default function Layout() {
         try { await logout(); } catch { /* */ }
     };
 
-    // ─── Sidebar content ─────────────────────────────
+    // ─── Sidebar content (EventConsole premium stili) ─────
     const sidebar = (
         <Box sx={{
             height: '100%', display: 'flex', flexDirection: 'column',
-            background: '#fafbfc',
+            bgcolor: '#0F1A14', // dark green-black (EventConsole ile tutarlı)
+            color: 'white',
+            overflow: 'hidden',
         }}>
             {/* Brand */}
             <Box sx={{
-                px: 2.5, py: 2, display: 'flex', alignItems: 'center', gap: 1.5,
-                borderBottom: `1px solid ${theme.palette.divider}`,
+                px: 2.5, py: 2.5, display: 'flex', alignItems: 'center', gap: 1.5,
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
             }}>
                 <Box sx={{
-                    width: 34, height: 34, borderRadius: 2,
-                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                    width: 32, height: 32, borderRadius: '50%',
+                    bgcolor: '#C9A227',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', fontWeight: 900, fontSize: 15,
+                    color: '#0F1A14', fontWeight: 800, fontSize: 14,
                 }}>
                     N
                 </Box>
                 <Box>
-                    <Typography sx={{ fontWeight: 800, fontSize: 15, lineHeight: 1.2, color: theme.palette.text.primary }}>
-                        NartGo
+                    <Typography sx={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2, color: 'white', letterSpacing: 0.3 }}>
+                        NartGo Admin
                     </Typography>
-                    <Typography sx={{ fontSize: 10.5, color: theme.palette.text.secondary, fontWeight: 500 }}>
+                    <Typography sx={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
                         Yönetim Paneli
                     </Typography>
                 </Box>
             </Box>
 
+            {/* Context Indicator — aktif etkinlik sayısı */}
+            {showEventContext && events.length > 0 && (
+                <Box
+                    onClick={() => {
+                        if (defaultEventId) {
+                            handleNav(`/event-console/${defaultEventId}`);
+                        } else {
+                            handleNav('/events');
+                        }
+                    }}
+                    sx={{
+                        mx: 1.5, mt: 1.5, px: 1.5, py: 1,
+                        borderRadius: 1.5,
+                        cursor: 'pointer',
+                        bgcolor: 'rgba(201,162,39,0.08)',
+                        border: '1px solid rgba(201,162,39,0.2)',
+                        '&:hover': { bgcolor: 'rgba(201,162,39,0.14)' },
+                    }}
+                >
+                    <Typography sx={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, fontWeight: 600 }}>
+                        {events.length === 1 ? 'AKTİF ETKİNLİK' : `${events.length} ETKİNLİK`}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: '#C9A227', fontWeight: 600, mt: 0.3 }} noWrap>
+                        {events.length === 1 ? events[0].name : 'Etkinlikleri Yönet →'}
+                    </Typography>
+                </Box>
+            )}
+
             {/* Navigation */}
-            <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', py: 1 }}>
+            <Box
+                component="nav"
+                role="navigation"
+                aria-label="Ana navigasyon"
+                sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', py: 2 }}
+            >
                 {visibleSections.map((section) => (
-                    <Box key={section.title} sx={{ mb: 0.5 }}>
+                    <Box key={section.title} sx={{ mb: 2 }} role="group" aria-labelledby={`sec-${section.title}`}>
                         {/* Section label */}
-                        <Typography sx={{
-                            px: 2.5, pt: 1.5, pb: 0.5,
-                            fontSize: 10, fontWeight: 700, letterSpacing: 1,
-                            textTransform: 'uppercase',
-                            color: theme.palette.text.disabled,
-                            userSelect: 'none',
-                        }}>
+                        <Typography
+                            id={`sec-${section.title}`}
+                            sx={{
+                                px: 2.5, mb: 1, display: 'block',
+                                color: 'rgba(255,255,255,0.4)',
+                                fontSize: 10, letterSpacing: 1.5, fontWeight: 600,
+                                textTransform: 'uppercase',
+                                userSelect: 'none',
+                            }}
+                        >
                             {section.title}
                         </Typography>
 
-                        {/* Items — always visible, no collapse */}
                         {section.items.map((item) => {
                             const isActive = location.pathname === item.path
                                 || (item.path !== '/dashboard' && location.pathname.startsWith(item.path + '/'));
@@ -230,42 +302,51 @@ export default function Layout() {
                             return (
                                 <Box
                                     key={item.path}
+                                    component="button"
                                     onClick={() => handleNav(item.path)}
+                                    aria-current={isActive ? 'page' : undefined}
                                     sx={{
-                                        mx: 1, mb: '2px', px: 1.5, py: 0.75,
-                                        display: 'flex', alignItems: 'center', gap: 1.25,
-                                        borderRadius: 2,
+                                        background: 'none',
+                                        border: 'none',
+                                        font: 'inherit',
+                                        textAlign: 'left',
+                                        width: 'calc(100% - 24px)',
+                                        mx: 1.5, mb: 0.3, px: 1.5, py: 1,
+                                        borderRadius: 1.5,
                                         cursor: 'pointer',
-                                        transition: 'all 0.15s ease',
-                                        position: 'relative',
-                                        ...(isActive ? {
-                                            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-                                            '&::before': {
-                                                content: '""',
-                                                position: 'absolute',
-                                                left: 0, top: '20%', bottom: '20%',
-                                                width: 3, borderRadius: 2,
-                                                background: theme.palette.primary.main,
-                                            },
-                                        } : {
-                                            '&:hover': {
-                                                background: alpha(theme.palette.action.hover, 0.5),
-                                            },
-                                        }),
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1.25,
+                                        bgcolor: isActive ? 'rgba(201,162,39,0.12)' : 'transparent',
+                                        color: isActive ? '#C9A227' : 'rgba(255,255,255,0.75)',
+                                        transition: 'all 0.15s',
+                                        '&:hover': {
+                                            bgcolor: isActive ? 'rgba(201,162,39,0.16)' : 'rgba(255,255,255,0.04)',
+                                            color: isActive ? '#C9A227' : 'white',
+                                        },
+                                        '&:focus-visible': {
+                                            outline: '2px solid #C9A227',
+                                            outlineOffset: 2,
+                                        },
                                     }}
                                 >
                                     <Box sx={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        width: 28, height: 28,
-                                        color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
-                                        '& svg': { fontSize: 18 },
+                                        width: 6, flexShrink: 0,
+                                        '& svg': {
+                                            fontSize: 6,
+                                            fill: 'currentColor',
+                                            opacity: isActive ? 1 : 0.4,
+                                        },
                                     }}>
-                                        {item.icon}
+                                        {/* Dot indicator (EventConsole stiliyle) */}
+                                        <svg viewBox="0 0 10 10" width={6} height={6}>
+                                            <circle cx={5} cy={5} r={5} />
+                                        </svg>
                                     </Box>
                                     <Typography sx={{
                                         fontSize: 13,
-                                        fontWeight: isActive ? 650 : 450,
-                                        color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
+                                        fontWeight: isActive ? 600 : 400,
                                         lineHeight: 1.3,
                                     }}>
                                         {item.text}
@@ -278,34 +359,35 @@ export default function Layout() {
             </Box>
 
             {/* User footer */}
-            <Box sx={{ borderTop: `1px solid ${theme.palette.divider}`, p: 1.5 }}>
+            <Box sx={{ borderTop: '1px solid rgba(255,255,255,0.08)', p: 1.5 }}>
                 <Box sx={{
                     display: 'flex', alignItems: 'center', gap: 1.5,
-                    p: 1, borderRadius: 2,
-                    '&:hover': { background: alpha(theme.palette.action.hover, 0.5) },
+                    p: 1, borderRadius: 1.5,
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
                 }}>
                     <Avatar sx={{
                         width: 34, height: 34, fontSize: 13, fontWeight: 700,
-                        bgcolor: alpha(theme.palette.primary.main, 0.12),
-                        color: theme.palette.primary.main,
+                        bgcolor: 'rgba(201,162,39,0.15)',
+                        color: '#C9A227',
                     }}>
                         {initials}
                     </Avatar>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }} noWrap>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2, color: 'white' }} noWrap>
                             {userName || 'Admin'}
                         </Typography>
-                        <Typography sx={{ fontSize: 10.5, color: theme.palette.text.secondary }} noWrap>
-                            {roles.join(', ') || 'ADMIN'}
+                        <Typography sx={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.3 }} noWrap>
+                            {roles.length > 0 ? roles[0].toUpperCase() : 'ADMIN'}
                         </Typography>
                     </Box>
                     <Tooltip title="Çıkış Yap">
                         <IconButton
                             size="small"
                             onClick={handleLogout}
+                            aria-label="Çıkış yap"
                             sx={{
-                                color: theme.palette.text.secondary,
-                                '&:hover': { color: theme.palette.error.main, bgcolor: alpha(theme.palette.error.main, 0.08) },
+                                color: 'rgba(255,255,255,0.6)',
+                                '&:hover': { color: theme.palette.error.light, bgcolor: 'rgba(239,68,68,0.1)' },
                             }}
                         >
                             <LogoutIcon sx={{ fontSize: 18 }} />
@@ -329,7 +411,7 @@ export default function Layout() {
                     top: 0,
                     left: isZenMode ? 0 : { xs: 0, sm: DRAWER_W },
                     right: 0,
-                    height: 56,
+                    height: 64,
                     zIndex: theme.zIndex.appBar,
                     display: isZenMode ? 'none' : 'flex',
                     alignItems: 'center',
@@ -347,12 +429,24 @@ export default function Layout() {
                     <MenuIcon />
                 </IconButton>
 
-                <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2, color: theme.palette.text.primary }}>
-                        {currentPageTitle}
+                <Box sx={{ minWidth: 0 }}>
+                    {/* Breadcrumb (EventConsole stili) */}
+                    <Typography sx={{
+                        color: theme.palette.text.secondary,
+                        letterSpacing: 1.5, fontSize: 9.5, fontWeight: 600,
+                        lineHeight: 1,
+                        mb: 0.3,
+                    }}>
+                        NARTGO · {currentPageTitle.toUpperCase()}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: theme.palette.text.disabled, fontSize: 11 }}>
-                        NartGo Yönetim Paneli
+                    <Typography sx={{
+                        fontWeight: 700, lineHeight: 1.2,
+                        color: theme.palette.text.primary,
+                        fontFamily: 'Georgia, "Times New Roman", serif',
+                        fontStyle: 'italic',
+                        fontSize: 18,
+                    }}>
+                        {currentPageTitle}
                     </Typography>
                 </Box>
 
@@ -445,7 +539,7 @@ export default function Layout() {
                     p: location.pathname.includes('seat-map') ? 0 : 3,
                     width: isZenMode ? '100vw' : { sm: `calc(100% - ${DRAWER_W}px)` },
                     minHeight: isZenMode ? '100vh' : 'calc(100vh - 56px)',
-                    mt: isZenMode ? 0 : '56px',
+                    mt: isZenMode ? 0 : '64px',
                     maxWidth: location.pathname.includes('seat-map') ? 'none' : '1600px',
                     overflowX: 'hidden',
                 }}

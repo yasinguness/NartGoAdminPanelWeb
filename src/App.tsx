@@ -42,6 +42,8 @@ import GateOpsLiveBoard from './pages/GateOpsLiveBoard/GateOpsLiveBoard';
 import CustomerSupportConsole from './pages/CustomerSupport/CustomerSupportConsole';
 import CampaignPromoEngine from './pages/CampaignPromoEngine/CampaignPromoEngine';
 import SeatMapLive from './pages/SeatMap/SeatMapLive';
+import NotificationCalendar from './pages/NotificationCalendar/NotificationCalendar';
+import EventConsole from './pages/EventConsole/EventConsole';
 import SeatTemplateList from './pages/SeatTemplates/SeatTemplateList';
 import SeatTemplateWizard from './pages/SeatTemplates/SeatTemplateWizard';
 import EventOperations from './pages/AdminOperations/EventOperations';
@@ -68,6 +70,10 @@ function App() {
           <BrowserRouter basename="/admin">
             <Routes>
               <Route path="/login" element={<Login />} />
+
+              {/* EventConsole — tam ekran, kendi sidebar'ı var */}
+              <Route path="/event-console/:eventId" element={<PrivateRoute><EventConsole /></PrivateRoute>} />
+
               <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
@@ -105,6 +111,7 @@ function App() {
                 <Route path="event-creation" element={<TicketCreationPage />} />
                 <Route path="event-creation/:eventId" element={<TicketCreationPage />} />
                 <Route path="tickets" element={<TicketManagement />} />
+                <Route path="notification-calendar" element={<NotificationCalendar />} />
                 <Route path="seat-templates" element={<SeatTemplateList />} />
                 <Route path="seat-templates/new" element={<SeatTemplateWizard />} />
                 <Route path="events/:eventId/seat-map" element={<SeatMapLive />} />

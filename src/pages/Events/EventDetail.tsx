@@ -676,6 +676,16 @@ export default function EventDetail() {
             </Stack>
           </Box>
           <Stack direction="row" spacing={1}>
+            {/* Operasyon Konsolu — her zaman görünür, en belirgin */}
+            <Button variant="contained" size="small"
+              onClick={() => navigate(`/event-console/${event.id}`)}
+              sx={{
+                borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 2,
+                bgcolor: '#0F1A14', '&:hover': { bgcolor: '#1a2b1f' },
+              }}>
+              Operasyon Konsolu
+            </Button>
+
             {/* ACTIVE → Duraklat, Düzenle, İptal, Tamamla */}
             {event.status === EventStatus.ACTIVE && (
               <>

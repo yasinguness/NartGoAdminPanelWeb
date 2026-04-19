@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { boxOfficeService } from '../../services/box-office/boxOffice.service';
+import { useDefaultEvent } from '../../hooks/useDefaultEvent';
 import {
   Box,
   Typography,
@@ -38,32 +39,45 @@ import {
 
 
 export default function BoxOffice() {
+  const { events, defaultEventId, mustSelect } = useDefaultEvent();
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerMode, setCustomerMode] = useState<'GUEST' | 'SEARCH'>('GUEST');
   const [customerPhone, setCustomerPhone] = useState('');
-  
+
   const [cart, setCart] = useState<Record<string, number>>({});
-  
+
   const [paymentType, setPaymentType] = useState('CREDIT');
   const [deliveryType, setDeliveryType] = useState('PRINT');
   const [promoCode, setPromoCode] = useState('');
 
+  // Otomatik seçim
   useEffect(() => {
+    if (!selectedEventId && defaultEventId) {
+      setSelectedEventId(defaultEventId);
+    }
+  }, [defaultEventId, selectedEventId]);
+
+  useEffect(() => {
+    if (!selectedEventId) {
+      setCategories([]);
+      setLoading(false);
+      return;
+    }
     const fetchCategories = async () => {
       try {
         setLoading(true);
-        const data = await boxOfficeService.getAvailableCategories('e-28haz');
+        const data = await boxOfficeService.getAvailableCategories(selectedEventId);
         setCategories(data || []);
       } catch (err) {
-        // silently handled
         setCategories([]);
       } finally {
         setLoading(false);
       }
     };
     fetchCategories();
-  }, []);
+  }, [selectedEventId]);
 
   const updateCart = (catId: string, delta: number) => {
     setCart(prev => {
@@ -104,9 +118,20 @@ export default function BoxOffice() {
              <MenuItem value="NEW">Yeni Bilet Satışı</MenuItem>
              <MenuItem value="PICKUP">Rezervasyon / Teslimat</MenuItem>
           </TextField>
-          <TextField select size="small" label="Etkinlik Kapsamı" defaultValue="e-28haz" sx={{ minWidth: 300 }}>
-             <MenuItem value="e-28haz">28 Haziran - Zorlu PSM Yaz Konseri</MenuItem>
-             <MenuItem value="e-15tem">15 Temmuz - Harbiye Akustik Gece</MenuItem>
+          <TextField
+            select size="small" label="Etkinlik Kapsamı"
+            value={selectedEventId}
+            onChange={e => setSelectedEventId(e.target.value)}
+            sx={{ minWidth: 300 }}
+            disabled={!mustSelect && !!selectedEventId}
+            helperText={!mustSelect && selectedEventId ? 'Tek aktif etkinlik otomatik seçildi' : undefined}
+          >
+            {events.length === 0 && <MenuItem value="">Etkinlik yok</MenuItem>}
+            {events.map(ev => (
+              <MenuItem key={ev.id} value={ev.id}>
+                {ev.name}
+              </MenuItem>
+            ))}
           </TextField>
         </Box>
         

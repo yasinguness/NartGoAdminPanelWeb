@@ -364,7 +364,7 @@ export default function Events() {
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <Box key={i} sx={{ ...glassCardSx, p: 2.5 }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 48px' }, gap: 3, alignItems: 'center' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 96px' }, gap: 3, alignItems: 'center' }}>
                   <Skeleton variant="rounded" width={80} height={80} sx={{ borderRadius: 3 }} />
                   <Box>
                     <Skeleton variant="text" width="70%" height={24} />
@@ -403,7 +403,7 @@ export default function Events() {
                 >
                   <Box sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 48px' },
+                    gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 96px' },
                     gap: 3,
                     alignItems: 'center',
                     p: 2.5,
@@ -474,13 +474,31 @@ export default function Events() {
                       />
                     </Box>
 
-                    {/* Action */}
-                    <IconButton
-                      className="chevron-icon"
-                      sx={{ opacity: 0.4, transition: 'all 0.3s' }}
-                    >
-                      <ChevronIcon />
-                    </IconButton>
+                    {/* Action — Konsolu Aç (aktif/pasif hariç tüm statülerde) */}
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      <Tooltip title="Operasyon Konsolu">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/event-console/${event.id}`);
+                          }}
+                          sx={{
+                            color: 'primary.main',
+                            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.12) },
+                          }}
+                        >
+                          <TicketIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <IconButton
+                        className="chevron-icon"
+                        size="small"
+                        sx={{ opacity: 0.4, transition: 'all 0.3s' }}
+                      >
+                        <ChevronIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
                   </Box>
                 </Box>
               );

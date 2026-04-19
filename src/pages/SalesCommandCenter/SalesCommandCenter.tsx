@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { salesCommandService } from '../../services/sales/salesCommand.service';
-import { adminOperationsService } from '../../services/admin/adminOperationsService';
+import { useDefaultEvent } from '../../hooks/useDefaultEvent';
 import { parseDate, formatDateTime, formatDate } from '../../utils/dateUtils';
 import {
   Box, Typography, Paper, Stack, Button, Chip, TextField, MenuItem,
@@ -68,8 +68,15 @@ export default function SalesCommandCenter() {
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const [events, setEvents] = useState<any[]>([]);
+  const { events, defaultEventId, mustSelect } = useDefaultEvent();
   const [eventId, setEventId] = useState('');
+
+  // Tek aktif etkinlik varsa otomatik seç
+  useEffect(() => {
+    if (!eventId && defaultEventId) {
+      setEventId(defaultEventId);
+    }
+  }, [defaultEventId, eventId]);
   const [dashboard, setDashboard] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [lifecycle, setLifecycle] = useState<any[]>([]);
@@ -81,18 +88,7 @@ export default function SalesCommandCenter() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [lifecycleLoading, setLifecycleLoading] = useState(false);
 
-  // Kullanıcının yetkili olduğu etkinlikler
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await adminOperationsService.getMyEvents();
-        const list = (Array.isArray(res) ? res : res?.data ?? [])
-          .sort((a: any, b: any) => new Date(b.eventTime || 0).getTime() - new Date(a.eventTime || 0).getTime());
-        setEvents(list);
-        if (list.length > 0) setEventId(list[0].id);
-      } catch { /* */ }
-    })();
-  }, []);
+  // Events useDefaultEvent hook'undan geliyor, mustSelect: çoklu aktif etkinlik varsa true
 
   // Veri çek
   const fetchData = useCallback(async () => {
@@ -173,25 +169,35 @@ export default function SalesCommandCenter() {
           <Typography variant="body2" color="text.secondary">Etkinlik bazlı gelir, sipariş ve bilet takibi</Typography>
         </Box>
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <TextField
-            select size="small" value={eventId}
-            onChange={e => { setEventId(e.target.value); setSearch(''); setStatusFilter('ALL'); }}
-            sx={{ minWidth: 280, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-            label="Etkinlik"
-          >
-            {events.map((ev: any) => (
-              <MenuItem key={ev.id} value={ev.id}>
-                <Stack>
-                  <Typography variant="body2" fontWeight={600}>{ev.name}</Typography>
-                  {ev.eventTime && (
-                    <Typography variant="caption" color="text.secondary">
-                      {formatDate(ev.eventTime)}
-                    </Typography>
-                  )}
-                </Stack>
-              </MenuItem>
-            ))}
-          </TextField>
+          {/* Tek aktif etkinlik varsa chip olarak göster, çoklu ise dropdown */}
+          {!mustSelect && selectedEvent ? (
+            <Chip
+              label={`${selectedEvent.name}${selectedEvent.eventTime ? ' · ' + formatDate(selectedEvent.eventTime) : ''}`}
+              color="primary"
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+          ) : (
+            <TextField
+              select size="small" value={eventId}
+              onChange={e => { setEventId(e.target.value); setSearch(''); setStatusFilter('ALL'); }}
+              sx={{ minWidth: 280, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              label="Etkinlik Seç"
+            >
+              {events.map((ev: any) => (
+                <MenuItem key={ev.id} value={ev.id}>
+                  <Stack>
+                    <Typography variant="body2" fontWeight={600}>{ev.name}</Typography>
+                    {ev.eventTime && (
+                      <Typography variant="caption" color="text.secondary">
+                        {formatDate(ev.eventTime)}
+                      </Typography>
+                    )}
+                  </Stack>
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <Tooltip title="Yenile">
             <IconButton size="small" onClick={fetchData} disabled={loading}>
               {loading ? <CircularProgress size={18} /> : <RefreshIcon />}

@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const shouldDeployAfterBuild = env.VITE_POSTBUILD_DEPLOY === 'true'
 
   return {
     base: '/admin',
@@ -12,6 +13,10 @@ export default defineConfig(({ mode }) => {
       {
         name: 'postbuild-deploy',
         closeBundle: async () => {
+          if (!shouldDeployAfterBuild) {
+            console.log('Build finished. Skipping deploy because VITE_POSTBUILD_DEPLOY is not enabled.');
+            return;
+          }
           console.log('Build finished. Deploying to /var/www/admin...');
           const { exec } = await import('child_process');
           exec('rm -rf /var/www/admin/* && cp -r dist/* /var/www/admin/', (error, stdout, stderr) => {
