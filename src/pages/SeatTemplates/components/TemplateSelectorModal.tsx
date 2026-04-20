@@ -3,15 +3,24 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, Typography,
   Grid, Card, CardContent, CardActions, Chip, CircularProgress, IconButton,
   alpha, useTheme, TextField, Select, MenuItem, FormControl, InputLabel,
-  Divider,
+  Divider, Alert, AlertTitle,
 } from '@mui/material';
 import {
   Close as CloseIcon, EventSeat as SeatIcon, Check as CheckIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import {
   seatTemplateService, SeatTemplate, SeatTemplateCategory,
 } from '../../../services/ticket/seatTemplateService';
+import { seatService } from '../../../services/ticket/seatService';
+
+interface CurrentSeatStats {
+  rows: number;
+  totalSeats: number;
+  available: number;
+  blocked: number;
+}
 
 interface TicketType {
   id: string;
@@ -73,6 +82,8 @@ export default function TemplateSelectorModal({
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<SeatTemplate | null>(null);
   const [applying, setApplying] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [currentStats, setCurrentStats] = useState<CurrentSeatStats | null>(null);
 
   // Kategori-TicketType eşleştirme
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -86,7 +97,28 @@ export default function TemplateSelectorModal({
       })
       .catch(() => enqueueSnackbar('Şablonlar yüklenemedi', { variant: 'error' }))
       .finally(() => setLoading(false));
-  }, [open]);
+
+    // Mevcut seat map'i yükle (uyarı diyaloğunda göstermek için)
+    if (eventId) {
+      seatService.getSeatMap(eventId)
+        .then(res => {
+          const data = res?.data;
+          if (!data || !data.categories?.length) { setCurrentStats(null); return; }
+          let rows = 0, available = 0, blocked = 0, occupied = 0;
+          data.categories.forEach(cat => {
+            rows += cat.rows?.length || 0;
+            cat.rows?.forEach(r => {
+              available += r.availableSeats?.length || 0;
+              occupied += r.occupiedSeats?.length || 0;
+              blocked += r.blockedSeats?.length || 0;
+            });
+          });
+          const totalSeats = available + occupied + blocked;
+          setCurrentStats({ rows, totalSeats, available, blocked: blocked + occupied });
+        })
+        .catch(() => setCurrentStats(null));
+    }
+  }, [open, eventId]);
 
   // Seçilen şablonun kategorileri
   const selectedCategories = selected?.layout?.categories || [];
@@ -104,7 +136,17 @@ export default function TemplateSelectorModal({
     setMapping(defaultMapping);
   };
 
-  const handleApply = async () => {
+  const handleApplyClick = () => {
+    if (!selected || !eventId) return;
+    // Mevcut koltuklar varsa önce onay iste
+    if (currentStats && currentStats.totalSeats > 0) {
+      setConfirmOpen(true);
+    } else {
+      void performApply();
+    }
+  };
+
+  const performApply = async () => {
     if (!selected || !eventId) return;
 
     setApplying(true);
@@ -116,6 +158,7 @@ export default function TemplateSelectorModal({
       if (res.success) {
         enqueueSnackbar(`${res.data.created} koltuk oluşturuldu`, { variant: 'success' });
         onApplied(res.data.created);
+        setConfirmOpen(false);
         onClose();
       } else {
         enqueueSnackbar(res.message || 'Uygulama hatası', { variant: 'error' });
@@ -238,13 +281,63 @@ export default function TemplateSelectorModal({
         <Button onClick={onClose}>İptal</Button>
         <Button
           variant="contained"
-          onClick={handleApply}
+          onClick={handleApplyClick}
           disabled={!selected || applying}
           startIcon={applying ? <CircularProgress size={18} /> : <CheckIcon />}
         >
           {applying ? 'Uygulanıyor...' : 'Uygula'}
         </Button>
       </DialogActions>
+
+      {/* Onay diyaloğu — mevcut layout varsa */}
+      <Dialog open={confirmOpen} onClose={() => !applying && setConfirmOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, fontWeight: 700 }}>
+          <WarningIcon sx={{ color: 'warning.main' }} />
+          Layout Değişecek
+        </DialogTitle>
+        <DialogContent dividers>
+          {currentStats && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight={700} gutterBottom>Mevcut durum:</Typography>
+              <Box sx={{ pl: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  • {currentStats.rows} sıra, {currentStats.totalSeats} koltuk
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  • {currentStats.available} açık, {currentStats.blocked} kapalı
+                </Typography>
+              </Box>
+            </Box>
+          )}
+          {selected && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight={700} gutterBottom>Yeni layout:</Typography>
+              <Box sx={{ pl: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  • {selected.layout?.rows?.length || 0} sıra, {selected.totalSeats || 0} koltuk
+                </Typography>
+              </Box>
+            </Box>
+          )}
+          <Alert severity="info" sx={{ mt: 2 }}>
+            <AlertTitle sx={{ fontWeight: 700 }}>Koltuklar silinmez</AlertTitle>
+            Backend koltuğu silmez, yalnızca yeni layout'ta olmayan koltukları
+            BLOCKED'a çevirir. İstediğin zaman UNBLOCK edebilirsin.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setConfirmOpen(false)} disabled={applying}>İptal</Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={performApply}
+            disabled={applying}
+            startIcon={applying ? <CircularProgress size={18} /> : undefined}
+          >
+            {applying ? 'Uygulanıyor...' : 'Devam Et'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 }
