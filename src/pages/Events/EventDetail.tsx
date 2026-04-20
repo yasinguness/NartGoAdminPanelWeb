@@ -238,12 +238,11 @@ export default function EventDetail() {
   }, [id]);
 
   // ── Lazy tab loading ──────────────────────────────────────
+  // Not: Sipariş/Katılımcı/Check-in/Ayarlar tabları Konsola taşındı.
+  // Sadece "Biletler" tab'ı için ticket types lazy-load edilir.
   useEffect(() => {
     if (activeTab === 'biletler' && ticketTypes.length === 0) fetchTicketTypes();
-    if (activeTab === 'satin-alimlar' && orders.length === 0) fetchOrders();
-    if (activeTab === 'katilimcilar' && attendees.length === 0) fetchAttendees();
-    if (activeTab === 'denetim') { fetchCheckInStats(); fetchCheckInLogs(); }
-  }, [activeTab, fetchTicketTypes, fetchOrders, fetchCheckInStats, fetchAttendees, fetchCheckInLogs, ticketTypes.length, orders.length, attendees.length]);
+  }, [activeTab, fetchTicketTypes, ticketTypes.length]);
 
   // ── Derived values ────────────────────────────────────────
   const daysLeft = useMemo(() => {
@@ -774,6 +773,52 @@ export default function EventDetail() {
           ))}
         </Box>
 
+        {/* Operasyon Konsolu yönlendirme banner'ı */}
+        <Box
+          onClick={() => navigate(`/event-console/${event.id}`)}
+          sx={{
+            mx: -4, mt: 2, px: 4, py: 1.75,
+            display: 'flex', alignItems: 'center', gap: 1.5,
+            bgcolor: 'rgba(15,26,20,0.95)',
+            color: '#F3EEE0',
+            cursor: 'pointer',
+            borderTop: '1px solid rgba(201,162,39,0.3)',
+            borderBottom: '1px solid rgba(201,162,39,0.3)',
+            transition: 'background-color 200ms',
+            '&:hover': { bgcolor: 'rgba(15,26,20,1)' },
+          }}
+        >
+          <Box sx={{
+            width: 28, height: 28, borderRadius: 1,
+            bgcolor: 'rgba(201,162,39,0.2)', color: '#C9A227',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 14, fontWeight: 800,
+          }}>
+            ⚡
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#F3EEE0', lineHeight: 1.3 }}>
+              Operasyon Konsolu — tüm yönetim araçları tek yerde
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: 'rgba(243,238,224,0.6)', mt: 0.25 }}>
+              Siparişler · Check-in · Kapı görevlileri · Bildirim · Export · Ayarlar için Konsol'u kullanın. Bu sayfa yakında temel bilgilere yönlendirilecek.
+            </Typography>
+          </Box>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={(e) => { e.stopPropagation(); navigate(`/event-console/${event.id}`); }}
+            sx={{
+              bgcolor: '#C9A227', color: '#0F1A14', fontWeight: 800,
+              fontSize: 11, letterSpacing: 0.5, textTransform: 'none',
+              whiteSpace: 'nowrap',
+              '&:hover': { bgcolor: '#b58f1f' },
+            }}
+          >
+            Konsola Git →
+          </Button>
+        </Box>
+
         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}
           sx={{
             mt: 0.5, borderTop: '1px solid', borderColor: 'divider',
@@ -782,10 +827,6 @@ export default function EventDetail() {
           }}>
           <Tab value="genel" label="📋 Genel Bilgiler" />
           <Tab value="biletler" label="🎫 Biletler" />
-          <Tab value="satin-alimlar" label="💳 Satın Alımlar" />
-          <Tab value="katilimcilar" label="👥 Katılımcılar" />
-          <Tab value="denetim" label="🔍 Denetim & Giriş" />
-          <Tab value="ayarlar" label="⚙️ Ayarlar" />
         </Tabs>
       </Box>
 

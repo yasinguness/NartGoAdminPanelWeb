@@ -41,6 +41,7 @@ import {
     Menu as MenuIcon,
     Search as SearchIcon,
     ManageSearch as AuditIcon,
+    Insights as ExecutiveIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { usePageTracking } from '../hooks/analytics/useAnalytics';
@@ -72,6 +73,7 @@ const navSections: NavSection[] = [
         title: 'Genel',
         items: [
             { text: 'Kontrol Paneli', icon: <DashboardIcon />, path: '/dashboard' },
+            { text: 'Executive', icon: <ExecutiveIcon />, path: '/executive', allowedRoles: ['ADMIN'] },
         ],
     },
     {
@@ -97,6 +99,10 @@ const navSections: NavSection[] = [
         allowedRoles: ['ADMIN', 'EVENT_ORGANIZATOR'],
         items: [
             { text: 'Satış Özeti', icon: <TrendingUpIcon />, path: '/sales-command' },
+            { text: 'Finans Özeti (P&L)', icon: <AccountBalanceIcon />, path: '/finance/overview', allowedRoles: ['ADMIN'] },
+            { text: 'Mutabakat', icon: <AccountBalanceIcon />, path: '/finance/reconciliation', allowedRoles: ['ADMIN'] },
+            { text: 'Payouts', icon: <AccountBalanceIcon />, path: '/finance/payouts', allowedRoles: ['ADMIN'] },
+            { text: 'İadeler', icon: <AccountBalanceIcon />, path: '/finance/refunds', allowedRoles: ['ADMIN'] },
             { text: 'Ödeme & Mutabakat', icon: <AccountBalanceIcon />, path: '/settlement-finance', allowedRoles: ['ADMIN'] },
             { text: 'Alt Bayiler', icon: <AccountBalanceIcon />, path: '/sub-merchants', allowedRoles: ['ADMIN'] },
         ],
@@ -130,10 +136,34 @@ const navSections: NavSection[] = [
         ],
     },
     {
+        title: 'Growth',
+        allowedRoles: ['ADMIN'],
+        items: [
+            { text: 'Segments', icon: <PeopleIcon />, path: '/growth/segments' },
+            { text: 'Cohorts', icon: <TrendingUpIcon />, path: '/growth/cohorts' },
+            { text: 'Funnel', icon: <TrendingUpIcon />, path: '/growth/funnel' },
+            { text: 'Coupons', icon: <LocalActivityIcon />, path: '/growth/coupons' },
+            { text: 'Referrals', icon: <PeopleIcon />, path: '/growth/referrals' },
+            { text: 'Churn Risk', icon: <TrendingUpIcon />, path: '/growth/churn' },
+        ],
+    },
+    {
+        title: 'Güvenlik',
+        allowedRoles: ['ADMIN'],
+        items: [
+            { text: 'RBAC Matrisi', icon: <AuditIcon />, path: '/security/rbac' },
+            { text: 'Aktif Oturumlar', icon: <DevicesIcon />, path: '/security/sessions' },
+            { text: 'Anomali Tarama', icon: <AuditIcon />, path: '/security/anomalies' },
+            { text: 'Fraud Tespiti', icon: <AuditIcon />, path: '/security/fraud' },
+        ],
+    },
+    {
         title: 'Operasyonlar',
         allowedRoles: ['ADMIN'],
         items: [
             { text: 'Müşteri Destek', icon: <SupportIcon />, path: '/customer-support' },
+            { text: 'Dead Letter Queue', icon: <AuditIcon />, path: '/ops/dlq' },
+            { text: 'Scheduled Jobs', icon: <AuditIcon />, path: '/ops/jobs' },
         ],
     },
     {

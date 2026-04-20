@@ -36,6 +36,7 @@ import {
   Tooltip,
   Zoom,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Add as AddIcon,
   Search as SearchIcon,
@@ -114,6 +115,7 @@ const statCardSx = (color: string) => ({
 export default function Events() {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const theme = useTheme();
 
   const [page, setPage] = useState(0);
   const [rowsPerPage] = useState(20);
@@ -158,7 +160,9 @@ export default function Events() {
 
   // Organizatör kendi etkinliklerini görür
   const [myEvents, setMyEvents] = useState<EventResponseDTO[]>([]);
+  const [myEventsLoading, setMyEventsLoading] = useState(false);
   const events = isAdmin ? allEvents : myEvents;
+  const effectiveLoading = isAdmin ? loading : myEventsLoading;
 
   // ─── DATA FETCHING ────────────────────────────────
   const fetchEventsData = useCallback(async () => {
@@ -169,11 +173,13 @@ export default function Events() {
       };
       await getPopularEvents(searchParams, page, rowsPerPage);
     } else {
+      setMyEventsLoading(true);
       try {
         const res = await adminOperationsService.getMyEvents();
         const list = Array.isArray(res) ? res : (res as any)?.data ?? [];
         setMyEvents(list);
       } catch { setMyEvents([]); }
+      finally { setMyEventsLoading(false); }
     }
   }, [isAdmin, getPopularEvents, page, rowsPerPage, searchQuery]);
 
@@ -283,6 +289,20 @@ export default function Events() {
           ]}
         />
 
+        {/* ═══ TOP-LEVEL LOADING INDICATOR ═══ */}
+        {effectiveLoading && (
+          <Box sx={{ mb: 2 }}>
+            <LinearProgress
+              sx={{
+                height: 3,
+                borderRadius: 2,
+                bgcolor: alpha('#1e6b3c', 0.08),
+                '& .MuiLinearProgress-bar': { bgcolor: '#1e6b3c' },
+              }}
+            />
+          </Box>
+        )}
+
         {/* ═══ STAT CARDS ═══ */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {[
@@ -298,9 +318,13 @@ export default function Events() {
                     <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing={1}>
                       {stat.label}
                     </Typography>
-                    <Typography variant="h4" fontWeight={800} sx={{ mt: 0.75, color: stat.color }}>
-                      {stat.value}
-                    </Typography>
+                    {effectiveLoading ? (
+                      <Skeleton variant="text" width="70%" height={44} sx={{ mt: 0.75 }} />
+                    ) : (
+                      <Typography variant="h4" fontWeight={800} sx={{ mt: 0.75, color: stat.color }}>
+                        {stat.value}
+                      </Typography>
+                    )}
                   </Box>
                   <Avatar sx={{ bgcolor: alpha(stat.color, 0.12), color: stat.color, width: 48, height: 48, borderRadius: 2.5 }}>
                     {stat.icon}
@@ -361,10 +385,10 @@ export default function Events() {
 
         {/* ═══ EVENTS LIST ═══ */}
         <Stack spacing={2}>
-          {loading ? (
+          {effectiveLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <Box key={i} sx={{ ...glassCardSx, p: 2.5 }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 96px' }, gap: 3, alignItems: 'center' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 130px' }, gap: 3, alignItems: 'center' }}>
                   <Skeleton variant="rounded" width={80} height={80} sx={{ borderRadius: 3 }} />
                   <Box>
                     <Skeleton variant="text" width="70%" height={24} />
@@ -399,11 +423,11 @@ export default function Events() {
                 <Box
                   key={event.id}
                   sx={glassCardSx}
-                  onClick={() => navigate(`/events/${event.id}`)}
+                  onClick={() => navigate(`/event-console/${event.id}`)}
                 >
                   <Box sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 96px' },
+                    gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 130px' },
                     gap: 3,
                     alignItems: 'center',
                     p: 2.5,
@@ -474,31 +498,30 @@ export default function Events() {
                       />
                     </Box>
 
-                    {/* Action — Konsolu Aç (aktif/pasif hariç tüm statülerde) */}
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <Tooltip title="Operasyon Konsolu">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/event-console/${event.id}`);
-                          }}
-                          sx={{
-                            color: 'primary.main',
-                            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.12) },
-                          }}
-                        >
-                          <TicketIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <IconButton
-                        className="chevron-icon"
-                        size="small"
-                        sx={{ opacity: 0.4, transition: 'all 0.3s' }}
-                      >
-                        <ChevronIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
+                    {/* Action — tek doğruluk kaynağı: Operasyon Konsolu */}
+                    <Button
+                      size="small"
+                      variant="contained"
+                      endIcon={<ChevronIcon sx={{ fontSize: 16 }} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/event-console/${event.id}`);
+                      }}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        fontSize: 11,
+                        px: 1.5, py: 0.5,
+                        borderRadius: 1.5,
+                        bgcolor: '#0F1A14',
+                        color: '#C9A227',
+                        '&:hover': { bgcolor: '#1a2b1f' },
+                        whiteSpace: 'nowrap',
+                        '& .MuiButton-endIcon': { ml: 0.25 },
+                      }}
+                    >
+                      Konsola Git
+                    </Button>
                   </Box>
                 </Box>
               );

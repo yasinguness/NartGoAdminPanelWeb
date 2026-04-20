@@ -52,15 +52,27 @@ export const userService = {
         birthDateFrom?: string; // Format: yyyy-MM-dd
         birthDateTo?: string; // Format: yyyy-MM-dd
     }) => {
-        const response = await api.get<ApiResponse<PageResponseDto<UserDTO>>>('/auth/all-users', {
-            params: {
-                ...params,
-                accountType: params?.accountType || undefined,
-                status: params?.status || undefined,
-                language: params?.language || undefined
+        try {
+            const response = await api.get<ApiResponse<PageResponseDto<UserDTO>>>('/auth/all-users', {
+                params: {
+                    ...params,
+                    accountType: params?.accountType || undefined,
+                    status: params?.status || undefined,
+                    language: params?.language || undefined
+                }
+            });
+            return response.data;
+        } catch (err: any) {
+            // 403 → yetki yok, sessizce boş liste dön (organizer/editor kendi yetkileriyle bu endpoint'i çağıramaz)
+            if (err?.response?.status === 403) {
+                return {
+                    success: false,
+                    message: 'Bu işlem için yönetici yetkisi gerekli',
+                    data: { content: [], totalElements: 0, totalPages: 0, size: params?.size ?? 0, number: params?.page ?? 0 },
+                } as any;
             }
-        });
-        return response.data;
+            throw err;
+        }
     },
 
     // Update user role

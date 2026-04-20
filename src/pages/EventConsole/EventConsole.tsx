@@ -11,13 +11,13 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Stack, IconButton, alpha, useTheme,
   CircularProgress, Chip, Drawer, useMediaQuery, Menu, MenuItem, ListItemIcon, ListItemText,
+  Tooltip,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
   EventSeat as SeatIcon,
   TrendingUp as SalesIcon,
   ShoppingCartCheckout as OrdersIcon,
-  People as ParticipantsIcon,
   LoginOutlined as CheckInIcon,
   ManageAccounts as StaffIcon,
   Notifications as NotifIcon,
@@ -26,6 +26,8 @@ import {
   Menu as MenuIcon,
   Circle as DotIcon,
   MoreVert as MoreIcon,
+  ArrowBack as BackIcon,
+  ConfirmationNumber as TicketIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { format } from 'date-fns';
@@ -41,7 +43,7 @@ import OverviewSection from './sections/OverviewSection';
 import SeatMapSection from './sections/SeatMapSection';
 import SalesSection from './sections/SalesSection';
 import OrdersSection from './sections/OrdersSection';
-import ParticipantsSection from './sections/ParticipantsSection';
+import TicketsSection from './sections/TicketsSection';
 import CheckInSection from './sections/CheckInSection';
 import StaffSection from './sections/StaffSection';
 import NotificationsSection from './sections/NotificationsSection';
@@ -49,7 +51,7 @@ import ExportSection from './sections/ExportSection';
 import SettingsSection from './sections/SettingsSection';
 import { SectionErrorBoundary } from './SectionErrorBoundary';
 
-type SectionKey = 'overview' | 'seat-map' | 'sales' | 'orders' | 'participants' | 'check-in' | 'staff' | 'notifications' | 'export' | 'settings';
+type SectionKey = 'overview' | 'tickets' | 'seat-map' | 'sales' | 'orders' | 'check-in' | 'staff' | 'notifications' | 'export' | 'settings';
 
 interface NavItem {
   key: SectionKey;
@@ -60,10 +62,10 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'overview', label: 'Genel Bakış', icon: <DashboardIcon fontSize="small" />, group: 'ETKİNLİK' },
+  { key: 'tickets', label: 'Bilet Tipleri', icon: <TicketIcon fontSize="small" />, group: 'ETKİNLİK' },
   { key: 'seat-map', label: 'Koltuk Haritası', icon: <SeatIcon fontSize="small" />, group: 'ETKİNLİK' },
   { key: 'sales', label: 'Satış Raporu', icon: <SalesIcon fontSize="small" />, group: 'ETKİNLİK' },
-  { key: 'orders', label: 'Siparişler', icon: <OrdersIcon fontSize="small" />, group: 'ETKİNLİK' },
-  { key: 'participants', label: 'Katılımcılar', icon: <ParticipantsIcon fontSize="small" />, group: 'ETKİNLİK' },
+  { key: 'orders', label: 'Siparişler & Katılımcılar', icon: <OrdersIcon fontSize="small" />, group: 'ETKİNLİK' },
   { key: 'check-in', label: 'Giriş Kayıtları', icon: <CheckInIcon fontSize="small" />, group: 'KAPIDA' },
   { key: 'staff', label: 'Kapı Görevlileri', icon: <StaffIcon fontSize="small" />, group: 'KAPIDA' },
   { key: 'notifications', label: 'Bildirimler', icon: <NotifIcon fontSize="small" />, group: 'DİĞER' },
@@ -85,7 +87,7 @@ export default function EventConsole() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL query param'dan aktif section'ı oku
-  const validSections: SectionKey[] = ['overview', 'seat-map', 'sales', 'orders', 'participants', 'check-in', 'staff', 'notifications', 'export', 'settings'];
+  const validSections: SectionKey[] = ['overview', 'tickets', 'seat-map', 'sales', 'orders', 'check-in', 'staff', 'notifications', 'export', 'settings'];
   const sectionFromUrl = searchParams.get('section') as SectionKey | null;
   const initialSection: SectionKey = sectionFromUrl && validSections.includes(sectionFromUrl) ? sectionFromUrl : 'overview';
 
@@ -306,10 +308,10 @@ export default function EventConsole() {
   const renderContent = () => {
     const sectionMap: Record<SectionKey, { component: React.ReactNode; name: string }> = {
       'overview': { component: <OverviewSection event={event} />, name: 'Genel Bakış' },
+      'tickets': { component: <TicketsSection event={event} />, name: 'Bilet Tipleri' },
       'seat-map': { component: <SeatMapSection event={event} />, name: 'Koltuk Haritası' },
       'sales': { component: <SalesSection event={event} />, name: 'Satış Raporu' },
-      'orders': { component: <OrdersSection event={event} />, name: 'Siparişler' },
-      'participants': { component: <ParticipantsSection event={event} />, name: 'Katılımcılar' },
+      'orders': { component: <OrdersSection event={event} />, name: 'Siparişler & Katılımcılar' },
       'check-in': { component: <CheckInSection event={event} />, name: 'Giriş Kayıtları' },
       'staff': { component: <StaffSection event={event} />, name: 'Kapı Görevlileri' },
       'notifications': { component: <NotificationsSection event={event} />, name: 'Bildirimler' },
@@ -366,21 +368,31 @@ export default function EventConsole() {
             </IconButton>
           )}
 
+          {/* Back-to-list pill (belirgin) */}
+          <Tooltip title="Etkinlikler listesine dön" arrow>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<BackIcon sx={{ fontSize: 14 }} />}
+              onClick={() => navigate('/events')}
+              sx={{
+                mr: 1.5,
+                borderColor: 'rgba(201,162,39,0.3)',
+                color: 'text.secondary',
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: 'none',
+                letterSpacing: 0.3,
+                '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(201,162,39,0.08)', color: 'primary.main' },
+              }}
+            >
+              Etkinlikler
+            </Button>
+          </Tooltip>
+
           {/* Breadcrumb + Title */}
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.3 }}>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: 'text.secondary', letterSpacing: 1.5, fontSize: 10,
-                  fontWeight: 600, cursor: 'pointer',
-                  '&:hover': { color: 'primary.main' },
-                }}
-                onClick={() => navigate('/events')}
-              >
-                ETKİNLİKLER
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 10 }}>·</Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 1, fontSize: 10, fontWeight: 600 }}>
                 {activeItem.label.toUpperCase()}
               </Typography>

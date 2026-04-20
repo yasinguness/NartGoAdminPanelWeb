@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { SnackbarProvider } from 'notistack';
 import { theme } from './theme/index';
@@ -33,7 +33,8 @@ import GamificationSettings from './pages/Gamification/GamificationSettings';
 import SubMerchants from './pages/SubMerchants/SubMerchants';
 import SubMerchantForm from './pages/SubMerchants/SubMerchantForm';
 import SubMerchantDetails from './pages/SubMerchants/SubMerchantDetails';
-import EventDetail from './pages/Events/EventDetail';
+// NOT: EventDetail dosyası duplikasyon temizliği sonrası route'tan kaldırıldı (2026-04-20).
+// /events/:id artık /event-console/:id'ye redirect ediliyor. Dosya gelecekte read-only preview için tutulur.
 import SalesCommandCenter from './pages/SalesCommandCenter/SalesCommandCenter';
 import VenueInventoryManager from './pages/VenueInventoryManager/VenueInventoryManager';
 import BoxOffice from './pages/BoxOffice/BoxOffice';
@@ -51,6 +52,24 @@ import Settings from './pages/Settings';
 import AuditLog from './pages/AuditLog/AuditLog';
 import TicketManagement from './pages/Tickets/TicketManagement';
 import AnalyticsDashboard from './pages/Analytics/AnalyticsDashboard';
+import ExecutiveDashboard from './pages/Executive/ExecutiveDashboard';
+import FinanceOverview from './pages/FinanceOverview/FinanceOverview';
+import Reconciliation from './pages/Reconciliation/Reconciliation';
+import Payouts from './pages/Payouts/Payouts';
+import Refunds from './pages/Refunds/Refunds';
+import DeadLetterQueue from './pages/DeadLetterQueue/DeadLetterQueue';
+import JobMonitor from './pages/JobMonitor/JobMonitor';
+import Segments from './pages/Segments/Segments';
+import Cohorts from './pages/Cohorts/Cohorts';
+import FunnelAnalytics from './pages/FunnelAnalytics/FunnelAnalytics';
+import Coupons from './pages/Coupons/Coupons';
+import Referrals from './pages/Referrals/Referrals';
+import RbacMatrix from './pages/RbacMatrix/RbacMatrix';
+import ActiveSessions from './pages/ActiveSessions/ActiveSessions';
+import AnomalyDetector from './pages/AnomalyDetector/AnomalyDetector';
+import FraudDetection from './pages/FraudDetection/FraudDetection';
+import ChurnRisk from './pages/ChurnRisk/ChurnRisk';
+import User360 from './pages/User360/User360';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -74,9 +93,29 @@ function App() {
               {/* EventConsole — tam ekran, kendi sidebar'ı var */}
               <Route path="/event-console/:eventId" element={<PrivateRoute><EventConsole /></PrivateRoute>} />
 
+              {/* SeatMap standalone — Layout'suz, EventConsole iframe'inden çağrılır */}
+              <Route path="/events/:eventId/seat-map/embed" element={<PrivateRoute><SeatMapLive /></PrivateRoute>} />
+
               <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
+                <Route path="executive" element={<ExecutiveDashboard />} />
+                <Route path="finance/overview" element={<FinanceOverview />} />
+                <Route path="finance/reconciliation" element={<Reconciliation />} />
+                <Route path="finance/payouts" element={<Payouts />} />
+                <Route path="finance/refunds" element={<Refunds />} />
+                <Route path="ops/dlq" element={<DeadLetterQueue />} />
+                <Route path="ops/jobs" element={<JobMonitor />} />
+                <Route path="growth/segments" element={<Segments />} />
+                <Route path="growth/cohorts" element={<Cohorts />} />
+                <Route path="growth/funnel" element={<FunnelAnalytics />} />
+                <Route path="growth/coupons" element={<Coupons />} />
+                <Route path="growth/referrals" element={<Referrals />} />
+                <Route path="security/rbac" element={<RbacMatrix />} />
+                <Route path="security/sessions" element={<ActiveSessions />} />
+                <Route path="security/anomalies" element={<AnomalyDetector />} />
+                <Route path="security/fraud" element={<FraudDetection />} />
+                <Route path="growth/churn" element={<ChurnRisk />} />
 
                 <Route path="devices" element={<Devices />} />
                 <Route path="notifications" element={<NotificationsRefactored />} />
@@ -88,13 +127,14 @@ function App() {
                 <Route path="content/:id/edit" element={<ContentEditor />} />
                 <Route path="users" element={<Users />} />
                 <Route path="users/:id" element={<UserDetails />} />
+                <Route path="users/:id/360" element={<User360 />} />
                 <Route path="businesses" element={<Businesses />} />
                 <Route path="businesses/new" element={<BusinessCreate />} />
                 <Route path="businesses/:id" element={<BusinessDetails />} />
                 <Route path="business-claims" element={<BusinessClaims />} />
                 <Route path="business-categories" element={<BusinessCategories />} />
                 <Route path="events" element={<Events />} />
-                <Route path="events/:id" element={<EventDetail />} />
+                <Route path="events/:id" element={<EventDetailRedirect />} />
                 <Route path="sales-command" element={<SalesCommandCenter />} />
                 <Route path="venue-inventory" element={<VenueInventoryManager />} />
                 <Route path="box-office" element={<BoxOffice />} />
@@ -131,6 +171,14 @@ function App() {
       </ThemeProvider>
     </QueryClientProvider>
   );
+}
+
+// Eski /events/:id URL'ini koruma amaçlı redirect.
+// Tek doğruluk kaynağı EventConsole; bookmark/external link'ler kırılmasın diye.
+function EventDetailRedirect() {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return <Navigate to="/events" replace />;
+  return <Navigate to={`/event-console/${id}`} replace />;
 }
 
 export default App;

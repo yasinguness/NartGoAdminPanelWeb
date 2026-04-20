@@ -398,17 +398,27 @@ export default function EventOperations() {
               <InteractiveSeatMap 
                  eventData={selectedEvent}
                  onSeatAction={async (action, seatIds, actionReason) => {
-                    const mappedStates: Record<string, SeatTargetState> = {
-                      block: 'BLOCKED',
-                      release: 'AVAILABLE',
-                      override: 'SOLD'
-                    };
-                    await adminOperationsService.overrideSeats(requireEventId(), {
-                      targetState: mappedStates[action] || 'BLOCKED',
-                      reason: actionReason,
-                      seatIds: seatIds,
-                    });
-                    enqueueSnackbar(`Koltuklar interaktif harita üzerinden başarıyla güncellendi!`, { variant: 'success' });
+                    try {
+                      const mappedStates: Record<string, SeatTargetState> = {
+                        block: 'BLOCKED',
+                        release: 'AVAILABLE',
+                        override: 'SOLD'
+                      };
+                      const response = await adminOperationsService.overrideSeats(requireEventId(), {
+                        targetState: mappedStates[action] || 'BLOCKED',
+                        reason: actionReason,
+                        seatIds: seatIds,
+                      });
+                      setLastAction('Koltuklar güncellendi');
+                      setResponseBody(prettyResponse(response));
+                      enqueueSnackbar('Koltuklar güncellendi', { variant: 'success' });
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : 'İstek başarısız oldu';
+                      setLastAction('Koltuklar güncellenemedi');
+                      setResponseBody(prettyResponse({ error: message }));
+                      enqueueSnackbar(message, { variant: 'error' });
+                      throw error;
+                    }
                  }}
               />
             </Box>
@@ -452,39 +462,47 @@ export default function EventOperations() {
                 eventId={requireEventId()}
                 eventName={selectedEvent?.name || ''}
                 onFetchAdminAudit={async (filters) => {
-                  await adminOperationsService.getAdminAudit({
-                    eventId: requireEventId(),
-                    ...filters
-                  });
-                  enqueueSnackbar(`Admin denetim kayıtları başarıyla getirildi!`, { variant: 'success' });
+                  await runAction('audit-admin', 'Admin denetim kayıtları getirildi', () =>
+                    adminOperationsService.getAdminAudit({
+                      eventId: requireEventId(),
+                      ...filters
+                    })
+                  );
                 }}
                 onBackfillAdminAudit={async () => {
-                  await adminOperationsService.backfillAdminAudit(requireEventId());
-                  enqueueSnackbar(`Denetim doldurma talep edildi.`, { variant: 'info' });
+                  await runAction('audit-backfill', 'Denetim doldurma talep edildi', () =>
+                    adminOperationsService.backfillAdminAudit(requireEventId())
+                  );
                 }}
                 onFetchCheckInAudit={async () => {
-                  await adminOperationsService.getCheckInAuditByEvent(requireEventId());
-                  enqueueSnackbar(`Giriş denetim kayıtları getirildi!`, { variant: 'success' });
+                  await runAction('audit-checkin', 'Giriş denetim kayıtları getirildi', () =>
+                    adminOperationsService.getCheckInAuditByEvent(requireEventId())
+                  );
                 }}
                 onFetchMyHistory={async () => {
-                  await adminOperationsService.getMyCheckInHistory();
-                  enqueueSnackbar(`Giriş geçmişiniz getirildi!`, { variant: 'success' });
+                  await runAction('audit-my-history', 'Giriş geçmişiniz getirildi', () =>
+                    adminOperationsService.getMyCheckInHistory()
+                  );
                 }}
                 onFetchStaffStats={async () => {
-                  await adminOperationsService.getCheckInStaffStats(requireEventId());
-                  enqueueSnackbar(`Personel istatistikleri getirildi!`, { variant: 'success' });
+                  await runAction('audit-staff-stats', 'Personel istatistikleri getirildi', () =>
+                    adminOperationsService.getCheckInStaffStats(requireEventId())
+                  );
                 }}
                 onFetchRecentCheckIns={async () => {
-                  await adminOperationsService.getRecentCheckIns(requireEventId());
-                  enqueueSnackbar(`Son girişler getirildi!`, { variant: 'success' });
+                  await runAction('audit-recent-checkins', 'Son girişler getirildi', () =>
+                    adminOperationsService.getRecentCheckIns(requireEventId())
+                  );
                 }}
                 onFetchHourlyCounts={async () => {
-                  await adminOperationsService.getHourlyCheckInCounts(requireEventId());
-                  enqueueSnackbar(`Saatlik giriş sayıları getirildi!`, { variant: 'success' });
+                  await runAction('audit-hourly-counts', 'Saatlik giriş sayıları getirildi', () =>
+                    adminOperationsService.getHourlyCheckInCounts(requireEventId())
+                  );
                 }}
                 onFetchTicketAudit={async (ticketId) => {
-                  await adminOperationsService.getCheckInAuditByTicket(ticketId);
-                  enqueueSnackbar(`${ticketId} bilet denetim geçmişi getirildi!`, { variant: 'success' });
+                  await runAction('audit-ticket', `${ticketId} bilet denetim geçmişi getirildi`, () =>
+                    adminOperationsService.getCheckInAuditByTicket(ticketId)
+                  );
                 }}
               />
             </Box>

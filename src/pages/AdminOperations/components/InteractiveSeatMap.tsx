@@ -179,7 +179,9 @@ export default function InteractiveSeatMap({ initialRole = 'ADMIN', eventId, onS
 
   const applyAction = async (actionType: 'block' | 'release' | 'override') => {
     if (!reason.trim() || selectedSeats.size === 0) return;
-    
+
+    const previousSeats = seats;
+
     // Optimistic UI update for the mockup demonstration
     setSeats(prev => prev.map(s => {
       if (selectedSeats.has(s.id)) {
@@ -191,7 +193,12 @@ export default function InteractiveSeatMap({ initialRole = 'ADMIN', eventId, onS
     }));
 
     if (onSeatAction) {
-      await onSeatAction(actionType, Array.from(selectedSeats), reason);
+      try {
+        await onSeatAction(actionType, Array.from(selectedSeats), reason);
+      } catch {
+        setSeats(previousSeats);
+        return;
+      }
     }
     
     setSelectedSeats(new Set());

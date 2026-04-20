@@ -365,9 +365,8 @@ export default function OrganizerDashboard() {
         {[
           { label: 'Etkinlik Oluştur', icon: <AddIcon />, path: '/event-creation', color: 'primary' as const },
           { label: 'Bilet Yönetimi', icon: <TicketIcon />, path: '/tickets', color: 'success' as const },
-          { label: 'Gişe', icon: <SeatIcon />, path: '/box-office', color: 'info' as const },
         ].map((action, i) => (
-          <Grid item xs={4} key={i}>
+          <Grid item xs={6} key={i}>
             <Button
               fullWidth
               variant="outlined"

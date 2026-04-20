@@ -67,6 +67,7 @@ type RouteAccess = { path: string; roles: Role[]; description?: string };
 export const ROLE_ROUTE_MAP: RouteAccess[] = [
   // ── Genel ──
   { path: '/dashboard', roles: [...ORG, ROLES.EDITOR, ROLES.ASSOCIATION], description: 'Ana kontrol paneli' },
+  { path: '/executive', roles: ADMIN_ONLY, description: 'Executive KPI kontrol paneli' },
 
   // ── Etkinlik Yönetimi (organizatör) ──
   { path: '/events', roles: ORG, description: 'Etkinlik listesi' },
@@ -83,6 +84,10 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   { path: '/box-office', roles: ORG, description: 'Gişe' },
   { path: '/venue-inventory', roles: ORG, description: 'Mekan envanter' },
   { path: '/settlement-finance', roles: ADMIN_ONLY, description: 'Mutabakat & finans' },
+  { path: '/finance/overview', roles: ADMIN_ONLY, description: 'Finansal genel bak\u0131\u015f (P&L)' },
+  { path: '/finance/reconciliation', roles: ADMIN_ONLY, description: 'Iyzico \u2194 DB mutabakat\u0131' },
+  { path: '/finance/payouts', roles: ADMIN_ONLY, description: 'Organizat\u00f6r payout takvimi' },
+  { path: '/finance/refunds', roles: ADMIN_ONLY, description: '\u0130ade y\u00f6netimi' },
   { path: '/sub-merchants', roles: ADMIN_ONLY, description: 'Alt bayiler' },
 
   // ── Operasyonlar ──
@@ -109,7 +114,26 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
 
   // ── Kullanıcılar ──
   { path: '/users', roles: ADMIN_ONLY, description: 'Kullanıcı yönetimi' },
+  { path: '/users/360', roles: ADMIN_ONLY, description: 'User 360\u00b0 destek g\u00f6r\u00fcn\u00fcm\u00fc' },
   { path: '/associations', roles: [ROLES.ADMIN, ROLES.ASSOCIATION], description: 'Dernekler' },
+
+  // ── Operasyonel sistem ──
+  { path: '/ops/dlq', roles: ADMIN_ONLY, description: 'Dead Letter Queue monitor' },
+  { path: '/ops/jobs', roles: ADMIN_ONLY, description: 'Scheduled Jobs monitor' },
+
+  // ── Growth ──
+  { path: '/growth/segments', roles: ADMIN_ONLY, description: 'Kullan\u0131c\u0131 segmentleri' },
+  { path: '/growth/cohorts', roles: ADMIN_ONLY, description: 'Retention kohort matrisi' },
+  { path: '/growth/funnel', roles: ADMIN_ONLY, description: 'D\u00f6n\u00fc\u015f\u00fcm hunisi analizi' },
+  { path: '/growth/coupons', roles: ADMIN_ONLY, description: 'Kupon y\u00f6netimi' },
+  { path: '/growth/referrals', roles: ADMIN_ONLY, description: 'Davet program\u0131 (K-factor)' },
+  { path: '/growth/churn', roles: ADMIN_ONLY, description: 'Churn risk skorlamas\u0131' },
+
+  // ── G\u00fcvenlik ──
+  { path: '/security/rbac', roles: ADMIN_ONLY, description: 'RBAC matrisi \u00b7 rol y\u00f6netimi' },
+  { path: '/security/sessions', roles: ADMIN_ONLY, description: 'Aktif oturumlar' },
+  { path: '/security/anomalies', roles: ADMIN_ONLY, description: 'Anomali tarama' },
+  { path: '/security/fraud', roles: ADMIN_ONLY, description: 'Fraud tespiti' },
 
   // ── Sistem ──
   { path: '/devices', roles: ADMIN_ONLY, description: 'Cihaz yönetimi' },

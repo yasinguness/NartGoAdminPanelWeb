@@ -34,6 +34,7 @@ import {
   VerifiedUser as VerifiedIcon,
   Close as CloseIcon,
   Sync as SyncIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import Tooltip from '@mui/material/Tooltip';
 import { useUsers } from '../hooks/useUsers';
@@ -589,6 +590,12 @@ export default function Users() {
                 <EditIcon fontSize="small" />
               </ListItemIcon>
               <ListItemText>Düzenle / Görüntüle</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={() => navigate(`/users/${user.id}/360`)}>
+              <ListItemIcon>
+                <PersonIcon fontSize="small" sx={{ color: '#C9A227' }} />
+              </ListItemIcon>
+              <ListItemText>360° Destek Bakışı</ListItemText>
             </MenuItem>
             <MenuItem
               onClick={() =>

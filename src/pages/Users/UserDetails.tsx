@@ -492,9 +492,18 @@ export default function UserDetails() {
               </Button>
             </Stack>
           ) : (
-            <Button variant="contained" startIcon={<EditIcon />} onClick={() => setEditing(true)}>
-              Kullanıcıyı Düzenle
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                onClick={() => navigate(`/users/${user.id}/360`)}
+                sx={{ borderColor: '#C9A227', color: '#C9A227', fontWeight: 700, '&:hover': { borderColor: '#C9A227', bgcolor: 'rgba(201,162,39,0.08)' } }}
+              >
+                360° Bakış
+              </Button>
+              <Button variant="contained" startIcon={<EditIcon />} onClick={() => setEditing(true)}>
+                Kullanıcıyı Düzenle
+              </Button>
+            </Stack>
           )
         }
       />
