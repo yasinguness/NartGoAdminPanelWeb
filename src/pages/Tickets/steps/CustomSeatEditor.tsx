@@ -5,12 +5,14 @@
 import { useState } from 'react';
 import {
   Box, Typography, Paper, Stack, TextField, Button, IconButton, Select, MenuItem,
-  FormControl, InputLabel, Chip, alpha, useTheme, Divider,
+  FormControl, InputLabel, Chip, alpha, useTheme, Divider, Alert, Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Close as CloseIcon,
   DragIndicator as DragIcon,
+  Lock as LockIcon,
+  InfoOutlined as InfoIcon,
 } from '@mui/icons-material';
 import { SeatCategory, SeatStatus, type SeatSection } from '../../../types/tickets/ticketTypes';
 import { trLetterAt, getNextLetterAfter } from '../../../utils/trAlphabet';
@@ -29,9 +31,15 @@ const CATEGORY_LABELS: Record<string, string> = {
 interface CustomSeatEditorProps {
   sections: SeatSection[];
   onChange: (sections: SeatSection[]) => void;
+  /** Mevcut bir etkinliğin layout'u düzenleniyorsa true — silme/azaltma işlemleri BLOCKED'a çevirir */
+  isEditingExisting?: boolean;
+  /** Varolan layout'taki sıra sayısı (uyarı için) */
+  existingRowCount?: number;
+  /** Varolan layout'taki koltuk sayısı (uyarı için) */
+  existingSeatCount?: number;
 }
 
-export default function CustomSeatEditor({ sections, onChange }: CustomSeatEditorProps) {
+export default function CustomSeatEditor({ sections, onChange, isEditingExisting, existingRowCount, existingSeatCount }: CustomSeatEditorProps) {
   const theme = useTheme();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
@@ -131,8 +139,24 @@ export default function CustomSeatEditor({ sections, onChange }: CustomSeatEdito
     }));
   };
 
+  const totalRows = sections.reduce((s, sec) => s + sec.rows.length, 0);
+
   return (
     <Box>
+      {/* BLOCKED bilgi uyarısı — mevcut etkinlik düzenleniyorsa göster */}
+      {isEditingExisting && (
+        <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2 }}>
+          <Typography variant="body2" fontWeight={600} gutterBottom>
+            Koltuklar asla silinmez
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            Bu etkinliğin mevcut salonu: <strong>{existingRowCount ?? '-'} sıra, {existingSeatCount ?? '-'} koltuk</strong>.
+            Sıra/koltuk azaltırsanız backend onları silmek yerine BLOCKED durumuna alır —
+            istediğiniz zaman yeniden açabilirsiniz.
+          </Typography>
+        </Alert>
+      )}
+
       {/* Summary bar */}
       <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'grey.50' }}>
         <Stack direction="row" spacing={3}>
@@ -141,11 +165,15 @@ export default function CustomSeatEditor({ sections, onChange }: CustomSeatEdito
             <Typography variant="h6" fontWeight={800}>{sections.length}</Typography>
           </Box>
           <Box>
-            <Typography variant="caption" color="text.secondary" fontWeight={600}>Toplam Sıra</Typography>
-            <Typography variant="h6" fontWeight={800}>{sections.reduce((s, sec) => s + sec.rows.length, 0)}</Typography>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              Toplam Sıra{isEditingExisting && existingRowCount != null ? ` (Mevcut: ${existingRowCount})` : ''}
+            </Typography>
+            <Typography variant="h6" fontWeight={800}>{totalRows}</Typography>
           </Box>
           <Box>
-            <Typography variant="caption" color="text.secondary" fontWeight={600}>Toplam Koltuk</Typography>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              Toplam Koltuk{isEditingExisting && existingSeatCount != null ? ` (Mevcut: ${existingSeatCount})` : ''}
+            </Typography>
             <Typography variant="h6" fontWeight={800} color="primary.main">{totalSeats}</Typography>
           </Box>
         </Stack>
@@ -282,9 +310,20 @@ export default function CustomSeatEditor({ sections, onChange }: CustomSeatEdito
                           )}
                         </Stack>
 
-                        <IconButton size="small" onClick={() => removeRow(section.id, row.id)} disabled={section.rows.length <= 1} sx={{ '&:hover': { color: 'error.main' } }}>
-                          <CloseIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
+                        <Tooltip
+                          title={
+                            isEditingExisting
+                              ? 'Bu sıradaki koltuklar kapatılır (BLOCKED), silinmez. İstediğiniz zaman yeniden açabilirsiniz.'
+                              : 'Sırayı kaldır'
+                          }
+                          arrow
+                        >
+                          <span>
+                            <IconButton size="small" onClick={() => removeRow(section.id, row.id)} disabled={section.rows.length <= 1} sx={{ '&:hover': { color: isEditingExisting ? 'warning.main' : 'error.main' } }}>
+                              {isEditingExisting ? <LockIcon sx={{ fontSize: 14 }} /> : <CloseIcon sx={{ fontSize: 14 }} />}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                       </Paper>
                     ))}
                   </Stack>

@@ -620,7 +620,13 @@ export function EditEventModal({ open, onClose, onSave, initialData, loading, is
               onChange={e => update('description', e.target.value)}
               multiline rows={4} placeholder="Etkinlik hakkında detaylı bilgi..." />
 
-            {isPaid ? (
+            {seatingEnabled ? (
+              <Box sx={{ bgcolor: 'grey.50', borderRadius: 2, p: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Kapasite: {form.maxParticipants} kişi</strong> — Koltuklu etkinliklerde kapasite, salon planındaki toplam koltuk sayısına göre otomatik belirlenir. Değiştirmek için salon planını düzenleyin.
+                </Typography>
+              </Box>
+            ) : isPaid ? (
               <Box sx={{ bgcolor: 'grey.50', borderRadius: 2, p: 2 }}>
                 <Typography variant="body2" color="text.secondary">
                   <strong>Kapasite: {form.maxParticipants} kişi</strong> — Biletli etkinliklerde kapasite, bilet kontenjanları toplamından belirlenir. Değiştirmek için Biletler sekmesinden kontenjanları düzenleyin.
@@ -747,7 +753,7 @@ export function EditEventModal({ open, onClose, onSave, initialData, loading, is
               </Typography>
               {[
                 { key: 'isRegistrationOpen' as const, label: 'Bilet Satışı Açık', desc: 'Kapatırsanız yeni bilet satın alınamaz' },
-                { key: 'isPrivate' as const, label: 'Gizli Etkinlik', desc: 'Sadece bağlantı ile erişilebilir' },
+                { key: 'isPrivate' as const, label: 'Gizli Etkinlik (Sadece davetliler)', desc: 'Açık olduğunda etkinlik keşfet/ana sayfada görünmez, sadece direkt linkle erişilebilir' },
               ].map(toggle => (
                 <Box key={toggle.key} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.5, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
                   <Box>

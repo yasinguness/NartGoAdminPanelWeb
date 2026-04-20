@@ -4,6 +4,7 @@ import {
     Grid, Select, MenuItem, TextField, FormControl, InputLabel,
     Tooltip, Divider, alpha, List, ListItem,
     ListItemText, ListItemIcon, Collapse, Paper, Fade, Grow,
+    Autocomplete,
 } from '@mui/material';
 import {
     FilterList as FilterIcon, Add as AddIcon, Delete as DeleteIcon,
@@ -49,6 +50,30 @@ const FILTER_ICON_MAP: Record<string, React.ReactElement> = {
 };
 
 const getFilterIcon = (iconName: string) => FILTER_ICON_MAP[iconName] || <FilterIcon fontSize="small" />;
+
+// ─── Turkish Cities (81 plaka sırasıyla) ──────────────────
+const TURKISH_CITIES: string[] = [
+    'Adana', 'Adıyaman', 'Afyonkarahisar', 'Ağrı', 'Amasya', 'Ankara', 'Antalya', 'Artvin',
+    'Aydın', 'Balıkesir', 'Bilecik', 'Bingöl', 'Bitlis', 'Bolu', 'Burdur', 'Bursa',
+    'Çanakkale', 'Çankırı', 'Çorum', 'Denizli', 'Diyarbakır', 'Edirne', 'Elazığ', 'Erzincan',
+    'Erzurum', 'Eskişehir', 'Gaziantep', 'Giresun', 'Gümüşhane', 'Hakkari', 'Hatay', 'Isparta',
+    'Mersin', 'İstanbul', 'İzmir', 'Kars', 'Kastamonu', 'Kayseri', 'Kırklareli', 'Kırşehir',
+    'Kocaeli', 'Konya', 'Kütahya', 'Malatya', 'Manisa', 'Kahramanmaraş', 'Mardin', 'Muğla',
+    'Muş', 'Nevşehir', 'Niğde', 'Ordu', 'Rize', 'Sakarya', 'Samsun', 'Siirt',
+    'Sinop', 'Sivas', 'Tekirdağ', 'Tokat', 'Trabzon', 'Tunceli', 'Şanlıurfa', 'Uşak',
+    'Van', 'Yozgat', 'Zonguldak', 'Aksaray', 'Bayburt', 'Karaman', 'Kırıkkale', 'Batman',
+    'Şırnak', 'Bartın', 'Ardahan', 'Iğdır', 'Yalova', 'Karabük', 'Kilis', 'Osmaniye', 'Düzce',
+];
+
+// Parse comma-separated / JSON city value into array
+const parseCityValue = (v: string | undefined): string[] => {
+    if (!v) return [];
+    const trimmed = v.trim();
+    if (trimmed.startsWith('[')) {
+        try { return JSON.parse(trimmed); } catch { /* fall through */ }
+    }
+    return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+};
 
 // ─── Operator Labels ──────────────────────────────────────
 const OPERATOR_LABELS: Record<FilterOperator, string> = {
@@ -658,6 +683,38 @@ export default function AudienceBuilder({ filters, onFiltersChange, onReachChang
                                                                         ))}
                                                                     </Select>
                                                                 </FormControl>
+                                                            ) : filter.type === SegmentFilterType.CITY ? (
+                                                                <Autocomplete
+                                                                    multiple={filter.operator === FilterOperator.IN}
+                                                                    freeSolo={filter.operator === FilterOperator.IN}
+                                                                    size="small"
+                                                                    options={TURKISH_CITIES}
+                                                                    value={
+                                                                        filter.operator === FilterOperator.IN
+                                                                            ? parseCityValue(String(filter.value || ''))
+                                                                            : String(filter.value || '')
+                                                                    }
+                                                                    onChange={(_, newValue) => {
+                                                                        if (filter.operator === FilterOperator.IN) {
+                                                                            const arr = (newValue as string[]) || [];
+                                                                            updateFilter(filter.id, { value: arr.join(',') });
+                                                                        } else {
+                                                                            updateFilter(filter.id, { value: (newValue as string) || '' });
+                                                                        }
+                                                                    }}
+                                                                    renderInput={(params) => (
+                                                                        <TextField
+                                                                            {...params}
+                                                                            label={
+                                                                                filter.operator === FilterOperator.IN
+                                                                                    ? 'Şehirler (birden fazla seçebilirsiniz)'
+                                                                                    : 'Şehir'
+                                                                            }
+                                                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                                        />
+                                                                    )}
+                                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                                />
                                                             ) : (
                                                                 <TextField
                                                                     fullWidth
