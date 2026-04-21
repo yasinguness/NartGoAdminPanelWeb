@@ -29,13 +29,13 @@ const COLUMNS = [
 ] as const;
 
 function cellColor(pct: number | null | undefined): string {
-  if (pct === null || pct === undefined) return 'rgba(255,255,255,0.03)';
+  if (pct === null || pct === undefined) return 'rgba(0,0,0,0.02)';
   if (pct >= 60) return 'rgba(34,197,94,0.55)';
   if (pct >= 40) return 'rgba(34,197,94,0.35)';
   if (pct >= 25) return 'rgba(201,162,39,0.35)';
   if (pct >= 10) return 'rgba(245,158,11,0.3)';
   if (pct > 0) return 'rgba(239,68,68,0.25)';
-  return 'rgba(255,255,255,0.02)';
+  return 'rgba(0,0,0,0.02)';
 }
 
 function formatWeek(iso?: string): string {
@@ -66,7 +66,7 @@ export default function Cohorts() {
   }, [dataUpdatedAt]);
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#060C09', color: '#F3EEE0', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
+    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#FAFAFA', color: '#1E293B', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
       <Container maxWidth="xl">
         {/* Header */}
         <Box sx={{ mb: 3 }}>
@@ -83,10 +83,10 @@ export default function Cohorts() {
                   <CohortIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#F3EEE0' }}>
+                  <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
                     Retention Kohortları
                   </Typography>
-                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(243,238,224,0.65)' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(30,41,59,0.70)' }}>
                     Haftalık kayıtların 1/2/4/8/12 hafta sonrası aktiflik yüzdeleri
                   </Typography>
                 </Box>
@@ -100,10 +100,10 @@ export default function Cohorts() {
                 exclusive
                 onChange={(_, v) => { if (typeof v === 'number') setWeeks(v); }}
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  bgcolor: 'rgba(0,0,0,0.02)',
+                  border: '1px solid rgba(0,0,0,0.06)',
                   '& .MuiToggleButton-root': {
-                    color: 'rgba(243,238,224,0.6)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
+                    color: 'rgba(30,41,59,0.60)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
                     '&.Mui-selected': { bgcolor: 'rgba(201,162,39,0.18)', color: '#C9A227' },
                   },
                 }}
@@ -114,7 +114,7 @@ export default function Cohorts() {
                 icon={<DotIcon sx={{ fontSize: '10px !important', color: `${isFetching ? '#f59e0b' : '#22c55e'} !important` }} />}
                 label={isFetching ? 'güncelleniyor' : `son: ${lastUpdated}`}
                 size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(243,238,224,0.8)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(255,255,255,0.08)' }}
+                sx={{ bgcolor: 'rgba(0,0,0,0.03)', color: 'rgba(30,41,59,0.80)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(0,0,0,0.06)' }}
               />
               <Tooltip title="Yenile" arrow>
                 <IconButton onClick={() => refetch()} size="small" sx={{ color: '#C9A227', border: '1px solid rgba(201,162,39,0.2)' }}>
@@ -126,7 +126,7 @@ export default function Cohorts() {
         </Box>
 
         {!isLoading && !data && (
-          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(243,238,224,0.85)' }}
+          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(30,41,59,0.85)' }}
             action={<Button size="small" onClick={() => refetch()} sx={{ color: '#C9A227', fontSize: 11, fontWeight: 700 }}>Tekrar Dene</Button>}>
             <Typography sx={{ fontSize: 12 }}>
               <code style={{ fontFamily: 'monospace', fontSize: 11 }}>/auth/admin/cohorts/retention</code> endpoint'ine ulaşılamadı.
@@ -140,23 +140,23 @@ export default function Cohorts() {
             const value = summary ? (summary as any)[`avg${col.label}Pct`] : null;
             return (
               <Grid item xs={6} md={2.4} key={col.key}>
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#0F1A14', borderColor: 'rgba(201,162,39,0.18)' }}>
-                  <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#F8FAFC', borderColor: 'rgba(201,162,39,0.18)' }}>
+                  <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
                     Ortalama {col.label}
                   </Typography>
                   {isLoading ? (
-                    <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+                    <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
                   ) : (
                     <Typography sx={{
-                      fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                      fontFamily: 'inherit', fontStyle: 'normal',
                       fontSize: 26, fontWeight: 700,
-                      color: value === null || value === undefined ? 'rgba(243,238,224,0.35)' : (value >= 40 ? '#22c55e' : value >= 20 ? '#C9A227' : '#ef4444'),
+                      color: value === null || value === undefined ? 'rgba(30,41,59,0.40)' : (value >= 40 ? '#22c55e' : value >= 20 ? '#C9A227' : '#ef4444'),
                       lineHeight: 1.1, mt: 0.5,
                     }}>
                       {value !== null && value !== undefined ? `%${value.toFixed(1)}` : '—'}
                     </Typography>
                   )}
-                  <Typography sx={{ mt: 0.5, fontSize: 10, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 10, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
                     {col.tooltip}
                   </Typography>
                 </Paper>
@@ -166,9 +166,9 @@ export default function Cohorts() {
         </Grid>
 
         {/* Cohort matrix */}
-        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
-          <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
+          <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+            <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
               Kohort Matrisi — Renk yoğunluğu retention yüzdesiyle orantılı
             </Typography>
           </Box>
@@ -176,17 +176,17 @@ export default function Cohorts() {
           {isLoading ? (
             <Box sx={{ p: 2 }}>
               {[1, 2, 3, 4, 5, 6].map(i => (
-                <Skeleton key={i} variant="rectangular" height={38} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />
+                <Skeleton key={i} variant="rectangular" height={38} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />
               ))}
             </Box>
           ) : cohorts.length === 0 ? (
             <Box sx={{ py: 6, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+              <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
                 Yeterli kayıt verisi yok — en az 2 haftalık kayıt geçmişi gerekli
               </Typography>
             </Box>
           ) : (
-            <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' } }}>
+            <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' } }}>
               <TableHead>
                 <TableRow>
                   <HeaderCell>Kayıt Haftası</HeaderCell>
@@ -225,7 +225,7 @@ export default function Cohorts() {
                             fontSize: 12,
                             fontFamily: 'monospace',
                             fontWeight: 700,
-                            color: value === null || value === undefined ? 'rgba(243,238,224,0.3)' : '#F3EEE0',
+                            color: value === null || value === undefined ? 'rgba(30,41,59,0.35)' : '#1E293B',
                           }}>
                             {value === null || value === undefined ? '—' : `%${value.toFixed(1)}`}
                           </Typography>
@@ -249,8 +249,8 @@ export default function Cohorts() {
           <LegendChip color={cellColor(65)} label="≥ %60" />
         </Stack>
 
-        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(243,238,224,0.3)' }}>
+        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(30,41,59,0.35)' }}>
             NARTGO COHORTS • {summary?.totalCohortSize?.toLocaleString('tr-TR') ?? 0} toplam kullanıcı · {cohorts.length} hafta
           </Typography>
         </Box>
@@ -261,7 +261,7 @@ export default function Cohorts() {
 
 function HeaderCell({ children, align }: { children: React.ReactNode; align?: 'right' | 'center' }) {
   return (
-    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase', bgcolor: 'rgba(0,0,0,0.2)' }}>
+    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase', bgcolor: 'rgba(0,0,0,0.2)' }}>
       {children}
     </TableCell>
   );
@@ -270,8 +270,8 @@ function HeaderCell({ children, align }: { children: React.ReactNode; align?: 'r
 function LegendChip({ color, label }: { color: string; label: string }) {
   return (
     <Stack direction="row" spacing={0.75} alignItems="center">
-      <Box sx={{ width: 20, height: 12, borderRadius: 0.5, bgcolor: color, border: '1px solid rgba(255,255,255,0.1)' }} />
-      <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.6)' }}>{label}</Typography>
+      <Box sx={{ width: 20, height: 12, borderRadius: 0.5, bgcolor: color, border: '1px solid rgba(0,0,0,0.08)' }} />
+      <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.60)' }}>{label}</Typography>
     </Stack>
   );
 }

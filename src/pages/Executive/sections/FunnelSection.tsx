@@ -26,8 +26,8 @@ export default function FunnelSection({ data, loading, partial }: Props) {
         <Stack spacing={1.5}>
           {[1, 2, 3, 4, 5].map(i => (
             <Box key={i}>
-              <Skeleton variant="text" width="30%" height={14} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
-              <Skeleton variant="rectangular" width={`${100 - i * 15}%`} height={22} sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 0.75, mt: 0.5 }} />
+              <Skeleton variant="text" width="30%" height={14} sx={{ bgcolor: 'rgba(0,0,0,0.05)' }} />
+              <Skeleton variant="rectangular" width={`${100 - i * 15}%`} height={22} sx={{ bgcolor: 'rgba(0,0,0,0.05)', borderRadius: 0.75, mt: 0.5 }} />
             </Box>
           ))}
         </Stack>
@@ -35,11 +35,11 @@ export default function FunnelSection({ data, loading, partial }: Props) {
         <>
           <Box sx={{ mb: 3, p: 2, borderRadius: 2, bgcolor: 'rgba(201,162,39,0.08)', border: '1px solid rgba(201,162,39,0.18)' }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography sx={{ fontSize: 11, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.75)' }}>
+              <Typography sx={{ fontSize: 11, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.75)' }}>
                 TOPLAM DÖNÜŞÜM
               </Typography>
-              <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 28, fontWeight: 700, color: '#C9A227', lineHeight: 1 }}>
-                %{data.conversionOverall.toFixed(2)}
+              <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 28, fontWeight: 700, color: '#C9A227', lineHeight: 1 }}>
+                {data.conversionOverall != null ? `%${data.conversionOverall.toFixed(2)}` : '—'}
               </Typography>
             </Stack>
           </Box>
@@ -47,7 +47,7 @@ export default function FunnelSection({ data, loading, partial }: Props) {
         </>
       ) : (
         <Box sx={{ py: 6, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 13, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 13, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             Funnel verisi yok. Kafka event agregasyonu aktif değil.
           </Typography>
         </Box>

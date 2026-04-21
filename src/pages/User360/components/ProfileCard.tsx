@@ -13,10 +13,10 @@ export default function ProfileCard({ user, loading }: Props) {
 
   if (loading) {
     return (
-      <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)' }}>
-        <Skeleton variant="circular" width={80} height={80} sx={{ bgcolor: 'rgba(255,255,255,0.08)', mx: 'auto', mb: 2 }} />
-        <Skeleton variant="text" height={28} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
-        <Skeleton variant="text" height={20} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+      <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)' }}>
+        <Skeleton variant="circular" width={80} height={80} sx={{ bgcolor: 'rgba(0,0,0,0.06)', mx: 'auto', mb: 2 }} />
+        <Skeleton variant="text" height={28} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
+        <Skeleton variant="text" height={20} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
       </Paper>
     );
   }
@@ -32,7 +32,7 @@ export default function ProfileCard({ user, loading }: Props) {
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.18)' }}>
+    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.18)' }}>
       <Stack spacing={2} alignItems="center">
         <Avatar
           src={user.profileImage || user.imageUrl}
@@ -40,8 +40,8 @@ export default function ProfileCard({ user, loading }: Props) {
             width: 84, height: 84,
             bgcolor: 'rgba(201,162,39,0.15)',
             color: '#C9A227',
-            fontFamily: 'Georgia, serif',
-            fontStyle: 'italic',
+            fontFamily: 'inherit',
+            fontStyle: 'normal',
             fontSize: 28,
             fontWeight: 700,
             border: '2px solid rgba(201,162,39,0.3)',
@@ -52,11 +52,11 @@ export default function ProfileCard({ user, loading }: Props) {
 
         <Box sx={{ textAlign: 'center' }}>
           <Typography sx={{
-            fontFamily: 'Georgia, serif',
-            fontStyle: 'italic',
+            fontFamily: 'inherit',
+            fontStyle: 'normal',
             fontSize: 20,
             fontWeight: 700,
-            color: '#F3EEE0',
+            color: '#1E293B',
             lineHeight: 1.2,
           }}>
             {fullName}
@@ -91,7 +91,7 @@ export default function ProfileCard({ user, loading }: Props) {
           </Stack>
         )}
 
-        <Divider flexItem sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+        <Divider flexItem sx={{ borderColor: 'rgba(0,0,0,0.05)' }} />
 
         <Stack spacing={1} sx={{ width: '100%' }}>
           <InfoRow icon={<MailIcon sx={{ fontSize: 14 }} />} text={user.email || '—'} />
@@ -131,10 +131,10 @@ export default function ProfileCard({ user, loading }: Props) {
 function InfoRow({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <Stack direction="row" spacing={1} alignItems="center">
-      <Box sx={{ color: 'rgba(243,238,224,0.4)', display: 'flex' }}>{icon}</Box>
+      <Box sx={{ color: 'rgba(30,41,59,0.45)', display: 'flex' }}>{icon}</Box>
       <Typography sx={{
         fontSize: 12,
-        color: 'rgba(243,238,224,0.8)',
+        color: 'rgba(30,41,59,0.80)',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',

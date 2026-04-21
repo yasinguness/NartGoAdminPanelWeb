@@ -61,9 +61,9 @@ export default function MismatchTable({ rows, loading, onResolve }: Props) {
   };
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
+    <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
       {/* Filter bar */}
-      <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+      <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(0,0,0,0.05)', display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
         <ToggleGroup value={severityFilter} onChange={setSeverityFilter} options={FILTERS} />
         <ToggleGroup value={typeFilter} onChange={setTypeFilter} options={TYPE_FILTERS} />
         <Box sx={{ flex: 1 }} />
@@ -73,15 +73,15 @@ export default function MismatchTable({ rows, loading, onResolve }: Props) {
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(0); }}
           InputProps={{
-            startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'rgba(243,238,224,0.4)' }} /></InputAdornment>,
+            startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'rgba(30,41,59,0.45)' }} /></InputAdornment>,
           }}
           sx={{
             minWidth: 260,
             '& .MuiOutlinedInput-root': {
-              bgcolor: 'rgba(255,255,255,0.03)',
+              bgcolor: 'rgba(0,0,0,0.02)',
               fontSize: 12,
-              color: '#F3EEE0',
-              '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' },
+              color: '#1E293B',
+              '& fieldset': { borderColor: 'rgba(0,0,0,0.06)' },
             },
           }}
         />
@@ -91,7 +91,7 @@ export default function MismatchTable({ rows, loading, onResolve }: Props) {
       {loading ? (
         <Box sx={{ p: 2 }}>
           {[1, 2, 3, 4, 5].map(i => (
-            <Skeleton key={i} variant="rectangular" height={40} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />
+            <Skeleton key={i} variant="rectangular" height={40} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />
           ))}
         </Box>
       ) : !rows || rows.length === 0 ? (
@@ -99,20 +99,20 @@ export default function MismatchTable({ rows, loading, onResolve }: Props) {
           <Typography sx={{ fontSize: 14, color: '#22c55e', fontWeight: 700 }}>
             ✓ Hiç uyumsuzluk yok
           </Typography>
-          <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.5)', mt: 0.5 }}>
+          <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.55)', mt: 0.5 }}>
             Son tarama temiz
           </Typography>
         </Box>
       ) : filtered.length === 0 ? (
         <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             Filtreyle eşleşen uyumsuzluk yok
           </Typography>
         </Box>
       ) : (
         <>
           <Table size="small" sx={{
-            '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' },
+            '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' },
           }}>
             <TableHead>
               <TableRow>
@@ -145,24 +145,24 @@ export default function MismatchTable({ rows, loading, onResolve }: Props) {
                     />
                   </TableCell>
                   <TableCell>
-                    <Typography sx={{ fontSize: 11, fontWeight: 700, color: TYPE_COLOR[m.type] || '#F3EEE0' }}>
+                    <Typography sx={{ fontSize: 11, fontWeight: 700, color: TYPE_COLOR[m.type] || '#1E293B' }}>
                       {TYPE_LABEL[m.type] || m.type}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Stack spacing={0.25}>
                       <Stack direction="row" spacing={0.5} alignItems="center">
-                        <Typography sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.7)' }}>
+                        <Typography sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.70)' }}>
                           {m.paymentId ? `${m.paymentId.slice(0, 8)}…` : '—'}
                         </Typography>
                         <Tooltip title="Payment ID kopyala" arrow>
                           <IconButton size="small" onClick={() => handleCopy(m.paymentId)} sx={{ p: 0.25 }}>
-                            <CopyIcon sx={{ fontSize: 10, color: 'rgba(243,238,224,0.3)' }} />
+                            <CopyIcon sx={{ fontSize: 10, color: 'rgba(30,41,59,0.35)' }} />
                           </IconButton>
                         </Tooltip>
                       </Stack>
                       {m.orderId && (
-                        <Typography sx={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(243,238,224,0.4)' }}>
+                        <Typography sx={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(30,41,59,0.45)' }}>
                           order: {m.orderId.slice(0, 8)}…
                         </Typography>
                       )}
@@ -170,9 +170,9 @@ export default function MismatchTable({ rows, loading, onResolve }: Props) {
                   </TableCell>
                   <TableCell>
                     <Stack spacing={0.25}>
-                      <Chip label={m.dbStatus || '—'} size="small" sx={{ fontSize: 9, fontWeight: 700, height: 18, bgcolor: 'rgba(255,255,255,0.06)', color: '#F3EEE0' }} />
+                      <Chip label={m.dbStatus || '—'} size="small" sx={{ fontSize: 9, fontWeight: 700, height: 18, bgcolor: 'rgba(0,0,0,0.05)', color: '#1E293B' }} />
                       {m.providerResponseCode && (
-                        <Typography sx={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(243,238,224,0.5)' }}>
+                        <Typography sx={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(30,41,59,0.55)' }}>
                           Iyzico: {m.providerResponseCode}
                         </Typography>
                       )}
@@ -186,12 +186,12 @@ export default function MismatchTable({ rows, loading, onResolve }: Props) {
                       fontSize: 11,
                       fontFamily: 'monospace',
                       fontWeight: 700,
-                      color: (m.ageMinutes ?? 0) > 1440 ? '#ef4444' : (m.ageMinutes ?? 0) > 360 ? '#f59e0b' : 'rgba(243,238,224,0.7)',
+                      color: (m.ageMinutes ?? 0) > 1440 ? '#ef4444' : (m.ageMinutes ?? 0) > 360 ? '#f59e0b' : 'rgba(30,41,59,0.70)',
                     }}>
                       {formatAge(m.ageMinutes)}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.6)' }}>
+                  <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.60)' }}>
                     {safeDate(m.createdAt)}
                   </TableCell>
                   <TableCell align="center">
@@ -216,9 +216,9 @@ export default function MismatchTable({ rows, loading, onResolve }: Props) {
             labelRowsPerPage="Sayfa başı"
             labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
             sx={{
-              color: 'rgba(243,238,224,0.7)',
-              borderTop: '1px solid rgba(255,255,255,0.05)',
-              '& .MuiSelect-icon': { color: 'rgba(243,238,224,0.5)' },
+              color: 'rgba(30,41,59,0.70)',
+              borderTop: '1px solid rgba(0,0,0,0.05)',
+              '& .MuiSelect-icon': { color: 'rgba(30,41,59,0.55)' },
             }}
           />
         </>
@@ -229,7 +229,7 @@ export default function MismatchTable({ rows, loading, onResolve }: Props) {
 
 function HeaderCell({ children, align }: { children: React.ReactNode; align?: 'right' | 'center' }) {
   return (
-    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>
+    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>
       {children}
     </TableCell>
   );
@@ -243,10 +243,10 @@ function ToggleGroup({ value, onChange, options }: { value: string; onChange: (v
       exclusive
       onChange={(_, v) => v && onChange(v)}
       sx={{
-        bgcolor: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        bgcolor: 'rgba(0,0,0,0.02)',
+        border: '1px solid rgba(0,0,0,0.06)',
         '& .MuiToggleButton-root': {
-          color: 'rgba(243,238,224,0.6)',
+          color: 'rgba(30,41,59,0.60)',
           fontSize: 10,
           fontWeight: 700,
           px: 1.25,

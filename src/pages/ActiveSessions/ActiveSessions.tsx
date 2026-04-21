@@ -73,7 +73,7 @@ export default function ActiveSessions() {
   }, [dataUpdatedAt]);
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#060C09', color: '#F3EEE0', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
+    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#FAFAFA', color: '#1E293B', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
       <Container maxWidth="xl">
         {/* Header */}
         <Box sx={{ mb: 3 }}>
@@ -90,10 +90,10 @@ export default function ActiveSessions() {
                   <DeviceIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#F3EEE0' }}>
+                  <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
                     Aktif Oturumlar
                   </Typography>
-                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(243,238,224,0.65)' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(30,41,59,0.70)' }}>
                     Son {hours} saatte giriş yapan kullanıcılar · şüpheli oturum tespiti
                   </Typography>
                 </Box>
@@ -107,10 +107,10 @@ export default function ActiveSessions() {
                 exclusive
                 onChange={(_, v) => { if (typeof v === 'number') setHours(v); }}
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  bgcolor: 'rgba(0,0,0,0.02)',
+                  border: '1px solid rgba(0,0,0,0.06)',
                   '& .MuiToggleButton-root': {
-                    color: 'rgba(243,238,224,0.6)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
+                    color: 'rgba(30,41,59,0.60)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
                     '&.Mui-selected': { bgcolor: 'rgba(201,162,39,0.18)', color: '#C9A227' },
                   },
                 }}
@@ -121,7 +121,7 @@ export default function ActiveSessions() {
                 icon={<DotIcon sx={{ fontSize: '10px !important', color: `${isFetching ? '#f59e0b' : '#22c55e'} !important` }} />}
                 label={isFetching ? 'güncelleniyor' : `son: ${lastUpdated}`}
                 size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(243,238,224,0.8)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(255,255,255,0.08)' }}
+                sx={{ bgcolor: 'rgba(0,0,0,0.03)', color: 'rgba(30,41,59,0.80)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(0,0,0,0.06)' }}
               />
               <Tooltip title="Yenile" arrow>
                 <IconButton onClick={() => refetch()} size="small" sx={{ color: '#C9A227', border: '1px solid rgba(201,162,39,0.2)' }}>
@@ -133,7 +133,7 @@ export default function ActiveSessions() {
         </Box>
 
         {!isLoading && !data && (
-          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(243,238,224,0.85)' }}
+          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(30,41,59,0.85)' }}
             action={<Button size="small" onClick={() => refetch()} sx={{ color: '#C9A227', fontSize: 11, fontWeight: 700 }}>Tekrar Dene</Button>}>
             <Typography sx={{ fontSize: 12 }}>
               <code style={{ fontFamily: 'monospace', fontSize: 11 }}>/auth/admin/sessions/active</code> endpoint'ine ulaşılamadı.
@@ -177,9 +177,9 @@ export default function ActiveSessions() {
             exclusive
             onChange={(_, v) => typeof v === 'boolean' && setOnlySuspicious(v)}
             sx={{
-              bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+              bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)',
               '& .MuiToggleButton-root': {
-                color: 'rgba(243,238,224,0.6)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
+                color: 'rgba(30,41,59,0.60)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
                 '&.Mui-selected': { bgcolor: 'rgba(201,162,39,0.18)', color: '#C9A227' },
               },
             }}
@@ -193,31 +193,31 @@ export default function ActiveSessions() {
             placeholder="Email/IP/cihaz ara..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'rgba(243,238,224,0.4)' }} /></InputAdornment> }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'rgba(30,41,59,0.45)' }} /></InputAdornment> }}
             sx={{
               minWidth: 260,
               '& .MuiOutlinedInput-root': {
-                bgcolor: 'rgba(255,255,255,0.03)', fontSize: 12, color: '#F3EEE0',
-                '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' },
+                bgcolor: 'rgba(0,0,0,0.02)', fontSize: 12, color: '#1E293B',
+                '& fieldset': { borderColor: 'rgba(0,0,0,0.06)' },
               },
             }}
           />
         </Stack>
 
         {/* Table */}
-        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
+        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
           {isLoading ? (
             <Box sx={{ p: 2 }}>
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />)}
+              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />)}
             </Box>
           ) : filtered.length === 0 ? (
             <Box sx={{ py: 6, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: 13, color: 'rgba(243,238,224,0.5)' }}>
+              <Typography sx={{ fontSize: 13, color: 'rgba(30,41,59,0.55)' }}>
                 {sessions.length === 0 ? 'Bu pencerede aktif oturum yok' : 'Filtreyle eşleşen oturum yok'}
               </Typography>
             </Box>
           ) : (
-            <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' } }}>
+            <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' } }}>
               <TableHead>
                 <TableRow>
                   <HeaderCell>Kullanıcı</HeaderCell>
@@ -234,25 +234,25 @@ export default function ActiveSessions() {
                     <TableCell>
                       <Typography sx={{ fontSize: 12, fontWeight: 700 }}>{s.email || s.userId?.slice(0, 12)}</Typography>
                       {s.userId && (
-                        <Typography sx={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(243,238,224,0.4)' }}>
+                        <Typography sx={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(30,41,59,0.45)' }}>
                           {s.userId.slice(0, 16)}
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(243,238,224,0.7)', maxWidth: 260 }}>
+                    <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(30,41,59,0.70)', maxWidth: 260 }}>
                       <Typography sx={{ fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {s.deviceInfo || s.userAgent?.slice(0, 50) || '—'}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={0.5} alignItems="center">
-                        <LocationIcon sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)' }} />
-                        <Typography sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.7)' }}>
+                        <LocationIcon sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)' }} />
+                        <Typography sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.70)' }}>
                           {[s.ipAddress, s.location].filter(Boolean).join(' · ') || '—'}
                         </Typography>
                       </Stack>
                     </TableCell>
-                    <TableCell align="right" sx={{ fontSize: 11, fontFamily: 'monospace', color: (s.minutesAgo ?? Infinity) < 60 ? '#22c55e' : 'rgba(243,238,224,0.7)' }}>
+                    <TableCell align="right" sx={{ fontSize: 11, fontFamily: 'monospace', color: (s.minutesAgo ?? Infinity) < 60 ? '#22c55e' : 'rgba(30,41,59,0.70)' }}>
                       {formatMinutes(s.minutesAgo)}
                     </TableCell>
                     <TableCell align="center">
@@ -285,11 +285,11 @@ export default function ActiveSessions() {
           )}
         </Paper>
 
-        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(243,238,224,0.3)' }}>
+        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(30,41,59,0.35)' }}>
             NARTGO SESSIONS • {sessions.length} aktif oturum · {hours}sa penceresi
           </Typography>
-          <Typography sx={{ mt: 1, fontSize: 9, color: 'rgba(243,238,224,0.3)', fontStyle: 'italic' }}>
+          <Typography sx={{ mt: 1, fontSize: 9, color: 'rgba(30,41,59,0.35)', fontStyle: 'normal' }}>
             Not: Force-logout Keycloak admin API entegrasyonu gerektirir — sonraki fazda eklenecek.
           </Typography>
         </Box>
@@ -300,25 +300,25 @@ export default function ActiveSessions() {
 
 function StatTile({ label, value, color, loading, hint }: { label: string; value: number | string; color: string; loading?: boolean; hint?: string }) {
   return (
-    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#0F1A14', borderColor: 'rgba(201,162,39,0.18)' }}>
-      <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#F8FAFC', borderColor: 'rgba(201,162,39,0.18)' }}>
+      <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
         {label}
       </Typography>
       {loading ? (
-        <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+        <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
       ) : (
-        <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 26, fontWeight: 700, color, lineHeight: 1.1, mt: 0.5 }}>
+        <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 26, fontWeight: 700, color, lineHeight: 1.1, mt: 0.5 }}>
           {typeof value === 'number' ? value.toLocaleString('tr-TR') : value}
         </Typography>
       )}
-      {hint && <Typography sx={{ mt: 0.5, fontSize: 9, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>{hint}</Typography>}
+      {hint && <Typography sx={{ mt: 0.5, fontSize: 9, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>{hint}</Typography>}
     </Paper>
   );
 }
 
 function HeaderCell({ children, align }: { children?: React.ReactNode; align?: 'right' | 'center' }) {
   return (
-    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>
+    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>
       {children}
     </TableCell>
   );

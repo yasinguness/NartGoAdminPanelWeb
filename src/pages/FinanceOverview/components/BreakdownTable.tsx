@@ -19,20 +19,20 @@ interface Props {
 
 export default function BreakdownTable({ title, rows, loading, emptyText = 'Veri yok', accentColor = '#C9A227' }: Props) {
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', height: '100%' }}>
-      <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase', mb: 2 }}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', height: '100%' }}>
+      <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase', mb: 2 }}>
         {title}
       </Typography>
 
       {loading ? (
         <Stack spacing={1.5}>
           {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} variant="rectangular" height={32} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 0.5 }} />
+            <Skeleton key={i} variant="rectangular" height={32} sx={{ bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 0.5 }} />
           ))}
         </Stack>
       ) : !rows || rows.length === 0 ? (
         <Box sx={{ py: 3, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             {emptyText}
           </Typography>
         </Box>
@@ -42,17 +42,17 @@ export default function BreakdownTable({ title, rows, loading, emptyText = 'Veri
             <Box key={row.key}>
               <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 0.5 }}>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#F3EEE0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {row.label}
                   </Typography>
                   {row.meta && (
-                    <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.4)' }}>
+                    <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.45)' }}>
                       {row.meta}
                     </Typography>
                   )}
                 </Box>
                 <Stack direction="row" spacing={1.5} alignItems="baseline">
-                  <Typography sx={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#F3EEE0' }}>
+                  <Typography sx={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#1E293B' }}>
                     {row.value}
                   </Typography>
                   {row.sharePct !== undefined && (
@@ -69,7 +69,7 @@ export default function BreakdownTable({ title, rows, loading, emptyText = 'Veri
                   sx={{
                     height: 4,
                     borderRadius: 2,
-                    bgcolor: 'rgba(255,255,255,0.05)',
+                    bgcolor: 'rgba(0,0,0,0.05)',
                     '& .MuiLinearProgress-bar': { bgcolor: accentColor },
                   }}
                 />

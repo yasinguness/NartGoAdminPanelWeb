@@ -134,6 +134,7 @@ export const adminLoginStatsService = {
     const params = {
       ...validateDateRange(query),
       limit: validatePositiveLimit('limit', query?.limit),
+      source: query?.source,
     };
 
     const response = await api.get<ApiResponse<RecentLoginLogDto[]>>(`${LOGIN_STATS_BASE_PATH}/recent`, { params });
@@ -148,6 +149,7 @@ export const adminLoginStatsService = {
       size: validatePositiveLimit('size', query?.size),
       sort: query?.sort,
       search: query?.search,
+      source: query?.source,
     };
 
     const response = await api.get<ApiResponse<PageResponseDto<RecentLoggedInUserDto>>>(`${LOGIN_STATS_BASE_PATH}/recent-users`, { params });
@@ -240,6 +242,7 @@ export const adminLoginStatsService = {
     const params = {
       ...validateDateRange(query),
       limit: validatePositiveLimit('limit', query?.limit),
+      source: query?.source,
     };
     const response = await api.get<ApiResponse<TopLoginUserDto[]>>(`${LOGIN_STATS_BASE_PATH}/engagement/top-weekly-users`, { params });
     return response.data.data;

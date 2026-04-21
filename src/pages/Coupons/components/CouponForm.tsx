@@ -66,9 +66,9 @@ export default function CouponForm({ open, editing, onClose, onSubmit, loading }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth
-      PaperProps={{ sx: { bgcolor: '#0A130F', color: '#F3EEE0', border: '1px solid rgba(201,162,39,0.2)' } }}>
-      <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 20, fontWeight: 700 }}>
+      PaperProps={{ sx: { bgcolor: '#FFFFFF', color: '#1E293B', border: '1px solid rgba(201,162,39,0.2)' } }}>
+      <DialogTitle sx={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+        <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 20, fontWeight: 700 }}>
           {editing ? 'Kuponu Düzenle' : 'Yeni Kupon'}
         </Typography>
       </DialogTitle>
@@ -146,21 +146,21 @@ export default function CouponForm({ open, editing, onClose, onSubmit, loading }
           <Grid item xs={12}>
             <FormControlLabel
               control={<Switch checked={form.active ?? true} onChange={e => setForm({ ...form, active: e.target.checked })} />}
-              label={<Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.7)' }}>Aktif</Typography>}
+              label={<Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.70)' }}>Aktif</Typography>}
             />
           </Grid>
         </Grid>
       </DialogContent>
 
-      <DialogActions sx={{ borderTop: '1px solid rgba(255,255,255,0.06)', px: 3, py: 2 }}>
-        <Button onClick={onClose} disabled={loading} sx={{ color: 'rgba(243,238,224,0.6)', fontWeight: 700 }}>
+      <DialogActions sx={{ borderTop: '1px solid rgba(0,0,0,0.05)', px: 3, py: 2 }}>
+        <Button onClick={onClose} disabled={loading} sx={{ color: 'rgba(30,41,59,0.60)', fontWeight: 700 }}>
           İptal
         </Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={!canSubmit || loading}
-          sx={{ bgcolor: '#C9A227', color: '#0A130F', fontWeight: 800, '&:hover': { bgcolor: '#b58f1f' }, '&.Mui-disabled': { bgcolor: 'rgba(255,255,255,0.06)' } }}
+          sx={{ bgcolor: '#C9A227', color: '#FFFFFF', fontWeight: 800, '&:hover': { bgcolor: '#b58f1f' }, '&.Mui-disabled': { bgcolor: 'rgba(0,0,0,0.05)' } }}
         >
           {loading ? 'Kaydediliyor…' : (editing ? 'Güncelle' : 'Oluştur')}
         </Button>
@@ -170,13 +170,13 @@ export default function CouponForm({ open, editing, onClose, onSubmit, loading }
 }
 
 const fieldSx = {
-  '& .MuiInputLabel-root': { color: 'rgba(243,238,224,0.6)', fontSize: 12 },
+  '& .MuiInputLabel-root': { color: 'rgba(30,41,59,0.60)', fontSize: 12 },
   '& .MuiInputLabel-root.Mui-focused': { color: '#C9A227' },
   '& .MuiOutlinedInput-root': {
-    bgcolor: 'rgba(255,255,255,0.03)', fontSize: 12, color: '#F3EEE0',
-    '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' },
+    bgcolor: 'rgba(0,0,0,0.02)', fontSize: 12, color: '#1E293B',
+    '& fieldset': { borderColor: 'rgba(0,0,0,0.06)' },
     '&:hover fieldset': { borderColor: 'rgba(201,162,39,0.3)' },
     '&.Mui-focused fieldset': { borderColor: '#C9A227' },
   },
-  '& .MuiFormHelperText-root': { color: 'rgba(243,238,224,0.4)', fontSize: 10 },
+  '& .MuiFormHelperText-root': { color: 'rgba(30,41,59,0.45)', fontSize: 10 },
 };

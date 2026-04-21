@@ -23,8 +23,8 @@ interface Props {
 
 export default function SessionsPanel({ sessions, totalLogins, totalFailed, lastLogin, loading }: Props) {
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', height: '100%' }}>
-      <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase', mb: 2 }}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', height: '100%' }}>
+      <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase', mb: 2 }}>
         Son Oturumlar
       </Typography>
 
@@ -48,7 +48,7 @@ export default function SessionsPanel({ sessions, totalLogins, totalFailed, last
           <Chip
             size="small"
             label={`son: ${relativeTime(lastLogin)}`}
-            sx={{ bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(243,238,224,0.7)', fontSize: 10, fontWeight: 600, height: 20 }}
+            sx={{ bgcolor: 'rgba(0,0,0,0.03)', color: 'rgba(30,41,59,0.70)', fontSize: 10, fontWeight: 600, height: 20 }}
           />
         )}
       </Stack>
@@ -56,12 +56,12 @@ export default function SessionsPanel({ sessions, totalLogins, totalFailed, last
       {loading ? (
         <Stack spacing={1}>
           {[1, 2, 3].map(i => (
-            <Skeleton key={i} variant="rectangular" height={48} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1 }} />
+            <Skeleton key={i} variant="rectangular" height={48} sx={{ bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 1 }} />
           ))}
         </Stack>
       ) : !sessions || sessions.length === 0 ? (
         <Box sx={{ py: 3, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             Oturum kaydı yok
           </Typography>
         </Box>
@@ -73,28 +73,28 @@ export default function SessionsPanel({ sessions, totalLogins, totalFailed, last
               sx={{
                 p: 1.25,
                 borderRadius: 1,
-                bgcolor: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                bgcolor: 'rgba(0,0,0,0.02)',
+                border: '1px solid rgba(0,0,0,0.05)',
               }}
             >
               <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Stack direction="row" spacing={0.75} alignItems="center">
-                    <DeviceIcon sx={{ fontSize: 12, color: 'rgba(243,238,224,0.5)' }} />
-                    <Typography sx={{ fontSize: 11, fontWeight: 600, color: '#F3EEE0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <DeviceIcon sx={{ fontSize: 12, color: 'rgba(30,41,59,0.55)' }} />
+                    <Typography sx={{ fontSize: 11, fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {s.deviceInfo || s.userAgent?.split(' ')[0] || 'Bilinmeyen cihaz'}
                     </Typography>
                   </Stack>
                   {(s.ipAddress || s.location) && (
                     <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.25 }}>
-                      <LocationIcon sx={{ fontSize: 10, color: 'rgba(243,238,224,0.4)' }} />
-                      <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.5)', fontFamily: 'monospace' }}>
+                      <LocationIcon sx={{ fontSize: 10, color: 'rgba(30,41,59,0.45)' }} />
+                      <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.55)', fontFamily: 'monospace' }}>
                         {[s.ipAddress, s.location].filter(Boolean).join(' · ')}
                       </Typography>
                     </Stack>
                   )}
                 </Box>
-                <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.4)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.45)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                   {relativeTime(s.loggedInAt || s.createdAt)}
                 </Typography>
               </Stack>

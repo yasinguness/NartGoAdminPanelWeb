@@ -40,20 +40,20 @@ const ACTION_LABEL: Record<string, string> = {
 
 export default function ActivityFeed({ items, loading }: Props) {
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', height: '100%' }}>
-      <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase', mb: 2 }}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', height: '100%' }}>
+      <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase', mb: 2 }}>
         Aktivite Zaman Çizelgesi
       </Typography>
 
       {loading ? (
         <Stack spacing={1}>
           {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} variant="rectangular" height={36} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1 }} />
+            <Skeleton key={i} variant="rectangular" height={36} sx={{ bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 1 }} />
           ))}
         </Stack>
       ) : !items || items.length === 0 ? (
         <Box sx={{ py: 3, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             Aktivite yok
           </Typography>
         </Box>
@@ -80,7 +80,7 @@ export default function ActivityFeed({ items, loading }: Props) {
                 >
                   <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Stack direction="row" spacing={1} alignItems="center">
-                      <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#F3EEE0' }}>
+                      <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#1E293B' }}>
                         {label}
                       </Typography>
                       {isFailed && (
@@ -92,17 +92,17 @@ export default function ActivityFeed({ items, loading }: Props) {
                       )}
                     </Stack>
                     {(item.ipAddress || item.deviceInfo) && (
-                      <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.5)', fontFamily: 'monospace', mt: 0.25 }}>
+                      <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.55)', fontFamily: 'monospace', mt: 0.25 }}>
                         {[item.ipAddress, item.deviceInfo].filter(Boolean).join(' · ')}
                       </Typography>
                     )}
                     {item.failureReason && (
-                      <Typography sx={{ fontSize: 10, color: '#ef4444', mt: 0.25, fontStyle: 'italic' }}>
+                      <Typography sx={{ fontSize: 10, color: '#ef4444', mt: 0.25, fontStyle: 'normal' }}>
                         {item.failureReason}
                       </Typography>
                     )}
                   </Box>
-                  <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.4)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                  <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.45)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                     {relativeTime(item.createdAt)}
                   </Typography>
                 </Stack>

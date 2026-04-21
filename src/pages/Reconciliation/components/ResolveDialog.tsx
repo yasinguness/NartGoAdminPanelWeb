@@ -43,11 +43,11 @@ export default function ResolveDialog({ open, mismatch, onClose, onConfirm, load
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { bgcolor: '#0A130F', color: '#F3EEE0', border: '1px solid rgba(201,162,39,0.2)' } }}
+      PaperProps={{ sx: { bgcolor: '#FFFFFF', color: '#1E293B', border: '1px solid rgba(201,162,39,0.2)' } }}
     >
-      <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <DialogTitle sx={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 20, fontWeight: 700 }}>
+          <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 20, fontWeight: 700 }}>
             Uyumsuzluk Çöz
           </Typography>
           <Chip
@@ -67,7 +67,7 @@ export default function ResolveDialog({ open, mismatch, onClose, onConfirm, load
 
       <DialogContent sx={{ py: 3 }}>
         {/* Context */}
-        <Box sx={{ mb: 2, p: 2, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <Box sx={{ mb: 2, p: 2, borderRadius: 1.5, bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
           <Stack spacing={0.5}>
             <Row k="Tip" v={TYPE_LABEL[mismatch.type] || mismatch.type} />
             <Row k="Payment ID" v={mismatch.paymentId} mono />
@@ -87,7 +87,7 @@ export default function ResolveDialog({ open, mismatch, onClose, onConfirm, load
               mb: 2,
               bgcolor: 'rgba(201,162,39,0.08)',
               border: '1px solid rgba(201,162,39,0.2)',
-              color: '#F3EEE0',
+              color: '#1E293B',
               '& .MuiAlert-message': { fontSize: 12 },
             }}
           >
@@ -99,7 +99,7 @@ export default function ResolveDialog({ open, mismatch, onClose, onConfirm, load
         )}
 
         {/* Action */}
-        <Typography sx={{ fontSize: 11, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase', mb: 1 }}>
+        <Typography sx={{ fontSize: 11, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase', mb: 1 }}>
           Aksiyon
         </Typography>
         <RadioGroup value={action} onChange={e => setAction(e.target.value as ResolveAction)}>
@@ -107,13 +107,13 @@ export default function ResolveDialog({ open, mismatch, onClose, onConfirm, load
             <FormControlLabel
               key={a.key}
               value={a.key}
-              control={<Radio size="small" sx={{ color: 'rgba(243,238,224,0.5)', '&.Mui-checked': { color: a.color } }} />}
+              control={<Radio size="small" sx={{ color: 'rgba(30,41,59,0.55)', '&.Mui-checked': { color: a.color } }} />}
               label={
                 <Box>
-                  <Typography sx={{ fontSize: 12, fontWeight: 700, color: action === a.key ? a.color : '#F3EEE0' }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, color: action === a.key ? a.color : '#1E293B' }}>
                     {a.label}
                   </Typography>
-                  <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.55)' }}>
+                  <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.60)' }}>
                     {a.description}
                   </Typography>
                 </Box>
@@ -135,13 +135,13 @@ export default function ResolveDialog({ open, mismatch, onClose, onConfirm, load
           required
           sx={{
             mt: 2,
-            '& .MuiInputLabel-root': { color: 'rgba(243,238,224,0.6)', fontSize: 12 },
+            '& .MuiInputLabel-root': { color: 'rgba(30,41,59,0.60)', fontSize: 12 },
             '& .MuiInputLabel-root.Mui-focused': { color: '#C9A227' },
             '& .MuiOutlinedInput-root': {
-              bgcolor: 'rgba(255,255,255,0.03)',
+              bgcolor: 'rgba(0,0,0,0.02)',
               fontSize: 12,
-              color: '#F3EEE0',
-              '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' },
+              color: '#1E293B',
+              '& fieldset': { borderColor: 'rgba(0,0,0,0.06)' },
               '&:hover fieldset': { borderColor: 'rgba(201,162,39,0.3)' },
               '&.Mui-focused fieldset': { borderColor: '#C9A227' },
             },
@@ -149,8 +149,8 @@ export default function ResolveDialog({ open, mismatch, onClose, onConfirm, load
         />
       </DialogContent>
 
-      <DialogActions sx={{ borderTop: '1px solid rgba(255,255,255,0.06)', px: 3, py: 2 }}>
-        <Button onClick={onClose} disabled={loading} sx={{ color: 'rgba(243,238,224,0.6)', fontWeight: 700 }}>
+      <DialogActions sx={{ borderTop: '1px solid rgba(0,0,0,0.05)', px: 3, py: 2 }}>
+        <Button onClick={onClose} disabled={loading} sx={{ color: 'rgba(30,41,59,0.60)', fontWeight: 700 }}>
           İptal
         </Button>
         <Button
@@ -159,10 +159,10 @@ export default function ResolveDialog({ open, mismatch, onClose, onConfirm, load
           disabled={!canConfirm || loading}
           sx={{
             bgcolor: '#C9A227',
-            color: '#0A130F',
+            color: '#FFFFFF',
             fontWeight: 800,
             '&:hover': { bgcolor: '#b58f1f' },
-            '&.Mui-disabled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
+            '&.Mui-disabled': { bgcolor: 'rgba(0,0,0,0.05)', color: 'rgba(255,255,255,0.3)' },
           }}
         >
           {loading ? 'Kaydediliyor…' : 'Çöz'}
@@ -175,13 +175,13 @@ export default function ResolveDialog({ open, mismatch, onClose, onConfirm, load
 function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
   return (
     <Stack direction="row" spacing={1.5}>
-      <Typography sx={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, color: 'rgba(243,238,224,0.5)', textTransform: 'uppercase', minWidth: 110 }}>
+      <Typography sx={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, color: 'rgba(30,41,59,0.55)', textTransform: 'uppercase', minWidth: 110 }}>
         {k}
       </Typography>
       <Typography sx={{
         fontSize: 12,
         fontFamily: mono ? 'monospace' : 'inherit',
-        color: '#F3EEE0',
+        color: '#1E293B',
         wordBreak: 'break-all',
       }}>
         {v}

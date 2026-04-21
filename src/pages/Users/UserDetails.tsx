@@ -1209,7 +1209,7 @@ export default function UserDetails() {
                   </Box>
                   <Stack spacing={2}>
                     {adminNotes.length === 0 ? (
-                      <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>Henüz not eklenmemiş.</Typography>
+                      <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'normal' }}>Henüz not eklenmemiş.</Typography>
                     ) : (
                       adminNotes.map(note => (
                         <Paper key={note.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>

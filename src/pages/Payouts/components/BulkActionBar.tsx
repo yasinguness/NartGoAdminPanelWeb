@@ -30,13 +30,13 @@ export default function BulkActionBar({ selectedCount, onApprove, onRetry, onCle
       <Stack direction="row" spacing={1.5} alignItems="center">
         <Box sx={{
           width: 32, height: 32, borderRadius: '50%',
-          bgcolor: '#C9A227', color: '#0A130F',
+          bgcolor: '#C9A227', color: '#FFFFFF',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontWeight: 900, fontSize: 14,
         }}>
           {selectedCount}
         </Box>
-        <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#F3EEE0', flex: 1 }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1E293B', flex: 1 }}>
           batch seçildi
         </Typography>
         <Button
@@ -47,7 +47,7 @@ export default function BulkActionBar({ selectedCount, onApprove, onRetry, onCle
           disabled={loading}
           sx={{
             bgcolor: '#22c55e',
-            color: '#0A130F',
+            color: '#FFFFFF',
             fontSize: 11, fontWeight: 800,
             '&:hover': { bgcolor: '#1aa34a' },
           }}
@@ -73,7 +73,7 @@ export default function BulkActionBar({ selectedCount, onApprove, onRetry, onCle
           size="small"
           startIcon={<CloseIcon sx={{ fontSize: 16 }} />}
           onClick={onClear}
-          sx={{ color: 'rgba(243,238,224,0.5)', fontSize: 11 }}
+          sx={{ color: 'rgba(30,41,59,0.55)', fontSize: 11 }}
         >
           Temizle
         </Button>

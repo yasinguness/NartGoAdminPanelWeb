@@ -67,8 +67,8 @@ export default function FinanceOverview() {
     <Box
       sx={{
         minHeight: 'calc(100vh - 64px)',
-        bgcolor: '#060C09',
-        color: '#F3EEE0',
+        bgcolor: '#FAFAFA',
+        color: '#1E293B',
         mx: { xs: -2, sm: -3 },
         my: -3,
         py: 4,
@@ -94,10 +94,10 @@ export default function FinanceOverview() {
                   <FinanceIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#F3EEE0' }}>
+                  <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
                     Finansal Genel Bakış
                   </Typography>
-                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(243,238,224,0.65)' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(30,41,59,0.70)' }}>
                     {userName} — para nereden geliyor, nereye gidiyor, platformda ne kalıyor
                   </Typography>
                 </Box>
@@ -110,12 +110,12 @@ export default function FinanceOverview() {
                 label={isFetching ? 'güncelleniyor' : `son: ${lastUpdated}`}
                 size="small"
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.04)',
-                  color: 'rgba(243,238,224,0.8)',
+                  bgcolor: 'rgba(0,0,0,0.03)',
+                  color: 'rgba(30,41,59,0.80)',
                   fontSize: 11,
                   fontWeight: 600,
                   height: 26,
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(0,0,0,0.06)',
                 }}
               />
               <ToggleButtonGroup
@@ -124,10 +124,10 @@ export default function FinanceOverview() {
                 exclusive
                 onChange={(_, v) => v && setRange(v)}
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.04)',
+                  bgcolor: 'rgba(0,0,0,0.03)',
                   border: '1px solid rgba(201,162,39,0.2)',
                   '& .MuiToggleButton-root': {
-                    color: 'rgba(243,238,224,0.6)',
+                    color: 'rgba(30,41,59,0.60)',
                     fontSize: 11,
                     fontWeight: 700,
                     px: 1.5,
@@ -140,7 +140,7 @@ export default function FinanceOverview() {
                       color: '#C9A227',
                       '&:hover': { bgcolor: 'rgba(201,162,39,0.22)' },
                     },
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
+                    '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' },
                   },
                 }}
               >
@@ -166,7 +166,7 @@ export default function FinanceOverview() {
               mb: 3,
               bgcolor: 'rgba(245,158,11,0.08)',
               border: '1px solid rgba(245,158,11,0.25)',
-              color: 'rgba(243,238,224,0.85)',
+              color: 'rgba(30,41,59,0.85)',
             }}
             action={
               <Button size="small" onClick={() => refetch()} sx={{ color: '#C9A227', fontSize: 11, fontWeight: 700 }}>
@@ -311,8 +311,8 @@ export default function FinanceOverview() {
         <TopEventsTable rows={data?.topEvents} currency={currency} loading={isLoading} />
 
         {/* Footer */}
-        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(243,238,224,0.3)' }}>
+        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(30,41,59,0.35)' }}>
             NARTGO FINANCE • {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
           </Typography>
         </Box>

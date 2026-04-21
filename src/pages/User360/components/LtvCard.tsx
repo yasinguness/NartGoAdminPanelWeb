@@ -11,23 +11,23 @@ export default function LtvCard({ data, loading }: Props) {
   const currency = data?.currency || 'TRY';
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)' }}>
+    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 2 }}>
-        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
           Müşteri Değeri (LTV)
         </Typography>
         {data && (
-          <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             {data.totalOrders} sipariş · {data.paidOrders} ödendi · {data.refundedOrders} iade
           </Typography>
         )}
       </Stack>
 
       {loading ? (
-        <Skeleton variant="rectangular" height={120} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1 }} />
+        <Skeleton variant="rectangular" height={120} sx={{ bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 1 }} />
       ) : !data ? (
         <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 13, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 13, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             Henüz sipariş yok
           </Typography>
         </Box>
@@ -68,7 +68,7 @@ export default function LtvCard({ data, loading }: Props) {
             </Grid>
           </Grid>
 
-          <Stack direction="row" spacing={3} sx={{ mt: 3, pt: 2, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <Stack direction="row" spacing={3} sx={{ mt: 3, pt: 2, borderTop: '1px solid rgba(0,0,0,0.05)' }}>
             <InfoPair label="İlk sipariş" value={safeDate(data.firstOrderAt)} />
             <InfoPair label="Son sipariş" value={safeDate(data.lastOrderAt)} />
           </Stack>
@@ -80,13 +80,13 @@ export default function LtvCard({ data, loading }: Props) {
 
 function LtvTile({ label, value, color, subtitle }: { label: string; value: string; color: string; subtitle?: string }) {
   return (
-    <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <Typography sx={{ fontSize: 9, letterSpacing: 1, fontWeight: 700, color: 'rgba(243,238,224,0.5)', textTransform: 'uppercase' }}>
+    <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
+      <Typography sx={{ fontSize: 9, letterSpacing: 1, fontWeight: 700, color: 'rgba(30,41,59,0.55)', textTransform: 'uppercase' }}>
         {label}
       </Typography>
       <Typography sx={{
-        fontFamily: 'Georgia, serif',
-        fontStyle: 'italic',
+        fontFamily: 'inherit',
+        fontStyle: 'normal',
         fontSize: 20,
         fontWeight: 700,
         color,
@@ -96,7 +96,7 @@ function LtvTile({ label, value, color, subtitle }: { label: string; value: stri
         {value}
       </Typography>
       {subtitle && (
-        <Typography sx={{ fontSize: 9, color: 'rgba(243,238,224,0.4)', mt: 0.5, fontStyle: 'italic' }}>
+        <Typography sx={{ fontSize: 9, color: 'rgba(30,41,59,0.45)', mt: 0.5, fontStyle: 'normal' }}>
           {subtitle}
         </Typography>
       )}
@@ -107,10 +107,10 @@ function LtvTile({ label, value, color, subtitle }: { label: string; value: stri
 function InfoPair({ label, value }: { label: string; value: string }) {
   return (
     <Box>
-      <Typography sx={{ fontSize: 9, letterSpacing: 1, fontWeight: 700, color: 'rgba(243,238,224,0.4)', textTransform: 'uppercase' }}>
+      <Typography sx={{ fontSize: 9, letterSpacing: 1, fontWeight: 700, color: 'rgba(30,41,59,0.45)', textTransform: 'uppercase' }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: 11, color: '#F3EEE0', fontFamily: 'monospace' }}>
+      <Typography sx={{ fontSize: 11, color: '#1E293B', fontFamily: 'monospace' }}>
         {value}
       </Typography>
     </Box>

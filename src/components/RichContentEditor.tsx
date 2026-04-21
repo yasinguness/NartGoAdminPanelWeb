@@ -381,7 +381,7 @@ export default function RichContentEditor({ blocks, onChange, compact, onImageUp
             {block.url && (
               <TextField fullWidth variant="standard" placeholder="Görsel açıklaması..." value={block.caption || ''}
                 onChange={(e) => updateBlock(index, { ...block, caption: e.target.value })}
-                InputProps={{ disableUnderline: true, sx: { fontSize: 13, color: 'text.secondary', fontStyle: 'italic', mt: 1 } }} />
+                InputProps={{ disableUnderline: true, sx: { fontSize: 13, color: 'text.secondary', fontStyle: 'normal', mt: 1 } }} />
             )}
             {!block.url && (
               <TextField fullWidth size="small" placeholder="veya görsel URL'si yapıştırın..." sx={{ mt: 1 }}
@@ -435,7 +435,7 @@ export default function RichContentEditor({ blocks, onChange, compact, onImageUp
                 fontSize={16}
                 lineHeight={1.6}
                 compact
-                sx={{ border: 'none', borderRadius: 0, fontStyle: 'italic' }}
+                sx={{ border: 'none', borderRadius: 0, fontStyle: 'normal' }}
               />
               <TextField fullWidth variant="standard" placeholder="— Yazar"
                 value={block.author || ''} onChange={(e) => updateBlock(index, { ...block, author: e.target.value })}
@@ -516,7 +516,7 @@ const inlineHtmlSx = {
   '& a': { color: 'primary.main', textDecoration: 'underline' },
   '& code': { fontFamily: 'monospace', bgcolor: 'action.hover', borderRadius: 0.5, px: 0.5, fontSize: '0.9em' },
   '& b, & strong': { fontWeight: 700 },
-  '& i, & em': { fontStyle: 'italic' },
+  '& i, & em': { fontStyle: 'normal' },
   '& u': { textDecoration: 'underline' },
   '& s, & strike': { textDecoration: 'line-through' },
 };
@@ -572,7 +572,7 @@ export function RichContentRenderer({ blocks, mobile }: { blocks: ContentBlock[]
             return (
               <Box key={i} sx={{ my: 2, borderRadius: 2, overflow: 'hidden', maxWidth: block.width === 'small' ? 200 : block.width === 'medium' ? 320 : '100%', mx: block.width !== 'full' ? 'auto' : 0 }}>
                 {block.url && <Box component="img" src={block.url} alt={block.caption || ''} sx={{ width: '100%', height: 'auto', display: 'block', borderRadius: 2 }} />}
-                {block.caption && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', textAlign: 'center', fontStyle: 'italic' }}>{block.caption}</Typography>}
+                {block.caption && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', textAlign: 'center', fontStyle: 'normal' }}>{block.caption}</Typography>}
               </Box>
             );
           case 'divider':
@@ -593,9 +593,9 @@ export function RichContentRenderer({ blocks, mobile }: { blocks: ContentBlock[]
               <Box key={i} sx={{ pl: 2.5, borderLeft: '3px solid', borderColor: 'primary.main', my: 2 }}>
                 {hasHtml(block.text) ? (
                   <Box dangerouslySetInnerHTML={{ __html: block.text }}
-                    sx={{ fontStyle: 'italic', lineHeight: 1.6, fontSize: mobile ? 14 : 15, ...inlineHtmlSx }} />
+                    sx={{ fontStyle: 'normal', lineHeight: 1.6, fontSize: mobile ? 14 : 15, ...inlineHtmlSx }} />
                 ) : (
-                  <Typography variant="body2" sx={{ fontStyle: 'italic', lineHeight: 1.6, fontSize: mobile ? 14 : 15, whiteSpace: 'pre-wrap' }}>{block.text}</Typography>
+                  <Typography variant="body2" sx={{ fontStyle: 'normal', lineHeight: 1.6, fontSize: mobile ? 14 : 15, whiteSpace: 'pre-wrap' }}>{block.text}</Typography>
                 )}
                 {block.author && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>— {block.author}</Typography>}
               </Box>

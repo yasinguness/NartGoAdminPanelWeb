@@ -15,7 +15,7 @@ export default function Sparkline({ data, color, height = 36, strokeWidth = 1.5,
 
   if (!data || data.length < 2) {
     return (
-      <Box sx={{ height, width: '100%', display: 'flex', alignItems: 'center', color: 'text.disabled', fontSize: 10, fontStyle: 'italic' }}>
+      <Box sx={{ height, width: '100%', display: 'flex', alignItems: 'center', color: 'text.disabled', fontSize: 10, fontStyle: 'normal' }}>
         yeterli veri yok
       </Box>
     );

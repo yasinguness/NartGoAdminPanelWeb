@@ -12,9 +12,9 @@ interface Props {
 
 export default function RevenueChart({ data, currency = 'TRY', loading }: Props) {
   return (
-    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)' }}>
+    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
           Günlük Gelir Trendi
         </Typography>
         <Stack direction="row" spacing={2}>
@@ -24,10 +24,10 @@ export default function RevenueChart({ data, currency = 'TRY', loading }: Props)
       </Stack>
 
       {loading ? (
-        <Skeleton variant="rectangular" height={240} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1 }} />
+        <Skeleton variant="rectangular" height={240} sx={{ bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 1 }} />
       ) : !data || data.length === 0 ? (
         <Box sx={{ py: 8, textAlign: 'center' }}>
-          <Typography sx={{ color: 'rgba(243,238,224,0.4)', fontSize: 12, fontStyle: 'italic' }}>
+          <Typography sx={{ color: 'rgba(30,41,59,0.45)', fontSize: 12, fontStyle: 'normal' }}>
             Bu dönemde gelir hareketi yok
           </Typography>
         </Box>
@@ -42,7 +42,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <Stack direction="row" spacing={0.5} alignItems="center">
       <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
-      <Typography sx={{ fontSize: 11, color: 'rgba(243,238,224,0.7)', fontWeight: 600 }}>{label}</Typography>
+      <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.70)', fontWeight: 600 }}>{label}</Typography>
     </Stack>
   );
 }
@@ -83,8 +83,8 @@ function Chart({ data, currency }: { data: FinanceTimeseriesPoint[]; currency: s
           const y = padding.top + innerH - (v / max) * innerH;
           return (
             <g key={i}>
-              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="rgba(255,255,255,0.05)" strokeDasharray="2,3" />
-              <text x={padding.left - 6} y={y + 3} textAnchor="end" fontSize="10" fill="rgba(243,238,224,0.4)" fontFamily="monospace">
+              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="rgba(0,0,0,0.05)" strokeDasharray="2,3" />
+              <text x={padding.left - 6} y={y + 3} textAnchor="end" fontSize="10" fill="rgba(30,41,59,0.45)" fontFamily="monospace">
                 {formatMoney(v, currency)}
               </text>
             </g>
@@ -113,7 +113,7 @@ function Chart({ data, currency }: { data: FinanceTimeseriesPoint[]; currency: s
             label = d.t;
           }
           return (
-            <text key={i} x={x} y={height - 8} textAnchor="middle" fontSize="10" fill="rgba(243,238,224,0.5)" fontFamily="monospace">
+            <text key={i} x={x} y={height - 8} textAnchor="middle" fontSize="10" fill="rgba(30,41,59,0.55)" fontFamily="monospace">
               {label}
             </text>
           );

@@ -265,7 +265,7 @@ function StatMini({ icon, label, value, color }: { icon: React.ReactNode; label:
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase', fontWeight: 700 }}>
           {label}
         </Typography>
-        <Typography sx={{ fontFamily: 'serif', fontStyle: 'italic', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>
+        <Typography sx={{ fontFamily: 'serif', fontStyle: 'normal', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>
           {value}
         </Typography>
       </Box>

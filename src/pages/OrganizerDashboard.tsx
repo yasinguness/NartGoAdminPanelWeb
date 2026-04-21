@@ -468,7 +468,7 @@ export default function OrganizerDashboard() {
                     key={event.id}
                     hover
                     sx={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/events/${event.id}`)}
+                    onClick={() => navigate(`/event-console/${event.id}`)}
                   >
                     <TableCell>
                       <Typography variant="body2" fontWeight={600} sx={{ maxWidth: 250 }} noWrap>

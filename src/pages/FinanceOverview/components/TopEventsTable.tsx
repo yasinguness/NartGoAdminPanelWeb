@@ -15,9 +15,9 @@ export default function TopEventsTable({ rows, currency = 'TRY', loading }: Prop
   const navigate = useNavigate();
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
-      <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+    <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
+      <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
           En Çok Kazandıran Etkinlikler
         </Typography>
       </Box>
@@ -25,26 +25,26 @@ export default function TopEventsTable({ rows, currency = 'TRY', loading }: Prop
       {loading ? (
         <Box sx={{ p: 2 }}>
           {[1, 2, 3, 4, 5].map(i => (
-            <Skeleton key={i} variant="rectangular" height={36} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />
+            <Skeleton key={i} variant="rectangular" height={36} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />
           ))}
         </Box>
       ) : !rows || rows.length === 0 ? (
         <Box sx={{ py: 5, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             Bu dönemde gelir üreten etkinlik yok
           </Typography>
         </Box>
       ) : (
         <Table size="small" sx={{
-          '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' },
+          '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' },
         }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>#</TableCell>
-              <TableCell sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>Etkinlik</TableCell>
-              <TableCell align="right" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>Sipariş</TableCell>
-              <TableCell align="right" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>Brüt</TableCell>
-              <TableCell align="right" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>Net</TableCell>
+              <TableCell sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>#</TableCell>
+              <TableCell sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>Etkinlik</TableCell>
+              <TableCell align="right" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>Sipariş</TableCell>
+              <TableCell align="right" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>Brüt</TableCell>
+              <TableCell align="right" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>Net</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -58,7 +58,7 @@ export default function TopEventsTable({ rows, currency = 'TRY', loading }: Prop
                   '&:hover': { bgcolor: 'rgba(201,162,39,0.05) !important' },
                 }}
               >
-                <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(243,238,224,0.5)' }}>
+                <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(30,41,59,0.55)' }}>
                   {idx + 1}
                 </TableCell>
                 <TableCell sx={{ fontSize: 12, fontWeight: 600 }}>

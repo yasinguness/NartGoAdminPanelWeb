@@ -36,15 +36,15 @@ export default function ExecutiveStatCard({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: '#0F1A14',
+        bgcolor: '#F8FAFC',
         borderColor: 'rgba(201,162,39,0.18)',
-        color: '#F3EEE0',
+        color: '#1E293B',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
-        <Typography sx={{ fontSize: 10, letterSpacing: 1.5, fontWeight: 700, textTransform: 'uppercase', color: 'rgba(243,238,224,0.6)' }}>
+        <Typography sx={{ fontSize: 10, letterSpacing: 1.5, fontWeight: 700, textTransform: 'uppercase', color: 'rgba(30,41,59,0.60)' }}>
           {label}
         </Typography>
         {metric?.anomaly && <AnomalyChip zScore={metric.anomaly.zScore} severity={metric.anomaly.severity} />}
@@ -52,13 +52,13 @@ export default function ExecutiveStatCard({
 
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', mt: 1 }}>
         {loading ? (
-          <Skeleton variant="text" width="60%" height={36} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+          <Skeleton variant="text" width="60%" height={36} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
         ) : metric ? (
           <Stack direction="row" alignItems="baseline" spacing={0.5}>
             <Typography
               sx={{
-                fontFamily: 'Georgia, serif',
-                fontStyle: 'italic',
+                fontFamily: 'inherit',
+                fontStyle: 'normal',
                 fontSize: 28,
                 fontWeight: 700,
                 lineHeight: 1,
@@ -68,13 +68,13 @@ export default function ExecutiveStatCard({
               {format(metric.value)}
             </Typography>
             {unit && (
-              <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'rgba(243,238,224,0.55)' }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'rgba(30,41,59,0.60)' }}>
                 {unit}
               </Typography>
             )}
           </Stack>
         ) : (
-          <Typography sx={{ fontSize: 13, fontStyle: 'italic', color: 'rgba(243,238,224,0.4)' }}>
+          <Typography sx={{ fontSize: 13, fontStyle: 'normal', color: 'rgba(30,41,59,0.45)' }}>
             veri yok
           </Typography>
         )}
@@ -93,7 +93,7 @@ export default function ExecutiveStatCard({
       )}
 
       {helperText && (
-        <Typography sx={{ mt: 1, fontSize: 10, color: 'rgba(243,238,224,0.4)' }}>
+        <Typography sx={{ mt: 1, fontSize: 10, color: 'rgba(30,41,59,0.45)' }}>
           {helperText}
         </Typography>
       )}

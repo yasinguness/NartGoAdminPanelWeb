@@ -680,7 +680,7 @@ export default function EventDetail() {
               onClick={() => navigate(`/event-console/${event.id}`)}
               sx={{
                 borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 2,
-                bgcolor: '#0F1A14', '&:hover': { bgcolor: '#1a2b1f' },
+                bgcolor: '#F8FAFC', '&:hover': { bgcolor: '#1a2b1f' },
               }}>
               Operasyon Konsolu
             </Button>
@@ -780,7 +780,7 @@ export default function EventDetail() {
             mx: -4, mt: 2, px: 4, py: 1.75,
             display: 'flex', alignItems: 'center', gap: 1.5,
             bgcolor: 'rgba(15,26,20,0.95)',
-            color: '#F3EEE0',
+            color: '#1E293B',
             cursor: 'pointer',
             borderTop: '1px solid rgba(201,162,39,0.3)',
             borderBottom: '1px solid rgba(201,162,39,0.3)',
@@ -797,10 +797,10 @@ export default function EventDetail() {
             ⚡
           </Box>
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#F3EEE0', lineHeight: 1.3 }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1E293B', lineHeight: 1.3 }}>
               Operasyon Konsolu — tüm yönetim araçları tek yerde
             </Typography>
-            <Typography sx={{ fontSize: 11, color: 'rgba(243,238,224,0.6)', mt: 0.25 }}>
+            <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.60)', mt: 0.25 }}>
               Siparişler · Check-in · Kapı görevlileri · Bildirim · Export · Ayarlar için Konsol'u kullanın. Bu sayfa yakında temel bilgilere yönlendirilecek.
             </Typography>
           </Box>
@@ -809,7 +809,7 @@ export default function EventDetail() {
             variant="contained"
             onClick={(e) => { e.stopPropagation(); navigate(`/event-console/${event.id}`); }}
             sx={{
-              bgcolor: '#C9A227', color: '#0F1A14', fontWeight: 800,
+              bgcolor: '#C9A227', color: '#F8FAFC', fontWeight: 800,
               fontSize: 11, letterSpacing: 0.5, textTransform: 'none',
               whiteSpace: 'nowrap',
               '&:hover': { bgcolor: '#b58f1f' },

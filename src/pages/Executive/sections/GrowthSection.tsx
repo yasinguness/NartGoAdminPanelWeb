@@ -49,8 +49,8 @@ export default function GrowthSection({ data, loading, partial }: Props) {
       </Grid>
 
       {data?.retention && (
-        <Box sx={{ mt: 3, p: 2.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <Typography sx={{ fontSize: 11, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase', mb: 2 }}>
+        <Box sx={{ mt: 3, p: 2.5, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
+          <Typography sx={{ fontSize: 11, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase', mb: 2 }}>
             Retention Eğrisi
           </Typography>
           <Grid container spacing={3}>
@@ -61,14 +61,14 @@ export default function GrowthSection({ data, loading, partial }: Props) {
             ].map(r => (
               <Grid item xs={4} key={r.label}>
                 <Stack alignItems="center" spacing={0.5}>
-                  <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'rgba(243,238,224,0.6)', letterSpacing: 1 }}>
+                  <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'rgba(30,41,59,0.60)', letterSpacing: 1 }}>
                     {r.label}
                   </Typography>
                   <Typography sx={{
-                    fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                    fontFamily: 'inherit', fontStyle: 'normal',
                     fontSize: 26, fontWeight: 700, color: r.color, lineHeight: 1,
                   }}>
-                    %{r.value.toFixed(1)}
+                    {r.value != null ? `%${r.value.toFixed(1)}` : '—'}
                   </Typography>
                 </Stack>
               </Grid>

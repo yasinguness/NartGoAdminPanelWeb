@@ -33,11 +33,11 @@ export default function PayloadDialog({ open, entry, onClose, onRetry, onDismiss
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth
-      PaperProps={{ sx: { bgcolor: '#0A130F', color: '#F3EEE0', border: '1px solid rgba(201,162,39,0.2)' } }}>
-      <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      PaperProps={{ sx: { bgcolor: '#FFFFFF', color: '#1E293B', border: '1px solid rgba(201,162,39,0.2)' } }}>
+      <DialogTitle sx={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
         <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
           <Stack direction="row" spacing={1.5} alignItems="center">
-            <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 20, fontWeight: 700 }}>
+            <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 20, fontWeight: 700 }}>
               Dead Letter Detayı
             </Typography>
             <Chip
@@ -50,7 +50,7 @@ export default function PayloadDialog({ open, entry, onClose, onRetry, onDismiss
               }}
             />
             {entry.retryCount > 0 && (
-              <Chip label={`retry: ${entry.retryCount}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(243,238,224,0.7)', fontSize: 10, fontWeight: 700, height: 20 }} />
+              <Chip label={`retry: ${entry.retryCount}`} size="small" sx={{ bgcolor: 'rgba(0,0,0,0.05)', color: 'rgba(30,41,59,0.70)', fontSize: 10, fontWeight: 700, height: 20 }} />
             )}
           </Stack>
         </Stack>
@@ -66,11 +66,11 @@ export default function PayloadDialog({ open, entry, onClose, onRetry, onDismiss
 
           <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 0.5 }}>
-              <Typography sx={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, color: 'rgba(243,238,224,0.5)', textTransform: 'uppercase' }}>
+              <Typography sx={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, color: 'rgba(30,41,59,0.55)', textTransform: 'uppercase' }}>
                 Payload
               </Typography>
               <Tooltip title="Payload kopyala" arrow>
-                <IconButton size="small" onClick={() => handleCopy(entry.payload)} sx={{ color: 'rgba(243,238,224,0.5)', '&:hover': { color: '#C9A227' } }}>
+                <IconButton size="small" onClick={() => handleCopy(entry.payload)} sx={{ color: 'rgba(30,41,59,0.55)', '&:hover': { color: '#C9A227' } }}>
                   <CopyIcon sx={{ fontSize: 14 }} />
                 </IconButton>
               </Tooltip>
@@ -79,11 +79,11 @@ export default function PayloadDialog({ open, entry, onClose, onRetry, onDismiss
               sx={{
                 p: 2, borderRadius: 1,
                 bgcolor: 'rgba(0,0,0,0.3)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                border: '1px solid rgba(0,0,0,0.05)',
                 maxHeight: 400, overflow: 'auto',
               }}
             >
-              <pre style={{ margin: 0, fontSize: 11, fontFamily: 'monospace', color: '#F3EEE0', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              <pre style={{ margin: 0, fontSize: 11, fontFamily: 'monospace', color: '#1E293B', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                 {prettyPayload || '(payload yok)'}
               </pre>
             </Box>
@@ -91,8 +91,8 @@ export default function PayloadDialog({ open, entry, onClose, onRetry, onDismiss
         </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ borderTop: '1px solid rgba(255,255,255,0.06)', px: 3, py: 2, gap: 1 }}>
-        <Button onClick={onClose} disabled={loading} sx={{ color: 'rgba(243,238,224,0.6)', fontWeight: 700 }}>
+      <DialogActions sx={{ borderTop: '1px solid rgba(0,0,0,0.05)', px: 3, py: 2, gap: 1 }}>
+        <Button onClick={onClose} disabled={loading} sx={{ color: 'rgba(30,41,59,0.60)', fontWeight: 700 }}>
           Kapat
         </Button>
         {entry.status === 'PENDING' && (
@@ -112,7 +112,7 @@ export default function PayloadDialog({ open, entry, onClose, onRetry, onDismiss
               onClick={() => onRetry(entry.id)}
               disabled={loading}
               sx={{
-                bgcolor: '#C9A227', color: '#0A130F', fontWeight: 800,
+                bgcolor: '#C9A227', color: '#FFFFFF', fontWeight: 800,
                 '&:hover': { bgcolor: '#b58f1f' },
               }}
             >
@@ -128,7 +128,7 @@ export default function PayloadDialog({ open, entry, onClose, onRetry, onDismiss
 function Field({ label, value, mono, errorBox }: { label: string; value: string; mono?: boolean; errorBox?: boolean }) {
   return (
     <Box>
-      <Typography sx={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, color: 'rgba(243,238,224,0.5)', textTransform: 'uppercase', mb: 0.5 }}>
+      <Typography sx={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, color: 'rgba(30,41,59,0.55)', textTransform: 'uppercase', mb: 0.5 }}>
         {label}
       </Typography>
       <Box sx={{
@@ -140,7 +140,7 @@ function Field({ label, value, mono, errorBox }: { label: string; value: string;
         <Typography sx={{
           fontSize: 12,
           fontFamily: mono ? 'monospace' : 'inherit',
-          color: errorBox ? '#ef4444' : '#F3EEE0',
+          color: errorBox ? '#ef4444' : '#1E293B',
           wordBreak: 'break-all',
         }}>
           {value}

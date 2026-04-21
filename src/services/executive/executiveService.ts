@@ -14,13 +14,14 @@ const PATHS = {
   growth: '/auth/admin/executive/growth',
   funnel: '/tickets/admin/executive/funnel',
   operational: '/events/admin/executive/operational',
-  platform: '/admin/executive/platform-health',
-  combined: '/admin/executive/dashboard',
+  platform: '/auth/admin/executive/platform-health',
 } as const;
 
 async function safeGet<T>(path: string, params?: Record<string, any>): Promise<T | null> {
   try {
-    const res = await api.get<any>(path, { params });
+    // skipAuthRedirect: bu endpoint'ler admin-only ve henüz backend'de yayında olmayabilir.
+    // 401/403 gelirse api interceptor logout tetiklemesin; fallback akışı devreye girsin.
+    const res = await api.get<any>(path, { params, skipAuthRedirect: true } as any);
     const body = res.data;
     if (body && typeof body === 'object' && 'data' in body && 'success' in body) {
       return (body.data ?? null) as T | null;
@@ -28,8 +29,8 @@ async function safeGet<T>(path: string, params?: Record<string, any>): Promise<T
     return body as T;
   } catch (err: any) {
     const status = err?.response?.status;
-    if (status === 404 || status === 501) return null;
-    if (status === 403) return null;
+    // 401 (henüz yayında değil / role mismatch), 403, 404, 501 — fallback'e düş
+    if (status === 401 || status === 403 || status === 404 || status === 501) return null;
     throw err;
   }
 }
@@ -42,7 +43,7 @@ async function getRevenue(range: TimeRange): Promise<RevenueKpi | null> {
 
 async function fallbackRevenueFromSettlement(): Promise<RevenueKpi | null> {
   try {
-    const res = await api.get('/finance/kpis');
+    const res = await api.get('/finance/kpis', { skipAuthRedirect: true } as any);
     const k: any = res.data || {};
     return {
       gmvToday: { value: Number(k.gmvToday ?? 0) },
@@ -65,7 +66,7 @@ async function getGrowth(range: TimeRange): Promise<GrowthKpi | null> {
 
 async function fallbackGrowthFromUserStats(): Promise<GrowthKpi | null> {
   try {
-    const res = await api.get('/auth/admin/users/stats');
+    const res = await api.get('/auth/admin/users/stats', { skipAuthRedirect: true } as any);
     const s: any = res.data?.data || res.data || {};
     return {
       dau: { value: Number(s.dau ?? s.dailyActive ?? 0) },
@@ -91,7 +92,7 @@ async function getOperational(): Promise<OperationalKpi | null> {
 
 async function fallbackOperational(): Promise<OperationalKpi | null> {
   try {
-    const res = await api.get('/events', { params: { size: 200 } });
+    const res = await api.get('/events', { params: { size: 200 }, skipAuthRedirect: true } as any);
     const data: any = res.data?.data || res.data?.content || res.data || [];
     const list: any[] = Array.isArray(data) ? data : data.content || [];
     const now = Date.now();
@@ -134,9 +135,6 @@ async function getPlatformHealth(): Promise<PlatformHealthKpi | null> {
 }
 
 async function getDashboard(range: TimeRange = '7d'): Promise<ExecutiveDashboardData> {
-  const combined = await safeGet<ExecutiveDashboardData>(PATHS.combined, { range });
-  if (combined) return combined;
-
   const [revenue, growth, funnel, operational, platform] = await Promise.all([
     getRevenue(range).catch(() => null),
     getGrowth(range).catch(() => null),

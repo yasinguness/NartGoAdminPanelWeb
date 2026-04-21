@@ -63,8 +63,8 @@ export default function User360() {
     <Box
       sx={{
         minHeight: 'calc(100vh - 64px)',
-        bgcolor: '#060C09',
-        color: '#F3EEE0',
+        bgcolor: '#FAFAFA',
+        color: '#1E293B',
         mx: { xs: -2, sm: -3 },
         my: -3,
         py: 4,
@@ -78,7 +78,7 @@ export default function User360() {
               <IconButton
                 size="small"
                 onClick={() => navigate(-1)}
-                sx={{ color: 'rgba(243,238,224,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}
+                sx={{ color: 'rgba(30,41,59,0.70)', border: '1px solid rgba(0,0,0,0.08)' }}
               >
                 <BackIcon sx={{ fontSize: 18 }} />
               </IconButton>
@@ -89,11 +89,11 @@ export default function User360() {
                     User 360° · Destek Görünümü
                   </Typography>
                 </Stack>
-                <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: 24, md: 32 }, fontWeight: 700, lineHeight: 1, color: '#F3EEE0' }}>
+                <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 24, md: 32 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
                   {user ? ([user.firstName, user.lastName].filter(Boolean).join(' ') || user.email) : 'Yükleniyor…'}
                 </Typography>
                 {user?.email && (
-                  <Typography sx={{ mt: 0.5, fontSize: 12, color: 'rgba(243,238,224,0.55)', fontFamily: 'monospace' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 12, color: 'rgba(30,41,59,0.60)', fontFamily: 'monospace' }}>
                     {user.email}
                   </Typography>
                 )}
@@ -106,12 +106,12 @@ export default function User360() {
                 label={anyFetching ? 'güncelleniyor' : `son: ${lastUpdated}`}
                 size="small"
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.04)',
-                  color: 'rgba(243,238,224,0.8)',
+                  bgcolor: 'rgba(0,0,0,0.03)',
+                  color: 'rgba(30,41,59,0.80)',
                   fontSize: 11,
                   fontWeight: 600,
                   height: 26,
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(0,0,0,0.06)',
                 }}
               />
               <Tooltip title="Tümünü Yenile" arrow>
@@ -134,7 +134,7 @@ export default function User360() {
                   flex: 1,
                   bgcolor: 'rgba(239,68,68,0.08)',
                   border: '1px solid rgba(239,68,68,0.25)',
-                  color: '#F3EEE0',
+                  color: '#1E293B',
                 }}
               >
                 <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: '#ef4444' }}>
@@ -153,7 +153,7 @@ export default function User360() {
                   flex: 1,
                   bgcolor: 'rgba(245,158,11,0.08)',
                   border: '1px solid rgba(245,158,11,0.25)',
-                  color: '#F3EEE0',
+                  color: '#1E293B',
                 }}
               >
                 <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: '#f59e0b' }}>
@@ -212,14 +212,14 @@ export default function User360() {
         </Grid>
 
         {/* Footer */}
-        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
           <Button
             size="small"
             variant="outlined"
             onClick={() => navigate('/users')}
             sx={{
               borderColor: 'rgba(201,162,39,0.2)',
-              color: 'rgba(243,238,224,0.6)',
+              color: 'rgba(30,41,59,0.60)',
               fontSize: 10,
               fontWeight: 700,
               letterSpacing: 1,

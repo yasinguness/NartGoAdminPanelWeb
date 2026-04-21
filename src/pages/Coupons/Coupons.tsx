@@ -104,7 +104,7 @@ export default function Coupons() {
   const busy = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#060C09', color: '#F3EEE0', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
+    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#FAFAFA', color: '#1E293B', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
       <Container maxWidth="xl">
         {/* Header */}
         <Box sx={{ mb: 3 }}>
@@ -121,10 +121,10 @@ export default function Coupons() {
                   <CouponIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#F3EEE0' }}>
+                  <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
                     Kuponlar
                   </Typography>
-                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(243,238,224,0.65)' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(30,41,59,0.70)' }}>
                     İndirim kodları · kullanım takibi · aktif/pasif yönetimi
                   </Typography>
                 </Box>
@@ -136,7 +136,7 @@ export default function Coupons() {
                 icon={<DotIcon sx={{ fontSize: '10px !important', color: `${list.isFetching ? '#f59e0b' : '#22c55e'} !important` }} />}
                 label={list.isFetching ? 'güncelleniyor' : `son: ${lastUpdated}`}
                 size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(243,238,224,0.8)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(255,255,255,0.08)' }}
+                sx={{ bgcolor: 'rgba(0,0,0,0.03)', color: 'rgba(30,41,59,0.80)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(0,0,0,0.06)' }}
               />
               <Tooltip title="Yenile" arrow>
                 <IconButton onClick={() => list.refetch()} size="small" sx={{ color: '#C9A227', border: '1px solid rgba(201,162,39,0.2)' }}>
@@ -146,7 +146,7 @@ export default function Coupons() {
               <Button
                 variant="contained" size="small" startIcon={<AddIcon />}
                 onClick={handleCreate}
-                sx={{ bgcolor: '#C9A227', color: '#0A130F', fontWeight: 800, '&:hover': { bgcolor: '#b58f1f' } }}
+                sx={{ bgcolor: '#C9A227', color: '#FFFFFF', fontWeight: 800, '&:hover': { bgcolor: '#b58f1f' } }}
               >
                 Yeni Kupon
               </Button>
@@ -155,7 +155,7 @@ export default function Coupons() {
         </Box>
 
         {!list.isLoading && !data && (
-          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(243,238,224,0.85)' }}
+          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(30,41,59,0.85)' }}
             action={<Button size="small" onClick={() => list.refetch()} sx={{ color: '#C9A227', fontSize: 11, fontWeight: 700 }}>Tekrar Dene</Button>}>
             <Typography sx={{ fontSize: 12 }}>
               <code style={{ fontFamily: 'monospace', fontSize: 11 }}>/tickets/admin/coupons</code> endpoint'ine ulaşılamadı.
@@ -172,14 +172,14 @@ export default function Coupons() {
             { label: 'Toplam Kullanım', value: data?.summary?.totalUsage ?? 0, color: '#C9A227' },
           ].map(c => (
             <Grid item xs={6} md={3} key={c.label}>
-              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#0F1A14', borderColor: 'rgba(201,162,39,0.18)' }}>
-                <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#F8FAFC', borderColor: 'rgba(201,162,39,0.18)' }}>
+                <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
                   {c.label}
                 </Typography>
                 {list.isLoading ? (
-                  <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+                  <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
                 ) : (
-                  <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 26, fontWeight: 700, color: c.color, lineHeight: 1.1, mt: 0.5 }}>
+                  <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 26, fontWeight: 700, color: c.color, lineHeight: 1.1, mt: 0.5 }}>
                     {c.value.toLocaleString('tr-TR')}
                   </Typography>
                 )}
@@ -189,14 +189,14 @@ export default function Coupons() {
         </Grid>
 
         {/* Table */}
-        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
+        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
           {list.isLoading ? (
             <Box sx={{ p: 2 }}>
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />)}
+              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />)}
             </Box>
           ) : coupons.length === 0 ? (
             <Box sx={{ py: 6, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: 13, color: 'rgba(243,238,224,0.5)' }}>
+              <Typography sx={{ fontSize: 13, color: 'rgba(30,41,59,0.55)' }}>
                 Henüz kupon yok
               </Typography>
               <Button startIcon={<AddIcon />} onClick={handleCreate} sx={{ mt: 2, color: '#C9A227', fontWeight: 700 }}>
@@ -204,7 +204,7 @@ export default function Coupons() {
               </Button>
             </Box>
           ) : (
-            <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' } }}>
+            <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' } }}>
               <TableHead>
                 <TableRow>
                   <HeaderCell>Kod</HeaderCell>
@@ -229,7 +229,7 @@ export default function Coupons() {
                           </Typography>
                           <Tooltip title="Kopyala" arrow>
                             <IconButton size="small" onClick={() => navigator.clipboard?.writeText(c.code)} sx={{ p: 0.25 }}>
-                              <CopyIcon sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)' }} />
+                              <CopyIcon sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)' }} />
                             </IconButton>
                           </Tooltip>
                         </Stack>
@@ -257,13 +257,13 @@ export default function Coupons() {
                             variant="determinate" value={usagePct}
                             sx={{
                               height: 4, borderRadius: 2,
-                              bgcolor: 'rgba(255,255,255,0.05)',
+                              bgcolor: 'rgba(0,0,0,0.05)',
                               '& .MuiLinearProgress-bar': { bgcolor: usagePct >= 100 ? '#ef4444' : usagePct > 80 ? '#f59e0b' : '#22c55e' },
                             }}
                           />
                         </Stack>
                       </TableCell>
-                      <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.6)' }}>
+                      <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.60)' }}>
                         {safeDate(c.validFrom)} → {safeDate(c.validTo)}
                       </TableCell>
                       <TableCell align="center">
@@ -295,8 +295,8 @@ export default function Coupons() {
           )}
         </Paper>
 
-        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(243,238,224,0.3)' }}>
+        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(30,41,59,0.35)' }}>
             NARTGO COUPONS • {coupons.length} kupon · {data?.summary?.totalUsage ?? 0} toplam kullanım
           </Typography>
         </Box>
@@ -315,7 +315,7 @@ export default function Coupons() {
 
 function HeaderCell({ children, align }: { children: React.ReactNode; align?: 'right' | 'center' }) {
   return (
-    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>
+    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>
       {children}
     </TableCell>
   );

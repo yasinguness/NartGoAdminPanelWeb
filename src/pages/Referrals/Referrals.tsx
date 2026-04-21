@@ -46,7 +46,7 @@ export default function Referrals() {
   const kFactorColor = kFactor >= 1 ? '#22c55e' : kFactor >= 0.5 ? '#C9A227' : kFactor > 0 ? '#f59e0b' : '#ef4444';
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#060C09', color: '#F3EEE0', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
+    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#FAFAFA', color: '#1E293B', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
       <Container maxWidth="xl">
         {/* Header */}
         <Box sx={{ mb: 3 }}>
@@ -63,10 +63,10 @@ export default function Referrals() {
                   <ReferralIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#F3EEE0' }}>
+                  <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
                     Davet Programı
                   </Typography>
-                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(243,238,224,0.65)' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(30,41,59,0.70)' }}>
                     K-factor · conversion oranı · en iyi davet eden kullanıcılar
                   </Typography>
                 </Box>
@@ -78,7 +78,7 @@ export default function Referrals() {
                 icon={<DotIcon sx={{ fontSize: '10px !important', color: `${isFetching ? '#f59e0b' : '#22c55e'} !important` }} />}
                 label={isFetching ? 'güncelleniyor' : `son: ${lastUpdated}`}
                 size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(243,238,224,0.8)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(255,255,255,0.08)' }}
+                sx={{ bgcolor: 'rgba(0,0,0,0.03)', color: 'rgba(30,41,59,0.80)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(0,0,0,0.06)' }}
               />
               <Tooltip title="Yenile" arrow>
                 <IconButton onClick={() => refetch()} size="small" sx={{ color: '#C9A227', border: '1px solid rgba(201,162,39,0.2)' }}>
@@ -90,7 +90,7 @@ export default function Referrals() {
         </Box>
 
         {!isLoading && !data && (
-          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(243,238,224,0.85)' }}
+          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(30,41,59,0.85)' }}
             action={<Button size="small" onClick={() => refetch()} sx={{ color: '#C9A227', fontSize: 11, fontWeight: 700 }}>Tekrar Dene</Button>}>
             <Typography sx={{ fontSize: 12 }}>
               <code style={{ fontFamily: 'monospace', fontSize: 11 }}>/auth/admin/referrals/overview</code> endpoint'ine ulaşılamadı.
@@ -107,20 +107,20 @@ export default function Referrals() {
               border: '1px solid rgba(139,92,246,0.25)',
               height: '100%',
             }}>
-              <Typography sx={{ fontSize: 10, letterSpacing: 1.5, fontWeight: 800, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+              <Typography sx={{ fontSize: 10, letterSpacing: 1.5, fontWeight: 800, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
                 K-Factor (Viral Katsayı)
               </Typography>
               {isLoading ? (
-                <Skeleton variant="text" width="60%" height={56} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+                <Skeleton variant="text" width="60%" height={56} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
               ) : (
                 <Typography sx={{
-                  fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                  fontFamily: 'inherit', fontStyle: 'normal',
                   fontSize: 56, fontWeight: 700, color: kFactorColor, lineHeight: 1, mt: 1,
                 }}>
                   {kFactor.toFixed(3)}
                 </Typography>
               )}
-              <Typography sx={{ mt: 1, fontSize: 11, color: 'rgba(243,238,224,0.5)', fontStyle: 'italic' }}>
+              <Typography sx={{ mt: 1, fontSize: 11, color: 'rgba(30,41,59,0.55)', fontStyle: 'normal' }}>
                 Her yeni kayıtta ortalama {kFactor.toFixed(2)} davet tamamlanıyor.
                 {kFactor >= 1 && ' 🚀 Viral büyüme bölgesinde.'}
                 {kFactor > 0 && kFactor < 1 && ' Sub-viral — ödül programı gözden geçir.'}
@@ -139,15 +139,15 @@ export default function Referrals() {
                 { label: 'Son 30G Tamamlanan', value: summary?.completedLast30d ?? 0, color: '#22c55e' },
               ].map(c => (
                 <Grid item xs={6} md={4} key={c.label}>
-                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#0F1A14', borderColor: 'rgba(201,162,39,0.18)', height: '100%' }}>
-                    <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#F8FAFC', borderColor: 'rgba(201,162,39,0.18)', height: '100%' }}>
+                    <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
                       {c.label}
                     </Typography>
                     {isLoading ? (
-                      <Skeleton variant="text" width="60%" height={28} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+                      <Skeleton variant="text" width="60%" height={28} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
                     ) : (
                       <Typography sx={{
-                        fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                        fontFamily: 'inherit', fontStyle: 'normal',
                         fontSize: 22, fontWeight: 700, color: c.color, lineHeight: 1.1, mt: 0.5,
                       }}>
                         {typeof c.value === 'number' ? c.value.toLocaleString('tr-TR') : c.value}
@@ -161,29 +161,29 @@ export default function Referrals() {
         </Grid>
 
         {/* Top referrers */}
-        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
-          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
             <TrophyIcon sx={{ fontSize: 16, color: '#C9A227' }} />
-            <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+            <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
               En İyi Davet Edenler
             </Typography>
           </Stack>
 
           {isLoading ? (
             <Box sx={{ p: 2 }}>
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />)}
+              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />)}
             </Box>
           ) : top.length === 0 ? (
             <Box sx={{ py: 6, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: 13, color: 'rgba(243,238,224,0.5)' }}>
+              <Typography sx={{ fontSize: 13, color: 'rgba(30,41,59,0.55)' }}>
                 Henüz davet kaydı yok
               </Typography>
-              <Typography sx={{ fontSize: 11, color: 'rgba(243,238,224,0.4)', mt: 0.5 }}>
+              <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.45)', mt: 0.5 }}>
                 Kullanıcılar davet göndermeye başladığında burada listelenecek
               </Typography>
             </Box>
           ) : (
-            <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' } }}>
+            <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' } }}>
               <TableHead>
                 <TableRow>
                   <HeaderCell>#</HeaderCell>
@@ -199,14 +199,14 @@ export default function Referrals() {
               <TableBody>
                 {top.map((r, idx) => (
                   <TableRow key={r.userId} hover sx={{ '&:hover': { bgcolor: 'rgba(201,162,39,0.05) !important' } }}>
-                    <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', color: idx < 3 ? '#C9A227' : 'rgba(243,238,224,0.5)', fontWeight: 800 }}>
+                    <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', color: idx < 3 ? '#C9A227' : 'rgba(30,41,59,0.55)', fontWeight: 800 }}>
                       {idx + 1}
                     </TableCell>
                     <TableCell>
-                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#F3EEE0' }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#1E293B' }}>
                         {r.name || '—'}
                       </Typography>
-                      <Typography sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.5)' }}>
+                      <Typography sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.55)' }}>
                         {r.email || r.userId.slice(0, 12)}
                       </Typography>
                     </TableCell>
@@ -229,14 +229,14 @@ export default function Referrals() {
                             variant="determinate" value={Math.min(100, r.conversionRate)}
                             sx={{
                               height: 4, borderRadius: 2,
-                              bgcolor: 'rgba(255,255,255,0.05)',
+                              bgcolor: 'rgba(0,0,0,0.05)',
                               '& .MuiLinearProgress-bar': { bgcolor: r.conversionRate >= 50 ? '#22c55e' : r.conversionRate >= 20 ? '#C9A227' : '#ef4444' },
                             }}
                           />
                         </Stack>
                       )}
                     </TableCell>
-                    <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.6)' }}>
+                    <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.60)' }}>
                       {safeDate(r.lastInviteAt)}
                     </TableCell>
                     <TableCell align="center">
@@ -253,8 +253,8 @@ export default function Referrals() {
           )}
         </Paper>
 
-        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(243,238,224,0.3)' }}>
+        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(30,41,59,0.35)' }}>
             NARTGO REFERRALS • {summary?.totalInvites ?? 0} toplam davet · K={kFactor.toFixed(3)}
           </Typography>
         </Box>
@@ -265,7 +265,7 @@ export default function Referrals() {
 
 function HeaderCell({ children, align }: { children?: React.ReactNode; align?: 'right' | 'center' }) {
   return (
-    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>
+    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>
       {children}
     </TableCell>
   );

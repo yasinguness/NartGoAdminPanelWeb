@@ -334,7 +334,7 @@ export default function ContentDetail() {
             {blocks.length > 0 ? (
               <RichContentRenderer blocks={blocks} />
             ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'normal' }}>
                 İçerik gövdesi henüz eklenmemiş.
               </Typography>
             )}

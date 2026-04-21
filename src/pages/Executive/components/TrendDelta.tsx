@@ -11,7 +11,7 @@ interface Props {
 export default function TrendDelta({ deltaPct, label = 'geçen döneme göre', invert = false, compact = false }: Props) {
   if (deltaPct === undefined || deltaPct === null || !isFinite(deltaPct)) {
     return (
-      <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, fontStyle: 'italic' }}>
+      <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, fontStyle: 'normal' }}>
         trend yok
       </Typography>
     );

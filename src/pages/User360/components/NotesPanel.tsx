@@ -54,14 +54,14 @@ export default function NotesPanel({ userId, notes, loading, onChange }: Props) 
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', height: '100%' }}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', height: '100%' }}>
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
         <NoteIcon sx={{ fontSize: 16, color: '#C9A227' }} />
-        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
           Admin Notları
         </Typography>
         {notes && notes.length > 0 && (
-          <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.4)' }}>
+          <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.45)' }}>
             ({notes.length})
           </Typography>
         )}
@@ -78,10 +78,10 @@ export default function NotesPanel({ userId, notes, loading, onChange }: Props) 
           maxRows={3}
           sx={{
             '& .MuiOutlinedInput-root': {
-              bgcolor: 'rgba(255,255,255,0.03)',
+              bgcolor: 'rgba(0,0,0,0.02)',
               fontSize: 12,
-              color: '#F3EEE0',
-              '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' },
+              color: '#1E293B',
+              '& fieldset': { borderColor: 'rgba(0,0,0,0.06)' },
               '&:hover fieldset': { borderColor: 'rgba(201,162,39,0.3)' },
               '&.Mui-focused fieldset': { borderColor: '#C9A227' },
             },
@@ -95,12 +95,12 @@ export default function NotesPanel({ userId, notes, loading, onChange }: Props) 
           startIcon={<AddIcon sx={{ fontSize: 14 }} />}
           sx={{
             bgcolor: '#C9A227',
-            color: '#0A130F',
+            color: '#FFFFFF',
             fontSize: 11,
             fontWeight: 700,
             minWidth: 80,
             '&:hover': { bgcolor: '#b58f1f' },
-            '&.Mui-disabled': { bgcolor: 'rgba(255,255,255,0.06)' },
+            '&.Mui-disabled': { bgcolor: 'rgba(0,0,0,0.05)' },
           }}
         >
           Ekle
@@ -110,12 +110,12 @@ export default function NotesPanel({ userId, notes, loading, onChange }: Props) 
       {loading ? (
         <Stack spacing={1}>
           {[1, 2].map(i => (
-            <Skeleton key={i} variant="rectangular" height={60} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1 }} />
+            <Skeleton key={i} variant="rectangular" height={60} sx={{ bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 1 }} />
           ))}
         </Stack>
       ) : !notes || notes.length === 0 ? (
         <Box sx={{ py: 2, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             Henüz not yok
           </Typography>
         </Box>
@@ -132,14 +132,14 @@ export default function NotesPanel({ userId, notes, loading, onChange }: Props) 
               }}
             >
               <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
-                <Typography sx={{ fontSize: 12, color: '#F3EEE0', flex: 1, whiteSpace: 'pre-wrap' }}>
+                <Typography sx={{ fontSize: 12, color: '#1E293B', flex: 1, whiteSpace: 'pre-wrap' }}>
                   {n.content}
                 </Typography>
-                <IconButton size="small" onClick={() => handleDelete(n.id)} sx={{ color: 'rgba(243,238,224,0.4)', '&:hover': { color: '#ef4444' } }}>
+                <IconButton size="small" onClick={() => handleDelete(n.id)} sx={{ color: 'rgba(30,41,59,0.45)', '&:hover': { color: '#ef4444' } }}>
                   <DeleteIcon sx={{ fontSize: 14 }} />
                 </IconButton>
               </Stack>
-              <Typography sx={{ fontSize: 9, color: 'rgba(243,238,224,0.4)', fontFamily: 'monospace', mt: 0.5 }}>
+              <Typography sx={{ fontSize: 9, color: 'rgba(30,41,59,0.45)', fontFamily: 'monospace', mt: 0.5 }}>
                 {n.authorEmail || n.authorName || '—'} · {safeDate(n.createdAt)}
               </Typography>
             </Box>

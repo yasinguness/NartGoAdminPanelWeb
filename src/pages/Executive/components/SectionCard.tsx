@@ -15,7 +15,7 @@ export default function SectionCard({ children, partial, partialMessage }: Props
       sx={{
         p: 3,
         borderRadius: 3,
-        bgcolor: '#0A130F',
+        bgcolor: '#FFFFFF',
         border: '1px solid rgba(201,162,39,0.12)',
         position: 'relative',
         overflow: 'hidden',
@@ -39,7 +39,7 @@ export default function SectionCard({ children, partial, partialMessage }: Props
             <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', letterSpacing: 0.5 }}>
               KISMİ VERİ
             </Typography>
-            <Typography sx={{ fontSize: 11, color: 'rgba(243,238,224,0.7)' }}>
+            <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.70)' }}>
               {partialMessage || 'Bu bölüm için backend endpoint\'i henüz aktif değil. Yaklaşık değerler gösteriliyor.'}
             </Typography>
           </Stack>

@@ -48,19 +48,19 @@ export default function RefundTable({ rows, loading, onAction, statusFilter, onS
   const paginated = filtered.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
+    <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
       {/* Filter bar */}
-      <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+      <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(0,0,0,0.05)', display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
         <ToggleButtonGroup
           size="small"
           value={statusFilter}
           exclusive
           onChange={(_, v) => v && onStatusFilter(v)}
           sx={{
-            bgcolor: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            bgcolor: 'rgba(0,0,0,0.02)',
+            border: '1px solid rgba(0,0,0,0.06)',
             '& .MuiToggleButton-root': {
-              color: 'rgba(243,238,224,0.6)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
+              color: 'rgba(30,41,59,0.60)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
               '&.Mui-selected': { bgcolor: 'rgba(201,162,39,0.18)', color: '#C9A227' },
             },
           }}
@@ -76,13 +76,13 @@ export default function RefundTable({ rows, loading, onAction, statusFilter, onS
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(0); }}
           InputProps={{
-            startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'rgba(243,238,224,0.4)' }} /></InputAdornment>,
+            startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'rgba(30,41,59,0.45)' }} /></InputAdornment>,
           }}
           sx={{
             minWidth: 280,
             '& .MuiOutlinedInput-root': {
-              bgcolor: 'rgba(255,255,255,0.03)', fontSize: 12, color: '#F3EEE0',
-              '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' },
+              bgcolor: 'rgba(0,0,0,0.02)', fontSize: 12, color: '#1E293B',
+              '& fieldset': { borderColor: 'rgba(0,0,0,0.06)' },
             },
           }}
         />
@@ -92,7 +92,7 @@ export default function RefundTable({ rows, loading, onAction, statusFilter, onS
       {loading ? (
         <Box sx={{ p: 2 }}>
           {[1, 2, 3, 4, 5].map(i => (
-            <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />
+            <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />
           ))}
         </Box>
       ) : !rows || rows.length === 0 ? (
@@ -103,14 +103,14 @@ export default function RefundTable({ rows, loading, onAction, statusFilter, onS
         </Box>
       ) : filtered.length === 0 ? (
         <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             Filtreyle eşleşen iade yok
           </Typography>
         </Box>
       ) : (
         <>
           <Table size="small" sx={{
-            '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' },
+            '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' },
           }}>
             <TableHead>
               <TableRow>
@@ -146,11 +146,11 @@ export default function RefundTable({ rows, loading, onAction, statusFilter, onS
                   </TableCell>
                   <TableCell>
                     <Stack spacing={0.25}>
-                      <Typography sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.7)' }}>
+                      <Typography sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.70)' }}>
                         refund: {r.refundId.slice(0, 8)}…
                       </Typography>
                       {r.paymentId && (
-                        <Typography sx={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(243,238,224,0.4)' }}>
+                        <Typography sx={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(30,41,59,0.45)' }}>
                           pay: {r.paymentId.slice(0, 8)}…
                         </Typography>
                       )}
@@ -159,7 +159,7 @@ export default function RefundTable({ rows, loading, onAction, statusFilter, onS
                   <TableCell align="right" sx={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#ef4444' }}>
                     −{formatMoneyFull(r.amount, r.currency)}
                   </TableCell>
-                  <TableCell sx={{ fontSize: 11, color: 'rgba(243,238,224,0.7)', maxWidth: 280 }}>
+                  <TableCell sx={{ fontSize: 11, color: 'rgba(30,41,59,0.70)', maxWidth: 280 }}>
                     <Typography sx={{ fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {r.reason || '—'}
                     </Typography>
@@ -167,12 +167,12 @@ export default function RefundTable({ rows, loading, onAction, statusFilter, onS
                   <TableCell align="center">
                     <Typography sx={{
                       fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
-                      color: r.slaBreach ? '#ef4444' : (r.ageHours ?? 0) > 24 ? '#f59e0b' : 'rgba(243,238,224,0.7)',
+                      color: r.slaBreach ? '#ef4444' : (r.ageHours ?? 0) > 24 ? '#f59e0b' : 'rgba(30,41,59,0.70)',
                     }}>
                       {formatAge(r.ageHours)}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.6)' }}>
+                  <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.60)' }}>
                     {safeDate(r.refundDate)}
                   </TableCell>
                   <TableCell align="center">
@@ -206,9 +206,9 @@ export default function RefundTable({ rows, loading, onAction, statusFilter, onS
             labelRowsPerPage="Sayfa başı"
             labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
             sx={{
-              color: 'rgba(243,238,224,0.7)',
-              borderTop: '1px solid rgba(255,255,255,0.05)',
-              '& .MuiSelect-icon': { color: 'rgba(243,238,224,0.5)' },
+              color: 'rgba(30,41,59,0.70)',
+              borderTop: '1px solid rgba(0,0,0,0.05)',
+              '& .MuiSelect-icon': { color: 'rgba(30,41,59,0.55)' },
             }}
           />
         </>
@@ -219,7 +219,7 @@ export default function RefundTable({ rows, loading, onAction, statusFilter, onS
 
 function HeaderCell({ children, align }: { children: React.ReactNode; align?: 'right' | 'center' }) {
   return (
-    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>
+    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>
       {children}
     </TableCell>
   );

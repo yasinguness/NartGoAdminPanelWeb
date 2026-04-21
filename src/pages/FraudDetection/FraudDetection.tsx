@@ -96,7 +96,7 @@ export default function FraudDetection() {
   const highRisk = (data?.suspicious || []).filter(s => s.severity === 'high').length;
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#060C09', color: '#F3EEE0', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
+    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#FAFAFA', color: '#1E293B', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
       <Container maxWidth="xl">
         {/* Header */}
         <Box sx={{ mb: 3 }}>
@@ -113,10 +113,10 @@ export default function FraudDetection() {
                   <FraudIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#F3EEE0' }}>
+                  <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
                     Fraud Tespiti
                   </Typography>
-                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(243,238,224,0.65)' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(30,41,59,0.70)' }}>
                     Sipariş pattern analizi · flag yönetimi · 3+ iade / 5+ başarısız tespiti
                   </Typography>
                 </Box>
@@ -127,9 +127,9 @@ export default function FraudDetection() {
               <ToggleButtonGroup
                 size="small" value={view} exclusive onChange={(_, v) => v && setView(v)}
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                  bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)',
                   '& .MuiToggleButton-root': {
-                    color: 'rgba(243,238,224,0.6)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
+                    color: 'rgba(30,41,59,0.60)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
                     '&.Mui-selected': { bgcolor: 'rgba(201,162,39,0.18)', color: '#C9A227' },
                   },
                 }}
@@ -141,7 +141,7 @@ export default function FraudDetection() {
                 icon={<DotIcon sx={{ fontSize: '10px !important', color: `${isFetching ? '#f59e0b' : '#22c55e'} !important` }} />}
                 label={isFetching ? 'güncelleniyor' : `son: ${lastUpdated}`}
                 size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(243,238,224,0.8)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(255,255,255,0.08)' }}
+                sx={{ bgcolor: 'rgba(0,0,0,0.03)', color: 'rgba(30,41,59,0.80)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(0,0,0,0.06)' }}
               />
               <Tooltip title="Yenile" arrow>
                 <IconButton onClick={() => refetch()} size="small" sx={{ color: '#C9A227', border: '1px solid rgba(201,162,39,0.2)' }}>
@@ -160,7 +160,7 @@ export default function FraudDetection() {
         </Box>
 
         {!isLoading && !data && (
-          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(243,238,224,0.85)' }}
+          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(30,41,59,0.85)' }}
             action={<Button size="small" onClick={() => refetch()} sx={{ color: '#C9A227', fontSize: 11, fontWeight: 700 }}>Tekrar Dene</Button>}>
             <Typography sx={{ fontSize: 12 }}>
               <code style={{ fontFamily: 'monospace', fontSize: 11 }}>/tickets/admin/fraud/overview</code> endpoint'ine ulaşılamadı.
@@ -177,7 +177,7 @@ export default function FraudDetection() {
         </Grid>
 
         {/* Table */}
-        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
+        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
           {view === 'SUSPICIOUS' ? (
             <SuspiciousView
               rows={data?.suspicious || []}
@@ -195,17 +195,17 @@ export default function FraudDetection() {
           )}
         </Paper>
 
-        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(243,238,224,0.3)' }}>
+        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(30,41,59,0.35)' }}>
             NARTGO FRAUD • {data?.flaggedCount ?? 0} flag'li · {data?.suspiciousCount ?? 0} şüpheli
           </Typography>
         </Box>
 
         {/* Flag dialog */}
         <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth
-          PaperProps={{ sx: { bgcolor: '#0A130F', color: '#F3EEE0', border: '1px solid rgba(239,68,68,0.25)' } }}>
-          <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 20, fontWeight: 700 }}>
+          PaperProps={{ sx: { bgcolor: '#FFFFFF', color: '#1E293B', border: '1px solid rgba(239,68,68,0.25)' } }}>
+          <DialogTitle sx={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+            <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 20, fontWeight: 700 }}>
               Kullanıcıyı Fraud Olarak İşaretle
             </Typography>
           </DialogTitle>
@@ -224,8 +224,8 @@ export default function FraudDetection() {
               />
             </Stack>
           </DialogContent>
-          <DialogActions sx={{ borderTop: '1px solid rgba(255,255,255,0.06)', px: 3, py: 2 }}>
-            <Button onClick={() => setDialogOpen(false)} disabled={flagMutation.isPending} sx={{ color: 'rgba(243,238,224,0.6)', fontWeight: 700 }}>
+          <DialogActions sx={{ borderTop: '1px solid rgba(0,0,0,0.05)', px: 3, py: 2 }}>
+            <Button onClick={() => setDialogOpen(false)} disabled={flagMutation.isPending} sx={{ color: 'rgba(30,41,59,0.60)', fontWeight: 700 }}>
               İptal
             </Button>
             <Button
@@ -249,7 +249,7 @@ function SuspiciousView({ rows, loading, onFlag, onOpenUser }: {
   if (loading) {
     return (
       <Box sx={{ p: 2 }}>
-        {[1, 2, 3, 4].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />)}
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />)}
       </Box>
     );
   }
@@ -261,7 +261,7 @@ function SuspiciousView({ rows, loading, onFlag, onOpenUser }: {
     );
   }
   return (
-    <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' } }}>
+    <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' } }}>
       <TableHead>
         <TableRow>
           <HeaderCell>Email</HeaderCell>
@@ -280,7 +280,7 @@ function SuspiciousView({ rows, loading, onFlag, onOpenUser }: {
             <TableCell align="center">
               <Chip label={s.severity.toUpperCase()} size="small" sx={{ bgcolor: `${SEVERITY_COLOR[s.severity] || '#64748b'}22`, color: SEVERITY_COLOR[s.severity] || '#64748b', fontSize: 9, fontWeight: 800, letterSpacing: 0.5, height: 18 }} />
             </TableCell>
-            <TableCell sx={{ fontSize: 11, color: 'rgba(243,238,224,0.75)', maxWidth: 320 }}>
+            <TableCell sx={{ fontSize: 11, color: 'rgba(30,41,59,0.75)', maxWidth: 320 }}>
               <Typography sx={{ fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {s.riskReason}
               </Typography>
@@ -319,19 +319,19 @@ function FlaggedView({ rows, loading, onUnflag, onOpenUser }: {
   if (loading) {
     return (
       <Box sx={{ p: 2 }}>
-        {[1, 2, 3].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />)}
+        {[1, 2, 3].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />)}
       </Box>
     );
   }
   if (rows.length === 0) {
     return (
       <Box sx={{ py: 6, textAlign: 'center' }}>
-        <Typography sx={{ fontSize: 13, color: 'rgba(243,238,224,0.5)' }}>Flag'li kullanıcı yok</Typography>
+        <Typography sx={{ fontSize: 13, color: 'rgba(30,41,59,0.55)' }}>Flag'li kullanıcı yok</Typography>
       </Box>
     );
   }
   return (
-    <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' } }}>
+    <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' } }}>
       <TableHead>
         <TableRow>
           <HeaderCell>Email</HeaderCell>
@@ -345,11 +345,11 @@ function FlaggedView({ rows, loading, onUnflag, onOpenUser }: {
         {rows.map(f => (
           <TableRow key={f.id} hover sx={{ '&:hover': { bgcolor: 'rgba(201,162,39,0.05) !important' } }}>
             <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, color: '#ef4444' }}>{f.email}</TableCell>
-            <TableCell sx={{ fontSize: 11, color: 'rgba(243,238,224,0.75)', maxWidth: 360 }}>
+            <TableCell sx={{ fontSize: 11, color: 'rgba(30,41,59,0.75)', maxWidth: 360 }}>
               <Typography sx={{ fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.reason}</Typography>
             </TableCell>
             <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: '#C9A227' }}>{f.flaggedByEmail}</TableCell>
-            <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.6)' }}>{safeDate(f.flaggedAt)}</TableCell>
+            <TableCell sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.60)' }}>{safeDate(f.flaggedAt)}</TableCell>
             <TableCell align="center">
               <Stack direction="row" justifyContent="center" spacing={0.5}>
                 <Tooltip title="Kullanıcıyı aç" arrow>
@@ -374,18 +374,18 @@ function FlaggedView({ rows, loading, onUnflag, onOpenUser }: {
 function StatTile({ label, value, color, loading, hint, asString }: { label: string; value: number | string; color: string; loading?: boolean; hint?: string; asString?: boolean }) {
   return (
     <Grid item xs={6} md={3}>
-      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#0F1A14', borderColor: 'rgba(201,162,39,0.18)' }}>
-        <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#F8FAFC', borderColor: 'rgba(201,162,39,0.18)' }}>
+        <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
           {label}
         </Typography>
         {loading ? (
-          <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+          <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
         ) : (
-          <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: asString ? 14 : 26, fontWeight: 700, color, lineHeight: 1.1, mt: 0.5 }}>
+          <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: asString ? 14 : 26, fontWeight: 700, color, lineHeight: 1.1, mt: 0.5 }}>
             {typeof value === 'number' ? value.toLocaleString('tr-TR') : value}
           </Typography>
         )}
-        {hint && <Typography sx={{ mt: 0.5, fontSize: 9, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>{hint}</Typography>}
+        {hint && <Typography sx={{ mt: 0.5, fontSize: 9, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>{hint}</Typography>}
       </Paper>
     </Grid>
   );
@@ -393,18 +393,18 @@ function StatTile({ label, value, color, loading, hint, asString }: { label: str
 
 function HeaderCell({ children, align }: { children: React.ReactNode; align?: 'right' | 'center' }) {
   return (
-    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>
+    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>
       {children}
     </TableCell>
   );
 }
 
 const fieldSx = {
-  '& .MuiInputLabel-root': { color: 'rgba(243,238,224,0.6)', fontSize: 12 },
+  '& .MuiInputLabel-root': { color: 'rgba(30,41,59,0.60)', fontSize: 12 },
   '& .MuiInputLabel-root.Mui-focused': { color: '#C9A227' },
   '& .MuiOutlinedInput-root': {
-    bgcolor: 'rgba(255,255,255,0.03)', fontSize: 12, color: '#F3EEE0',
-    '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' },
+    bgcolor: 'rgba(0,0,0,0.02)', fontSize: 12, color: '#1E293B',
+    '& fieldset': { borderColor: 'rgba(0,0,0,0.06)' },
     '&:hover fieldset': { borderColor: 'rgba(201,162,39,0.3)' },
     '&.Mui-focused fieldset': { borderColor: '#C9A227' },
   },

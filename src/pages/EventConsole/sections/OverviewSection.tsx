@@ -246,7 +246,7 @@ function StatCard({ label, primary, secondary, sub, accent }: StatCardProps) {
         </Typography>
         <Stack direction="row" alignItems="baseline" spacing={0.5}>
           <Typography sx={{
-            fontFamily: 'serif', fontStyle: 'italic', fontSize: 28,
+            fontFamily: 'serif', fontStyle: 'normal', fontSize: 28,
             fontWeight: 700, color: accent || 'text.primary', lineHeight: 1,
           }}>
             {primary}

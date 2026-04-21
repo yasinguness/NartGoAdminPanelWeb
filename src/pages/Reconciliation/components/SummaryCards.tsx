@@ -34,7 +34,7 @@ export default function SummaryCards({ summary, totalMismatches, loading }: Prop
             sx={{
               p: 2,
               borderRadius: 2,
-              bgcolor: '#0F1A14',
+              bgcolor: '#F8FAFC',
               borderColor: 'rgba(201,162,39,0.18)',
               height: '100%',
             }}
@@ -47,16 +47,16 @@ export default function SummaryCards({ summary, totalMismatches, loading }: Prop
               }}>
                 {c.icon}
               </Box>
-              <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+              <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
                 {c.label}
               </Typography>
             </Stack>
             {loading ? (
-              <Skeleton variant="text" width="60%" height={28} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+              <Skeleton variant="text" width="60%" height={28} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
             ) : (
               <Typography sx={{
-                fontFamily: 'Georgia, serif',
-                fontStyle: 'italic',
+                fontFamily: 'inherit',
+                fontStyle: 'normal',
                 fontSize: 22,
                 fontWeight: 700,
                 color: c.color,
@@ -66,7 +66,7 @@ export default function SummaryCards({ summary, totalMismatches, loading }: Prop
               </Typography>
             )}
             {c.subtitle && (
-              <Typography sx={{ mt: 0.5, fontSize: 10, color: 'rgba(243,238,224,0.45)', fontStyle: 'italic' }}>
+              <Typography sx={{ mt: 0.5, fontSize: 10, color: 'rgba(30,41,59,0.50)', fontStyle: 'normal' }}>
                 {c.subtitle}
               </Typography>
             )}

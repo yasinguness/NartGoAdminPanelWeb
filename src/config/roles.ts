@@ -67,7 +67,7 @@ type RouteAccess = { path: string; roles: Role[]; description?: string };
 export const ROLE_ROUTE_MAP: RouteAccess[] = [
   // ── Genel ──
   { path: '/dashboard', roles: [...ORG, ROLES.EDITOR, ROLES.ASSOCIATION], description: 'Ana kontrol paneli' },
-  { path: '/executive', roles: ADMIN_ONLY, description: 'Executive KPI kontrol paneli' },
+  { path: '/executive', roles: ADMIN_ONLY, description: 'Stratejik KPI kontrol paneli' },
 
   // ── Etkinlik Yönetimi (organizatör) ──
   { path: '/events', roles: ORG, description: 'Etkinlik listesi' },
@@ -82,7 +82,7 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   // ── Satış & Finans ──
   { path: '/sales-command', roles: ORG, description: 'Satış komuta merkezi' },
   { path: '/box-office', roles: ORG, description: 'Gişe' },
-  { path: '/venue-inventory', roles: ORG, description: 'Mekan envanter' },
+  { path: '/venue-inventory', roles: ADMIN_ONLY, description: 'Mekan envanter (global mekan y\u00f6netimi — admin)' },
   { path: '/settlement-finance', roles: ADMIN_ONLY, description: 'Mutabakat & finans' },
   { path: '/finance/overview', roles: ADMIN_ONLY, description: 'Finansal genel bak\u0131\u015f (P&L)' },
   { path: '/finance/reconciliation', roles: ADMIN_ONLY, description: 'Iyzico \u2194 DB mutabakat\u0131' },
@@ -134,6 +134,11 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   { path: '/security/sessions', roles: ADMIN_ONLY, description: 'Aktif oturumlar' },
   { path: '/security/anomalies', roles: ADMIN_ONLY, description: 'Anomali tarama' },
   { path: '/security/fraud', roles: ADMIN_ONLY, description: 'Fraud tespiti' },
+
+  // ── Kullanıcı Etkileşimi ──
+  { path: '/engagement/inactive-users', roles: ADMIN_ONLY, description: '\u0130naktif kullan\u0131c\u0131 y\u00f6netimi' },
+  { path: '/engagement/login-frequency', roles: ADMIN_ONLY, description: 'Login s\u0131kl\u0131\u011f\u0131 analizi' },
+  { path: '/engagement/product-analytics', roles: ADMIN_ONLY, description: '\u00dcr\u00fcn kullan\u0131m analiti\u011fi' },
 
   // ── Sistem ──
   { path: '/devices', roles: ADMIN_ONLY, description: 'Cihaz yönetimi' },

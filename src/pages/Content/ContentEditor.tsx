@@ -767,7 +767,7 @@ export default function ContentEditor() {
             <Chip
               label={article?.status === ArticleStatus.PUBLISHED ? 'Yayında' : 'Taslak'}
               size="small"
-              sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: 'white', fontWeight: 700, fontSize: 11, height: 22 }}
+              sx={{ bgcolor: 'rgba(0,0,0,0.10)', color: 'white', fontWeight: 700, fontSize: 11, height: 22 }}
             />
             {isDirty && (
               <Chip
@@ -795,7 +795,7 @@ export default function ContentEditor() {
                   borderRadius: 1.5,
                   color: previewDevice === 'desktop' ? '#1a5c28' : 'rgba(255,255,255,0.7)',
                   bgcolor: previewDevice === 'desktop' ? 'white' : 'transparent',
-                  '&:hover': { bgcolor: previewDevice === 'desktop' ? 'white' : 'rgba(255,255,255,0.1)' },
+                  '&:hover': { bgcolor: previewDevice === 'desktop' ? 'white' : 'rgba(0,0,0,0.08)' },
                   minWidth: 0,
                 }}
               >
@@ -814,7 +814,7 @@ export default function ContentEditor() {
                   borderRadius: 1.5,
                   color: previewDevice === 'mobile' ? '#1a5c28' : 'rgba(255,255,255,0.7)',
                   bgcolor: previewDevice === 'mobile' ? 'white' : 'transparent',
-                  '&:hover': { bgcolor: previewDevice === 'mobile' ? 'white' : 'rgba(255,255,255,0.1)' },
+                  '&:hover': { bgcolor: previewDevice === 'mobile' ? 'white' : 'rgba(0,0,0,0.08)' },
                   minWidth: 0,
                 }}
               >
@@ -833,7 +833,7 @@ export default function ContentEditor() {
                 borderColor: 'rgba(255,255,255,0.4)',
                 color: 'white',
                 borderRadius: 2,
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', borderColor: 'white' },
+                '&:hover': { bgcolor: 'rgba(0,0,0,0.08)', borderColor: 'white' },
               }}
             >
               Düzenlemeye Dön
@@ -936,7 +936,7 @@ export default function ContentEditor() {
                         mb: 4,
                         fontSize: previewDevice === 'mobile' ? 15 : 17,
                         lineHeight: 1.75,
-                        fontStyle: 'italic',
+                        fontStyle: 'normal',
                         borderLeft: '4px solid #1a5c28',
                         pl: 2.5,
                         py: 0.5,
@@ -959,11 +959,11 @@ export default function ContentEditor() {
                         '& p': { mb: 1.5, lineHeight: 1.85, fontSize: previewDevice === 'mobile' ? 15 : 16 },
                         '& ul,& ol': { pl: 3, mb: 1.5 },
                         '& li': { mb: 0.5, lineHeight: 1.8 },
-                        '& blockquote': { borderLeft: '4px solid #1a5c28', pl: 2.5, ml: 0, color: 'text.secondary', my: 2.5, fontStyle: 'italic' },
+                        '& blockquote': { borderLeft: '4px solid #1a5c28', pl: 2.5, ml: 0, color: 'text.secondary', my: 2.5, fontStyle: 'normal' },
                         '& img': { maxWidth: '100%', borderRadius: 2, my: 1.5 },
                         '& a': { color: '#1a5c28', fontWeight: 600 },
                         '& strong,& b': { fontWeight: 700 },
-                        '& em,& i': { fontStyle: 'italic' },
+                        '& em,& i': { fontStyle: 'normal' },
                         '& pre,& code': { fontFamily: 'monospace', bgcolor: '#F3F4F6', borderRadius: 1, p: 0.5, fontSize: 14 },
                         '& hr': { border: 'none', borderTop: '1px solid', borderColor: 'divider', my: 4 },
                         '& table': { width: '100%', borderCollapse: 'collapse', mb: 2 },

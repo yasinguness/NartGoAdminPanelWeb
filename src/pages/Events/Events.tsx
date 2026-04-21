@@ -513,7 +513,7 @@ export default function Events() {
                         fontSize: 11,
                         px: 1.5, py: 0.5,
                         borderRadius: 1.5,
-                        bgcolor: '#0F1A14',
+                        bgcolor: '#F8FAFC',
                         color: '#C9A227',
                         '&:hover': { bgcolor: '#1a2b1f' },
                         whiteSpace: 'nowrap',

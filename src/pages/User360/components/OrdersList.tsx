@@ -38,14 +38,14 @@ export default function OrdersList({ rows, currency = 'TRY', loading }: Props) {
   const navigate = useNavigate();
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
-      <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+    <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
+      <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-          <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+          <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
             Son Siparişler
           </Typography>
           {rows && rows.length > 0 && (
-            <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.4)' }}>
+            <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.45)' }}>
               {rows.length} kayıt
             </Typography>
           )}
@@ -55,25 +55,25 @@ export default function OrdersList({ rows, currency = 'TRY', loading }: Props) {
       {loading ? (
         <Box sx={{ p: 2 }}>
           {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} variant="rectangular" height={36} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />
+            <Skeleton key={i} variant="rectangular" height={36} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />
           ))}
         </Box>
       ) : !rows || rows.length === 0 ? (
         <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             Sipariş geçmişi yok
           </Typography>
         </Box>
       ) : (
         <Table size="small" sx={{
-          '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' },
+          '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' },
         }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>Tarih</TableCell>
-              <TableCell sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>Etkinlik</TableCell>
-              <TableCell align="center" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>Durum</TableCell>
-              <TableCell align="right" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>Tutar</TableCell>
+              <TableCell sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>Tarih</TableCell>
+              <TableCell sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>Etkinlik</TableCell>
+              <TableCell align="center" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>Durum</TableCell>
+              <TableCell align="right" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>Tutar</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -87,7 +87,7 @@ export default function OrdersList({ rows, currency = 'TRY', loading }: Props) {
                   '&:hover': { bgcolor: 'rgba(201,162,39,0.05) !important' },
                 }}
               >
-                <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(243,238,224,0.7)' }}>
+                <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(30,41,59,0.70)' }}>
                   {safeDate(o.createdAt)}
                 </TableCell>
                 <TableCell sx={{ fontSize: 12, fontWeight: 600 }}>

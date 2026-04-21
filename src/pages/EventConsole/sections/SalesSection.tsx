@@ -108,7 +108,7 @@ export default function SalesSection({ event }: { event: EventResponseDTO }) {
               <Typography variant="caption" sx={{ letterSpacing: 1.2, fontSize: 10, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
                 Bilet Doluluğu
               </Typography>
-              <Typography variant="h6" sx={{ fontFamily: 'serif', fontStyle: 'italic', fontWeight: 700, lineHeight: 1, mt: 0.5 }}>
+              <Typography variant="h6" sx={{ fontFamily: 'serif', fontStyle: 'normal', fontWeight: 700, lineHeight: 1, mt: 0.5 }}>
                 {loading ? <Skeleton width={80} /> : `${metrics?.ticketsSold ?? 0} / ${capacity}`}
               </Typography>
             </Box>
@@ -150,7 +150,7 @@ export default function SalesSection({ event }: { event: EventResponseDTO }) {
           <Skeleton variant="rectangular" height={120} />
         ) : !metrics || metrics.byDay.length === 0 ? (
           <Box sx={{ py: 3, textAlign: 'center' }}>
-            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'normal' }}>
               Grafik için veri yok
             </Typography>
           </Box>
@@ -167,7 +167,7 @@ export default function SalesSection({ event }: { event: EventResponseDTO }) {
         {loading ? (
           <Skeleton variant="rectangular" height={36} />
         ) : !metrics || metrics.totalOrders === 0 ? (
-          <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>Henüz sipariş yok</Typography>
+          <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'normal' }}>Henüz sipariş yok</Typography>
         ) : (
           <>
             <StatusBar segments={[
@@ -195,7 +195,7 @@ export default function SalesSection({ event }: { event: EventResponseDTO }) {
 
       {/* Alt açıklayıcı */}
       <Divider sx={{ my: 1 }} />
-      <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic', textAlign: 'center' }}>
+      <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'normal', textAlign: 'center' }}>
         Detaylı sipariş tablosu, iade işlemleri ve indirim kodları için <strong>Siparişler & Katılımcılar</strong> sekmesini kullanın.
       </Typography>
     </Stack>
@@ -288,7 +288,7 @@ function KpiTile({ icon, label, value, valueStr, sub, color }: {
         {displayValue === null ? (
           <Skeleton width="70%" height={28} />
         ) : (
-          <Typography sx={{ fontFamily: 'serif', fontStyle: 'italic', fontSize: 22, fontWeight: 700, color, lineHeight: 1 }}>
+          <Typography sx={{ fontFamily: 'serif', fontStyle: 'normal', fontSize: 22, fontWeight: 700, color, lineHeight: 1 }}>
             {displayValue}
           </Typography>
         )}

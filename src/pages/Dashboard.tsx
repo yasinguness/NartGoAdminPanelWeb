@@ -210,17 +210,18 @@ function QuickAction({ icon, label, desc, color, onClick }: {
   );
 }
 
-// ─── Main Component ───
+// ─── Main Component (role-aware router) ───
 export default function Dashboard() {
+  const { isAdmin, isOrganizer } = useRole();
+  if (isOrganizer && !isAdmin) return <OrganizerDashboard />;
+  return <AdminDashboard />;
+}
+
+function AdminDashboard() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  const { userName, isAdmin, isOrganizer } = useRole();
-
-  // Organizatör → kendi dashboard'unu göster
-  if (isOrganizer && !isAdmin) {
-    return <OrganizerDashboard />;
-  }
+  const { userName, isAdmin } = useRole();
 
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<LoginStatsOverviewDto | null>(null);
@@ -251,14 +252,14 @@ export default function Dashboard() {
     setLoading(true);
     const results = await Promise.allSettled([
       adminLoginStatsService.getOverview(query),
-      adminLoginStatsService.getRecentUsers({ ...query, page, size: 10 }),
+      adminLoginStatsService.getRecentUsers({ ...query, page, size: 10, source: 'MOBILE' }),
       adminLoginStatsService.getEngagementOverview(),
-      adminLoginStatsService.getTopWeeklyUsers({ ...query, limit: 10 }),
+      adminLoginStatsService.getTopWeeklyUsers({ ...query, limit: 10, source: 'MOBILE' }),
       adminLoginStatsService.getActiveAlerts(query),
-      adminLoginStatsService.getRecentLogs({ ...query, limit: 10 }),
+      adminLoginStatsService.getRecentLogs({ ...query, limit: 10, source: 'MOBILE' }),
       campaignService.getCampaigns(undefined, 0, 5),
       api.get('/businesses', { params: { page: 0, size: 1 } }).catch(() => null),
-      api.get('/auth/all-users', { params: { page: 0, size: 1 } }).catch(() => null),
+      api.get('/auth/admin/users/count').catch(() => null),
       api.get('/events/popular/all', { params: { page: 0, size: 1 } }).catch(() => null),
     ]);
 
@@ -288,8 +289,10 @@ export default function Dashboard() {
       counts.businesses = d?.totalElements ?? d?.total ?? 0;
     }
     if (results[8]?.status === 'fulfilled') {
-      const d = (results[8] as any).value?.data?.data;
-      counts.users = d?.totalElements ?? d?.total ?? 0;
+      // /auth/admin/users/count → ApiResponse<Long> ; payload.data = number
+      const payload = (results[8] as any).value?.data;
+      const countVal = typeof payload?.data === 'number' ? payload.data : 0;
+      counts.users = countVal;
     }
     if (results[9]?.status === 'fulfilled') {
       const d = (results[9] as any).value?.data?.data;
@@ -587,7 +590,7 @@ export default function Dashboard() {
         <Box sx={{ px: 3, pt: 2.5, pb: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="h6" fontWeight={700}>
-              Aktif Kullanıcılar
+              Mobil Kullanıcı Aktivitesi
             </Typography>
             <Chip
               label="Canlı"
@@ -690,7 +693,7 @@ export default function Dashboard() {
               <Stack direction="row" justifyContent="space-between" alignItems="center" px={3} pt={2.5} pb={1.5}>
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                   <Typography variant="h6" fontWeight={700}>
-                    Son Giriş Yapanlar
+                    Son Mobil Girişler
                   </Typography>
                   <Chip
                     label={`${recentUsersData?.totalElements ?? 0}`}
@@ -831,7 +834,7 @@ export default function Dashboard() {
                         <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
                           <PeopleIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
                           <Typography variant="body2" color="text.secondary">
-                            Henüz giriş kaydı bulunamadı
+                            Henüz mobil giriş kaydı bulunamadı
                           </Typography>
                         </TableCell>
                       </TableRow>
@@ -878,7 +881,7 @@ export default function Dashboard() {
                     <TrophyIcon sx={{ fontSize: 16 }} />
                   </Avatar>
                   <Typography variant="subtitle1" fontWeight={700}>
-                    Haftalık Sıralama
+                    Aktif Mobil Kullanıcılar
                   </Typography>
                 </Stack>
                 <Stack spacing={1.5}>

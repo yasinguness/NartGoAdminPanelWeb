@@ -150,15 +150,15 @@ export default function SettlementFinance() {
       </Box>
 
       {/* 2. KPI ŞERİDİ */}
-      <Box sx={{ p: 2, bgcolor: '#0f172a', color: 'white', position: 'sticky', top: 64, zIndex: 10, display: 'flex', justifyContent: 'space-between', gap: 2, overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <Box sx={{ p: 2, bgcolor: '#0f172a', color: 'white', position: 'sticky', top: 64, zIndex: 10, display: 'flex', justifyContent: 'space-between', gap: 2, overflowX: 'auto', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
         <KpiItem label="Brüt Satış" value="₺470.000" subValue="Konsolide Satış" color="#38bdf8" />
-        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(0,0,0,0.08)' }} />
         <KpiItem label="Net Satış" value="₺411.000" subValue="İadeler Düşülmüş" color="#10b981" />
-        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(0,0,0,0.08)' }} />
         <KpiItem label="Toplam İade" value="- ₺59.000" subValue="%12,5 İade Oranı" color="#ef4444" />
-        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(0,0,0,0.08)' }} />
         <KpiItem label="Hizmet Bedeli Geliri" value="+ ₺23.500" subValue="Platform Geliri" color="#8b5cf6" />
-        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(0,0,0,0.08)' }} />
         <Box sx={{ display: 'flex', flexDirection: 'column', bgcolor: 'rgba(16, 185, 129, 0.1)', px: 3, py: 0.5, borderRadius: 2, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
             <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 700 }}>ORGANİZATÖR ÖDENECEĞİ</Typography>
             <Typography variant="h4" sx={{ color: '#10b981', fontWeight: 800 }}>₺378.500</Typography>

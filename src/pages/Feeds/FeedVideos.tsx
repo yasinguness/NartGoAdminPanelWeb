@@ -591,7 +591,7 @@ export default function FeedVideos() {
             style={{ position: 'fixed', bottom: 24, left: '50%', translateX: '-50%', zIndex: 1100 }}>
             <Paper elevation={3} sx={{ px: 3, py: 1.5, borderRadius: 3, bgcolor: '#1a1a1a', color: '#fff', display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedIds.size} selected</Typography>
-              <Box sx={{ width: 1, height: 24, bgcolor: 'rgba(255,255,255,0.15)' }} />
+              <Box sx={{ width: 1, height: 24, bgcolor: 'rgba(0,0,0,0.10)' }} />
               
                <Button size="small" startIcon={<CheckCircle2 size={14} />} onClick={() => handleBulkAction('approve')} sx={{ color: '#4ade80' }}>Approve</Button>
                <Button size="small" startIcon={<XCircle size={14} />} onClick={() => handleBulkAction('reject')} sx={{ color: '#f87171' }}>Reject</Button>

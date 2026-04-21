@@ -148,7 +148,7 @@ export default function TicketsSection({ event }: Props) {
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>
                 {s.label}
               </Typography>
-              <Typography sx={{ fontFamily: 'serif', fontStyle: 'italic', fontSize: 24, fontWeight: 700, color: s.color, mt: 0.5 }}>
+              <Typography sx={{ fontFamily: 'serif', fontStyle: 'normal', fontSize: 24, fontWeight: 700, color: s.color, mt: 0.5 }}>
                 {s.value}
               </Typography>
             </Paper>

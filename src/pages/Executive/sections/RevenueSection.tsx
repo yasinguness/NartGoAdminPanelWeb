@@ -99,13 +99,13 @@ export default function RevenueSection({ data, loading, partial }: Props) {
         </Box>
       )}
 
-      {paidPct !== null && (
-        <Box sx={{ mt: 3, p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      {paidPct != null && (
+        <Box sx={{ mt: 3, p: 2, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 1 }}>
-            <Typography sx={{ fontSize: 11, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+            <Typography sx={{ fontSize: 11, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
               Ücretli / Ücretsiz Etkinlik
             </Typography>
-            <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#F3EEE0' }}>
+            <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#1E293B' }}>
               %{paidPct.toFixed(1)} ücretli
             </Typography>
           </Stack>
@@ -115,7 +115,7 @@ export default function RevenueSection({ data, loading, partial }: Props) {
             sx={{
               height: 6,
               borderRadius: 3,
-              bgcolor: 'rgba(255,255,255,0.06)',
+              bgcolor: 'rgba(0,0,0,0.05)',
               '& .MuiLinearProgress-bar': {
                 bgcolor: '#C9A227',
               },

@@ -25,11 +25,11 @@ export default function SectionHeader({ title, subtitle, icon, refreshLabel, act
           </Box>
         )}
         <Box>
-          <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 22, fontWeight: 700, color: '#F3EEE0', lineHeight: 1 }}>
+          <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 22, fontWeight: 700, color: '#1E293B', lineHeight: 1 }}>
             {title}
           </Typography>
           {subtitle && (
-            <Typography sx={{ fontSize: 11, color: 'rgba(243,238,224,0.55)', letterSpacing: 0.5, mt: 0.5 }}>
+            <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.60)', letterSpacing: 0.5, mt: 0.5 }}>
               {subtitle}
             </Typography>
           )}
@@ -42,8 +42,8 @@ export default function SectionHeader({ title, subtitle, icon, refreshLabel, act
             size="small"
             label={refreshLabel}
             sx={{
-              bgcolor: 'rgba(255,255,255,0.05)',
-              color: 'rgba(243,238,224,0.6)',
+              bgcolor: 'rgba(0,0,0,0.05)',
+              color: 'rgba(30,41,59,0.60)',
               fontSize: 10,
               fontWeight: 600,
               letterSpacing: 0.5,

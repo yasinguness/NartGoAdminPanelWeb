@@ -89,7 +89,7 @@ export default function AnomalyDetector() {
   }, [dataUpdatedAt]);
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#060C09', color: '#F3EEE0', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
+    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#FAFAFA', color: '#1E293B', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
       <Container maxWidth="xl">
         {/* Header */}
         <Box sx={{ mb: 3 }}>
@@ -106,10 +106,10 @@ export default function AnomalyDetector() {
                   <ShieldIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#F3EEE0' }}>
+                  <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
                     Anomali Tarayıcı
                   </Typography>
-                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(243,238,224,0.65)' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(30,41,59,0.70)' }}>
                     Admin audit log'undaki olağan dışı pattern'ler · insider threat koruması
                   </Typography>
                 </Box>
@@ -123,9 +123,9 @@ export default function AnomalyDetector() {
                 exclusive
                 onChange={(_, v) => { if (typeof v === 'number') setHours(v); }}
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                  bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)',
                   '& .MuiToggleButton-root': {
-                    color: 'rgba(243,238,224,0.6)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
+                    color: 'rgba(30,41,59,0.60)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
                     '&.Mui-selected': { bgcolor: 'rgba(201,162,39,0.18)', color: '#C9A227' },
                   },
                 }}
@@ -136,7 +136,7 @@ export default function AnomalyDetector() {
                 icon={<DotIcon sx={{ fontSize: '10px !important', color: `${isFetching ? '#f59e0b' : '#22c55e'} !important` }} />}
                 label={isFetching ? 'taranıyor' : `son: ${lastUpdated}`}
                 size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(243,238,224,0.8)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(255,255,255,0.08)' }}
+                sx={{ bgcolor: 'rgba(0,0,0,0.03)', color: 'rgba(30,41,59,0.80)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(0,0,0,0.06)' }}
               />
               <Tooltip title="Yeniden tara" arrow>
                 <IconButton onClick={() => refetch()} size="small" sx={{ color: '#C9A227', border: '1px solid rgba(201,162,39,0.2)' }}>
@@ -148,7 +148,7 @@ export default function AnomalyDetector() {
         </Box>
 
         {!isLoading && !data && (
-          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(243,238,224,0.85)' }}
+          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(30,41,59,0.85)' }}
             action={<Button size="small" onClick={() => refetch()} sx={{ color: '#C9A227', fontSize: 11, fontWeight: 700 }}>Tekrar Dene</Button>}>
             <Typography sx={{ fontSize: 12 }}>
               <code style={{ fontFamily: 'monospace', fontSize: 11 }}>/auth/admin/anomalies/scan</code> endpoint'ine ulaşılamadı.
@@ -180,9 +180,9 @@ export default function AnomalyDetector() {
             exclusive
             onChange={(_, v) => v && setSeverityFilter(v)}
             sx={{
-              bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+              bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)',
               '& .MuiToggleButton-root': {
-                color: 'rgba(243,238,224,0.6)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
+                color: 'rgba(30,41,59,0.60)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
                 '&.Mui-selected': { bgcolor: 'rgba(201,162,39,0.18)', color: '#C9A227' },
               },
             }}
@@ -198,28 +198,28 @@ export default function AnomalyDetector() {
             placeholder="Admin email / mesaj ara..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'rgba(243,238,224,0.4)' }} /></InputAdornment> }}
-            sx={{ minWidth: 260, '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.03)', fontSize: 12, color: '#F3EEE0', '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' } } }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'rgba(30,41,59,0.45)' }} /></InputAdornment> }}
+            sx={{ minWidth: 260, '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.02)', fontSize: 12, color: '#1E293B', '& fieldset': { borderColor: 'rgba(0,0,0,0.06)' } } }}
           />
         </Stack>
 
         {/* Anomalies */}
         {isLoading ? (
           <Stack spacing={1.5}>
-            {[1, 2, 3].map(i => <Skeleton key={i} variant="rectangular" height={72} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 2 }} />)}
+            {[1, 2, 3].map(i => <Skeleton key={i} variant="rectangular" height={72} sx={{ bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 2 }} />)}
           </Stack>
         ) : anomalies.length === 0 ? (
-          <Paper variant="outlined" sx={{ py: 8, textAlign: 'center', bgcolor: '#0A130F', borderColor: 'rgba(34,197,94,0.25)' }}>
+          <Paper variant="outlined" sx={{ py: 8, textAlign: 'center', bgcolor: '#FFFFFF', borderColor: 'rgba(34,197,94,0.25)' }}>
             <Typography sx={{ fontSize: 16, color: '#22c55e', fontWeight: 800 }}>
               ✓ Anomali tespit edilmedi
             </Typography>
-            <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.5)', mt: 1 }}>
+            <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.55)', mt: 1 }}>
               Son {hours} saatte admin aktivitesi normal seyirde
             </Typography>
           </Paper>
         ) : filtered.length === 0 ? (
-          <Paper variant="outlined" sx={{ py: 4, textAlign: 'center', bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)' }}>
-            <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Paper variant="outlined" sx={{ py: 4, textAlign: 'center', bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)' }}>
+            <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
               Filtreyle eşleşen anomali yok
             </Typography>
           </Paper>
@@ -229,8 +229,8 @@ export default function AnomalyDetector() {
           </Stack>
         )}
 
-        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(243,238,224,0.3)' }}>
+        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(30,41,59,0.35)' }}>
             NARTGO ANOMALY • {anomalies.length} tespit · {data?.summary?.auditEventsScanned ?? 0} event taranan
           </Typography>
         </Box>
@@ -246,7 +246,7 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
   return (
     <Accordion
       sx={{
-        bgcolor: '#0A130F',
+        bgcolor: '#FFFFFF',
         border: `1px solid ${severityColor}33`,
         borderLeft: `4px solid ${severityColor}`,
         borderRadius: '8px !important',
@@ -254,7 +254,7 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
         '& .MuiAccordionSummary-root:hover': { bgcolor: 'rgba(201,162,39,0.04)' },
       }}
     >
-      <AccordionSummary expandIcon={<ExpandIcon sx={{ color: 'rgba(243,238,224,0.5)' }} />}>
+      <AccordionSummary expandIcon={<ExpandIcon sx={{ color: 'rgba(30,41,59,0.55)' }} />}>
         <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
           <Box sx={{
             width: 36, height: 36, borderRadius: 1.5,
@@ -265,7 +265,7 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.25 }}>
-              <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#F3EEE0' }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1E293B' }}>
                 {meta.label}
               </Typography>
               <Chip
@@ -279,21 +279,21 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
                 </Typography>
               )}
             </Stack>
-            <Typography sx={{ fontSize: 11, color: 'rgba(243,238,224,0.75)' }}>
+            <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.75)' }}>
               {anomaly.message}
             </Typography>
           </Box>
           <Stack sx={{ textAlign: 'right' }}>
             {anomaly.eventCount !== undefined && (
-              <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 18, fontWeight: 700, color: severityColor, lineHeight: 1 }}>
+              <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 18, fontWeight: 700, color: severityColor, lineHeight: 1 }}>
                 {anomaly.eventCount}
               </Typography>
             )}
-            <Typography sx={{ fontSize: 9, color: 'rgba(243,238,224,0.4)' }}>event</Typography>
+            <Typography sx={{ fontSize: 9, color: 'rgba(30,41,59,0.45)' }}>event</Typography>
           </Stack>
         </Stack>
       </AccordionSummary>
-      <AccordionDetails sx={{ borderTop: '1px solid rgba(255,255,255,0.05)', bgcolor: 'rgba(0,0,0,0.15)' }}>
+      <AccordionDetails sx={{ borderTop: '1px solid rgba(0,0,0,0.05)', bgcolor: 'rgba(0,0,0,0.15)' }}>
         <Stack spacing={1.5}>
           <Stack direction="row" spacing={3}>
             <InfoRow label="İlk Görülen" value={safeDate(anomaly.firstSeen)} />
@@ -302,12 +302,12 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
           </Stack>
           {anomaly.sampleDetails && anomaly.sampleDetails.length > 0 && (
             <Box>
-              <Typography sx={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, color: 'rgba(243,238,224,0.5)', textTransform: 'uppercase', mb: 1 }}>
+              <Typography sx={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, color: 'rgba(30,41,59,0.55)', textTransform: 'uppercase', mb: 1 }}>
                 Örnekler
               </Typography>
               <Stack spacing={0.5}>
                 {anomaly.sampleDetails.map((s, i) => (
-                  <Typography key={i} sx={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(243,238,224,0.7)' }}>
+                  <Typography key={i} sx={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(30,41,59,0.70)' }}>
                     · {s}
                   </Typography>
                 ))}
@@ -323,25 +323,25 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <Box>
-      <Typography sx={{ fontSize: 9, letterSpacing: 1, fontWeight: 700, color: 'rgba(243,238,224,0.4)', textTransform: 'uppercase' }}>{label}</Typography>
-      <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#F3EEE0' }}>{value}</Typography>
+      <Typography sx={{ fontSize: 9, letterSpacing: 1, fontWeight: 700, color: 'rgba(30,41,59,0.45)', textTransform: 'uppercase' }}>{label}</Typography>
+      <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#1E293B' }}>{value}</Typography>
     </Box>
   );
 }
 
 function StatTile({ label, value, color, loading, icon }: { label: string; value: number; color: string; loading?: boolean; icon?: React.ReactNode }) {
   return (
-    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#0F1A14', borderColor: 'rgba(201,162,39,0.18)' }}>
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#F8FAFC', borderColor: 'rgba(201,162,39,0.18)' }}>
       <Stack direction="row" spacing={1} alignItems="center">
         {icon && <Box sx={{ color }}>{icon}</Box>}
-        <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+        <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
           {label}
         </Typography>
       </Stack>
       {loading ? (
-        <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+        <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
       ) : (
-        <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 26, fontWeight: 700, color, lineHeight: 1.1, mt: 0.5 }}>
+        <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 26, fontWeight: 700, color, lineHeight: 1.1, mt: 0.5 }}>
           {value.toLocaleString('tr-TR')}
         </Typography>
       )}

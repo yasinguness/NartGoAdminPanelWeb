@@ -13,12 +13,21 @@ export interface UserLoginStatsQuery extends LoginStatsDateRangeQuery {
   sourceLimit?: number;
 }
 
+export type LoginSourceFilter = 'MOBILE' | 'WEB_ADMIN' | 'ALL';
+
 export interface RecentLoginStatsQuery extends LoginStatsDateRangeQuery {
   limit?: number;
   page?: number;
   size?: number;
   sort?: string;
   search?: string;
+  /**
+   * Filter login records by client platform. Backend heuristic:
+   * - MOBILE: userAgent/deviceInfo contains "Android", "iPhone", "okhttp", "Flutter", "Dart", "NartGo", etc.
+   * - WEB_ADMIN: userAgent contains "Mozilla" and NOT a mobile marker.
+   * - ALL / undefined: no filter.
+   */
+  source?: LoginSourceFilter;
 }
 
 export interface RiskListQuery extends LoginStatsDateRangeQuery {
@@ -257,4 +266,5 @@ export interface WeeklyActiveStatsDto {
 
 export interface TopWeeklyUsersQuery extends LoginStatsDateRangeQuery {
   limit?: number;
+  source?: LoginSourceFilter;
 }

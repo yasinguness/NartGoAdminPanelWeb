@@ -177,7 +177,7 @@ export default function OrdersSection({ event }: { event: EventResponseDTO }) {
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>
                 {s.label}
               </Typography>
-              <Typography sx={{ fontFamily: 'serif', fontStyle: 'italic', fontSize: 22, fontWeight: 700, color: s.color, mt: 0.5 }}>
+              <Typography sx={{ fontFamily: 'serif', fontStyle: 'normal', fontSize: 22, fontWeight: 700, color: s.color, mt: 0.5 }}>
                 {s.value}
               </Typography>
             </Paper>
@@ -343,7 +343,7 @@ export default function OrdersSection({ event }: { event: EventResponseDTO }) {
                                 Bilet Kalemleri ({o.totalTickets} katılımcı)
                               </Typography>
                               {o.items.length === 0 ? (
-                                <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                                <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'normal' }}>
                                   Bilet kalemi detayı yok
                                 </Typography>
                               ) : (

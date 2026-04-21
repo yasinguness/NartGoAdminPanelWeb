@@ -31,9 +31,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        const status = error.response?.status;
+        const skipAuthRedirect = (error.config as any)?.skipAuthRedirect === true;
+
+        if (status === 401 && !skipAuthRedirect) {
+            // Token gerçekten expire/invalid — logout.
+            // skipAuthRedirect flag'li isteklerde (opsiyonel admin endpoint'leri vs.)
+            // logout tetikleme, component kendisi handle etsin.
             authService.logout();
             window.location.href = '/admin/login';
+        } else if ((status === 401 || status === 403) && import.meta.env.DEV) {
+            // eslint-disable-next-line no-console
+            console.warn(`[API ${status}] ${error.config?.method?.toUpperCase()} ${error.config?.url} — yetki reddedildi${skipAuthRedirect ? ' (skipAuthRedirect)' : ''}.`);
         }
         return Promise.reject(error);
     }

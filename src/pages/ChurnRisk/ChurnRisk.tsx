@@ -69,7 +69,7 @@ export default function ChurnRisk() {
   const churnColor = churnRate > 30 ? '#ef4444' : churnRate > 15 ? '#f59e0b' : churnRate > 5 ? '#C9A227' : '#22c55e';
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#060C09', color: '#F3EEE0', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
+    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#FAFAFA', color: '#1E293B', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
       <Container maxWidth="xl">
         {/* Header */}
         <Box sx={{ mb: 3 }}>
@@ -86,10 +86,10 @@ export default function ChurnRisk() {
                   <ChurnIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#F3EEE0' }}>
+                  <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
                     Churn Risk Skoru
                   </Typography>
-                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(243,238,224,0.65)' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(30,41,59,0.70)' }}>
                     Recency-tabanlı risk skorlaması · retention kampanyası önerisi
                   </Typography>
                 </Box>
@@ -101,7 +101,7 @@ export default function ChurnRisk() {
                 icon={<DotIcon sx={{ fontSize: '10px !important', color: `${isFetching ? '#f59e0b' : '#22c55e'} !important` }} />}
                 label={isFetching ? 'güncelleniyor' : `son: ${lastUpdated}`}
                 size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(243,238,224,0.8)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(255,255,255,0.08)' }}
+                sx={{ bgcolor: 'rgba(0,0,0,0.03)', color: 'rgba(30,41,59,0.80)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(0,0,0,0.06)' }}
               />
               <Tooltip title="Yenile" arrow>
                 <IconButton onClick={() => refetch()} size="small" sx={{ color: '#C9A227', border: '1px solid rgba(201,162,39,0.2)' }}>
@@ -113,7 +113,7 @@ export default function ChurnRisk() {
         </Box>
 
         {!isLoading && !data && (
-          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(243,238,224,0.85)' }}
+          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(30,41,59,0.85)' }}
             action={<Button size="small" onClick={() => refetch()} sx={{ color: '#C9A227', fontSize: 11, fontWeight: 700 }}>Tekrar Dene</Button>}>
             <Typography sx={{ fontSize: 12 }}>
               <code style={{ fontFamily: 'monospace', fontSize: 11 }}>/auth/admin/churn/overview</code> endpoint'ine ulaşılamadı.
@@ -130,24 +130,24 @@ export default function ChurnRisk() {
               border: `1px solid ${churnColor}33`,
               height: '100%',
             }}>
-              <Typography sx={{ fontSize: 10, letterSpacing: 1.5, fontWeight: 800, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+              <Typography sx={{ fontSize: 10, letterSpacing: 1.5, fontWeight: 800, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
                 Tahmini Aylık Churn Oranı
               </Typography>
               {isLoading ? (
-                <Skeleton variant="text" width="60%" height={56} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+                <Skeleton variant="text" width="60%" height={56} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
               ) : (
                 <Typography sx={{
-                  fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                  fontFamily: 'inherit', fontStyle: 'normal',
                   fontSize: 56, fontWeight: 700, color: churnColor, lineHeight: 1, mt: 1,
                 }}>
                   %{churnRate.toFixed(1)}
                 </Typography>
               )}
-              <Typography sx={{ mt: 1, fontSize: 11, color: 'rgba(243,238,224,0.5)', fontStyle: 'italic' }}>
+              <Typography sx={{ mt: 1, fontSize: 11, color: 'rgba(30,41,59,0.55)', fontStyle: 'normal' }}>
                 (CRITICAL + HIGH) / toplam risk havuzu — heuristik tahmin
               </Typography>
               {summary?.avgDaysSinceLogin !== undefined && (
-                <Typography sx={{ mt: 2, fontSize: 11, color: 'rgba(243,238,224,0.6)' }}>
+                <Typography sx={{ mt: 2, fontSize: 11, color: 'rgba(30,41,59,0.60)' }}>
                   Ortalama son giriş: {summary.avgDaysSinceLogin.toFixed(0)} gün önce
                 </Typography>
               )}
@@ -165,18 +165,18 @@ export default function ChurnRisk() {
                 { label: 'Ort. Sessiz', value: summary?.avgDaysSinceLogin !== undefined ? `${summary.avgDaysSinceLogin}g` : '—', color: '#3b82f6', hint: 'gün' },
               ].map(c => (
                 <Grid item xs={6} md={4} key={c.label}>
-                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#0F1A14', borderColor: 'rgba(201,162,39,0.18)', height: '100%' }}>
-                    <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#F8FAFC', borderColor: 'rgba(201,162,39,0.18)', height: '100%' }}>
+                    <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
                       {c.label}
                     </Typography>
                     {isLoading ? (
-                      <Skeleton variant="text" width="60%" height={28} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+                      <Skeleton variant="text" width="60%" height={28} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
                     ) : (
-                      <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 22, fontWeight: 700, color: c.color, lineHeight: 1.1, mt: 0.5 }}>
+                      <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 22, fontWeight: 700, color: c.color, lineHeight: 1.1, mt: 0.5 }}>
                         {typeof c.value === 'number' ? c.value.toLocaleString('tr-TR') : c.value}
                       </Typography>
                     )}
-                    <Typography sx={{ mt: 0.5, fontSize: 9, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+                    <Typography sx={{ mt: 0.5, fontSize: 9, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
                       {c.hint}
                     </Typography>
                   </Paper>
@@ -191,9 +191,9 @@ export default function ChurnRisk() {
           <ToggleButtonGroup
             size="small" value={filter} exclusive onChange={(_, v) => v && setFilter(v)}
             sx={{
-              bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+              bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)',
               '& .MuiToggleButton-root': {
-                color: 'rgba(243,238,224,0.6)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
+                color: 'rgba(30,41,59,0.60)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
                 '&.Mui-selected': { bgcolor: 'rgba(201,162,39,0.18)', color: '#C9A227' },
               },
             }}
@@ -205,16 +205,16 @@ export default function ChurnRisk() {
             <ToggleButton value="LOW">Düşük</ToggleButton>
           </ToggleButtonGroup>
           <Box sx={{ flex: 1 }} />
-          <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.5)', fontStyle: 'italic' }}>
+          <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.55)', fontStyle: 'normal' }}>
             Top 50 en yüksek riskli kullanıcı gösteriliyor
           </Typography>
         </Stack>
 
         {/* Table */}
-        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
+        <Paper variant="outlined" sx={{ borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', overflow: 'hidden' }}>
           {isLoading ? (
             <Box sx={{ p: 2 }}>
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 1, borderRadius: 0.5 }} />)}
+              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} variant="rectangular" height={44} sx={{ bgcolor: 'rgba(0,0,0,0.03)', mb: 1, borderRadius: 0.5 }} />)}
             </Box>
           ) : filtered.length === 0 ? (
             <Box sx={{ py: 6, textAlign: 'center' }}>
@@ -223,7 +223,7 @@ export default function ChurnRisk() {
               </Typography>
             </Box>
           ) : (
-            <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0' } }}>
+            <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B' } }}>
               <TableHead>
                 <TableRow>
                   <HeaderCell align="center">Risk</HeaderCell>
@@ -250,25 +250,25 @@ export default function ChurnRisk() {
                           </Typography>
                           <LinearProgress
                             variant="determinate" value={Math.min(100, u.riskScore)}
-                            sx={{ height: 3, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { bgcolor: color } }}
+                            sx={{ height: 3, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.05)', '& .MuiLinearProgress-bar': { bgcolor: color } }}
                           />
                         </Stack>
                       </TableCell>
                       <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, color: '#C9A227' }}>
                         {u.email || u.userId.slice(0, 12)}
                       </TableCell>
-                      <TableCell sx={{ fontSize: 11, color: 'rgba(243,238,224,0.75)', maxWidth: 360 }}>
+                      <TableCell sx={{ fontSize: 11, color: 'rgba(30,41,59,0.75)', maxWidth: 360 }}>
                         <Typography sx={{ fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {u.primaryRisk}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center" sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.6)' }}>
+                      <TableCell align="center" sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.60)' }}>
                         {u.lastLoginAt ? (
                           <>
-                            <Typography sx={{ fontSize: 11, color: '#F3EEE0', fontWeight: 700 }}>
+                            <Typography sx={{ fontSize: 11, color: '#1E293B', fontWeight: 700 }}>
                               {u.daysSinceLogin}g önce
                             </Typography>
-                            <Typography sx={{ fontSize: 9, color: 'rgba(243,238,224,0.45)' }}>
+                            <Typography sx={{ fontSize: 9, color: 'rgba(30,41,59,0.50)' }}>
                               {safeDate(u.lastLoginAt)}
                             </Typography>
                           </>
@@ -276,7 +276,7 @@ export default function ChurnRisk() {
                           <Typography sx={{ fontSize: 11, color: '#ef4444', fontWeight: 700 }}>Hiç giriş yok</Typography>
                         )}
                       </TableCell>
-                      <TableCell align="center" sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.6)' }}>
+                      <TableCell align="center" sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.60)' }}>
                         {u.tenureDays}g
                       </TableCell>
                       <TableCell align="center">
@@ -301,11 +301,11 @@ export default function ChurnRisk() {
           )}
         </Paper>
 
-        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(243,238,224,0.3)' }}>
+        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(30,41,59,0.35)' }}>
             NARTGO CHURN • {users.length} risk havuzu · %{churnRate.toFixed(1)} tahmini aylık churn
           </Typography>
-          <Typography sx={{ mt: 1, fontSize: 9, color: 'rgba(243,238,224,0.3)', fontStyle: 'italic' }}>
+          <Typography sx={{ mt: 1, fontSize: 9, color: 'rgba(30,41,59,0.35)', fontStyle: 'normal' }}>
             Heuristik skor: recency-tabanlı (son login + kayıt süresi). ML modeli sonraki fazda eklenecek.
           </Typography>
         </Box>
@@ -316,7 +316,7 @@ export default function ChurnRisk() {
 
 function HeaderCell({ children, align }: { children: React.ReactNode; align?: 'right' | 'center' }) {
   return (
-    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>
+    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>
       {children}
     </TableCell>
   );

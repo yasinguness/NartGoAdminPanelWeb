@@ -25,7 +25,7 @@ export default function KpiTile({ label, value, deltaPct, loading, color = '#C9A
       sx={{
         p: 2.25,
         borderRadius: 2,
-        bgcolor: '#0F1A14',
+        bgcolor: '#F8FAFC',
         border: '1px solid rgba(201,162,39,0.18)',
         height: '100%',
         display: 'flex',
@@ -33,17 +33,17 @@ export default function KpiTile({ label, value, deltaPct, loading, color = '#C9A
         justifyContent: 'space-between',
       }}
     >
-      <Typography sx={{ fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+      <Typography sx={{ fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
         {label}
       </Typography>
 
       <Box sx={{ mt: 1 }}>
         {loading ? (
-          <Skeleton variant="text" width="70%" height={32} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+          <Skeleton variant="text" width="70%" height={32} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
         ) : (
           <Typography sx={{
-            fontFamily: 'Georgia, serif',
-            fontStyle: 'italic',
+            fontFamily: 'inherit',
+            fontStyle: 'normal',
             fontSize: 26,
             fontWeight: 700,
             lineHeight: 1.1,
@@ -59,14 +59,14 @@ export default function KpiTile({ label, value, deltaPct, loading, color = '#C9A
             <Typography sx={{ fontSize: 11, fontWeight: 700, color: deltaColor }}>
               {sign}{deltaPct.toFixed(1)}%
             </Typography>
-            <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.4)' }}>
+            <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.45)' }}>
               geçen dönem
             </Typography>
           </Stack>
         )}
 
         {subtitle && (
-          <Typography sx={{ mt: 0.5, fontSize: 10, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Typography sx={{ mt: 0.5, fontSize: 10, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
             {subtitle}
           </Typography>
         )}

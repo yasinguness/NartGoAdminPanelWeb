@@ -92,7 +92,7 @@ export default function JobMonitor() {
   const downServices = services.filter(s => s.status !== 'up').length;
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#060C09', color: '#F3EEE0', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
+    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: '#FAFAFA', color: '#1E293B', mx: { xs: -2, sm: -3 }, my: -3, py: 4 }}>
       <Container maxWidth="xl">
         {/* Header */}
         <Box sx={{ mb: 3 }}>
@@ -109,10 +109,10 @@ export default function JobMonitor() {
                   <JobIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#F3EEE0' }}>
+                  <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
                     Scheduled Jobs
                   </Typography>
-                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(243,238,224,0.65)' }}>
+                  <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(30,41,59,0.70)' }}>
                     Actuator/scheduledtasks aggregator · {data?.totalJobs ?? 0} job · {data?.activeServices ?? 0}/{services.length} servis up
                   </Typography>
                 </Box>
@@ -124,7 +124,7 @@ export default function JobMonitor() {
                 icon={<DotIcon sx={{ fontSize: '10px !important', color: `${isFetching ? '#f59e0b' : '#22c55e'} !important` }} />}
                 label={isFetching ? 'güncelleniyor' : `son: ${lastUpdated}`}
                 size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(243,238,224,0.8)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(255,255,255,0.08)' }}
+                sx={{ bgcolor: 'rgba(0,0,0,0.03)', color: 'rgba(30,41,59,0.80)', fontSize: 11, fontWeight: 600, height: 26, border: '1px solid rgba(0,0,0,0.06)' }}
               />
               <Tooltip title="Yenile" arrow>
                 <IconButton onClick={() => refetch()} size="small" sx={{ color: '#C9A227', border: '1px solid rgba(201,162,39,0.2)' }}>
@@ -136,7 +136,7 @@ export default function JobMonitor() {
         </Box>
 
         {!isLoading && !data && (
-          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(243,238,224,0.85)' }}
+          <Alert severity="info" icon={false} sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: 'rgba(30,41,59,0.85)' }}
             action={<Button size="small" onClick={() => refetch()} sx={{ color: '#C9A227', fontSize: 11, fontWeight: 700 }}>Tekrar Dene</Button>}>
             <Stack direction="row" alignItems="center" spacing={1}>
               <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: '#f59e0b' }}>BACKEND YANIT VERMEDİ</Typography>
@@ -148,7 +148,7 @@ export default function JobMonitor() {
         )}
 
         {downServices > 0 && (
-          <Alert severity="error" icon={false} sx={{ mb: 3, bgcolor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#F3EEE0' }}>
+          <Alert severity="error" icon={false} sx={{ mb: 3, bgcolor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#1E293B' }}>
             <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: '#ef4444', mb: 0.5 }}>
               {downServices} SERVİS ULAŞILAMIYOR
             </Typography>
@@ -174,10 +174,10 @@ export default function JobMonitor() {
             exclusive
             onChange={(_, v) => v && setTypeFilter(v)}
             sx={{
-              bgcolor: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              bgcolor: 'rgba(0,0,0,0.02)',
+              border: '1px solid rgba(0,0,0,0.06)',
               '& .MuiToggleButton-root': {
-                color: 'rgba(243,238,224,0.6)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
+                color: 'rgba(30,41,59,0.60)', fontSize: 11, fontWeight: 700, px: 1.5, py: 0.5, border: 'none', textTransform: 'none',
                 '&.Mui-selected': { bgcolor: 'rgba(201,162,39,0.18)', color: '#C9A227' },
               },
             }}
@@ -191,12 +191,12 @@ export default function JobMonitor() {
             placeholder="Job adı ara..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'rgba(243,238,224,0.4)' }} /></InputAdornment> }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: 'rgba(30,41,59,0.45)' }} /></InputAdornment> }}
             sx={{
               minWidth: 280,
               '& .MuiOutlinedInput-root': {
-                bgcolor: 'rgba(255,255,255,0.03)', fontSize: 12, color: '#F3EEE0',
-                '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' },
+                bgcolor: 'rgba(0,0,0,0.02)', fontSize: 12, color: '#1E293B',
+                '& fieldset': { borderColor: 'rgba(0,0,0,0.06)' },
               },
             }}
           />
@@ -205,11 +205,11 @@ export default function JobMonitor() {
         {/* Service accordions */}
         {isLoading ? (
           <Stack spacing={1.5}>
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} variant="rectangular" height={60} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1 }} />)}
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} variant="rectangular" height={60} sx={{ bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 1 }} />)}
           </Stack>
         ) : filteredServices.length === 0 ? (
-          <Paper variant="outlined" sx={{ py: 6, textAlign: 'center', bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)' }}>
-            <Typography sx={{ fontSize: 12, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+          <Paper variant="outlined" sx={{ py: 6, textAlign: 'center', bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)' }}>
+            <Typography sx={{ fontSize: 12, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
               Kriterlerle eşleşen job yok
             </Typography>
           </Paper>
@@ -221,8 +221,8 @@ export default function JobMonitor() {
           </Stack>
         )}
 
-        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(243,238,224,0.3)' }}>
+        <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 700, color: 'rgba(30,41,59,0.35)' }}>
             NARTGO OPS • Spring Actuator aggregator
           </Typography>
         </Box>
@@ -234,14 +234,14 @@ export default function JobMonitor() {
 function StatCard({ label, value, color, loading }: { label: string; value: number | string; color: string; loading?: boolean }) {
   return (
     <Grid item xs={6} md={3}>
-      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#0F1A14', borderColor: 'rgba(201,162,39,0.18)' }}>
-        <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#F8FAFC', borderColor: 'rgba(201,162,39,0.18)' }}>
+        <Typography sx={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
           {label}
         </Typography>
         {loading ? (
-          <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+          <Skeleton variant="text" width="60%" height={32} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
         ) : (
-          <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 26, fontWeight: 700, color, lineHeight: 1.1, mt: 0.5 }}>
+          <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 26, fontWeight: 700, color, lineHeight: 1.1, mt: 0.5 }}>
             {typeof value === 'number' ? value.toLocaleString('tr-TR') : value}
           </Typography>
         )}
@@ -262,17 +262,17 @@ function ServiceAccordion({ service }: { service: ServiceJobs & { visibleJobCoun
     <Accordion
       defaultExpanded={false}
       sx={{
-        bgcolor: '#0A130F',
+        bgcolor: '#FFFFFF',
         border: '1px solid rgba(201,162,39,0.12)',
         borderRadius: '8px !important',
         '&:before': { display: 'none' },
         '& .MuiAccordionSummary-root:hover': { bgcolor: 'rgba(201,162,39,0.04)' },
       }}
     >
-      <AccordionSummary expandIcon={<ExpandIcon sx={{ color: 'rgba(243,238,224,0.5)' }} />}>
+      <AccordionSummary expandIcon={<ExpandIcon sx={{ color: 'rgba(30,41,59,0.55)' }} />}>
         <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
           <HealthDot sx={{ fontSize: 10, color: healthColor }} />
-          <Typography sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 16, fontWeight: 700, color: '#F3EEE0' }}>
+          <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: 16, fontWeight: 700, color: '#1E293B' }}>
             {service.serviceName}
           </Typography>
           {service.status !== 'up' && (
@@ -284,12 +284,12 @@ function ServiceAccordion({ service }: { service: ServiceJobs & { visibleJobCoun
             {service.fixedRate.length > 0 && <TypeChip type="fixedRate" count={service.fixedRate.length} />}
             {service.fixedDelay.length > 0 && <TypeChip type="fixedDelay" count={service.fixedDelay.length} />}
             {allJobs.length === 0 && service.status === 'up' && (
-              <Typography sx={{ fontSize: 11, color: 'rgba(243,238,224,0.5)', fontStyle: 'italic' }}>job yok</Typography>
+              <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.55)', fontStyle: 'normal' }}>job yok</Typography>
             )}
           </Stack>
         </Stack>
       </AccordionSummary>
-      <AccordionDetails sx={{ p: 0, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <AccordionDetails sx={{ p: 0, borderTop: '1px solid rgba(0,0,0,0.05)' }}>
         {service.error && (
           <Box sx={{ p: 2, bgcolor: 'rgba(239,68,68,0.08)' }}>
             <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#ef4444' }}>
@@ -299,12 +299,12 @@ function ServiceAccordion({ service }: { service: ServiceJobs & { visibleJobCoun
         )}
         {allJobs.length === 0 ? (
           <Box sx={{ py: 3, textAlign: 'center' }}>
-            <Typography sx={{ fontSize: 11, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+            <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
               Kayıtlı scheduled task yok
             </Typography>
           </Box>
         ) : (
-          <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(255,255,255,0.05)', color: '#F3EEE0', py: 1 } }}>
+          <Table size="small" sx={{ '& .MuiTableCell-root': { borderBottomColor: 'rgba(0,0,0,0.05)', color: '#1E293B', py: 1 } }}>
             <TableHead>
               <TableRow sx={{ bgcolor: 'rgba(0,0,0,0.15)' }}>
                 <HeaderCell>Tip</HeaderCell>
@@ -335,7 +335,7 @@ function ServiceAccordion({ service }: { service: ServiceJobs & { visibleJobCoun
                   <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', color: '#C9A227' }}>
                     {j.expression ? j.expression : formatInterval(j.intervalMs)}
                   </TableCell>
-                  <TableCell align="right" sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(243,238,224,0.5)' }}>
+                  <TableCell align="right" sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.55)' }}>
                     {formatInterval(j.initialDelayMs)}
                   </TableCell>
                 </TableRow>
@@ -364,7 +364,7 @@ function TypeChip({ type, count }: { type: string; count: number }) {
 
 function HeaderCell({ children, align }: { children: React.ReactNode; align?: 'right' | 'center' }) {
   return (
-    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(243,238,224,0.5) !important', textTransform: 'uppercase' }}>
+    <TableCell align={align} sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'rgba(30,41,59,0.55) !important', textTransform: 'uppercase' }}>
       {children}
     </TableCell>
   );

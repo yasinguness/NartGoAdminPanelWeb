@@ -20,11 +20,11 @@ interface Step {
 export default function PnlWaterfall({ data, currency = 'TRY', loading }: Props) {
   if (loading || !data) {
     return (
-      <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)', minHeight: 320 }}>
-        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase', mb: 2 }}>
+      <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)', minHeight: 320 }}>
+        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase', mb: 2 }}>
           P&L Akışı
         </Typography>
-        <Typography sx={{ color: 'rgba(243,238,224,0.4)', fontSize: 12, fontStyle: 'italic' }}>
+        <Typography sx={{ color: 'rgba(30,41,59,0.45)', fontSize: 12, fontStyle: 'normal' }}>
           {loading ? 'Yükleniyor…' : 'Veri yok'}
         </Typography>
       </Paper>
@@ -52,12 +52,12 @@ export default function PnlWaterfall({ data, currency = 'TRY', loading }: Props)
   const maxAbs = Math.max(...steps.map(s => Math.abs(s.value)), 1);
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#0A130F', borderColor: 'rgba(201,162,39,0.12)' }}>
+    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: '#FFFFFF', borderColor: 'rgba(201,162,39,0.12)' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 2 }}>
-        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(243,238,224,0.6)', textTransform: 'uppercase' }}>
+        <Typography sx={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(30,41,59,0.60)', textTransform: 'uppercase' }}>
           P&L Akışı
         </Typography>
-        <Typography sx={{ fontSize: 10, color: 'rgba(243,238,224,0.4)', fontStyle: 'italic' }}>
+        <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.45)', fontStyle: 'normal' }}>
           brüt gelirden net kâra
         </Typography>
       </Stack>
@@ -75,14 +75,14 @@ export default function PnlWaterfall({ data, currency = 'TRY', loading }: Props)
                   <Typography sx={{
                     fontSize: isTotal ? 13 : 12,
                     fontWeight: isTotal ? 800 : 600,
-                    color: isTotal ? '#F3EEE0' : 'rgba(243,238,224,0.8)',
+                    color: isTotal ? '#1E293B' : 'rgba(30,41,59,0.80)',
                     letterSpacing: 0.3,
                   }}>
                     {step.label}
                   </Typography>
                   {step.note && (
                     <Tooltip title={step.note} arrow>
-                      <Typography sx={{ fontSize: 9, color: 'rgba(243,238,224,0.35)', fontStyle: 'italic' }}>
+                      <Typography sx={{ fontSize: 9, color: 'rgba(30,41,59,0.40)', fontStyle: 'normal' }}>
                         ⓘ
                       </Typography>
                     </Tooltip>

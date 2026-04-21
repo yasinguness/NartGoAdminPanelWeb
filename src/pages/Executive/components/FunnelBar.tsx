@@ -8,7 +8,7 @@ interface Props {
 export default function FunnelBar({ steps }: Props) {
   if (!steps || steps.length === 0) {
     return (
-      <Typography sx={{ fontSize: 12, fontStyle: 'italic', color: 'rgba(243,238,224,0.4)' }}>
+      <Typography sx={{ fontSize: 12, fontStyle: 'normal', color: 'rgba(30,41,59,0.45)' }}>
         funnel verisi yok
       </Typography>
     );
@@ -25,16 +25,16 @@ export default function FunnelBar({ steps }: Props) {
         return (
           <Box key={step.key}>
             <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 0.5 }}>
-              <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'rgba(243,238,224,0.8)', letterSpacing: 0.3 }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'rgba(30,41,59,0.80)', letterSpacing: 0.3 }}>
                 {idx + 1}. {step.label}
               </Typography>
               <Stack direction="row" spacing={1} alignItems="baseline">
-                <Typography sx={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#F3EEE0' }}>
+                <Typography sx={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#1E293B' }}>
                   {step.count.toLocaleString('tr-TR')}
                 </Typography>
                 {drop !== null && drop > 0 && (
                   <Tooltip title={`Önceki adımdan kayıp: %${drop.toFixed(1)}`} arrow>
-                    <Typography sx={{ fontSize: 10, fontWeight: 700, color: drop > 50 ? '#ef4444' : drop > 25 ? '#f59e0b' : 'rgba(243,238,224,0.5)' }}>
+                    <Typography sx={{ fontSize: 10, fontWeight: 700, color: drop > 50 ? '#ef4444' : drop > 25 ? '#f59e0b' : 'rgba(30,41,59,0.55)' }}>
                       ↓{drop.toFixed(0)}%
                     </Typography>
                   </Tooltip>

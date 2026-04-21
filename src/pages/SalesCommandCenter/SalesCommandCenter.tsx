@@ -446,7 +446,7 @@ export default function SalesCommandCenter() {
                             {ev.actorEmail ? ` · ${ev.actorEmail.split('@')[0]}` : ''}
                           </Typography>
                           {ev.reason && (
-                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25, fontStyle: 'italic' }}>
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25, fontStyle: 'normal' }}>
                               {ev.reason}
                             </Typography>
                           )}

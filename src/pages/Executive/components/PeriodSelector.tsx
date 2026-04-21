@@ -22,10 +22,10 @@ export default function PeriodSelector({ value, onChange }: Props) {
       exclusive
       onChange={(_, v) => v && onChange(v)}
       sx={{
-        bgcolor: 'rgba(255,255,255,0.04)',
+        bgcolor: 'rgba(0,0,0,0.03)',
         border: '1px solid rgba(201,162,39,0.2)',
         '& .MuiToggleButton-root': {
-          color: 'rgba(243,238,224,0.6)',
+          color: 'rgba(30,41,59,0.60)',
           fontSize: 11,
           fontWeight: 700,
           px: 1.5,
@@ -41,7 +41,7 @@ export default function PeriodSelector({ value, onChange }: Props) {
             },
           },
           '&:hover': {
-            bgcolor: 'rgba(255,255,255,0.06)',
+            bgcolor: 'rgba(0,0,0,0.05)',
           },
         },
       }}

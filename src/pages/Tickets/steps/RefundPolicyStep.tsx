@@ -197,7 +197,7 @@ function UserPreview({ policy }: { policy: RefundPolicy }) {
           ))}
         </Stack>
         {policy.notes && (
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block', fontStyle: 'italic' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block', fontStyle: 'normal' }}>
             {policy.notes}
           </Typography>
         )}

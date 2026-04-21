@@ -180,15 +180,15 @@ export default function VenueInventoryManager() {
       </Box>
 
       {/* 2. Sticky KPI Bandı (Inventory Context) */}
-      <Box sx={{ p: 2, bgcolor: '#1e293b', color: 'white', position: 'sticky', top: 64, zIndex: 10, display: 'flex', justifyContent: 'space-between', gap: 2, overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+      <Box sx={{ p: 2, bgcolor: '#1e293b', color: 'white', position: 'sticky', top: 64, zIndex: 10, display: 'flex', justifyContent: 'space-between', gap: 2, overflowX: 'auto', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
         <KpiItem label="Toplam Kapasite" value="2.000" subValue="Maksimum İzin" color={COLORS.neutral} />
-        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(0,0,0,0.08)' }} />
         <KpiItem label="Satışa Açık" value="1.600" subValue="Mekanın %80'i" color={COLORS.sellable} icon={<SeatIcon fontSize="small"/>} />
-        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(0,0,0,0.08)' }} />
         <KpiItem label="Sponsor/VIP Kontenjan" value="150" subValue="Garantili Bloklar" color={COLORS.vip} icon={<VipIcon fontSize="small"/>} />
-        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(0,0,0,0.08)' }} />
         <KpiItem label="Etkinlik Bekletmeleri" value="200" subValue="Serbest Bırakılmayı Bekliyor" color={COLORS.hold} icon={<LockIcon fontSize="small"/>} />
-        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(0,0,0,0.08)' }} />
         <KpiItem label="Teknik Kapatmalar" value="50" subValue="Kamera/Mikser Masası" color={COLORS.blackout} icon={<TechIcon fontSize="small"/>}/>
       </Box>
 

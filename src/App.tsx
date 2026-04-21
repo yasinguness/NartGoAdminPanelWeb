@@ -70,6 +70,9 @@ import AnomalyDetector from './pages/AnomalyDetector/AnomalyDetector';
 import FraudDetection from './pages/FraudDetection/FraudDetection';
 import ChurnRisk from './pages/ChurnRisk/ChurnRisk';
 import User360 from './pages/User360/User360';
+import InactiveUsers from './pages/EngagementAnalytics/InactiveUsers';
+import LoginFrequency from './pages/EngagementAnalytics/LoginFrequency';
+import ProductAnalytics from './pages/EngagementAnalytics/ProductAnalytics';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -116,6 +119,11 @@ function App() {
                 <Route path="security/anomalies" element={<AnomalyDetector />} />
                 <Route path="security/fraud" element={<FraudDetection />} />
                 <Route path="growth/churn" element={<ChurnRisk />} />
+
+                {/* Kullanıcı Etkileşimi */}
+                <Route path="engagement/inactive-users" element={<InactiveUsers />} />
+                <Route path="engagement/login-frequency" element={<LoginFrequency />} />
+                <Route path="engagement/product-analytics" element={<ProductAnalytics />} />
 
                 <Route path="devices" element={<Devices />} />
                 <Route path="notifications" element={<NotificationsRefactored />} />

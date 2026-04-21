@@ -188,19 +188,19 @@ export default function EventConsole() {
     <Box sx={{
       width: DRAWER_WIDTH,
       height: '100%',
-      bgcolor: '#0F1A14', // dark green-black
+      bgcolor: '#F8FAFC', // dark green-black
       color: 'white',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
     }}>
       {/* Logo/Header */}
-      <Box sx={{ p: 2.5, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <Box sx={{ p: 2.5, borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
         <Stack direction="row" spacing={1.5} alignItems="center">
           <Box sx={{
             width: 32, height: 32, borderRadius: '50%',
             bgcolor: '#C9A227', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 800, fontSize: 14, color: '#0F1A14',
+            fontWeight: 800, fontSize: 14, color: '#F8FAFC',
           }}>
             N
           </Box>
@@ -274,7 +274,7 @@ export default function EventConsole() {
                     bgcolor: isActive ? 'rgba(201,162,39,0.12)' : 'transparent',
                     color: isActive ? '#C9A227' : 'rgba(255,255,255,0.75)',
                     transition: 'all 0.15s',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)', color: 'white' },
+                    '&:hover': { bgcolor: 'rgba(0,0,0,0.03)', color: 'white' },
                     '&:focus-visible': {
                       outline: '2px solid #C9A227',
                       outlineOffset: 2,
@@ -293,7 +293,7 @@ export default function EventConsole() {
       </Box>
 
       {/* Footer — etkinlik adı */}
-      <Box sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+      <Box sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
         <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, letterSpacing: 0.5 }}>
           ETKİNLİK
         </Typography>
@@ -397,7 +397,7 @@ export default function EventConsole() {
                 {activeItem.label.toUpperCase()}
               </Typography>
             </Stack>
-            <Typography variant="h5" fontWeight={700} noWrap sx={{ fontFamily: 'serif', fontStyle: 'italic' }}>
+            <Typography variant="h5" fontWeight={700} noWrap sx={{ fontFamily: 'serif', fontStyle: 'normal' }}>
               {checkInOpen && <Chip size="small" label="Canlı" color="success" sx={{ mr: 1, height: 22, fontSize: 11 }} />}
               {event.name} — {eventDateStr}
             </Typography>
@@ -467,7 +467,7 @@ export default function EventConsole() {
                 fontSize: 11,
                 fontWeight: 700,
                 borderRadius: 1.5,
-                bgcolor: checkInOpen ? 'success.main' : '#0F1A14',
+                bgcolor: checkInOpen ? 'success.main' : '#F8FAFC',
                 '&:hover': { bgcolor: checkInOpen ? 'success.dark' : '#1a2b1f' },
               }}
             >
