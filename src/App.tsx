@@ -16,6 +16,9 @@ import BusinessDetails from './pages/Businesses/BusinessDetails';
 import BusinessCreate from './pages/Businesses/BusinessCreate';
 import BusinessClaims from './pages/Businesses/BusinessClaims';
 import BusinessCategories from './pages/BusinessCategories/BusinessCategories';
+import FeaturedStories from './pages/FeaturedStories/FeaturedStories';
+import UserCards from './pages/UserCards/UserCards';
+import FeatureFlags from './pages/FeatureFlags/FeatureFlags';
 import Events from './pages/Events/Events';
 import EventCategories from './pages/EventCategories/EventCategories';
 import AssociationDetails from './pages/Associations/AssociationDetails';
@@ -83,13 +86,18 @@ const queryClient = new QueryClient({
   },
 });
 
+const routerBasename =
+  import.meta.env.BASE_URL === '/'
+    ? undefined
+    : import.meta.env.BASE_URL.replace(/\/$/, '');
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <SnackbarProvider maxSnack={3}>
           <CssBaseline />
-          <BrowserRouter basename="/admin">
+          <BrowserRouter basename={routerBasename}>
             <Routes>
               <Route path="/login" element={<Login />} />
 
@@ -141,6 +149,9 @@ function App() {
                 <Route path="businesses/:id" element={<BusinessDetails />} />
                 <Route path="business-claims" element={<BusinessClaims />} />
                 <Route path="business-categories" element={<BusinessCategories />} />
+                <Route path="featured-stories" element={<FeaturedStories />} />
+                <Route path="user-cards" element={<UserCards />} />
+                <Route path="feature-flags" element={<FeatureFlags />} />
                 <Route path="events" element={<Events />} />
                 <Route path="events/:id" element={<EventDetailRedirect />} />
                 <Route path="sales-command" element={<SalesCommandCenter />} />

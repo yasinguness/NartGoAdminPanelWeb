@@ -45,9 +45,14 @@ export const eventService = {
     },
 
     // Event Operations
-    getAllEvents: async (params?: { page?: number; size?: number; status?: string }) => {
+    getAllEvents: async (params?: { page?: number; size?: number; status?: string; keyword?: string }) => {
         const response = await api.get<ApiResponse<PageResponseDto<EventResponseDTO>>>('/events', {
-            params: { page: params?.page ?? 0, size: params?.size ?? 100, status: params?.status },
+            params: {
+                page: params?.page ?? 0,
+                size: params?.size ?? 100,
+                status: params?.status,
+                keyword: params?.keyword,
+            },
         });
         return response.data;
     },

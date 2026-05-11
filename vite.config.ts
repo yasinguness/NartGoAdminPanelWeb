@@ -5,9 +5,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const shouldDeployAfterBuild = env.VITE_POSTBUILD_DEPLOY === 'true'
+  const base = mode === 'development' ? '/' : '/admin/'
 
   return {
-    base: '/admin',
+    base,
     plugins: [
       react(),
       {
