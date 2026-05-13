@@ -76,6 +76,14 @@ import User360 from './pages/User360/User360';
 import InactiveUsers from './pages/EngagementAnalytics/InactiveUsers';
 import LoginFrequency from './pages/EngagementAnalytics/LoginFrequency';
 import ProductAnalytics from './pages/EngagementAnalytics/ProductAnalytics';
+import NbDashboard from './pages/NartBusiness/NbDashboard';
+import NbMembers from './pages/NartBusiness/NbMembers';
+import NbVerificationQueue from './pages/NartBusiness/NbVerificationQueue';
+import NbSectors from './pages/NartBusiness/NbSectors';
+import NbValueChain from './pages/NartBusiness/NbValueChain';
+import NbEmbeddingJobs from './pages/NartBusiness/NbEmbeddingJobs';
+import NbModerationQueue from './pages/NartBusiness/NbModerationQueue';
+import NbDlqPanel from './pages/NartBusiness/NbDlqPanel';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -182,6 +190,15 @@ function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="audit-log" element={<AuditLog />} />
                 <Route path="analytics" element={<AnalyticsDashboard />} />
+                {/* NartBusiness (Sprint 7) */}
+                <Route path="nartbusiness/dashboard" element={<NbDashboard />} />
+                <Route path="nartbusiness/members" element={<NbMembers />} />
+                <Route path="nartbusiness/verification" element={<NbVerificationQueue />} />
+                <Route path="nartbusiness/sectors" element={<NbSectors />} />
+                <Route path="nartbusiness/value-chain" element={<NbValueChain />} />
+                <Route path="nartbusiness/embedding-jobs" element={<NbEmbeddingJobs />} />
+                <Route path="nartbusiness/moderation" element={<NbModerationQueue />} />
+                <Route path="nartbusiness/dlq" element={<NbDlqPanel />} />
               </Route>
             </Routes>
           </BrowserRouter>
