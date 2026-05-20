@@ -1,12 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
   CircularProgress,
   FormControl,
+  IconButton,
+  InputAdornment,
   InputLabel,
+  ListItemIcon,
+  ListItemText,
+  Menu,
   MenuItem,
   Pagination,
   Paper,
@@ -18,63 +25,283 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type {
+  MembershipTier,
   NbMember,
   NbMemberStatus,
-  MembershipTier,
   PagedResult,
 } from '../../services/nartbusiness/nbTypes';
+import {
+  fullDate,
+  RACE_LABEL,
+  relativeDate,
+  STATUS_LABEL,
+  TIER_LABEL,
+} from '../../utils/nbDisplay';
+import { NbStatusBadge } from '../../components/nartbusiness';
 import NbCreateMemberDialog from './NbCreateMemberDialog';
+import NbMemberActionDialog from './NbMemberActionDialog';
+import NbMemberHardDeleteDialog from './NbMemberHardDeleteDialog';
 
-const STATUS_LABELS: Record<NbMemberStatus, string> = {
-  SUBMITTED: 'Komite İnceliyor',
-  NEEDS_INFO: 'Ek Bilgi Bekleniyor',
-  REJECTED: 'Reddedildi',
-  APPROVED_PENDING_PAYMENT: 'Onay - Ödeme Bekliyor',
-  APPROVED_EXPIRED: 'Onay Süresi Doldu',
-  ACTIVE: 'Aktif',
-  EXPIRED: 'Süresi Geçti',
-  SUSPENDED: 'Askıda',
-  CANCELLED: 'İptal',
-  PENDING_VERIFICATION: 'Doğrulama Bekliyor (eski)',
-};
+type QuickFilter = 'all' | 'pending' | 'recent7d' | 'incomplete' | 'kurucu';
 
-const STATUS_COLORS: Record<
-  NbMemberStatus,
-  'success' | 'warning' | 'error' | 'default' | 'info' | 'primary'
-> = {
-  ACTIVE: 'success',
-  SUBMITTED: 'primary',
-  NEEDS_INFO: 'warning',
-  REJECTED: 'error',
-  APPROVED_PENDING_PAYMENT: 'info',
-  APPROVED_EXPIRED: 'error',
-  EXPIRED: 'error',
-  SUSPENDED: 'error',
-  CANCELLED: 'default',
-  PENDING_VERIFICATION: 'warning',
-};
+const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
+  { value: 'all', label: 'Tümü' },
+  { value: 'pending', label: 'Bekleyenler' },
+  { value: 'recent7d', label: 'Son 7 gün' },
+  { value: 'incomplete', label: 'Eksik profil' },
+  { value: 'kurucu', label: 'Kurucu' },
+];
 
-const TIER_LABELS: Record<MembershipTier, string> = {
-  KURUCU: 'Kurucu',
-  STANDART: 'Standart',
-  GENC_GIRISIMCI: 'Genç Girişimci',
-  PATRON: 'Patron',
-};
+/** Listede gösterilecek küçük üye-aksiyon menüsü (kebab). */
+function RowMenu({
+  member,
+  onOpen,
+  onActionRequest,
+  onDeleteRequest,
+}: {
+  member: NbMember;
+  onOpen: () => void;
+  onActionRequest: () => void;
+  onDeleteRequest: () => void;
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const open = !!anchor;
+  const isTerminal =
+    member.status === 'CANCELLED' || member.status === 'REJECTED';
+
+  const close = () => setAnchor(null);
+
+  return (
+    <>
+      <IconButton
+        size="small"
+        onClick={(e) => {
+          e.stopPropagation();
+          setAnchor(e.currentTarget);
+        }}
+      >
+        <MoreVertIcon fontSize="small" />
+      </IconButton>
+      <Menu anchorEl={anchor} open={open} onClose={close}>
+        <MenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            close();
+            onOpen();
+          }}
+        >
+          <ListItemIcon>
+            <OpenInNewIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Detayı aç</ListItemText>
+        </MenuItem>
+        {!isTerminal && (
+          <MenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              close();
+              onActionRequest();
+            }}
+          >
+            <ListItemIcon>
+              {member.status === 'SUSPENDED' ? (
+                <VerifiedIcon fontSize="small" color="success" />
+              ) : (
+                <PauseCircleOutlineIcon fontSize="small" color="warning" />
+              )}
+            </ListItemIcon>
+            <ListItemText>
+              {member.status === 'SUSPENDED' ? 'Aktifleştir / İptal Et' : 'Askıya Al / İptal Et'}
+            </ListItemText>
+          </MenuItem>
+        )}
+        {isTerminal && (
+          <MenuItem disabled>
+            <ListItemIcon>
+              <CancelOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Sonuçlandı — aksiyon yok</ListItemText>
+          </MenuItem>
+        )}
+        <MenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            close();
+            onDeleteRequest();
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon>
+            <DeleteForeverIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText>Kalıcı Sil</ListItemText>
+        </MenuItem>
+      </Menu>
+    </>
+  );
+}
+
+function MemberRow({
+  member,
+  onClick,
+  onActionRequest,
+  onDeleteRequest,
+}: {
+  member: NbMember;
+  onClick: () => void;
+  onActionRequest: () => void;
+  onDeleteRequest: () => void;
+}) {
+  const navigate = useNavigate();
+  const initial = (member.companyName ?? '?').trim().charAt(0).toUpperCase();
+  const identityLine =
+    member.race && member.clanName
+      ? `${RACE_LABEL[member.race]} · ${member.clanName}`
+      : member.race
+      ? RACE_LABEL[member.race]
+      : null;
+
+  return (
+    <TableRow
+      hover
+      sx={{ cursor: 'pointer' }}
+      onClick={onClick}
+    >
+      {/* Üye (compound cell): avatar + şirket + lokasyon/kimlik */}
+      <TableCell>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar
+            sx={{
+              width: 36,
+              height: 36,
+              bgcolor: member.companyName ? 'primary.light' : 'warning.light',
+              fontSize: 14,
+            }}
+          >
+            {initial}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            {member.companyName ? (
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                sx={{
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: 280,
+                }}
+              >
+                {member.companyName}
+              </Typography>
+            ) : (
+              <Chip
+                size="small"
+                color="warning"
+                variant="outlined"
+                label="Şirket bilgisi eksik"
+              />
+            )}
+            <Typography variant="caption" color="text.secondary">
+              {[member.city, identityLine].filter(Boolean).join(' · ') ||
+                'Profil bilgisi yok'}
+            </Typography>
+          </Box>
+        </Stack>
+      </TableCell>
+
+      {/* Kademe */}
+      <TableCell>
+        <Chip size="small" variant="outlined" label={TIER_LABEL[member.tier]} />
+      </TableCell>
+
+      {/* Durum */}
+      <TableCell>
+        <NbStatusBadge status={member.status} label={STATUS_LABEL[member.status]} />
+      </TableCell>
+
+      {/* Rozet */}
+      <TableCell>
+        {member.verifiedBusiness ? (
+          <Chip
+            size="small"
+            icon={<VerifiedIcon />}
+            label="Doğrulanmış"
+            color="info"
+            variant="outlined"
+          />
+        ) : (
+          <Typography variant="caption" color="text.disabled">
+            —
+          </Typography>
+        )}
+      </TableCell>
+
+      {/* Katılım — relative + hover full */}
+      <TableCell>
+        <Tooltip title={fullDate(member.joinedAt)} arrow>
+          <Typography variant="body2">{relativeDate(member.joinedAt)}</Typography>
+        </Tooltip>
+      </TableCell>
+
+      {/* Aksiyon — kebab */}
+      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+        <RowMenu
+          member={member}
+          onOpen={() => navigate(`/nartbusiness/members/${member.memberId}`)}
+          onActionRequest={onActionRequest}
+          onDeleteRequest={onDeleteRequest}
+        />
+      </TableCell>
+    </TableRow>
+  );
+}
 
 export default function NbMembers() {
+  const navigate = useNavigate();
   const [data, setData] = useState<PagedResult<NbMember> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState<NbMemberStatus | ''>('');
   const [tier, setTier] = useState<MembershipTier | ''>('');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
   const [createOpen, setCreateOpen] = useState(false);
+  const [actionMember, setActionMember] = useState<NbMember | null>(null);
+  const [deleteMember, setDeleteMember] = useState<NbMember | null>(null);
+
+  // Search debounce
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Quick filter → status/tier seçimine map
+  useEffect(() => {
+    if (quickFilter === 'pending') {
+      setStatus('SUBMITTED');
+      setTier('');
+    } else if (quickFilter === 'kurucu') {
+      setTier('KURUCU');
+    }
+    setPage(0);
+  }, [quickFilter]);
 
   const load = () => {
     setLoading(true);
@@ -97,6 +324,51 @@ export default function NbMembers() {
 
   useEffect(load, [page, status, tier]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // İstemci taraflı arama + quick filter (recent7d, incomplete)
+  const filtered = useMemo(() => {
+    const all = data?.content ?? [];
+    let result = all;
+    if (debouncedSearch) {
+      result = result.filter((m) => {
+        const haystack = [m.companyName, m.city, m.clanName, ...(m.sectorCodes ?? (m.sectorCode ? [m.sectorCode] : []))]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(debouncedSearch);
+      });
+    }
+    if (quickFilter === 'recent7d') {
+      const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      result = result.filter((m) => new Date(m.joinedAt).getTime() >= cutoff);
+    }
+    if (quickFilter === 'incomplete') {
+      result = result.filter(
+        (m) => !m.companyName || (!(m.sectorCodes?.length) && !m.sectorCode) || !m.race || !m.clanName,
+      );
+    }
+    return result;
+  }, [data?.content, debouncedSearch, quickFilter]);
+
+  // Stats — şu anki sayfa üzerinden hesaplanır (backend toplam stats için /dashboard/stats var ama burada yeterli)
+  const stats = useMemo(() => {
+    const all = data?.content ?? [];
+    return {
+      total: data?.totalElements ?? 0,
+      active: all.filter((m) => m.status === 'ACTIVE').length,
+      pending: all.filter(
+        (m) =>
+          m.status === 'SUBMITTED' ||
+          m.status === 'NEEDS_INFO' ||
+          m.status === 'APPROVED_PENDING_PAYMENT',
+      ).length,
+      suspended: all.filter((m) => m.status === 'SUSPENDED').length,
+      cancelled: all.filter((m) => m.status === 'CANCELLED').length,
+      incomplete: all.filter(
+        (m) => !m.companyName || (!(m.sectorCodes?.length) && !m.sectorCode) || !m.race || !m.clanName,
+      ).length,
+    };
+  }, [data]);
+
   return (
     <Box p={3}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
@@ -112,6 +384,69 @@ export default function NbMembers() {
         </Button>
       </Stack>
 
+      {/* Stats summary */}
+      <Paper variant="outlined" sx={{ px: 2, py: 1.5, mb: 2 }}>
+        <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
+          <StatChip label="Toplam" value={stats.total} />
+          <StatChip label="Aktif" value={stats.active} color="success" />
+          <StatChip label="Bekleyen" value={stats.pending} color="warning" />
+          <StatChip label="Askıda" value={stats.suspended} color="error" />
+          <StatChip label="İptal" value={stats.cancelled} color="default" />
+          {stats.incomplete > 0 && (
+            <StatChip label="Eksik profil" value={stats.incomplete} color="warning" />
+          )}
+        </Stack>
+      </Paper>
+
+      {/* Arama */}
+      <TextField
+        fullWidth
+        size="small"
+        placeholder="Şirket adı, şehir, sülale veya sektör koduyla ara…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        sx={{ mb: 1.5 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" />
+            </InputAdornment>
+          ),
+        }}
+      />
+
+      {/* Hızlı filtreler */}
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+        {QUICK_FILTERS.map((f) => {
+          const count =
+            f.value === 'pending'
+              ? stats.pending
+              : f.value === 'incomplete'
+              ? stats.incomplete
+              : undefined;
+          return (
+            <Chip
+              key={f.value}
+              size="small"
+              clickable
+              color={quickFilter === f.value ? 'primary' : 'default'}
+              variant={quickFilter === f.value ? 'filled' : 'outlined'}
+              label={count != null ? `${f.label} (${count})` : f.label}
+              onClick={() => {
+                if (f.value === 'all') {
+                  setQuickFilter('all');
+                  setStatus('');
+                  setTier('');
+                } else {
+                  setQuickFilter(f.value);
+                }
+              }}
+            />
+          );
+        })}
+      </Stack>
+
+      {/* Detaylı filtreler */}
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <FormControl size="small" sx={{ minWidth: 220 }}>
           <InputLabel>Durum</InputLabel>
@@ -124,9 +459,9 @@ export default function NbMembers() {
             }}
           >
             <MenuItem value="">Hepsi</MenuItem>
-            {(Object.keys(STATUS_LABELS) as NbMemberStatus[]).map((s) => (
+            {(Object.keys(STATUS_LABEL) as NbMemberStatus[]).map((s) => (
               <MenuItem key={s} value={s}>
-                {STATUS_LABELS[s]}
+                {STATUS_LABEL[s]}
               </MenuItem>
             ))}
           </Select>
@@ -142,9 +477,9 @@ export default function NbMembers() {
             }}
           >
             <MenuItem value="">Hepsi</MenuItem>
-            {(Object.keys(TIER_LABELS) as MembershipTier[]).map((t) => (
+            {(Object.keys(TIER_LABEL) as MembershipTier[]).map((t) => (
               <MenuItem key={t} value={t}>
-                {TIER_LABELS[t]}
+                {TIER_LABEL[t]}
               </MenuItem>
             ))}
           </Select>
@@ -159,77 +494,70 @@ export default function NbMembers() {
       {error && <Alert severity="error">{error}</Alert>}
       {!loading && !error && data && (
         <>
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} variant="outlined">
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Şirket</TableCell>
-                  <TableCell>Kademe</TableCell>
-                  <TableCell>Durum</TableCell>
-                  <TableCell>Halk · Sülale</TableCell>
-                  <TableCell>Şehir</TableCell>
-                  <TableCell>Rozet</TableCell>
-                  <TableCell>Katılım</TableCell>
+                  <TableCell sx={cellHeadSx}>Üye</TableCell>
+                  <TableCell sx={cellHeadSx}>Kademe</TableCell>
+                  <TableCell sx={cellHeadSx}>Durum</TableCell>
+                  <TableCell sx={cellHeadSx}>Rozet</TableCell>
+                  <TableCell sx={cellHeadSx}>Katılım</TableCell>
+                  <TableCell sx={cellHeadSx} align="right">
+                    {' '}
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data.content.map((m) => (
-                  <TableRow key={m.memberId} hover>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={500}>
-                        {m.companyName ?? '—'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" fontFamily="monospace">
-                        {m.memberId.substring(0, 8)}…
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{TIER_LABELS[m.tier]}</TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={STATUS_LABELS[m.status]}
-                        color={STATUS_COLORS[m.status]}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {m.race ? `${m.race} · ${m.clanName ?? '—'}` : '—'}
-                    </TableCell>
-                    <TableCell>{m.city ?? '—'}</TableCell>
-                    <TableCell>
-                      {m.verifiedBusiness && (
-                        <Chip
-                          size="small"
-                          icon={<VerifiedIcon />}
-                          label="Doğrulanmış"
-                          color="info"
-                          variant="outlined"
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(m.joinedAt).toLocaleDateString('tr-TR')}
-                    </TableCell>
-                  </TableRow>
+                {filtered.map((m) => (
+                  <MemberRow
+                    key={m.memberId}
+                    member={m}
+                    onClick={() =>
+                      navigate(`/nartbusiness/members/${m.memberId}`)
+                    }
+                    onActionRequest={() => setActionMember(m)}
+                    onDeleteRequest={() => setDeleteMember(m)}
+                  />
                 ))}
-                {data.content.length === 0 && (
+                {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
-                      <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
-                        Üye bulunamadı.
-                      </Typography>
+                    <TableCell colSpan={6} align="center">
+                      <Stack alignItems="center" py={5} spacing={1}>
+                        <Typography variant="body2" color="text.secondary">
+                          {debouncedSearch || quickFilter !== 'all'
+                            ? 'Filtreyle eşleşen üye yok.'
+                            : 'Henüz hiç üye yok.'}
+                        </Typography>
+                        {(debouncedSearch || quickFilter !== 'all') && (
+                          <Button
+                            size="small"
+                            onClick={() => {
+                              setSearch('');
+                              setQuickFilter('all');
+                              setStatus('');
+                              setTier('');
+                            }}
+                          >
+                            Filtreleri temizle
+                          </Button>
+                        )}
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </TableContainer>
-          <Stack alignItems="center" sx={{ mt: 2 }}>
-            <Pagination
-              count={data.totalPages}
-              page={page + 1}
-              onChange={(_, p) => setPage(p - 1)}
-            />
-          </Stack>
+          {data.totalPages > 1 && (
+            <Stack alignItems="center" sx={{ mt: 2 }}>
+              <Pagination
+                count={data.totalPages}
+                page={page + 1}
+                onChange={(_, p) => setPage(p - 1)}
+              />
+            </Stack>
+          )}
         </>
       )}
 
@@ -238,6 +566,68 @@ export default function NbMembers() {
         onClose={() => setCreateOpen(false)}
         onCreated={load}
       />
+
+      <NbMemberActionDialog
+        open={!!actionMember}
+        member={actionMember}
+        onClose={() => setActionMember(null)}
+        onActionDone={() => {
+          setActionMember(null);
+          load();
+        }}
+      />
+
+      <NbMemberHardDeleteDialog
+        open={!!deleteMember}
+        member={deleteMember}
+        onClose={() => setDeleteMember(null)}
+        onDeleted={() => {
+          setDeleteMember(null);
+          load();
+        }}
+      />
+    </Box>
+  );
+}
+
+// Caps yerine küçük gri kalın — modern tablo başlığı
+const cellHeadSx = {
+  textTransform: 'none' as const,
+  fontWeight: 600,
+  color: 'text.secondary',
+  fontSize: 12,
+  letterSpacing: 0.2,
+};
+
+function StatChip({
+  label,
+  value,
+  color = 'default',
+}: {
+  label: string;
+  value: number;
+  color?: 'default' | 'success' | 'warning' | 'error';
+}) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography
+        variant="body2"
+        fontWeight={600}
+        color={
+          color === 'success'
+            ? 'success.main'
+            : color === 'warning'
+            ? 'warning.main'
+            : color === 'error'
+            ? 'error.main'
+            : 'text.primary'
+        }
+      >
+        {value}
+      </Typography>
     </Box>
   );
 }

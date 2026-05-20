@@ -14,6 +14,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import {
@@ -29,6 +30,11 @@ type ReportStatus =
   | 'RESOLVED_HIDDEN'
   | 'RESOLVED_KEPT'
   | 'DISMISSED';
+
+const TARGET_TYPE_LABEL: Record<string, string> = {
+  QUESTION: 'Soru',
+  ANSWER: 'Cevap',
+};
 
 interface Report {
   id: string;
@@ -121,7 +127,7 @@ export default function NbModerationQueue() {
             <TableHead>
               <TableRow>
                 <TableCell>Tip</TableCell>
-                <TableCell>Hedef</TableCell>
+                <TableCell>Hedef ID</TableCell>
                 <TableCell>Sebep</TableCell>
                 <TableCell>Not</TableCell>
                 <TableCell>Oluşturulma</TableCell>
@@ -132,10 +138,14 @@ export default function NbModerationQueue() {
               {items.map((r) => (
                 <TableRow key={r.id} hover>
                   <TableCell>
-                    <Chip size="small" label={r.targetType} />
+                    <Chip size="small" label={TARGET_TYPE_LABEL[r.targetType] ?? r.targetType} />
                   </TableCell>
-                  <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
-                    {r.targetId.substring(0, 8)}…
+                  <TableCell>
+                    <Tooltip title={r.targetId} arrow>
+                      <Typography variant="body2" fontFamily="monospace" sx={{ fontSize: 12, cursor: 'default' }}>
+                        {r.targetId.substring(0, 8)}…
+                      </Typography>
+                    </Tooltip>
                   </TableCell>
                   <TableCell>{r.reason}</TableCell>
                   <TableCell sx={{ maxWidth: 220 }}>
@@ -144,21 +154,24 @@ export default function NbModerationQueue() {
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ fontSize: 12 }}>
-                    {new Date(r.createdAt).toLocaleString('tr-TR')}
+                    {new Date(r.createdAt).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" title="Hide" color="error"
-                                onClick={() => resolve(r.id, true)}>
-                      <HideIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" title="Keep" color="success"
-                                onClick={() => resolve(r.id, false)}>
-                      <KeepIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" title="Dismiss"
-                                onClick={() => dismiss(r.id)}>
-                      <DismissIcon fontSize="small" />
-                    </IconButton>
+                    <Tooltip title="İçeriği gizle" arrow>
+                      <IconButton size="small" color="error" onClick={() => resolve(r.id, true)}>
+                        <HideIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Bildirimi reddet (içerik açık kalır)" arrow>
+                      <IconButton size="small" color="success" onClick={() => resolve(r.id, false)}>
+                        <KeepIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Raporu kapat" arrow>
+                      <IconButton size="small" onClick={() => dismiss(r.id)}>
+                        <DismissIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}

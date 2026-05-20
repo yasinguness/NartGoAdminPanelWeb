@@ -11,17 +11,24 @@
  */
 import { api } from '../api';
 import type {
+  AdminActionRequest,
+  AdminImpactPreview,
   ApiEnvelope,
   CommitteeVoteRequest,
   EmbeddingJob,
   EmbeddingJobStatus,
   MatchBatchSummary,
+  MembershipTier,
   NbDashboardStats,
   NbDlqEntry,
   NbMember,
   NbMemberStatus,
+  NbPeriodView,
   PagedResult,
   Sector,
+  TierConfig,
+  TierConfigUpdate,
+  TierDocumentPolicy,
   ValueChainBulkImportRequest,
   ValueChainBulkImportResult,
   ValueChainEdge,
@@ -29,6 +36,7 @@ import type {
   ValueChainEdgeUpdate,
   VerificationCase,
   VerificationCaseStatus,
+  VerificationDocumentType,
 } from './nbTypes';
 
 function unwrap<T>(body: any): T | null {
@@ -79,6 +87,60 @@ async function getMember(memberId: string): Promise<NbMember | null> {
 }
 
 /**
+ * Sprint 24 — Admin aksiyon etki önizlemesi. Suspend/cancel öncesi çağrılır;
+ * UI hangi aksiyonların geçerli olduğunu (allowedActions) ve hangi kayıtların
+ * etkileneceğini bu yanıttan okur.
+ */
+async function getMemberImpact(memberId: string): Promise<AdminImpactPreview | null> {
+  const res = await api.get<any>(`/nb/admin/members/${memberId}/impact`);
+  return unwrap<AdminImpactPreview>(res.data);
+}
+
+async function suspendMember(
+  memberId: string,
+  body: AdminActionRequest,
+): Promise<NbMember | null> {
+  const res = await api.patch<any>(`/nb/admin/members/${memberId}/suspend`, body);
+  return unwrap<NbMember>(res.data);
+}
+
+async function reactivateMember(
+  memberId: string,
+  body: AdminActionRequest,
+): Promise<NbMember | null> {
+  const res = await api.patch<any>(`/nb/admin/members/${memberId}/reactivate`, body);
+  return unwrap<NbMember>(res.data);
+}
+
+async function cancelMember(
+  memberId: string,
+  body: AdminActionRequest,
+): Promise<NbMember | null> {
+  const res = await api.patch<any>(`/nb/admin/members/${memberId}/cancel`, body);
+  return unwrap<NbMember>(res.data);
+}
+
+async function hardDeleteMember(
+  memberId: string,
+  body: AdminActionRequest,
+): Promise<void> {
+  await api.delete(`/nb/admin/members/${memberId}`, { data: body });
+}
+
+/**
+ * Sprint 24 — Üyenin tüm dönemleri (yeni → eski). Detay sayfasında tablo.
+ */
+async function listMemberPeriods(memberId: string): Promise<NbPeriodView[]> {
+  try {
+    const res = await api.get<any>(`/nb/admin/members/${memberId}/periods`);
+    return unwrap<NbPeriodView[]>(res.data) ?? [];
+  } catch (err: any) {
+    if (err?.response?.status === 404) return [];
+    throw err;
+  }
+}
+
+/**
  * Sprint 23 — Admin manuel üye oluşturma.
  * Self-service apply akışını atlayarak offline anlaşmalı işletmeler için.
  */
@@ -111,6 +173,21 @@ export interface NbUserSearchResult {
   nbMemberStatus?: string | null;
   /** True ise kullanıcı zaten "aktif" bir NB üyeliği içinde — submit bloklanmalı. */
   nbMemberConflict?: boolean;
+  // Sprint 24 — NartGo profilinden NB formu pre-fill için
+  race?: string | null;
+  family?: string | null;
+  currentCity?: string | null;
+  currentDistrict?: string | null;
+  hometownCity?: string | null;
+  hometownVillage?: string | null;
+  companyName?: string | null;
+}
+
+/** auth-service /families/race/{race} yanıtı. */
+export interface RaceFamily {
+  id: number;
+  familyName: string;
+  race: string;
 }
 
 async function searchUsers(q: string, limit = 20): Promise<NbUserSearchResult[]> {
@@ -128,6 +205,40 @@ async function searchUsers(q: string, limit = 20): Promise<NbUserSearchResult[]>
 }
 
 /**
+ * Sprint 24 — Sülale katalogunu seçilen ırka göre döner.
+ * Endpoint: GET /api/v1/auth/families/race/{race} (auth-service, gateway-routed).
+ * Race değerleri: adige, abhaz, cecen, dagistan, karacay, oset, other.
+ *
+ * Sülale autocomplete'i için kullanılır — admin manuel üye + verify case
+ * detayları gibi NB formlarında ortak.
+ */
+async function listFamiliesByRace(race: string): Promise<RaceFamily[]> {
+  if (!race || !race.trim()) return [];
+  try {
+    const res = await api.get<any>(`/auth/families/race/${encodeURIComponent(race)}`);
+    return unwrap<RaceFamily[]>(res.data) ?? [];
+  } catch (err: any) {
+    if (err?.response?.status === 404) return [];
+    throw err;
+  }
+}
+
+/**
+ * Sprint 24 — Kataloga yeni sülale ekle (admin).
+ * Backend conflict check yapar (aynı race + familyName varsa 409). Caller 409'u
+ * tolere edip mevcut kaydı seçtirebilir.
+ *
+ * Endpoint: POST /api/v1/auth/families body {familyName, race}.
+ */
+async function createFamily(familyName: string, race: string): Promise<RaceFamily | null> {
+  const res = await api.post<any>('/auth/families', {
+    familyName: familyName.trim(),
+    race,
+  });
+  return unwrap<RaceFamily>(res.data);
+}
+
+/**
  * Sprint 23.1+ — Yeni-kullanıcı modunda email blur'da çalışır.
  * Email zaten kayıtlıysa frontend uyarı + tek-tıkla mod değişimi sunar.
  *
@@ -141,7 +252,28 @@ async function lookupUserByEmail(email: string): Promise<NbUserSearchResult | nu
     const res = await api.get<any>('/nb/admin/users/lookup', {
       params: { email: email.trim().toLowerCase() },
     });
-    return unwrap<NbUserSearchResult | null>(res.data);
+    const data = unwrap<NbUserSearchResult | null>(res.data);
+    // Boş obje veya kimliği olmayan veri yanlış-pozitif "kayıtlı" mesajına
+    // neden oluyordu — userId yoksa null kabul et.
+    if (!data || !data.userId) return null;
+    return data;
+  } catch (err: any) {
+    if (err?.response?.status === 404) return null;
+    throw err;
+  }
+}
+
+/**
+ * Sprint 24 — userId ile NartGo kullanıcısı detayı (NB detay sayfası).
+ * Aynı NbUserSearchResult şekli — NB üyelik durumu da iliştirilmiş.
+ */
+async function getUserById(userId: string): Promise<NbUserSearchResult | null> {
+  if (!userId || !userId.trim()) return null;
+  try {
+    const res = await api.get<any>(`/nb/admin/users/${userId}`);
+    const data = unwrap<NbUserSearchResult | null>(res.data);
+    if (!data || !data.userId) return null;
+    return data;
   } catch (err: any) {
     if (err?.response?.status === 404) return null;
     throw err;
@@ -194,6 +326,35 @@ async function decideVerification(
     params: { status, note },
   });
   return unwrap<VerificationCase>(res.data);
+}
+
+async function listTierDocPolicies(): Promise<TierDocumentPolicy[]> {
+  const res = await api.get<any>('/nb/admin/verification/tier-doc-policies');
+  return unwrap<TierDocumentPolicy[]>(res.data) ?? [];
+}
+
+async function updateTierDocPolicy(
+  tier: MembershipTier,
+  requiredDocTypes: VerificationDocumentType[],
+): Promise<TierDocumentPolicy | null> {
+  const res = await api.put<any>(`/nb/admin/verification/tier-doc-policies/${tier}`, {
+    requiredDocTypes,
+  });
+  return unwrap<TierDocumentPolicy>(res.data);
+}
+
+// ============================================================
+// Tiers (Sprint 26 — dynamic tier management)
+// ============================================================
+
+async function listTiers(): Promise<TierConfig[]> {
+  const res = await api.get<any>('/nb/admin/membership/tiers');
+  return unwrap<TierConfig[]>(res.data) ?? [];
+}
+
+async function upsertTier(id: string, body: TierConfigUpdate): Promise<TierConfig | null> {
+  const res = await api.put<any>(`/nb/admin/membership/tiers/${id}`, body);
+  return unwrap<TierConfig>(res.data);
 }
 
 // ============================================================
@@ -287,18 +448,32 @@ async function replayDlqEntry(service: string, eventDbId: string): Promise<NbDlq
 export const nbAdminService = {
   // Dashboard
   getDashboardStats,
+  // Tiers
+  listTiers,
+  upsertTier,
   // Members
   listMembers,
   getMember,
   createMemberManually,
   searchUsers,
   lookupUserByEmail,
+  getUserById,
+  listFamiliesByRace,
+  createFamily,
+  getMemberImpact,
+  suspendMember,
+  reactivateMember,
+  cancelMember,
+  hardDeleteMember,
+  listMemberPeriods,
   // Verification
   listVerificationQueue,
   getVerificationCase,
   getCaseTimeline,
   submitCommitteeVote,
   decideVerification,
+  listTierDocPolicies,
+  updateTierDocPolicy,
   // Sectors
   listSectors,
   upsertSector,

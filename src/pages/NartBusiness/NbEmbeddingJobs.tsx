@@ -30,6 +30,14 @@ import type {
   EmbeddingJobStatus,
   MatchBatchSummary,
 } from '../../services/nartbusiness/nbTypes';
+import { relativeDate, fullDate } from '../../utils/nbDisplay';
+
+const STATUS_TR: Record<EmbeddingJobStatus, string> = {
+  FAILED: 'Başarısız',
+  PENDING: 'Bekliyor',
+  RUNNING: 'Çalışıyor',
+  DONE: 'Tamamlandı',
+};
 
 const STATUS_OPTIONS: EmbeddingJobStatus[] = ['FAILED', 'PENDING', 'RUNNING', 'DONE'];
 
@@ -71,7 +79,7 @@ export default function NbEmbeddingJobs() {
       await nbAdminService.retryEmbeddingJob(id);
       await load();
     } catch (e: any) {
-      setError(e?.message ?? 'Retry başarısız');
+      setError(e?.message ?? 'Yeniden deneme başarısız');
     }
   };
 
@@ -81,7 +89,7 @@ export default function NbEmbeddingJobs() {
       const summary = await nbAdminService.triggerMatchingBatch();
       setLastBatch(summary);
     } catch (e: any) {
-      setError(e?.message ?? 'Batch başarısız');
+      setError(e?.message ?? 'Batch tetiklenemedi');
     } finally {
       setBatchRunning(false);
     }
@@ -159,7 +167,7 @@ export default function NbEmbeddingJobs() {
         >
           {STATUS_OPTIONS.map((s) => (
             <MenuItem key={s} value={s}>
-              {s}
+              {STATUS_TR[s]}
             </MenuItem>
           ))}
         </TextField>
@@ -177,10 +185,10 @@ export default function NbEmbeddingJobs() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Member ID</TableCell>
+                <TableCell>Üye ID</TableCell>
                 <TableCell>Durum</TableCell>
                 <TableCell align="right">Deneme</TableCell>
-                <TableCell>Enqueue</TableCell>
+                <TableCell>Kuyruğa Alınma</TableCell>
                 <TableCell>Tamamlandı</TableCell>
                 <TableCell sx={{ minWidth: 240 }}>Son Hata</TableCell>
                 <TableCell align="right">İşlem</TableCell>
@@ -189,18 +197,28 @@ export default function NbEmbeddingJobs() {
             <TableBody>
               {jobs.map((j) => (
                 <TableRow key={j.id} hover>
-                  <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
-                    {j.memberId.substring(0, 8)}…
+                  <TableCell>
+                    <Tooltip title={j.memberId} arrow>
+                      <Typography variant="body2" fontFamily="monospace" sx={{ fontSize: 12, cursor: 'default' }}>
+                        {j.memberId.substring(0, 8)}…
+                      </Typography>
+                    </Tooltip>
                   </TableCell>
                   <TableCell>
-                    <Chip size="small" label={j.status} color={statusChipColor(j.status)} />
+                    <Chip size="small" label={STATUS_TR[j.status] ?? j.status} color={statusChipColor(j.status)} />
                   </TableCell>
                   <TableCell align="right">{j.attempts}</TableCell>
-                  <TableCell sx={{ fontSize: 12 }}>
-                    {new Date(j.enqueuedAt).toLocaleString('tr-TR')}
+                  <TableCell>
+                    <Tooltip title={fullDate(j.enqueuedAt)} arrow>
+                      <Typography variant="body2">{relativeDate(j.enqueuedAt)}</Typography>
+                    </Tooltip>
                   </TableCell>
-                  <TableCell sx={{ fontSize: 12 }}>
-                    {j.completedAt ? new Date(j.completedAt).toLocaleString('tr-TR') : '—'}
+                  <TableCell>
+                    {j.completedAt ? (
+                      <Tooltip title={fullDate(j.completedAt)} arrow>
+                        <Typography variant="body2">{relativeDate(j.completedAt)}</Typography>
+                      </Tooltip>
+                    ) : '—'}
                   </TableCell>
                   <TableCell sx={{ maxWidth: 320 }}>
                     <Tooltip title={j.lastError ?? ''}>
@@ -211,9 +229,11 @@ export default function NbEmbeddingJobs() {
                   </TableCell>
                   <TableCell align="right">
                     {j.status === 'FAILED' && (
-                      <IconButton size="small" onClick={() => retry(j.id)} title="Retry">
-                        <ReplayIcon fontSize="small" />
-                      </IconButton>
+                      <Tooltip title="Yeniden dene" arrow>
+                        <IconButton size="small" onClick={() => retry(j.id)}>
+                          <ReplayIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     )}
                   </TableCell>
                 </TableRow>

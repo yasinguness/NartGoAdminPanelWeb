@@ -43,10 +43,11 @@ export interface AdminCreateMemberRequest {
   email?: string;
   firstName?: string;
   lastName?: string;
+  phone?: string;
   createIfMissing?: boolean;
   requestedTier: MembershipTier;
   companyName: string;
-  sectorCode: string;
+  sectorCodes: string[];
   city: string;
   race: NbRace;
   clanName: string;
@@ -72,6 +73,7 @@ export interface NbMember {
 
   // Sprint 23 — Hafif KYC
   companyName?: string;
+  sectorCodes?: string[];
   sectorCode?: string;
   city?: string;
   race?: NbRace;
@@ -128,6 +130,7 @@ export interface CaseTimelineEntry {
   at: string;
   type: CaseTimelineEntryType;
   actorUserId?: string;
+  actorDisplayName?: string;
   description: string;
   detail?: string;
 }
@@ -145,8 +148,11 @@ export interface VerificationCase {
 
   // Sprint 23 — Hafif KYC denormalize (event payload'undan)
   companyName?: string;
+  sectorCodes?: string[];
   sectorCode?: string;
   city?: string;
+  district?: string;
+  country?: string;
   race?: NbRace;
   clanName?: string;
   hometownDetail?: string;
@@ -156,6 +162,31 @@ export interface VerificationCase {
   nartgoTenureMonths?: number | null;
 
   documents: VerificationDocument[];
+}
+
+// Sprint 26 — admin'den yönetilen dinamik üyelik tier konfigürasyonu
+export interface TierConfig {
+  id: string;
+  code: string;
+  displayName: string;
+  priceAmount: number;
+  currency: string;
+  pricePeriod: string;
+  shortDescription?: string;
+  features: string[];
+  sortOrder: number;
+  active: boolean;
+}
+
+export interface TierConfigUpdate {
+  displayName: string;
+  priceAmount: number;
+  currency: string;
+  pricePeriod: string;
+  shortDescription?: string;
+  features: string[];
+  sortOrder: number;
+  active: boolean;
 }
 
 export interface Sector {
@@ -240,6 +271,49 @@ export interface NbDashboardStats {
 
 export type CommitteeVoteType = 'APPROVE' | 'REJECT' | 'NEEDS_INFO';
 
+export type MembershipPeriodStatus =
+  | 'PAYMENT_PENDING'
+  | 'ACTIVE'
+  | 'EXPIRED'
+  | 'CANCELLED';
+
+export interface NbPeriodView {
+  id: string;
+  memberId: string;
+  tier: MembershipTier;
+  startsAt: string;
+  endsAt: string;
+  fee: number;
+  currency: string;
+  paymentId?: string | null;
+  status: MembershipPeriodStatus;
+  createdAt: string;
+}
+
+// Sprint 24 — admin lifecycle aksiyonları
+export type AdminMemberAction = 'SUSPEND' | 'REACTIVATE' | 'CANCEL';
+
+/** PATCH suspend/reactivate/cancel payload — kategori + min-30-char gerekçe. */
+export interface AdminActionRequest {
+  category: string;
+  note: string;
+}
+
+/**
+ * GET /members/{memberId}/impact yanıtı — UI aksiyon butonlarını disable/enable
+ * eder ve kullanıcıya "şu kayıtlar etkilenecek" uyarısı verir.
+ */
+export interface AdminImpactPreview {
+  memberId: string;
+  status: NbMemberStatus;
+  tier: MembershipTier;
+  activePeriods: number;
+  paymentPendingPeriods: number;
+  verifiedBusiness: boolean;
+  currentPeriodId?: string | null;
+  allowedActions: AdminMemberAction[];
+}
+
 export interface CommitteeVoteRequest {
   vote: CommitteeVoteType;
   note?: string;
@@ -265,6 +339,13 @@ export interface PagedResult<T> {
   totalPages: number;
   first: boolean;
   last: boolean;
+}
+
+export interface TierDocumentPolicy {
+  tier: MembershipTier;
+  requiredDocTypes: VerificationDocumentType[];
+  updatedAt?: string;
+  updatedByUserId?: string;
 }
 
 export interface ApiEnvelope<T> {

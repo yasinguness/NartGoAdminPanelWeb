@@ -78,8 +78,11 @@ import LoginFrequency from './pages/EngagementAnalytics/LoginFrequency';
 import ProductAnalytics from './pages/EngagementAnalytics/ProductAnalytics';
 import NbDashboard from './pages/NartBusiness/NbDashboard';
 import NbMembers from './pages/NartBusiness/NbMembers';
+import NbMemberDetail from './pages/NartBusiness/NbMemberDetail';
 import NbVerificationQueue from './pages/NartBusiness/NbVerificationQueue';
+import NbVerificationPolicies from './pages/NartBusiness/NbVerificationPolicies';
 import NbSectors from './pages/NartBusiness/NbSectors';
+import NbTierManagement from './pages/NartBusiness/NbTierManagement';
 import NbValueChain from './pages/NartBusiness/NbValueChain';
 import NbEmbeddingJobs from './pages/NartBusiness/NbEmbeddingJobs';
 import NbModerationQueue from './pages/NartBusiness/NbModerationQueue';
@@ -193,8 +196,14 @@ function App() {
                 {/* NartBusiness (Sprint 7) */}
                 <Route path="nartbusiness/dashboard" element={<NbDashboard />} />
                 <Route path="nartbusiness/members" element={<NbMembers />} />
+                <Route
+                  path="nartbusiness/members/:memberId"
+                  element={<NbMemberDetail />}
+                />
                 <Route path="nartbusiness/verification" element={<NbVerificationQueue />} />
+                <Route path="nartbusiness/verification-policies" element={<NbVerificationPolicies />} />
                 <Route path="nartbusiness/sectors" element={<NbSectors />} />
+                <Route path="nartbusiness/tiers" element={<NbTierManagement />} />
                 <Route path="nartbusiness/value-chain" element={<NbValueChain />} />
                 <Route path="nartbusiness/embedding-jobs" element={<NbEmbeddingJobs />} />
                 <Route path="nartbusiness/moderation" element={<NbModerationQueue />} />

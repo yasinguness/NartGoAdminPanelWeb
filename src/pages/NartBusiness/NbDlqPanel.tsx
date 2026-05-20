@@ -17,6 +17,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { relativeDate, fullDate } from '../../utils/nbDisplay';
 import { Replay as ReplayIcon } from '@mui/icons-material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbDlqEntry } from '../../services/nartbusiness/nbTypes';
@@ -61,7 +62,7 @@ export default function NbDlqPanel() {
       await nbAdminService.replayDlqEntry(service, id);
       load();
     } catch (e: any) {
-      setError(e?.message ?? 'Replay başarısız');
+      setError(e?.message ?? 'Tekrar deneme başarısız');
     } finally {
       setReplaying(null);
     }
@@ -101,10 +102,10 @@ export default function NbDlqPanel() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Topic</TableCell>
-                <TableCell>Event Type</TableCell>
+                <TableCell>Konu (Topic)</TableCell>
+                <TableCell>Olay Tipi</TableCell>
                 <TableCell>Aggregate ID</TableCell>
-                <TableCell>Retry</TableCell>
+                <TableCell>Deneme</TableCell>
                 <TableCell>Hata</TableCell>
                 <TableCell>DLQ Tarihi</TableCell>
                 <TableCell></TableCell>
@@ -120,9 +121,11 @@ export default function NbDlqPanel() {
                   </TableCell>
                   <TableCell>{e.eventType}</TableCell>
                   <TableCell>
-                    <Typography variant="body2" fontFamily="monospace">
-                      {e.aggregateId.substring(0, 8)}…
-                    </Typography>
+                    <Tooltip title={e.aggregateId} arrow>
+                      <Typography variant="body2" fontFamily="monospace" sx={{ cursor: 'default' }}>
+                        {e.aggregateId.substring(0, 8)}…
+                      </Typography>
+                    </Tooltip>
                   </TableCell>
                   <TableCell>{e.retryCount}</TableCell>
                   <TableCell>
@@ -145,7 +148,9 @@ export default function NbDlqPanel() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {new Date(e.deadLetteredAt).toLocaleString('tr-TR')}
+                    <Tooltip title={fullDate(e.deadLetteredAt)} arrow>
+                      <Typography variant="body2">{relativeDate(e.deadLetteredAt)}</Typography>
+                    </Tooltip>
                   </TableCell>
                   <TableCell>
                     <Button
@@ -154,7 +159,7 @@ export default function NbDlqPanel() {
                       onClick={() => replay(e.id)}
                       disabled={replaying === e.id}
                     >
-                      Replay
+                      Tekrar Dene
                     </Button>
                   </TableCell>
                 </TableRow>

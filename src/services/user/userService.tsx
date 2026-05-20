@@ -118,9 +118,9 @@ export const userService = {
         return response.data;
     },
 
-    // Delete user account
+    // Delete user account (admin hard delete — Keycloak + DB + cascade)
     deleteAccountById: async (userId: string) => {
-        const response = await api.delete<ApiResponse<void>>(`/auth/delete-account/${userId}`);
+        const response = await api.delete<ApiResponse<void>>(`/auth/${userId}`);
         return response.data;
     },
 
