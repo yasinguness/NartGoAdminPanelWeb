@@ -451,6 +451,14 @@ export default function Events() {
                           <LocationIcon sx={{ fontSize: 14 }} /> {event.address?.city || 'İstanbul'}
                         </Typography>
                         <Chip label={event.category?.name || 'Genel'} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 700 }} />
+                        {(event as any).isShowNb === true && (
+                          <Chip
+                            label="NB"
+                            size="small"
+                            title="NartBusiness uygulamasında gösteriliyor"
+                            sx={{ height: 20, fontSize: 10, fontWeight: 800, bgcolor: '#1B2A4A', color: '#C9A227', letterSpacing: 0.5 }}
+                          />
+                        )}
                       </Stack>
                     </Box>
 

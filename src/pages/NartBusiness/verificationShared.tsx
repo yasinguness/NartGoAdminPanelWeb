@@ -7,6 +7,7 @@ import {
   Typography,
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
+import { formatDateTime } from '../../utils/dateUtils';
 import GavelIcon from '@mui/icons-material/Gavel';
 import ReplyIcon from '@mui/icons-material/Reply';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -158,10 +159,7 @@ export function CaseTimelineList({
                 {e.description}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {new Date(e.at).toLocaleString('tr-TR', {
-                  dateStyle: 'short',
-                  timeStyle: 'short',
-                })}
+                {formatDateTime(e.at)}
               </Typography>
             </Stack>
             {(e.actorDisplayName || e.actorUserId) && (

@@ -1,7 +1,8 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { ReactElement } from 'react';
+import { ReactElement, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useRole } from '../hooks/useRole';
+import { getValidToken } from '../services/tokenStorage';
 import ForbiddenPage from './ForbiddenPage';
 
 interface PrivateRouteProps {
@@ -11,9 +12,24 @@ interface PrivateRouteProps {
 }
 
 export default function PrivateRoute({ children, showForbidden = true }: PrivateRouteProps) {
-    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const storeAuthed = useAuthStore((state) => state.isAuthenticated);
+    const storeLogout = useAuthStore((state) => state.logout);
     const { canAccess, fallbackPath } = useRole();
     const location = useLocation();
+
+    // Tek auth gerçeği: Zustand "authed" dese de geçerli token yoksa korumalı
+    // sayfayı render etme. (Eskiden ikisi ayrışınca token'sız admin istekleri
+    // 401 storm'una düşüyordu.)
+    const hasValidToken = getValidToken() !== null;
+    const isAuthenticated = storeAuthed && hasValidToken;
+
+    // Ayrışmayı (store authed ama token yok) kalıcı temizle ki tekrar tekrar
+    // korumalı sayfa render edilmesin.
+    useEffect(() => {
+        if (storeAuthed && !hasValidToken) {
+            storeLogout();
+        }
+    }, [storeAuthed, hasValidToken, storeLogout]);
 
     if (!isAuthenticated) {
         // Login sonrası geri yönlendirme için mevcut path'i state'te sakla

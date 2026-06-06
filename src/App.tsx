@@ -87,6 +87,8 @@ import NbValueChain from './pages/NartBusiness/NbValueChain';
 import NbEmbeddingJobs from './pages/NartBusiness/NbEmbeddingJobs';
 import NbModerationQueue from './pages/NartBusiness/NbModerationQueue';
 import NbDlqPanel from './pages/NartBusiness/NbDlqPanel';
+import NbShareAnalytics from './pages/NartBusiness/NbShareAnalytics';
+import NbTestimonials from './pages/NartBusiness/NbTestimonials';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -208,6 +210,8 @@ function App() {
                 <Route path="nartbusiness/embedding-jobs" element={<NbEmbeddingJobs />} />
                 <Route path="nartbusiness/moderation" element={<NbModerationQueue />} />
                 <Route path="nartbusiness/dlq" element={<NbDlqPanel />} />
+                <Route path="nartbusiness/share-analytics" element={<NbShareAnalytics />} />
+                <Route path="nartbusiness/testimonials" element={<NbTestimonials />} />
               </Route>
             </Routes>
           </BrowserRouter>

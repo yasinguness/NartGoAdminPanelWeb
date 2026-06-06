@@ -39,6 +39,7 @@ import {
     Campaign as CampaignIcon,
     Star as StarIcon,
     ToggleOn as ToggleOnIcon,
+    Share as ShareIcon,
     Badge as BadgeIcon,
     EventSeat as EventSeatIcon,
     Article as ArticleIcon,
@@ -139,6 +140,8 @@ const navSections: NavSection[] = [
             { text: 'Embedding & Matching', icon: <ToggleOnIcon />, path: '/nartbusiness/embedding-jobs', allowedRoles: ['ADMIN', 'NB_ADMIN'] },
             { text: 'Moderasyon Kuyruğu', icon: <FactCheckIcon />, path: '/nartbusiness/moderation', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_COMMITTEE'] },
             { text: 'NB DLQ', icon: <ToggleOnIcon />, path: '/nartbusiness/dlq', allowedRoles: ['ADMIN', 'NB_ADMIN'] },
+            { text: 'Paylaşım Analitikleri', icon: <ShareIcon />, path: '/nartbusiness/share-analytics', allowedRoles: ['ADMIN', 'NB_ADMIN'] },
+            { text: 'Referanslar', icon: <StarIcon />, path: '/nartbusiness/testimonials', allowedRoles: ['ADMIN', 'NB_ADMIN'] },
         ],
     },
     {

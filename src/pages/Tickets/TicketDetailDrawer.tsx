@@ -17,6 +17,7 @@ import {
   SwapHoriz as TransferIcon,
 } from '@mui/icons-material';
 import { TicketStatus } from '../../types/tickets/ticketTypes';
+import { formatEventDateTime, eventZoneLabel } from '../../utils/dateUtils';
 import type { TicketListItem, TicketTransferRecord, TicketTransferConfig } from '../../types/tickets/ticketManagementTypes';
 import type { OrderDetailResponse } from '../../types/tickets/ticketManagementTypes';
 
@@ -109,9 +110,9 @@ export default function TicketDetailDrawer({
               <Box sx={{ flex: 1 }}>
                 <Typography variant="body2" fontWeight={700}>{ticket.eventName}</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {ticket.eventStartDate ? new Date(ticket.eventStartDate).toLocaleDateString('tr-TR', {
+                  {ticket.eventStartDate ? formatEventDateTime(ticket.eventStartDate, ticket.eventTimeZone, {
                     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                  }) : '—'}
+                  }) + (ticket.eventTimeZone ? ` (${eventZoneLabel(ticket.eventTimeZone)})` : '') : '—'}
                 </Typography>
                 {ticket.eventLocation && (
                   <Typography variant="caption" color="text.secondary" display="block">

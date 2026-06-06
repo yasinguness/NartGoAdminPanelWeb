@@ -56,6 +56,8 @@ import {
   STATUS_LABELS,
   thirdNeedsInfoWarning,
 } from './verificationShared';
+import { TIER_LABEL } from '../../utils/nbDisplay';
+import { formatDateTime } from '../../utils/dateUtils';
 
 interface Props {
   open: boolean;
@@ -90,6 +92,26 @@ const VOTE_CATEGORIES: Record<CommitteeVoteType, AuditCategoryOption[]> = {
     { value: 'OTHER_REJECT', label: 'Diğer (notta açıkla)' },
   ],
 };
+
+/** Kategori kodu → Türkçe etiket (tüm oy kategorilerinden düzleştirilmiş). */
+const AUDIT_CATEGORY_LABEL: Record<string, string> = Object.values(VOTE_CATEGORIES)
+  .flat()
+  .reduce((acc, o) => {
+    acc[o.value] = o.label;
+    return acc;
+  }, {} as Record<string, string>);
+
+/**
+ * Ham "[KATEGORI: MISSING_DOC] {gövde}" composed-note'unu admin önizlemesi için
+ * okunur metne çevirir (enum görünmez). Backend'e giden not ham formatta kalır;
+ * bu sadece görsel önizleme.
+ */
+function humanizeAuditNote(note: string): string {
+  const m = note.match(/^\[KATEGORI:\s*([A-Z_]+)\]\s*([\s\S]*)$/);
+  if (!m) return note;
+  const label = AUDIT_CATEGORY_LABEL[m[1]] ?? m[1];
+  return `Talep türü: ${label}\n${m[2].trim()}`;
+}
 
 const NEEDS_INFO_CHECKLIST = [
   { value: 'VERGI_LEVHASI', label: 'Vergi Levhası (güncel)' },
@@ -374,7 +396,7 @@ export default function NbVerificationDecideDialog({
           {detail.tier && (
             <Stack direction="row" spacing={0.5} alignItems="center">
               <Typography variant="caption" color="text.secondary">Kademe:</Typography>
-              <Chip size="small" label={detail.tier} variant="outlined" />
+              <Chip size="small" label={TIER_LABEL[detail.tier] ?? detail.tier} variant="outlined" />
             </Stack>
           )}
           {detail.needsInfoCount != null && detail.needsInfoCount > 0 && (
@@ -383,7 +405,7 @@ export default function NbVerificationDecideDialog({
               <Chip
                 size="small"
                 color={detail.needsInfoCount >= 2 ? 'error' : 'warning'}
-                label={`NEEDS_INFO ${detail.needsInfoCount}/2`}
+                label={`Ek bilgi ${detail.needsInfoCount}/2`}
               />
             </Stack>
           )}
@@ -603,10 +625,7 @@ export default function NbVerificationDecideDialog({
                             {v.actorDisplayName ?? v.actorUserId?.substring(0, 8) + '…'}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {new Date(v.at).toLocaleString('tr-TR', {
-                              dateStyle: 'short',
-                              timeStyle: 'short',
-                            })}
+                            {formatDateTime(v.at)}
                           </Typography>
                         </Stack>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -751,7 +770,7 @@ export default function NbVerificationDecideDialog({
                   : undefined,
               },
               {
-                label: 'NEEDS_INFO geçmişi',
+                label: 'Ek bilgi geçmişi',
                 value: `${detail.needsInfoCount ?? 0} / 2`,
               },
             ],
@@ -766,12 +785,12 @@ export default function NbVerificationDecideDialog({
               {
                 label: 'Sonuç',
                 value: willAutoReject
-                  ? 'Backend bu vakayı otomatik REJECTED olarak işleyecek (3. NEEDS_INFO turu)'
+                  ? 'Başvuru otomatik reddedilecek (3. ek bilgi turu)'
                   : vote === 'APPROVE'
-                  ? 'Vaka APPROVED olur, ödeme penceresi açılır (7 gün)'
+                  ? 'Başvuru onaylanır, ödeme penceresi açılır (7 gün)'
                   : vote === 'NEEDS_INFO'
                   ? 'Üyeye ek bilgi talebi gider'
-                  : 'Vaka terminal REJECTED olur',
+                  : 'Başvuru kalıcı olarak reddedilir',
               },
             ],
             content: (
@@ -786,7 +805,7 @@ export default function NbVerificationDecideDialog({
                   mt: 1,
                 }}
               >
-                {finalNote}
+                {humanizeAuditNote(finalNote)}
               </Box>
             ),
           },

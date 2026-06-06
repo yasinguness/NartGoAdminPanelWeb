@@ -30,6 +30,22 @@ export type NbRace =
   | 'other';
 
 /**
+ * Google Places'tan gelen yapılandırılmış şirket adresi.
+ * Tüm alanlar opsiyonel — formattedAddress (`description`) ve placeId en kritik olanlar.
+ */
+export interface CompanyAddressRequest {
+  city?: string;
+  district?: string;
+  country?: string;
+  postalCode?: string;
+  /** Google Places `formatted_address` (en fazla 500 karakter). */
+  description?: string;
+  latitude?: number;
+  longitude?: number;
+  placeId?: string;
+}
+
+/**
  * Sprint 23 — Admin manuel üye oluşturma payload'ı.
  * Backend: POST /api/v1/nb/admin/members
  *
@@ -43,12 +59,19 @@ export interface AdminCreateMemberRequest {
   email?: string;
   firstName?: string;
   lastName?: string;
-  phone?: string;
+  /** Ülke kodu — `+90` gibi. Mevcut user lookup'unda profil telefonu boşsa doldurulur. */
+  phoneCode?: string;
+  /** GSM numarası — sadece rakam, ülke kodu hariç (10-15 hane). */
+  gsmNo?: string;
   createIfMissing?: boolean;
   requestedTier: MembershipTier;
   companyName: string;
   sectorCodes: string[];
   city: string;
+  /** Google Places'tan gelen yapılandırılmış adres — opsiyonel ama önerilir. */
+  companyAddress?: CompanyAddressRequest;
+  /** Opsiyonel işletme tanıtım metni (max 300 karakter). */
+  businessDescription?: string;
   race: NbRace;
   clanName: string;
   hometownDetail?: string;
@@ -94,6 +117,9 @@ export interface NbMember {
   // Sprint 23 — "Doğrulanmış İşletme" rozeti
   verifiedBusiness?: boolean;
   verifiedAt?: string;
+
+  // Sprint 27 — Apply form'da seçilen ödeme yöntemi (Kart vs Havale)
+  paymentMethod?: 'IYZICO' | 'BANK_TRANSFER';
 }
 
 export type VerificationCaseStatus =
@@ -353,4 +379,28 @@ export interface ApiEnvelope<T> {
   data: T;
   message?: string;
   timestamp?: string;
+}
+
+// ── Referanslar (küratörlü üye sözleri) ──
+
+export interface Testimonial {
+  id: string;
+  authorName: string;
+  authorCompany?: string;
+  authorTitle?: string;
+  quote: string;
+  avatarUrl?: string;
+  approved: boolean;
+  sortOrder: number;
+}
+
+export interface TestimonialUpsert {
+  authorName: string;
+  authorCompany?: string;
+  authorTitle?: string;
+  quote: string;
+  avatarUrl?: string;
+  memberId?: string;
+  approved: boolean;
+  sortOrder: number;
 }

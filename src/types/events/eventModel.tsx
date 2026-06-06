@@ -59,6 +59,7 @@ export interface EventResponseDTO {
     address: AddressDTO;
     eventTime: string;
     endTime: string;
+    eventTimeZone?: string;
     maxParticipants: number;
     currentParticipants: number;
     image: string;
@@ -78,6 +79,8 @@ export interface EventResponseDTO {
     isRegistrationOpen: boolean;
     images: ImageDTO[];
     participants: ParticipationDTO[];
+    /** NartBusiness görünürlük flag'i (admin panelden yönetilir). */
+    isShowNb?: boolean;
 }
 
 export interface EventSearchDTO {
@@ -108,4 +111,6 @@ export interface UpcomingEventDTO {
     participations: ParticipationDTO[];
     maxParticipants: number;
     imageUrl: string;
-} 
+    /** NartBusiness görünürlük flag'i (admin panelden yönetilir). */
+    isShowNb?: boolean;
+}

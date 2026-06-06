@@ -33,7 +33,7 @@ import {
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import { formatDate, formatDateTime } from '../utils/dateUtils';
+import { formatDate, formatDateTime, formatEventDateTime, eventZoneLabel } from '../utils/dateUtils';
 import { PageContainer } from '../components/Page';
 import { useRole } from '../hooks/useRole';
 import { adminOperationsService } from '../services/admin/adminOperationsService';
@@ -43,6 +43,7 @@ interface EventSummary {
   id: string;
   name: string;
   eventTime: string;
+  eventTimeZone?: string;
   status: string;
   currentParticipants: number;
   maxParticipants: number;
@@ -477,7 +478,8 @@ export default function OrganizerDashboard() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="caption" color="text.secondary">
-                        {formatDateTime(event.eventTime)}
+                        {formatEventDateTime(event.eventTime, event.eventTimeZone, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {event.eventTimeZone && ` (${eventZoneLabel(event.eventTimeZone)})`}
                       </Typography>
                     </TableCell>
                     <TableCell>

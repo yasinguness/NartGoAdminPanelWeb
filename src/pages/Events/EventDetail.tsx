@@ -37,7 +37,7 @@ import { ticketService } from '../../services/ticket/ticketService';
 import { CreateTicketTypeRequest } from '../../types/tickets/ticketTypes';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-import { parseDate, formatDateTime } from '../../utils/dateUtils';
+import { parseDate, formatDateTime, formatEventDateTime, eventZoneLabel } from '../../utils/dateUtils';
 
 // ─── TYPES ──────────────────────────────────────────────────
 type TabValue = 'genel' | 'biletler' | 'satin-alimlar' | 'katilimcilar' | 'denetim' | 'ayarlar';
@@ -451,6 +451,7 @@ export default function EventDetail() {
         ticketPrice: data.ticketPrice,
         isRegistrationOpen: data.isRegistrationOpen,
         isPrivate: data.isPrivate,
+        isShowNb: data.isShowNb,
         thumbnailUrl: imageUrl,
         organizerId: event.organizerId,
         address: data.address ? {
@@ -664,8 +665,9 @@ export default function EventDetail() {
             </Stack>
             <Stack direction="row" spacing={2} sx={{ color: 'text.secondary', fontSize: 13 }} flexWrap="wrap">
               <Typography variant="body2">
-                📅 {formatDateTime(event.eventTime)}
-                {event.endTime && ` – ${formatDateTime(event.endTime).split(', ')[1] || ''}`}
+                📅 {formatEventDateTime(event.eventTime, event.eventTimeZone, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {event.endTime && ` – ${formatEventDateTime(event.endTime, event.eventTimeZone, { hour: '2-digit', minute: '2-digit' })}`}
+                {event.eventTimeZone && ` (${eventZoneLabel(event.eventTimeZone)})`}
               </Typography>
               <Typography variant="body2">📍 {event.address?.city || 'Sanal'}</Typography>
               <Typography variant="body2">🏷 {event.category?.name || 'Genel'}</Typography>
@@ -866,8 +868,8 @@ export default function EventDetail() {
                   { label: 'Etkinlik Adı', value: event.name },
                   { label: 'Kategori', value: event.category?.name || 'Genel', badge: true },
                   { label: 'Konum', value: [event.address?.city, event.address?.district].filter(Boolean).join(', ') || 'Sanal' },
-                  { label: 'Başlangıç', value: formatDateTime(event.eventTime) },
-                  { label: 'Bitiş', value: event.endTime ? formatDateTime(event.endTime) : null, warn: !event.endTime },
+                  { label: 'Başlangıç', value: formatEventDateTime(event.eventTime, event.eventTimeZone, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + (event.eventTimeZone ? ` (${eventZoneLabel(event.eventTimeZone)})` : '') },
+                  { label: 'Bitiş', value: event.endTime ? formatEventDateTime(event.endTime, event.eventTimeZone, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + (event.eventTimeZone ? ` (${eventZoneLabel(event.eventTimeZone)})` : '') : null, warn: !event.endTime },
                   { label: 'Kapasite', value: `${event.maxParticipants || 0} kişi` },
                   { label: 'Bilet Fiyatı', value: priceDisplay },
                   ...(event.isPaid ? [
@@ -1936,6 +1938,7 @@ export default function EventDetail() {
             ticketPrice: event.ticketPrice || 0,
             isRegistrationOpen: event.isRegistrationOpen !== false,
             isPrivate: event.isPrivate === true,
+            isShowNb: (event as any).isShowNb === true,
             saleStartDate: parseDate((event as any).ticketTypes?.[0]?.saleStartAt || ticketTypes[0]?.saleStartAt),
             saleEndDate: parseDate((event as any).ticketTypes?.[0]?.saleEndAt || ticketTypes[0]?.saleEndAt),
             coverImage: null,

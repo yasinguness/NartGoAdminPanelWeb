@@ -12,6 +12,7 @@ import {
   DialogTitle,
   FormControlLabel,
   Grid,
+  IconButton,
   Link,
   Stack,
   Step,
@@ -25,12 +26,16 @@ import {
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type {
   AdminCreateMemberRequest,
+  CompanyAddressRequest,
   MembershipTier,
   NbRace,
   Sector,
+  TierConfig,
 } from '../../services/nartbusiness/nbTypes';
 import type {
   NbUserSearchResult,
@@ -47,7 +52,11 @@ import {
   isAuditNoteValid,
   isFindOrCreateValid,
   NbSectionPaper,
+  PhoneTrInput,
   RadioCardGroup,
+  SectorCheckboxGrid,
+  SocialPrefixField,
+  TierRadioCardGroup,
   type AuditCategoryOption,
   type CompanyPlaceResult,
   type FindOrCreateUserValue,
@@ -59,12 +68,6 @@ interface Props {
   onClose: () => void;
   onCreated: () => void;
 }
-
-const TIER_OPTIONS: RadioCardOption<MembershipTier>[] = [
-  { value: 'KURUCU', title: 'Kurucu', description: '10.000 TL / yıl' },
-  { value: 'STANDART', title: 'Standart', description: '15.000 TL / yıl' },
-  { value: 'GENC_GIRISIMCI', title: 'Genç Girişimci', description: '5.000 TL / yıl' },
-];
 
 type ActivationFlow = 'ACTIVE' | 'APPROVED_PENDING_PAYMENT';
 
@@ -121,7 +124,14 @@ const AUDIT_CATEGORIES: AuditCategoryOption[] = [
   { value: 'DIGER', label: 'Diğer (notta açıkla)' },
 ];
 
-const STEPS = ['Kullanıcı', 'Şirket & Kimlik', 'Üyelik & Ödeme', 'Onay'];
+const STEPS = [
+  'Kullanıcı',
+  'İşletme',
+  'Kimlik',
+  'Sosyal',
+  'Paket & Aktivasyon',
+  'Onay',
+];
 
 const URL_RX = /^https?:\/\/.+/i;
 
@@ -149,23 +159,46 @@ function normalizeRace(raw?: string | null): NbRace | null {
 function matchTrCity(googleCity: string): string | undefined {
   if (!googleCity) return undefined;
   const norm = (s: string) =>
-    s.trim().toLowerCase()
-      .replace(/i̇/g, 'i').replace(/ı/g, 'i')
-      .replace(/ğ/g, 'g').replace(/ü/g, 'u')
-      .replace(/ş/g, 's').replace(/ö/g, 'o')
-      .replace(/ç/g, 'c').replace(/İ/g, 'i');
+    s
+      .trim()
+      .toLowerCase()
+      .replace(/i̇/g, 'i')
+      .replace(/ı/g, 'i')
+      .replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u')
+      .replace(/ş/g, 's')
+      .replace(/ö/g, 'o')
+      .replace(/ç/g, 'c')
+      .replace(/İ/g, 'i');
   const target = norm(googleCity);
   return (TR_CITIES as unknown as string[]).find((c) => norm(c) === target);
 }
 
-/** Form alanı string olarak hometownCity + hometownVillage'i birleştirir. */
-function composeHometown(city: string, village: string): string | undefined {
-  const c = city.trim();
-  const v = village.trim();
-  if (!c && !v) return undefined;
-  if (!c) return v;
-  if (!v) return c;
-  return `${c} / ${v}`;
+/**
+ * Kullanıcı serbest format ("+90 5XX XXX XX XX", "905XXXXXXXXX", "5XXXXXXXXX")
+ * girebilir → backend için `phoneCode + gsmNo` ayır.
+ */
+function splitPhone(input: string | undefined): { phoneCode?: string; gsmNo?: string } {
+  if (!input) return {};
+  const trimmed = input.trim();
+  if (!trimmed) return {};
+  // "+" ile başlıyorsa ilk 1-3 rakamı ülke kodu yap
+  if (trimmed.startsWith('+')) {
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length < 7) return {};
+    // Türkiye için tipik: 90 + 10 hane = 12. Ülke kodu 1-3 hane olabilir.
+    // Pratik kural: son 10 haneyi gsm, başını ülke kodu kabul et.
+    const gsm = digits.slice(-10);
+    const code = digits.slice(0, digits.length - 10);
+    return { phoneCode: `+${code || '90'}`, gsmNo: gsm };
+  }
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 10) return { phoneCode: '+90', gsmNo: digits };
+  if (digits.length === 12 && digits.startsWith('90')) {
+    return { phoneCode: '+90', gsmNo: digits.slice(2) };
+  }
+  if (digits.length >= 7) return { phoneCode: '+90', gsmNo: digits.slice(-10) };
+  return {};
 }
 
 // Local SectionPaper — shared NbSectionPaper'a alias (typo riskini azalt)
@@ -179,22 +212,20 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
 
   const [user, setUser] = useState<FindOrCreateUserValue>(initialUser);
 
-  // Step 2 form state — hometownCity/Village ayrı tutulup submit'te birleştirilir
   const [form, setForm] = useState<Partial<AdminCreateMemberRequest>>({
-    requestedTier: 'STANDART',
     race: 'adige',
     targetStatus: 'ACTIVE',
     grantFreeMembership: false,
     verifiedBusiness: false,
   });
-  const [hometownCity, setHometownCity] = useState('');
-  const [hometownVillage, setHometownVillage] = useState('');
 
   // Katalog state'leri
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [sectorsLoading, setSectorsLoading] = useState(false);
   const [families, setFamilies] = useState<RaceFamily[]>([]);
   const [familiesLoading, setFamiliesLoading] = useState(false);
+  const [tiers, setTiers] = useState<TierConfig[]>([]);
+  const [tiersLoading, setTiersLoading] = useState(false);
 
   // Auto-fill takibi — kullanıcı seçilince hangi alanlar NartGo profilinden yüklendi
   const [prefilledFields, setPrefilledFields] = useState<string[]>([]);
@@ -204,7 +235,11 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   // Admin "Değiştir" ile kilidi açabilir.
   const [lockedFields, setLockedFields] = useState<Set<string>>(new Set());
   const unlock = (field: string) =>
-    setLockedFields((prev) => { const s = new Set(prev); s.delete(field); return s; });
+    setLockedFields((prev) => {
+      const s = new Set(prev);
+      s.delete(field);
+      return s;
+    });
 
   // Audit
   const [auditCategory, setAuditCategory] = useState('SPONSOR');
@@ -230,14 +265,11 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     setStep(0);
     setUser(initialUser);
     setForm({
-      requestedTier: 'STANDART',
       race: 'adige',
       targetStatus: 'ACTIVE',
       grantFreeMembership: false,
       verifiedBusiness: false,
     });
-    setHometownCity('');
-    setHometownVillage('');
     setPlaceCityHint(null);
     setAuditCategory('SPONSOR');
     setAuditNoteBody('');
@@ -261,6 +293,28 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   }, [open]);
 
   // ------------------------------------------------------------------
+  // Tier katalogu (Sprint 26 — DB-driven, apply form ile aynı kaynak)
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    if (!open) return;
+    setTiersLoading(true);
+    nbAdminService
+      .listTiers()
+      .then((rows) => {
+        const active = rows
+          .filter((t) => t.active && t.code !== 'PATRON')
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        setTiers(active);
+        // Henüz seçilmediyse ilkini ön-seç (sortOrder'a göre)
+        setForm((prev) =>
+          prev.requestedTier ? prev : { ...prev, requestedTier: active[0]?.code as MembershipTier },
+        );
+      })
+      .catch(() => setTiers([]))
+      .finally(() => setTiersLoading(false));
+  }, [open]);
+
+  // ------------------------------------------------------------------
   // Sülale katalogu — race değişince yeniden yükle
   // ------------------------------------------------------------------
   useEffect(() => {
@@ -272,10 +326,6 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     nbAdminService
       .listFamiliesByRace(form.race)
       .then((rows) => {
-        // Backend bazen aynı race için aynı familyName'i farklı id ile dönebiliyor —
-        // MUI Autocomplete default key getOptionLabel'i kullandığı için duplicate
-        // React key uyarısı atıyor. Aynı isimleri (case-insensitive) ilk gelen id
-        // ile sakla, kullanıcı tekrar tekrar aynı seçeneği görmesin.
         const seen = new Set<string>();
         const deduped: RaceFamily[] = [];
         for (const f of rows) {
@@ -297,7 +347,6 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     if (!open) return;
     const u = user.selectedUser;
     if (!u) {
-      // Kullanıcı seçimi kaldırıldı — son prefill'i ve kilitleri temizle
       if (lastPrefilledUserIdRef.current) {
         setPrefilledFields([]);
         setLockedFields(new Set());
@@ -305,7 +354,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       }
       return;
     }
-    if (lastPrefilledUserIdRef.current === u.userId) return; // tekrar pre-fill'leme
+    if (lastPrefilledUserIdRef.current === u.userId) return;
 
     const filled: string[] = [];
     const newLocked = new Set<string>();
@@ -332,18 +381,16 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
         next.companyName = u.companyName.trim();
         filled.push('Şirket adı');
       }
+      // Hometown — backend tek alan (city + village " / " ile birleşik) saklıyor.
+      const homeParts = [u.hometownCity?.trim(), u.hometownVillage?.trim()].filter(Boolean);
+      if (homeParts.length > 0) {
+        next.hometownDetail = homeParts.join(' / ');
+        filled.push('Memleket');
+        newLocked.add('hometownDetail');
+      }
       return next;
     });
-    if (u.hometownCity && u.hometownCity.trim()) {
-      setHometownCity(u.hometownCity.trim());
-      filled.push('Memleket şehir');
-      newLocked.add('hometownCity');
-    }
-    if (u.hometownVillage && u.hometownVillage.trim()) {
-      setHometownVillage(u.hometownVillage.trim());
-      filled.push('Memleket köy');
-      newLocked.add('hometownVillage');
-    }
+
     setPrefilledFields(filled);
     setLockedFields(newLocked);
     lastPrefilledUserIdRef.current = u.userId;
@@ -354,28 +401,28 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   // ------------------------------------------------------------------
   const linkedinValid = !form.linkedinUrl || URL_RX.test(form.linkedinUrl);
   const websiteValid = !form.websiteUrl || URL_RX.test(form.websiteUrl);
-  const instagramValid = !form.instagramUrl || URL_RX.test(form.instagramUrl);
+  const instagramValid = !form.instagramUrl || /^[A-Za-z0-9._]{1,30}$/.test(form.instagramUrl);
+  const hasSocial = !!(form.linkedinUrl || form.websiteUrl || form.instagramUrl);
 
-  const companyValid =
+  const businessValid =
     !!form.companyName?.trim() &&
     !!form.sectorCodes?.length &&
-    !!form.city &&
-    !!form.race &&
-    !!form.clanName?.trim() &&
-    linkedinValid &&
-    websiteValid &&
-    instagramValid;
-
-  const statusValid = !!form.requestedTier && !!form.targetStatus;
+    !!form.city;
+  const identityValid = !!form.race && !!form.clanName?.trim();
+  const socialValid = hasSocial && linkedinValid && websiteValid && instagramValid;
+  const tierValid = !!form.requestedTier && !!form.targetStatus;
   const auditValid = isAuditNoteValid(auditNoteBody);
 
   const stepValid: Record<number, boolean> = {
     0: isFindOrCreateValid(user),
-    1: companyValid,
-    2: statusValid && auditValid,
-    3: true,
+    1: businessValid,
+    2: identityValid,
+    3: socialValid,
+    4: tierValid,
+    5: auditValid,
   };
-  const canSubmit = stepValid[0] && stepValid[1] && stepValid[2];
+
+  const canSubmit = Object.values(stepValid).every(Boolean);
 
   /** Mevcut adımdaki "İleri" disabled olduğunda neden disabled olduğunu açıklayan tooltip. */
   const stepBlockerHint = useMemo(() => {
@@ -395,18 +442,26 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       if (!form.companyName?.trim()) missing.push('Şirket Adı');
       if (!form.sectorCodes?.length) missing.push('Sektör');
       if (!form.city) missing.push('Şehir');
-      if (!form.race) missing.push('Halk');
-      if (!form.clanName?.trim()) missing.push('Sülale');
-      if (!linkedinValid) missing.push('Geçerli LinkedIn URL');
-      if (!websiteValid) missing.push('Geçerli Web URL');
-      if (!instagramValid) missing.push('Geçerli Instagram URL');
       return missing.length ? `Eksik: ${missing.join(', ')}` : null;
     }
     if (step === 2) {
       const missing: string[] = [];
+      if (!form.race) missing.push('Halk');
+      if (!form.clanName?.trim()) missing.push('Sülale');
+      return missing.length ? `Eksik: ${missing.join(', ')}` : null;
+    }
+    if (step === 3) {
+      if (!hasSocial) return 'En az bir sosyal bağlantı gerekli';
+      const missing: string[] = [];
+      if (!linkedinValid) missing.push('Geçerli LinkedIn URL');
+      if (!websiteValid) missing.push('Geçerli Web URL');
+      if (!instagramValid) missing.push('Geçerli Instagram kullanıcı adı');
+      return missing.length ? `Eksik: ${missing.join(', ')}` : null;
+    }
+    if (step === 4) {
+      const missing: string[] = [];
       if (!form.requestedTier) missing.push('Kademe');
       if (!form.targetStatus) missing.push('Aktivasyon Akışı');
-      if (!auditValid) missing.push('Audit notu (min 30 karakter)');
       return missing.length ? `Eksik: ${missing.join(', ')}` : null;
     }
     return null;
@@ -418,12 +473,12 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     form.city,
     form.race,
     form.clanName,
+    form.requestedTier,
+    form.targetStatus,
+    hasSocial,
     linkedinValid,
     websiteValid,
     instagramValid,
-    form.requestedTier,
-    form.targetStatus,
-    auditValid,
   ]);
 
   // ------------------------------------------------------------------
@@ -435,30 +490,38 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     setError(null);
     try {
       const adminNote = buildAuditNote(auditCategory, auditNoteBody);
-      const hometownDetail = composeHometown(hometownCity, hometownVillage);
-      const baseForm = {
+      const phoneParts = splitPhone(user.mode === 'new' ? user.phone : user.selectedUser?.phone);
+
+      const baseForm: Partial<AdminCreateMemberRequest> = {
         ...form,
-        hometownDetail,
         adminNote,
-      } as AdminCreateMemberRequest;
-      const payload: AdminCreateMemberRequest =
+        // Instagram alanı handle olarak saklanıyor — backend full URL bekliyor
+        instagramUrl: form.instagramUrl
+          ? `https://instagram.com/${form.instagramUrl}`
+          : undefined,
+      };
+
+      const userPart: Partial<AdminCreateMemberRequest> =
         user.mode === 'new'
           ? {
-              ...baseForm,
               userId: undefined,
               email: user.email,
               firstName: user.firstName,
               lastName: user.lastName,
-              phone: user.phone.trim() || undefined,
               createIfMissing: true,
             }
           : {
-              ...baseForm,
               userId: user.selectedUser!.userId,
               email: user.selectedUser!.email,
-              phone: user.selectedUser!.phone?.trim() || undefined,
               createIfMissing: false,
             };
+
+      const payload = {
+        ...baseForm,
+        ...userPart,
+        ...phoneParts,
+      } as AdminCreateMemberRequest;
+
       await nbAdminService.createMemberManually(payload);
       reset();
       onCreated();
@@ -477,7 +540,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   };
 
   // ------------------------------------------------------------------
-  // Google Places şirket seçimi
+  // Google Places şirket seçimi — companyAddress payload'ı doldurur
   // ------------------------------------------------------------------
   const handlePlaceSelect = (result: CompanyPlaceResult) => {
     set('companyName', result.companyName || result.address.displayName || '');
@@ -491,6 +554,17 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
         setPlaceCityHint(result.address.city);
       }
     }
+
+    const addr: CompanyAddressRequest = {
+      city: result.address.city ?? undefined,
+      district: result.address.district ?? undefined,
+      country: result.address.country ?? undefined,
+      postalCode: result.address.postalCode ?? undefined,
+      description: result.address.description ?? undefined,
+      latitude: result.address.latitude ?? undefined,
+      longitude: result.address.longitude ?? undefined,
+    };
+    set('companyAddress', addr);
   };
 
   // ------------------------------------------------------------------
@@ -508,7 +582,6 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
           prev.some((f) => f.id === created.id) ? prev : [...prev, created],
         );
       } else {
-        // 409 ya da boş yanıt — refresh ederek bulmaya çalış
         const refreshed = await nbAdminService.listFamiliesByRace(form.race);
         setFamilies(refreshed);
       }
@@ -526,15 +599,14 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     }
   };
 
-  // Şu anda girilen clan adı katalogda var mı?
   const clanInCatalog = useMemo(() => {
     const name = form.clanName?.trim().toLowerCase();
-    if (!name) return true; // boşken "yok" göstermeye gerek yok
+    if (!name) return true;
     return families.some((f) => f.familyName.toLowerCase() === name);
   }, [families, form.clanName]);
 
   // ------------------------------------------------------------------
-  // Auto-fill banner — Step 2 + Step 3 üst kısmında kullanıcıyı bilgilendir
+  // Auto-fill banner
   // ------------------------------------------------------------------
   const prefillBanner = useMemo(() => {
     if (!user.selectedUser || prefilledFields.length === 0) return null;
@@ -550,15 +622,15 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
           </Typography>
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          NartGo profilinden alınan alanlar kilitlidir. Değiştirmek için ilgili alanın altındaki{' '}
-          <b>Değiştir</b> linkine tıkla.
+          NartGo profilinden alınan alanlar kilitlidir. Değiştirmek için ilgili
+          alanın altındaki <b>Değiştir</b> linkine tıkla.
         </Typography>
       </Alert>
     );
   }, [user.selectedUser, prefilledFields]);
 
   // ------------------------------------------------------------------
-  // Lock helper — NartGo'dan gelen alan kilidi + "Değiştir" linki
+  // Lock helper
   // ------------------------------------------------------------------
   const lockedHelper = (field: string) => {
     if (!lockedFields.has(field)) return undefined;
@@ -582,97 +654,165 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   };
 
   // ------------------------------------------------------------------
-  // Steps
+  // Step 0 — Kullanıcı + Telefon
   // ------------------------------------------------------------------
-  const renderUserStep = () => <FindOrCreateUser value={user} onChange={setUser} />;
+  const renderUserStep = () => {
+    const phoneDigits = (user.phone || '').replace(/\D/g, '').slice(-10);
+    return (
+      <Stack spacing={2}>
+        <FindOrCreateUser value={user} onChange={setUser} />
+        {user.mode === 'new' && (
+          <SectionPaper title="İletişim" hint="Üyeyle iletişim için telefon — opsiyonel.">
+            <PhoneTrInput
+              value={phoneDigits}
+              onChange={(digits) =>
+                setUser({ ...user, phone: digits ? `+90 ${digits}` : '' })
+              }
+              helperText="WhatsApp veya arama için kullanılabilir."
+            />
+          </SectionPaper>
+        )}
+      </Stack>
+    );
+  };
 
-  const renderCompanyStep = () => (
+  // ------------------------------------------------------------------
+  // Step 1 — İşletme (apply step 1)
+  // ------------------------------------------------------------------
+  const renderBusinessStep = () => {
+    const addr = form.companyAddress;
+    return (
+      <Stack spacing={2}>
+        {prefillBanner}
+
+        <SectionPaper title="Şirket Bilgisi">
+          <Grid container spacing={2.5}>
+            <Grid size={12}>
+              <CompanyPlacesAutocomplete
+                required
+                value={form.companyName ?? ''}
+                onChange={(v) => set('companyName', v)}
+                onPlaceSelect={handlePlaceSelect}
+                helperText={(() => {
+                  const nartgoCompany = user.selectedUser?.companyName?.trim();
+                  if (!nartgoCompany) return ' ';
+                  const currentVal = form.companyName?.trim() ?? '';
+                  if (currentVal === nartgoCompany) {
+                    return `NartGo profilinden alındı: ${nartgoCompany}`;
+                  }
+                  return (
+                    <Box component="span">
+                      NartGo&apos;da kayıtlı: <b>{nartgoCompany}</b>{' · '}
+                      <Link
+                        component="button"
+                        type="button"
+                        underline="hover"
+                        onClick={() => set('companyName', nartgoCompany)}
+                      >
+                        Kullan
+                      </Link>
+                    </Box>
+                  );
+                })()}
+              />
+            </Grid>
+
+            {addr?.description && (
+              <Grid size={12}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    px: 1.5,
+                    py: 1,
+                    bgcolor: 'action.hover',
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <LocationOnOutlinedIcon fontSize="small" color="action" />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ lineHeight: 1.3 }}>
+                      {addr.description}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Google&apos;dan alındı
+                    </Typography>
+                  </Box>
+                  <Tooltip title="Adresi temizle">
+                    <IconButton
+                      size="small"
+                      onClick={() => set('companyAddress', undefined)}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Grid>
+            )}
+
+            <Grid size={12}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                Sektör(ler) * <Typography component="span" variant="caption" color="text.secondary">— en fazla 3</Typography>
+              </Typography>
+              <SectorCheckboxGrid
+                sectors={sectors}
+                loading={sectorsLoading}
+                value={form.sectorCodes ?? []}
+                onChange={(codes) => set('sectorCodes', codes)}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <CatalogAutocomplete<string>
+                label="Şehir"
+                required
+                disabled={lockedFields.has('city')}
+                options={TR_CITIES as unknown as string[]}
+                value={form.city ?? null}
+                onChange={(v) => {
+                  set('city', v ?? undefined);
+                  setPlaceCityHint(null);
+                }}
+                placeholder="81 il listesi"
+                helperText={
+                  lockedFields.has('city')
+                    ? lockedHelper('city')
+                    : placeCityHint && !form.city
+                    ? `"${placeCityHint}" listede bulunamadı — manuel seç`
+                    : undefined
+                }
+              />
+            </Grid>
+
+            <Grid size={12}>
+              <TextField
+                label="İşletme Tanıtımı (opsiyonel)"
+                fullWidth
+                multiline
+                rows={3}
+                size="small"
+                value={form.businessDescription ?? ''}
+                onChange={(e) => set('businessDescription', e.target.value)}
+                inputProps={{ maxLength: 300 }}
+                placeholder="Ne iş yaptığınızı kısaca anlatın"
+                helperText={`${form.businessDescription?.length ?? 0} / 300`}
+              />
+            </Grid>
+          </Grid>
+        </SectionPaper>
+      </Stack>
+    );
+  };
+
+  // ------------------------------------------------------------------
+  // Step 2 — Kimlik (apply step 2)
+  // ------------------------------------------------------------------
+  const renderIdentityStep = () => (
     <Stack spacing={2}>
       {prefillBanner}
-
-      <SectionPaper title="Şirket Bilgisi">
-        <Grid container spacing={2.5}>
-          <Grid size={12}>
-            <CompanyPlacesAutocomplete
-              required
-              value={form.companyName ?? ''}
-              onChange={(v) => set('companyName', v)}
-              onPlaceSelect={handlePlaceSelect}
-              helperText={(() => {
-                const nartgoCompany = user.selectedUser?.companyName?.trim();
-                if (!nartgoCompany) return ' ';
-                const currentVal = form.companyName?.trim() ?? '';
-                if (currentVal === nartgoCompany) {
-                  return `NartGo profilinden alındı: ${nartgoCompany}`;
-                }
-                return (
-                  <Box component="span">
-                    NartGo'da kayıtlı: <b>{nartgoCompany}</b>{' · '}
-                    <Link
-                      component="button"
-                      type="button"
-                      underline="hover"
-                      onClick={() => set('companyName', nartgoCompany)}
-                    >
-                      Kullan
-                    </Link>
-                  </Box>
-                );
-              })()}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Autocomplete<Sector, true>
-              multiple
-              size="small"
-              fullWidth
-              loading={sectorsLoading}
-              options={sectors}
-              value={sectors.filter((s) => form.sectorCodes?.includes(s.code))}
-              onChange={(_, v) => set('sectorCodes', v.map((s) => s.code))}
-              getOptionLabel={(s) => `${s.nameTr} (${s.code})`}
-              isOptionEqualToValue={(a, b) => a.code === b.code}
-              noOptionsText={sectorsLoading ? 'Yükleniyor…' : 'Sektör bulunamadı'}
-              getOptionDisabled={() => (form.sectorCodes?.length ?? 0) >= 3}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={<>Sektör(ler) *</>}
-                  placeholder="Sektör katalogundan seç (maks. 3)"
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {sectorsLoading ? <CircularProgress size={16} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <CatalogAutocomplete<string>
-              label="Şehir"
-              required
-              disabled={lockedFields.has('city')}
-              options={TR_CITIES as unknown as string[]}
-              value={form.city ?? null}
-              onChange={(v) => { set('city', v ?? undefined); setPlaceCityHint(null); }}
-              placeholder="81 il listesi"
-              helperText={
-                lockedFields.has('city')
-                  ? lockedHelper('city')
-                  : placeCityHint && !form.city
-                  ? `"${placeCityHint}" listede bulunamadı — manuel seç`
-                  : undefined
-              }
-            />
-          </Grid>
-        </Grid>
-      </SectionPaper>
-
       <SectionPaper
         title="Kafkas Kimliği"
         hint="Halk seçimi sülale katalogunu filtreler."
@@ -687,7 +827,6 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               value={RACES.find((r) => r.value === form.race) ?? null}
               onChange={(v) => {
                 set('race', v?.value);
-                // Halk değişince eski sülale geçersiz olabilir — temizle
                 set('clanName', undefined);
               }}
               getOptionLabel={(r) => r.label}
@@ -700,7 +839,11 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               size="small"
               fullWidth
               freeSolo
-              disabled={!form.race || lockedFields.has('clanName')}
+              disabled={
+                !form.race ||
+                lockedFields.has('clanName') ||
+                form.clanName?.toLowerCase() === 'bilmiyorum'
+              }
               loading={familiesLoading}
               options={families}
               value={
@@ -727,11 +870,8 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                 typeof a !== 'string' && typeof b !== 'string' && a.id === b.id
               }
               renderOption={(props, opt) => {
-                // MUI default key = getOptionLabel — aynı isim duplicate key uyarısı atıyor.
-                // Kendi key'imizi id (object) veya string-value ile ver.
                 const key = typeof opt === 'string' ? `str:${opt}` : `id:${opt.id}`;
                 const label = typeof opt === 'string' ? opt : opt.familyName;
-                // props.key'i çıkar ki ESLint "key spread" hatası atmasın
                 const { key: _k, ...rest } = props as React.HTMLAttributes<HTMLLIElement> & {
                   key?: React.Key;
                 };
@@ -748,17 +888,13 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                   ? 'Önce halk seç'
                   : families.length === 0
                   ? `${form.race} için katalogda kayıt yok — yine de yazabilirsin`
-                  : 'Eşleşme yok — yazdığın değer aşağıdaki "Kataloga ekle" ile saklanabilir'
+                  : 'Eşleşme yok — "Kataloga ekle" ile saklayabilirsin'
               }
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Sülale *"
-                  placeholder={
-                    form.race
-                      ? 'Katalogdan seç veya yeni yaz'
-                      : 'Önce halk seç'
-                  }
+                  placeholder={form.race ? 'Katalogdan seç veya yeni yaz' : 'Önce halk seç'}
                   helperText={
                     lockedFields.has('clanName')
                       ? lockedHelper('clanName')
@@ -780,7 +916,24 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                 />
               )}
             />
-            {!clanInCatalog && form.clanName?.trim() && form.race && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={form.clanName?.toLowerCase() === 'bilmiyorum'}
+                  disabled={lockedFields.has('clanName')}
+                  onChange={(e) =>
+                    set('clanName', e.target.checked ? 'bilmiyorum' : undefined)
+                  }
+                />
+              }
+              label="Sülale bilinmiyor"
+              sx={{ mt: 0.5 }}
+            />
+            {!clanInCatalog &&
+              form.clanName?.trim() &&
+              form.clanName?.toLowerCase() !== 'bilmiyorum' &&
+              form.race && (
               <Stack
                 direction="row"
                 spacing={1}
@@ -800,7 +953,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                   disabled={familyCreating}
                   onClick={handleCreateFamily}
                 >
-                  "{form.clanName.trim()}" sülalesini {form.race} katalogüna ekle
+                  &quot;{form.clanName.trim()}&quot; sülalesini {form.race} katalogüna ekle
                 </Button>
                 {familyCreateError && (
                   <Typography variant="caption" color="error">
@@ -810,74 +963,20 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               </Stack>
             )}
           </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="Memleket — Şehir (opsiyonel)"
-              fullWidth
-              size="small"
-              disabled={lockedFields.has('hometownCity')}
-              value={hometownCity}
-              onChange={(e) => setHometownCity(e.target.value)}
-              placeholder="örn. Kayseri / Maykop"
-              helperText={lockedHelper('hometownCity')}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="Memleket — Köy (opsiyonel)"
-              fullWidth
-              size="small"
-              disabled={lockedFields.has('hometownVillage')}
-              value={hometownVillage}
-              onChange={(e) => setHometownVillage(e.target.value)}
-              placeholder="örn. Uzunyayla"
-              helperText={lockedHelper('hometownVillage')}
-            />
-          </Grid>
-        </Grid>
-      </SectionPaper>
-
-      <SectionPaper
-        title="Sosyal Bağlantılar"
-        hint="Komite doğrulaması için yardımcı — opsiyonel."
-      >
-        <Grid container spacing={2.5}>
           <Grid size={12}>
             <TextField
-              label="LinkedIn"
+              label="Memleket (opsiyonel)"
               fullWidth
               size="small"
-              value={form.linkedinUrl ?? ''}
-              onChange={(e) => set('linkedinUrl', e.target.value)}
-              error={!linkedinValid}
+              disabled={lockedFields.has('hometownDetail')}
+              value={form.hometownDetail ?? ''}
+              onChange={(e) => set('hometownDetail', e.target.value)}
+              placeholder="örn. Uzunyayla / Maykop"
               helperText={
-                !linkedinValid ? 'Geçersiz URL — https:// ile başlamalı' : ' '
+                lockedFields.has('hometownDetail')
+                  ? lockedHelper('hometownDetail')
+                  : 'Köy / şehir / cumhuriyet — serbest format'
               }
-              placeholder="https://linkedin.com/in/…"
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="Web Sitesi"
-              fullWidth
-              size="small"
-              value={form.websiteUrl ?? ''}
-              onChange={(e) => set('websiteUrl', e.target.value)}
-              error={!websiteValid}
-              helperText={!websiteValid ? 'Geçersiz URL' : ' '}
-              placeholder="https://…"
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="Instagram"
-              fullWidth
-              size="small"
-              value={form.instagramUrl ?? ''}
-              onChange={(e) => set('instagramUrl', e.target.value)}
-              error={!instagramValid}
-              helperText={!instagramValid ? 'Geçersiz URL' : ' '}
-              placeholder="https://instagram.com/…"
             />
           </Grid>
         </Grid>
@@ -885,17 +984,73 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     </Stack>
   );
 
-  const renderStatusStep = () => (
+  // ------------------------------------------------------------------
+  // Step 3 — Sosyal (apply step 3)
+  // ------------------------------------------------------------------
+  const renderSocialStep = () => (
     <Stack spacing={2}>
       <SectionPaper
-        title="Kademe"
-        hint="Üyenin paket seviyesi — yıllık ücret ve faydalar buna bağlıdır."
+        title="Sosyal Kanıt"
+        hint="Komite doğrulaması için yardımcı. En az biri zorunlu."
       >
-        <RadioCardGroup
-          label={null}
-          options={TIER_OPTIONS}
+        <Grid container spacing={2.5}>
+          <Grid size={12}>
+            <SocialPrefixField
+              kind="linkedin"
+              value={form.linkedinUrl ?? ''}
+              onChange={(v) => set('linkedinUrl', v || undefined)}
+              error={!linkedinValid}
+              helperText={
+                !linkedinValid
+                  ? 'Geçersiz LinkedIn URL'
+                  : 'Şirket profili için company/sirketadi kullan'
+              }
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <SocialPrefixField
+              kind="website"
+              value={form.websiteUrl ?? ''}
+              onChange={(v) => set('websiteUrl', v || undefined)}
+              error={!websiteValid}
+              helperText={!websiteValid ? 'Geçersiz URL' : undefined}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <SocialPrefixField
+              kind="instagram"
+              value={form.instagramUrl ?? ''}
+              onChange={(v) => set('instagramUrl', v || undefined)}
+              error={!instagramValid}
+              helperText={
+                !instagramValid
+                  ? 'Sadece harf/rakam/nokta/alt çizgi'
+                  : 'Sadece kullanıcı adı — @ veya URL otomatik temizlenir'
+              }
+            />
+          </Grid>
+        </Grid>
+
+        {!hasSocial && (
+          <Alert severity="warning" sx={{ mt: 1 }}>
+            Devam edebilmek için en az bir bağlantı eklemen gerekiyor.
+          </Alert>
+        )}
+      </SectionPaper>
+    </Stack>
+  );
+
+  // ------------------------------------------------------------------
+  // Step 4 — Paket & Aktivasyon (apply step 4 + admin-only options)
+  // ------------------------------------------------------------------
+  const renderPackageStep = () => (
+    <Stack spacing={2}>
+      <SectionPaper title="Kademe" hint="Üyenin paket seviyesi — kaynak: tier katalog.">
+        <TierRadioCardGroup
+          tiers={tiers}
+          loading={tiersLoading}
           value={form.requestedTier}
-          onChange={(v) => set('requestedTier', v)}
+          onChange={(code) => set('requestedTier', code)}
         />
       </SectionPaper>
 
@@ -904,7 +1059,6 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
         hint="Üyenin sistemde nasıl bir başlangıç yapacağı."
       >
         <RadioCardGroup
-          label={null}
           options={TARGET_STATUS_OPTIONS}
           value={form.targetStatus as ActivationFlow | undefined}
           onChange={(v) => set('targetStatus', v)}
@@ -917,7 +1071,6 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
           hint="Hemen aktif üyelikte ücretin nasıl alındığı — period kaydına işlenir."
         >
           <RadioCardGroup
-            label={null}
             options={PAYMENT_OPTIONS}
             value={form.grantFreeMembership ? 'FREE' : 'OFFLINE_PAID'}
             onChange={(v) => set('grantFreeMembership', v === 'FREE')}
@@ -939,7 +1092,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
           label={
             <Box>
               <Typography variant="body2">
-                <b>"Doğrulanmış İşletme" rozeti</b>
+                <b>&quot;Doğrulanmış İşletme&quot; rozeti</b>
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Admin VIP / referansla doğrulamış sayılır; profilde rozet gözükür.
@@ -948,30 +1101,21 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
           }
         />
       </SectionPaper>
-
-      <SectionPaper
-        title="Audit Notu *"
-        hint="Kategori + en az 30 karakter açıklama — log'a kalıcı yazılır."
-      >
-        <AuditNoteBlock
-          categories={AUDIT_CATEGORIES}
-          category={auditCategory}
-          onCategoryChange={setAuditCategory}
-          note={auditNoteBody}
-          onNoteChange={setAuditNoteBody}
-          placeholder="Neden manuel oluşturuluyor? (örn. 'X şirketi ile sponsor anlaşması, fatura no #1234')"
-        />
-      </SectionPaper>
     </Stack>
   );
 
+  // ------------------------------------------------------------------
+  // Step 5 — Onay + Audit
+  // ------------------------------------------------------------------
   const renderConfirmStep = () => {
-    const tierLabel = TIER_OPTIONS.find((t) => t.value === form.requestedTier)?.title;
+    const tier = tiers.find((t) => t.code === form.requestedTier);
     const raceLabel = RACES.find((r) => r.value === form.race)?.label;
     const sectorLabels = (form.sectorCodes ?? [])
-      .map((code) => { const s = sectors.find((x) => x.code === code); return s ? s.nameTr : code; })
+      .map((code) => {
+        const s = sectors.find((x) => x.code === code);
+        return s ? s.nameTr : code;
+      })
       .join(', ');
-    const hometownDetail = composeHometown(hometownCity, hometownVillage);
 
     const userLine =
       user.mode === 'new'
@@ -981,82 +1125,104 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
         : '—';
 
     return (
-      <ConfirmationStep
-        intro={
-          <>
-            Bu form self-service apply akışını <b>atlar</b>. Komite kararı yok, mobil
-            onay akışı yok. KVKK onaylarının offline alınmış olduğu varsayılır.
-            Audit notu kalıcı log'a yazılır.
-          </>
-        }
-        sections={[
-          {
-            title: 'Kullanıcı',
-            rows: [{ label: 'Kayıt', value: userLine }],
-          },
-          {
-            title: 'Şirket & Kimlik',
-            rows: [
-              { label: 'Şirket', value: form.companyName },
-              { label: 'Sektör', value: sectorLabels || '—' },
-              { label: 'Şehir', value: form.city },
-              { label: 'Halk', value: raceLabel },
-              { label: 'Sülale', value: form.clanName },
-              { label: 'Memleket', value: hometownDetail },
-              { label: 'LinkedIn', value: form.linkedinUrl },
-              { label: 'Web', value: form.websiteUrl },
-              { label: 'Instagram', value: form.instagramUrl },
-            ],
-          },
-          {
-            title: 'Üyelik & Aktivasyon',
-            rows: [
-              { label: 'Kademe', value: tierLabel },
-              {
-                label: 'Aktivasyon',
-                value: form.targetStatus
-                  ? TARGET_STATUS_LABEL[form.targetStatus as ActivationFlow]
-                  : undefined,
-              },
-              {
-                label: 'Ödeme',
-                value:
-                  form.targetStatus === 'ACTIVE'
-                    ? form.grantFreeMembership
-                      ? 'Ücretsiz (0 TL)'
-                      : 'Offline tahsil edildi'
-                    : 'Üye kendi ödeyecek (7 gün penceresi)',
-              },
-              {
-                label: 'Doğrulanmış İşletme rozeti',
-                value: form.verifiedBusiness ? '✓ Aktif' : null,
-              },
-            ],
-          },
-          {
-            title: 'Audit Notu',
-            content: (
-              <Box
-                sx={{
-                  backgroundColor: 'action.hover',
-                  p: 1,
-                  borderRadius: 1,
-                  whiteSpace: 'pre-wrap',
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                }}
-              >
-                {buildAuditNote(auditCategory, auditNoteBody)}
-              </Box>
-            ),
-          },
-        ]}
-        warning={
-          user.mode === 'new'
-            ? "Bu işlem Keycloak'ta yeni kullanıcı oluşturacak — kullanıcı email adresinde doğrulama linki alacak ve geçici şifreyle giriş yapması istenecek."
-            : undefined
-        }
-      />
+      <Stack spacing={2}>
+        <ConfirmationStep
+          intro={
+            <>
+              Bu form self-service apply akışını <b>atlar</b>. Komite kararı yok,
+              mobil onay akışı yok. KVKK onaylarının offline alınmış olduğu
+              varsayılır. Audit notu kalıcı log&apos;a yazılır.
+            </>
+          }
+          sections={[
+            {
+              title: 'Kullanıcı',
+              rows: [{ label: 'Kayıt', value: userLine }],
+            },
+            {
+              title: 'İşletme',
+              rows: [
+                { label: 'Şirket', value: form.companyName },
+                { label: 'Sektör', value: sectorLabels || '—' },
+                { label: 'Şehir', value: form.city },
+                {
+                  label: 'Adres',
+                  value: form.companyAddress?.description,
+                },
+                {
+                  label: 'Tanıtım',
+                  value: form.businessDescription,
+                },
+              ],
+            },
+            {
+              title: 'Kimlik',
+              rows: [
+                { label: 'Halk', value: raceLabel },
+                { label: 'Sülale', value: form.clanName },
+                { label: 'Memleket', value: form.hometownDetail },
+              ],
+            },
+            {
+              title: 'Sosyal',
+              rows: [
+                { label: 'LinkedIn', value: form.linkedinUrl },
+                { label: 'Web', value: form.websiteUrl },
+                {
+                  label: 'Instagram',
+                  value: form.instagramUrl
+                    ? `@${form.instagramUrl}`
+                    : undefined,
+                },
+              ],
+            },
+            {
+              title: 'Üyelik & Aktivasyon',
+              rows: [
+                { label: 'Kademe', value: tier?.displayName ?? form.requestedTier },
+                {
+                  label: 'Aktivasyon',
+                  value: form.targetStatus
+                    ? TARGET_STATUS_LABEL[form.targetStatus as ActivationFlow]
+                    : undefined,
+                },
+                {
+                  label: 'Ödeme',
+                  value:
+                    form.targetStatus === 'ACTIVE'
+                      ? form.grantFreeMembership
+                        ? 'Ücretsiz (0 TL)'
+                        : 'Offline tahsil edildi'
+                      : 'Üye kendi ödeyecek (7 gün penceresi)',
+                },
+                {
+                  label: 'Doğrulanmış İşletme rozeti',
+                  value: form.verifiedBusiness ? '✓ Aktif' : null,
+                },
+              ],
+            },
+          ]}
+          warning={
+            user.mode === 'new'
+              ? "Bu işlem Keycloak'ta yeni kullanıcı oluşturacak — kullanıcı email adresinde doğrulama linki alacak ve geçici şifreyle giriş yapması istenecek."
+              : undefined
+          }
+        />
+
+        <SectionPaper
+          title="Audit Notu *"
+          hint="Kategori + en az 30 karakter açıklama — log'a kalıcı yazılır."
+        >
+          <AuditNoteBlock
+            categories={AUDIT_CATEGORIES}
+            category={auditCategory}
+            onCategoryChange={setAuditCategory}
+            note={auditNoteBody}
+            onNoteChange={setAuditNoteBody}
+            placeholder="Neden manuel oluşturuluyor? (örn. 'X şirketi ile sponsor anlaşması, fatura no #1234')"
+          />
+        </SectionPaper>
+      </Stack>
     );
   };
 
@@ -1065,10 +1231,14 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       case 0:
         return renderUserStep();
       case 1:
-        return renderCompanyStep();
+        return renderBusinessStep();
       case 2:
-        return renderStatusStep();
+        return renderIdentityStep();
       case 3:
+        return renderSocialStep();
+      case 4:
+        return renderPackageStep();
+      case 5:
         return renderConfirmStep();
       default:
         return null;
@@ -1116,7 +1286,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
             activeStep={step}
             alternativeLabel
             sx={{
-              '& .MuiStepLabel-label': { fontSize: '0.78rem', mt: 0.5 },
+              '& .MuiStepLabel-label': { fontSize: '0.74rem', mt: 0.5 },
               '& .MuiStepConnector-line': { borderColor: 'divider' },
             }}
           >
@@ -1161,7 +1331,6 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
             arrow
             placement="top"
           >
-            {/* span wrapper: disabled Button MUI Tooltip event'leri yakalamaz */}
             <Box component="span">
               <Button
                 variant="contained"

@@ -31,14 +31,23 @@ type ReportStatus =
   | 'RESOLVED_KEPT'
   | 'DISMISSED';
 
-const TARGET_TYPE_LABEL: Record<string, string> = {
+type TargetType = 'QUESTION' | 'ANSWER' | 'MEMBER';
+
+const TARGET_TYPE_LABEL: Record<TargetType, string> = {
   QUESTION: 'Soru',
   ANSWER: 'Cevap',
+  MEMBER: 'Üye Profili',
+};
+
+const TARGET_TYPE_COLOR: Record<TargetType, 'default' | 'warning' | 'info'> = {
+  QUESTION: 'default',
+  ANSWER: 'default',
+  MEMBER: 'warning',
 };
 
 interface Report {
   id: string;
-  targetType: 'QUESTION' | 'ANSWER';
+  targetType: TargetType;
   targetId: string;
   reason: string;
   note?: string;
@@ -103,8 +112,9 @@ export default function NbModerationQueue() {
             NartBusiness — Moderasyon Kuyruğu
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Üyelerin bildirdiği soru ve cevaplar. Hide ile içerik gizlenir, Keep ile
-            bildirim reddedilir (içerik açık kalır), Dismiss ile rapor silinmeden
+            Üyelerin bildirdiği soru, cevap ve üye profilleri. Hide ile içerik
+            gizlenir (üye profillerinde suspension için nb-membership admin
+            ekranını kullan), Keep ile bildirim reddedilir, Dismiss ile rapor
             kapatılır.
           </Typography>
         </Box>
@@ -138,7 +148,11 @@ export default function NbModerationQueue() {
               {items.map((r) => (
                 <TableRow key={r.id} hover>
                   <TableCell>
-                    <Chip size="small" label={TARGET_TYPE_LABEL[r.targetType] ?? r.targetType} />
+                    <Chip
+                      size="small"
+                      color={TARGET_TYPE_COLOR[r.targetType] ?? 'default'}
+                      label={TARGET_TYPE_LABEL[r.targetType] ?? r.targetType}
+                    />
                   </TableCell>
                   <TableCell>
                     <Tooltip title={r.targetId} arrow>

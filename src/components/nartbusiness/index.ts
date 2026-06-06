@@ -18,3 +18,7 @@ export type { ConfirmationSection } from './ConfirmationStep';
 export { default as NbSectionPaper } from './NbSectionPaper';
 export { CompanyPlacesAutocomplete } from './CompanyPlacesAutocomplete';
 export type { CompanyPlaceResult } from './CompanyPlacesAutocomplete';
+export { default as PhoneTrInput } from './PhoneTrInput';
+export { default as SocialPrefixField } from './SocialPrefixField';
+export { default as SectorCheckboxGrid } from './SectorCheckboxGrid';
+export { default as TierRadioCardGroup } from './TierRadioCardGroup';

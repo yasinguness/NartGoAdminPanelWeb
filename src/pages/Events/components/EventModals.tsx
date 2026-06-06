@@ -566,6 +566,7 @@ export interface EditEventData {
   address: AddressValue | null;
   isRegistrationOpen: boolean;
   isPrivate: boolean;
+  isShowNb: boolean;
   saleStartDate: Date | null;
   saleEndDate: Date | null;
   coverImage: File | null;
@@ -754,6 +755,7 @@ export function EditEventModal({ open, onClose, onSave, initialData, loading, is
               {[
                 { key: 'isRegistrationOpen' as const, label: 'Bilet Satışı Açık', desc: 'Kapatırsanız yeni bilet satın alınamaz' },
                 { key: 'isPrivate' as const, label: 'Gizli Etkinlik (Sadece davetliler)', desc: 'Açık olduğunda etkinlik keşfet/ana sayfada görünmez, sadece direkt linkle erişilebilir' },
+                { key: 'isShowNb' as const, label: 'NartBusiness\'ta Göster', desc: 'Açık olduğunda bu etkinlik NartBusiness uygulamasının ana sayfasında listelenir' },
               ].map(toggle => (
                 <Box key={toggle.key} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.5, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
                   <Box>

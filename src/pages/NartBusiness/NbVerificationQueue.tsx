@@ -20,6 +20,7 @@ import {
   Typography,
 } from '@mui/material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import { formatDateTime } from '../../utils/dateUtils';
 import type {
   Sector,
   VerificationCase,
@@ -172,7 +173,7 @@ export default function NbVerificationQueue() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {new Date(c.submittedAt).toLocaleDateString('tr-TR')}
+                    {formatDateTime(c.submittedAt)}
                   </TableCell>
                   <TableCell>
                     <Button size="small" onClick={() => setDecideCaseId(c.caseId)}>

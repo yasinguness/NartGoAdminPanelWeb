@@ -26,6 +26,8 @@ import type {
   NbPeriodView,
   PagedResult,
   Sector,
+  Testimonial,
+  TestimonialUpsert,
   TierConfig,
   TierConfigUpdate,
   TierDocumentPolicy,
@@ -117,6 +119,22 @@ async function cancelMember(
   body: AdminActionRequest,
 ): Promise<NbMember | null> {
   const res = await api.patch<any>(`/nb/admin/members/${memberId}/cancel`, body);
+  return unwrap<NbMember>(res.data);
+}
+
+/**
+ * Havale/EFT ile ödeme yapan üyenin manuel onayı. Sadece
+ * APPROVED_PENDING_PAYMENT durumundaki üyelerde geçerli — admin WhatsApp'tan
+ * dekontu aldığında bu endpoint'i çağırarak üyeliği aktive eder.
+ */
+async function confirmBankTransfer(
+  memberId: string,
+  body: { paymentReference?: string; adminNote?: string },
+): Promise<NbMember | null> {
+  const res = await api.post<any>(
+    `/nb/admin/members/${memberId}/confirm-bank-transfer`,
+    body,
+  );
   return unwrap<NbMember>(res.data);
 }
 
@@ -372,6 +390,29 @@ async function upsertSector(body: Sector): Promise<Sector | null> {
 }
 
 // ============================================================
+// Testimonials (referanslar — küratörlü üye sözleri)
+// ============================================================
+
+async function listTestimonials(): Promise<Testimonial[]> {
+  const res = await api.get<any>('/nb/admin/membership/testimonials');
+  return unwrap<Testimonial[]>(res.data) ?? [];
+}
+
+async function createTestimonial(body: TestimonialUpsert): Promise<Testimonial | null> {
+  const res = await api.post<any>('/nb/admin/membership/testimonials', body);
+  return unwrap<Testimonial>(res.data);
+}
+
+async function updateTestimonial(id: string, body: TestimonialUpsert): Promise<Testimonial | null> {
+  const res = await api.put<any>(`/nb/admin/membership/testimonials/${id}`, body);
+  return unwrap<Testimonial>(res.data);
+}
+
+async function deleteTestimonial(id: string): Promise<void> {
+  await api.delete(`/nb/admin/membership/testimonials/${id}`);
+}
+
+// ============================================================
 // Value Chain (Sprint 9 — Matching #1)
 // ============================================================
 
@@ -464,6 +505,7 @@ export const nbAdminService = {
   suspendMember,
   reactivateMember,
   cancelMember,
+  confirmBankTransfer,
   hardDeleteMember,
   listMemberPeriods,
   // Verification
@@ -477,6 +519,11 @@ export const nbAdminService = {
   // Sectors
   listSectors,
   upsertSector,
+  // Testimonials (referanslar)
+  listTestimonials,
+  createTestimonial,
+  updateTestimonial,
+  deleteTestimonial,
   // Value Chain
   listValueChain,
   createValueChain,

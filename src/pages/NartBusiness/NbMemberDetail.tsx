@@ -7,6 +7,11 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   Link,
   Paper,
@@ -17,6 +22,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -82,6 +88,13 @@ export default function NbMemberDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionOpen, setActionOpen] = useState(false);
+  // Havale ile ödeme yapan üyenin manuel onayı — sadece status =
+  // APPROVED_PENDING_PAYMENT + paymentMethod = BANK_TRANSFER ise gözükür
+  const [bankConfirmOpen, setBankConfirmOpen] = useState(false);
+  const [bankConfirmRef, setBankConfirmRef] = useState('');
+  const [bankConfirmNote, setBankConfirmNote] = useState('');
+  const [bankConfirming, setBankConfirming] = useState(false);
+  const [bankConfirmError, setBankConfirmError] = useState<string | null>(null);
 
   const load = async () => {
     if (!memberId) return;
@@ -263,6 +276,22 @@ export default function NbMemberDetail() {
             </Stack>
           </Box>
           <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} sx={{ flexShrink: 0 }}>
+            {member.status === 'APPROVED_PENDING_PAYMENT' &&
+              member.paymentMethod === 'BANK_TRANSFER' && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<CheckCircleOutlineIcon />}
+                  onClick={() => {
+                    setBankConfirmRef('');
+                    setBankConfirmNote('');
+                    setBankConfirmError(null);
+                    setBankConfirmOpen(true);
+                  }}
+                >
+                  Havale Ödemesini Onayla
+                </Button>
+              )}
             <Button variant="contained" onClick={() => setActionOpen(true)}>
               Yönet
             </Button>
@@ -454,19 +483,54 @@ export default function NbMemberDetail() {
                         />
                       </TableCell>
                       <TableCell>
-                        {p.paymentId ? (
-                          <Tooltip title="Online ödeme alındı" arrow>
-                            <Typography variant="caption" color="success.main">
-                              ✓ Ödendi
-                            </Typography>
-                          </Tooltip>
-                        ) : p.fee === 0 ? (
+                        {/*
+                          Ödeme durumu, period.status'a göre belirlenir —
+                          paymentId varlığı yanıltıcıydı (İyzico checkout
+                          başlatıldığında paymentId set olur ama kullanıcı
+                          ödemeyi tamamlamamış olabilir → status hâlâ
+                          PAYMENT_PENDING). Tek doğru sinyal: status.
+                        */}
+                        {p.fee === 0 ? (
                           <Typography variant="caption" color="text.secondary">
                             Ücretsiz
                           </Typography>
+                        ) : p.status === 'ACTIVE' ||
+                          p.status === 'EXPIRED' ? (
+                          <Tooltip
+                            title={
+                              p.paymentId
+                                ? `Ref: ${p.paymentId}`
+                                : 'Ödeme alındı'
+                            }
+                            arrow
+                          >
+                            <Typography
+                              variant="caption"
+                              color="success.main"
+                            >
+                              ✓ Ödendi
+                            </Typography>
+                          </Tooltip>
+                        ) : p.status === 'PAYMENT_PENDING' ? (
+                          <Typography
+                            variant="caption"
+                            color="warning.main"
+                          >
+                            Bekliyor
+                          </Typography>
+                        ) : p.status === 'REFUNDED' ? (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            İade edildi
+                          </Typography>
                         ) : (
-                          <Typography variant="caption" color="text.secondary">
-                            Offline / yok
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            —
                           </Typography>
                         )}
                       </TableCell>
@@ -538,6 +602,85 @@ export default function NbMemberDetail() {
           load();
         }}
       />
+
+      {/* Havale ödeme manuel onay dialogu */}
+      <Dialog
+        open={bankConfirmOpen}
+        onClose={() => !bankConfirming && setBankConfirmOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Havale Ödemesini Onayla</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Üye <strong>{member.companyName ?? '—'}</strong> havale/EFT ile
+            ödeme yaptığını WhatsApp üzerinden iletti. Onaylarsanız üyelik
+            <strong> ACTIVE</strong>'e geçer ve İyzico akışı atlanır.
+          </DialogContentText>
+          <TextField
+            fullWidth
+            label="Dekont / Referans No (opsiyonel)"
+            placeholder="Örn: TR99-... veya WhatsApp dekont no"
+            value={bankConfirmRef}
+            onChange={(e) => setBankConfirmRef(e.target.value)}
+            size="small"
+            sx={{ mb: 2 }}
+            disabled={bankConfirming}
+          />
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            label="Admin notu (opsiyonel)"
+            placeholder="Örn: 26.05.2026 Ziraat Bankası ₺15.000"
+            value={bankConfirmNote}
+            onChange={(e) => setBankConfirmNote(e.target.value)}
+            size="small"
+            disabled={bankConfirming}
+          />
+          {bankConfirmError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {bankConfirmError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setBankConfirmOpen(false)}
+            disabled={bankConfirming}
+          >
+            Vazgeç
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            disabled={bankConfirming}
+            onClick={async () => {
+              if (!memberId) return;
+              setBankConfirming(true);
+              setBankConfirmError(null);
+              try {
+                await nbAdminService.confirmBankTransfer(memberId, {
+                  paymentReference: bankConfirmRef.trim() || undefined,
+                  adminNote: bankConfirmNote.trim() || undefined,
+                });
+                setBankConfirmOpen(false);
+                await load();
+              } catch (e: any) {
+                setBankConfirmError(
+                  e?.response?.data?.error?.message ??
+                    e?.message ??
+                    'Onaylama başarısız.',
+                );
+              } finally {
+                setBankConfirming(false);
+              }
+            }}
+          >
+            {bankConfirming ? 'Onaylanıyor…' : 'Ödemeyi Onayla'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
@@ -582,12 +725,51 @@ function parseUserResponse(raw: string): { category: string | null; body: string
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
+  // Kullanıcı yanıtı kategorileri
   DOC_PROVIDED: 'Belge Eklendi',
   CLARIFICATION: 'Açıklama',
   CORRECTION: 'Düzeltme',
   DISPUTE: 'İtiraz',
   OTHER: 'Diğer',
+  // Komite oyu — onay
+  COMPANY_VERIFIED: 'Şirket teyit edildi',
+  CULTURAL_VERIFIED: 'Kimlik teyit edildi',
+  BOTH_VERIFIED: 'Şirket + kimlik teyit',
+  TENURE_TRUSTED: 'NartGo kıdemi yeterli',
+  OTHER_APPROVE: 'Diğer (onay)',
+  // Komite oyu — ek bilgi
+  MISSING_DOC: 'Belge eksik',
+  UNCLEAR_DOC: 'Belge okunaksız/şüpheli',
+  COMPANY_UNCLEAR: 'Şirket bilgisi net değil',
+  CULTURAL_UNCLEAR: 'Kimlik net değil',
+  SOCIAL_PROOF_WEAK: 'Sosyal kanıt yetersiz',
+  OTHER_NEEDS_INFO: 'Diğer (ek bilgi)',
+  // Komite oyu — red
+  INSUFFICIENT_PROOF: 'Yetersiz kanıt',
+  FAKE_SUSPECT: 'Sahtelik şüphesi',
+  CULTURAL_MISMATCH: 'Kimlik teyit edilemedi',
+  POLICY_VIOLATION: 'Politika ihlali',
+  OTHER_REJECT: 'Diğer (red)',
 };
+
+/** Komite oy kodu → Türkçe etiket. */
+const VOTE_LABEL: Record<string, string> = {
+  APPROVE: 'Onayla',
+  REJECT: 'Reddet',
+  NEEDS_INFO: 'Ek bilgi iste',
+};
+
+/**
+ * Backend'in ürettiği timeline açıklamasındaki ham enum/sürüm token'larını
+ * temizler: "oyu: APPROVE" → "oyu: Onayla", "KVKK MEMBERSHIP_v1" → "KVKK onayı".
+ */
+function humanizeDescription(desc: string | null | undefined): string {
+  if (!desc) return '';
+  return desc
+    .replace(/\b(APPROVE|REJECT|NEEDS_INFO)\b/g, (m) => VOTE_LABEL[m] ?? m)
+    .replace(/KVKK\s+\S*_v\d+/gi, 'KVKK onayı')
+    .trim();
+}
 
 // ============================================================
 // VerificationCaseSection
@@ -643,7 +825,7 @@ function VerificationCaseSection({
       {/* Uyarı: komite kararı bekleniyor + son tur */}
       {isActionable && needsInfoRound >= 2 && (
         <Alert severity="error" variant="outlined" sx={{ mb: 2 }}>
-          <b>Son tur.</b> Komite bir daha NEEDS_INFO gönderirse başvuru otomatik reddedilir.
+          <b>Son tur.</b> Komite bir daha ek bilgi isterse başvuru otomatik reddedilir.
           Yanıtı dikkatlice değerlendirin.
         </Alert>
       )}
@@ -709,9 +891,11 @@ function TimelineEntry({ entry }: { entry: CaseTimelineEntry }) {
   const isNeedsInfo = entry.type === 'NEEDS_INFO';
   const isDecision = entry.type === 'APPROVED' || entry.type === 'REJECTED';
 
-  const { category, body } = isUserResponse && entry.detail
+  // [KATEGORI: X] prefix'ini TÜM entry'lerden ayır (komite oyları dahil) ki
+  // ham enum body'de görünmesin; kategori ayrı, etiketli chip olur.
+  const { category, body } = entry.detail
     ? parseUserResponse(entry.detail)
-    : { category: null, body: entry.detail ?? '' };
+    : { category: null, body: '' };
 
   const icon = {
     SUBMITTED: <AssignmentIcon sx={{ fontSize: 16, color: 'text.secondary' }} />,
@@ -769,13 +953,13 @@ function TimelineEntry({ entry }: { entry: CaseTimelineEntry }) {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" mb={0.5} flexWrap="wrap" useFlexGap>
               <Typography variant="caption" fontWeight={700} color="text.primary">
-                {entry.description}
+                {humanizeDescription(entry.description)}
               </Typography>
-              {isUserResponse && category && (
+              {category && (
                 <Chip
                   size="small"
                   label={CATEGORY_LABEL[category] ?? category}
-                  color="primary"
+                  color={isUserResponse ? 'primary' : 'default'}
                   variant="outlined"
                   sx={{ height: 18, fontSize: 10 }}
                 />
@@ -811,9 +995,41 @@ function TimelineEntry({ entry }: { entry: CaseTimelineEntry }) {
 // DocumentCard
 // ============================================================
 
+/** mediaUrl path'ten dosya uzantısı + tam dosya adı çıkarır.
+ *  Backend formatı: `nb/verification/{caseId}/{docType}-{uuid}.{ext}` */
+function parseDocFile(mediaUrl: string | undefined): {
+  ext: string;
+  fileName: string;
+  isPdf: boolean;
+} {
+  if (!mediaUrl) return { ext: '', fileName: '', isPdf: false };
+  const clean = mediaUrl.split('?')[0]; // query string at
+  const fileName = clean.split('/').pop() ?? '';
+  const dot = fileName.lastIndexOf('.');
+  const ext = dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : '';
+  return { ext, fileName, isPdf: ext === 'pdf' };
+}
+
+function fileTypeLabel(ext: string): string {
+  switch (ext) {
+    case 'pdf':
+      return 'PDF';
+    case 'jpg':
+    case 'jpeg':
+      return 'JPEG';
+    case 'png':
+      return 'PNG';
+    case '':
+      return 'Dosya';
+    default:
+      return ext.toUpperCase();
+  }
+}
+
 function DocumentCard({ doc }: { doc: VerificationDocument }) {
-  const isPdf = doc.mediaUrl?.toLowerCase().endsWith('.pdf') ||
-    doc.mediaUrl?.toLowerCase().includes('pdf');
+  const { ext, fileName, isPdf } = parseDocFile(doc.mediaUrl);
+  const typeLabel = DOC_TYPE_LABEL[doc.type] ?? doc.type;
+  const fileBadge = fileTypeLabel(ext);
 
   return (
     <Paper
@@ -823,8 +1039,8 @@ function DocumentCard({ doc }: { doc: VerificationDocument }) {
         display: 'flex',
         alignItems: 'center',
         gap: 1,
-        minWidth: 180,
-        maxWidth: 260,
+        minWidth: 200,
+        maxWidth: 280,
         cursor: 'pointer',
         transition: 'box-shadow 0.15s',
         '&:hover': { boxShadow: 2 },
@@ -841,11 +1057,43 @@ function DocumentCard({ doc }: { doc: VerificationDocument }) {
       )}
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography variant="caption" fontWeight={700} display="block" noWrap>
-          {DOC_TYPE_LABEL[doc.type] ?? doc.type}
+          {typeLabel}
         </Typography>
-        <Typography variant="caption" color="text.secondary" display="block">
-          {relativeDate(doc.uploadedAt)}
-        </Typography>
+        <Stack
+          direction="row"
+          spacing={0.75}
+          alignItems="center"
+          sx={{ mt: 0.25 }}
+        >
+          <Chip
+            size="small"
+            label={fileBadge}
+            sx={{
+              height: 16,
+              fontSize: 10,
+              fontWeight: 700,
+              '.MuiChip-label': { px: 0.75 },
+            }}
+            color={isPdf ? 'error' : 'primary'}
+            variant="outlined"
+          />
+          <Typography variant="caption" color="text.secondary" noWrap>
+            • {relativeDate(doc.uploadedAt)}
+          </Typography>
+        </Stack>
+        {fileName && (
+          <Tooltip title={fileName} arrow>
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              display="block"
+              noWrap
+              sx={{ fontSize: 10, mt: 0.25 }}
+            >
+              {fileName}
+            </Typography>
+          </Tooltip>
+        )}
       </Box>
       <OpenInNewIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
     </Paper>
