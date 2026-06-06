@@ -16,6 +16,7 @@ import {
   Star as FeaturedIcon,
   Person as MyStoryIcon,
   Group as UserFeedIcon,
+  Business as NbBusinessIcon,
 } from '@mui/icons-material';
 import {
   FeatureFlag,
@@ -60,6 +61,13 @@ const KNOWN_STORY_FLAGS: KnownStoryFlag[] = [
     description:
       'Kullanıcının kişisel NartGo üyelik kartını açan giriş — indirim QR taraması için.',
     Icon: CardIcon,
+  },
+  {
+    flagKey: 'story.nb_business.enabled',
+    label: 'NartBusiness',
+    description:
+      'NartBusiness giriş kartı. Kullanıcının rolü/üyeliği yoksa mobil tarafta zaten gizlenir; bu anahtar kartı tümden kapatır.',
+    Icon: NbBusinessIcon,
   },
   {
     flagKey: 'story.referral.enabled',
