@@ -9,15 +9,11 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControlLabel,
   Grid,
   IconButton,
   Link,
   Stack,
-  Step,
-  StepLabel,
-  Stepper,
   TextField,
   Tooltip,
   Typography,
@@ -28,6 +24,8 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import CloseIcon from '@mui/icons-material/Close';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { theme as adminTheme } from '../../theme';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type {
   AdminCreateMemberRequest,
@@ -131,6 +129,105 @@ const STEPS = [
   'Sosyal',
   'Paket & Aktivasyon',
   'Onay',
+];
+
+/** Elite Diaspora Network — premium palet (lacivert + altın + krem). */
+const ELITE = {
+  navy: '#1B2A4A',
+  navyDeep: '#142036',
+  gold: '#B8860B',
+  goldSoft: '#C9A227',
+  cream: '#FAF6E8',
+  line: 'rgba(184,134,11,0.28)',
+} as const;
+
+const SERIF = '"Playfair Display", Georgia, "Times New Roman", serif';
+
+/**
+ * Modal'a özel "elite" MUI teması — admin temasını (yeşil) lacivert/altın/krem
+ * ile genişletir. Böylece form mantığına dokunmadan içteki tüm kontroller de
+ * (textfield, checkbox, radio card, buton) premium tona geçer.
+ */
+const eliteTheme = createTheme(adminTheme, {
+  palette: {
+    primary: { main: ELITE.navy, dark: ELITE.navyDeep, contrastText: '#FFFFFF' },
+    secondary: { main: ELITE.gold, dark: '#8C6608', contrastText: '#FFFFFF' },
+    background: { default: ELITE.cream, paper: '#FFFFFF' },
+  },
+  shape: { borderRadius: 10 },
+});
+
+/** Sağ kolondaki "Curation" bilgi kartının adıma göre içeriği. */
+type SidebarBullet = { label: string; desc: string };
+type SidebarContent = {
+  eyebrow: string;
+  title: string;
+  panelTitle: string;
+  body: string;
+  bullets: SidebarBullet[];
+};
+
+const STEP_SIDEBAR: SidebarContent[] = [
+  {
+    eyebrow: 'Üyelik Protokolü',
+    title: 'Kimlik Doğrulama',
+    panelTitle: 'Kimlik Bütünlüğü',
+    body: 'Üyeyi mevcut NartGo hesabına bağla veya yeni bir kayıt oluştur. Ağın bütünlüğü için her üye tekil bir kimliğe bağlanır.',
+    bullets: [
+      { label: 'Tekil Hesap', desc: 'E-posta zaten varsa mevcut kullanıcı seçilir; çift kayıt önlenir.' },
+      { label: 'Güvenli Bağ', desc: 'Kimlik auth-service tarafından doğrulanır.' },
+    ],
+  },
+  {
+    eyebrow: 'Kurumsal Hizalama',
+    title: 'İşletme Profili',
+    panelTitle: 'Kurumsal Hizalama',
+    body: 'Üyenin şirketinin temel bilgileri. Bu veriler komitenin ağ uyumunu değerlendirmesinde kritik rol oynar.',
+    bullets: [
+      { label: 'Sektör Eşleşmesi', desc: 'En fazla 3 sektör; eşleştirme motoru bunları kullanır.' },
+      { label: 'Konum', desc: 'Şehir bilgisi dizin ve bölgesel filtrelerde kullanılır.' },
+    ],
+  },
+  {
+    eyebrow: 'Köken & Mensubiyet',
+    title: 'Diaspora Kimliği',
+    panelTitle: 'Kültürel Bağ',
+    body: 'Kafkas kökeni ve aile bilgisi. Ağın kültürel dokusunu ve mensubiyet bağlarını oluşturur.',
+    bullets: [
+      { label: 'Köken', desc: 'Adige, Abhaz, Çeçen… mensubiyet kodu.' },
+      { label: 'Aile', desc: 'Soy / aile bağı opsiyonel olarak ilişkilendirilir.' },
+    ],
+  },
+  {
+    eyebrow: 'Dijital Varlık',
+    title: 'Sosyal & Ağ Profili',
+    panelTitle: 'Dijital İz',
+    body: 'Üyenin profesyonel dijital ayak izi. Stratejik eşleştirmede ve güven skorunda kullanılır.',
+    bullets: [
+      { label: 'Bağlantılar', desc: 'LinkedIn / web / sosyal — opsiyonel.' },
+      { label: 'Görünürlük', desc: 'Profil zenginliği ağ değerini artırır.' },
+    ],
+  },
+  {
+    eyebrow: 'Paket & Aktivasyon',
+    title: 'Üyelik Tahsisi',
+    panelTitle: 'Yönetişim & Erişim',
+    body: 'Üyenin paketini ve aktivasyon yolunu belirle. Bu seçim yönetişim seviyesini ve erişim haklarını tanımlar.',
+    bullets: [
+      { label: 'Aktivasyon', desc: 'Hemen aktive et ya da ödeme penceresi aç.' },
+      { label: 'Tahsilat', desc: 'Offline tahsil veya ücretsiz / sponsor üyelik.' },
+    ],
+  },
+  {
+    eyebrow: 'Komite Onayı',
+    title: 'Son Kontrol',
+    panelTitle: 'Komite İncelemesi',
+    body: 'Girilen tüm bilgileri gözden geçir ve üyeliği oluştur. Denetim notu kalıcı kayda işlenir.',
+    bullets: [
+      { label: 'Denetim İzi', desc: 'Manuel ekleme gerekçesi audit-log’a yazılır.' },
+      { label: 'Geri Dönülemez', desc: 'Oluşturma sonrası üye dizine düşer.' },
+    ],
+  },
 ];
 
 const URL_RX = /^https?:\/\/.+/i;
@@ -1245,125 +1342,390 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     }
   };
 
-  return (
-    <Dialog
-      open={open}
-      onClose={handleCloseRequest}
-      maxWidth="md"
-      fullWidth
-      fullScreen={fullScreen}
-      PaperProps={{
-        sx: {
-          borderRadius: fullScreen ? 0 : 2,
-          display: 'flex',
-          flexDirection: 'column',
-        },
-      }}
-    >
-      <DialogTitle
-        sx={{
-          px: { xs: 2.5, sm: 3 },
-          py: 2,
-          fontWeight: 700,
-          fontSize: '1.1rem',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        Manuel Üye Oluştur
-      </DialogTitle>
+  const sidebar = STEP_SIDEBAR[step] ?? STEP_SIDEBAR[0];
 
-      <DialogContent
-        sx={{
-          px: { xs: 2.5, sm: 3 },
-          py: 3,
-          overflowY: 'auto',
-          flex: 1,
+  return (
+    <ThemeProvider theme={eliteTheme}>
+      <Dialog
+        open={open}
+        onClose={handleCloseRequest}
+        maxWidth="lg"
+        fullWidth
+        fullScreen={fullScreen}
+        PaperProps={{
+          sx: {
+            borderRadius: fullScreen ? 0 : 3,
+            display: 'flex',
+            flexDirection: 'column',
+            bgcolor: ELITE.cream,
+            overflow: 'hidden',
+          },
         }}
       >
-        <Stack spacing={3}>
-          <Stepper
-            activeStep={step}
-            alternativeLabel
+        {/* ---- Lacivert marka başlığı ---- */}
+        <Box
+          sx={{
+            bgcolor: ELITE.navy,
+            color: '#fff',
+            px: { xs: 2.5, sm: 4 },
+            py: 2,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+          }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ flexGrow: 1, minWidth: 0 }}
+          >
+            <Typography
+              sx={{
+                fontFamily: SERIF,
+                fontWeight: 700,
+                fontSize: '1.25rem',
+                letterSpacing: 0.3,
+              }}
+            >
+              NartBusiness
+            </Typography>
+            <Box sx={{ width: '1px', height: 22, bgcolor: ELITE.line }} />
+            <Typography
+              sx={{
+                color: ELITE.goldSoft,
+                fontSize: '0.66rem',
+                fontWeight: 600,
+                letterSpacing: 2,
+                textTransform: 'uppercase',
+              }}
+            >
+              Elite Application
+            </Typography>
+          </Stack>
+          <Typography
             sx={{
-              '& .MuiStepLabel-label': { fontSize: '0.74rem', mt: 0.5 },
-              '& .MuiStepConnector-line': { borderColor: 'divider' },
+              color: 'rgba(255,255,255,0.6)',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              letterSpacing: 1,
+              display: { xs: 'none', sm: 'block' },
             }}
           >
-            {STEPS.map((label) => (
-              <Step key={label}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-          {error && <Alert severity="error">{error}</Alert>}
-          {stepBody()}
-        </Stack>
-      </DialogContent>
-
-      <DialogActions
-        sx={{
-          px: { xs: 2.5, sm: 3 },
-          py: 2,
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          gap: 1,
-        }}
-      >
-        <Button onClick={handleCloseRequest} disabled={submitting} color="inherit">
-          İptal
-        </Button>
-        <Box sx={{ flexGrow: 1 }} />
-        {step > 0 && (
-          <Button
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            ADIM {step + 1} / {STEPS.length}
+          </Typography>
+          <IconButton
+            onClick={handleCloseRequest}
             disabled={submitting}
-            color="inherit"
+            sx={{ color: 'rgba(255,255,255,0.8)', ml: 0.5 }}
           >
-            Geri
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        {/* ---- Numaralı adım rayı ---- */}
+        <Box
+          sx={{
+            px: { xs: 2, sm: 4 },
+            py: 1.75,
+            bgcolor: '#fff',
+            borderBottom: `1px solid ${ELITE.line}`,
+            overflowX: 'auto',
+          }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0}
+            sx={{ minWidth: 'max-content' }}
+          >
+            {STEPS.map((label, i) => {
+              const done = i < step;
+              const active = i === step;
+              return (
+                <Box key={label} sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Box
+                      sx={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        flexShrink: 0,
+                        bgcolor: active ? ELITE.gold : done ? ELITE.navy : 'transparent',
+                        color: active || done ? '#fff' : 'text.disabled',
+                        border: active || done ? 'none' : '1.5px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      {done ? '✓' : i + 1}
+                    </Box>
+                    <Typography
+                      sx={{
+                        fontSize: '0.7rem',
+                        fontWeight: active ? 700 : 500,
+                        letterSpacing: 0.4,
+                        textTransform: 'uppercase',
+                        color: active
+                          ? ELITE.navy
+                          : done
+                          ? 'text.primary'
+                          : 'text.disabled',
+                        whiteSpace: 'nowrap',
+                        display: { xs: active ? 'block' : 'none', md: 'block' },
+                      }}
+                    >
+                      {label}
+                    </Typography>
+                  </Stack>
+                  {i < STEPS.length - 1 && (
+                    <Box
+                      sx={{
+                        width: { xs: 16, md: 28 },
+                        height: '1.5px',
+                        mx: { xs: 1, md: 1.5 },
+                        bgcolor: i < step ? ELITE.navy : 'divider',
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                </Box>
+              );
+            })}
+          </Stack>
+        </Box>
+
+        {/* ---- İki kolonlu gövde ---- */}
+        <DialogContent
+          sx={{ p: 0, flex: 1, overflowY: 'auto', bgcolor: ELITE.cream }}
+        >
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                md: 'minmax(0, 1.65fr) minmax(0, 1fr)',
+              },
+              minHeight: '100%',
+            }}
+          >
+            {/* sol: form */}
+            <Box sx={{ px: { xs: 2.5, sm: 4 }, py: { xs: 2.5, sm: 3.5 } }}>
+              <Stack spacing={2.5}>
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      letterSpacing: 1.5,
+                      textTransform: 'uppercase',
+                      color: ELITE.gold,
+                    }}
+                  >
+                    {sidebar.eyebrow}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontFamily: SERIF,
+                      fontSize: { xs: '1.6rem', sm: '2rem' },
+                      fontWeight: 600,
+                      color: ELITE.navy,
+                      lineHeight: 1.1,
+                      mt: 0.25,
+                    }}
+                  >
+                    {sidebar.title}
+                  </Typography>
+                </Box>
+                {error && <Alert severity="error">{error}</Alert>}
+                {stepBody()}
+              </Stack>
+            </Box>
+
+            {/* sağ: curation kartı */}
+            <Box
+              sx={{
+                color: 'rgba(255,255,255,0.85)',
+                px: { xs: 2.5, sm: 3.5 },
+                py: { xs: 3, sm: 4 },
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2.5,
+                backgroundImage: `linear-gradient(160deg, ${ELITE.navy} 0%, ${ELITE.navyDeep} 100%)`,
+              }}
+            >
+              <Box sx={{ width: 38, height: 3, bgcolor: ELITE.gold, borderRadius: 2 }} />
+              <Box>
+                <Typography
+                  sx={{
+                    color: ELITE.goldSoft,
+                    fontSize: '0.64rem',
+                    fontWeight: 700,
+                    letterSpacing: 2,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Komite Notu
+                </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: SERIF,
+                    fontSize: '1.5rem',
+                    fontWeight: 600,
+                    color: '#fff',
+                    mt: 0.75,
+                    lineHeight: 1.15,
+                  }}
+                >
+                  {sidebar.panelTitle}
+                </Typography>
+              </Box>
+              <Typography
+                sx={{
+                  fontSize: '0.83rem',
+                  lineHeight: 1.7,
+                  color: 'rgba(255,255,255,0.75)',
+                }}
+              >
+                {sidebar.body}
+              </Typography>
+              <Stack spacing={2} sx={{ mt: 0.5 }}>
+                {sidebar.bullets.map((b) => (
+                  <Stack
+                    key={b.label}
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="flex-start"
+                  >
+                    <Box
+                      sx={{
+                        color: ELITE.goldSoft,
+                        fontSize: '0.7rem',
+                        mt: '3px',
+                        lineHeight: 1,
+                      }}
+                    >
+                      ◆
+                    </Box>
+                    <Box>
+                      <Typography
+                        sx={{ color: '#fff', fontSize: '0.82rem', fontWeight: 700 }}
+                      >
+                        {b.label}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: 'rgba(255,255,255,0.6)',
+                          fontSize: '0.76rem',
+                          lineHeight: 1.5,
+                          mt: 0.25,
+                        }}
+                      >
+                        {b.desc}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                ))}
+              </Stack>
+              <Box sx={{ flexGrow: 1 }} />
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ pt: 2, borderTop: `1px solid ${ELITE.line}` }}
+              >
+                <LockOutlinedIcon sx={{ fontSize: 15, color: ELITE.goldSoft }} />
+                <Typography
+                  sx={{
+                    fontSize: '0.62rem',
+                    fontWeight: 700,
+                    letterSpacing: 1.5,
+                    textTransform: 'uppercase',
+                    color: 'rgba(255,255,255,0.55)',
+                  }}
+                >
+                  Heritage &amp; Trust Standard
+                </Typography>
+              </Stack>
+            </Box>
+          </Box>
+        </DialogContent>
+
+        {/* ---- Alt aksiyonlar ---- */}
+        <DialogActions
+          sx={{
+            px: { xs: 2.5, sm: 4 },
+            py: 2,
+            bgcolor: '#fff',
+            borderTop: `1px solid ${ELITE.line}`,
+            gap: 1,
+          }}
+        >
+          <Button onClick={handleCloseRequest} disabled={submitting} color="inherit">
+            İptal
           </Button>
-        )}
-        {step < STEPS.length - 1 ? (
-          <Tooltip
-            title={stepBlockerHint ?? ''}
-            disableHoverListener={!stepBlockerHint}
-            disableFocusListener={!stepBlockerHint}
-            arrow
-            placement="top"
-          >
-            <Box component="span">
-              <Button
-                variant="contained"
-                onClick={() => setStep((s) => s + 1)}
-                disabled={!stepValid[step] || submitting}
-                sx={{ minWidth: 88 }}
-              >
-                İleri
-              </Button>
-            </Box>
-          </Tooltip>
-        ) : (
-          <Tooltip
-            title={!canSubmit ? 'Önceki adımlarda eksikler var' : ''}
-            disableHoverListener={canSubmit}
-            disableFocusListener={canSubmit}
-            arrow
-            placement="top"
-          >
-            <Box component="span">
-              <Button
-                variant="contained"
-                color="primary"
-                disabled={!canSubmit || submitting}
-                onClick={submit}
-                sx={{ minWidth: 130 }}
-              >
-                {submitting ? 'Oluşturuluyor…' : 'Üyeyi Oluştur'}
-              </Button>
-            </Box>
-          </Tooltip>
-        )}
-      </DialogActions>
-    </Dialog>
+          <Box sx={{ flexGrow: 1 }} />
+          {step > 0 && (
+            <Button
+              onClick={() => setStep((s) => Math.max(0, s - 1))}
+              disabled={submitting}
+              color="inherit"
+            >
+              Geri
+            </Button>
+          )}
+          {step < STEPS.length - 1 ? (
+            <Tooltip
+              title={stepBlockerHint ?? ''}
+              disableHoverListener={!stepBlockerHint}
+              disableFocusListener={!stepBlockerHint}
+              arrow
+              placement="top"
+            >
+              <Box component="span">
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => setStep((s) => s + 1)}
+                  disabled={!stepValid[step] || submitting}
+                  sx={{ minWidth: 120, px: 3 }}
+                >
+                  Devam Et
+                </Button>
+              </Box>
+            </Tooltip>
+          ) : (
+            <Tooltip
+              title={!canSubmit ? 'Önceki adımlarda eksikler var' : ''}
+              disableHoverListener={canSubmit}
+              disableFocusListener={canSubmit}
+              arrow
+              placement="top"
+            >
+              <Box component="span">
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  disabled={!canSubmit || submitting}
+                  onClick={submit}
+                  startIcon={
+                    submitting ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : undefined
+                  }
+                  sx={{ minWidth: 150, px: 3 }}
+                >
+                  {submitting ? 'Oluşturuluyor…' : 'Üyeyi Oluştur'}
+                </Button>
+              </Box>
+            </Tooltip>
+          )}
+        </DialogActions>
+      </Dialog>
+    </ThemeProvider>
   );
 }
