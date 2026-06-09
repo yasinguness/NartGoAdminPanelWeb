@@ -179,7 +179,10 @@ async function createMemberManually(
  * @param limit max sonuç (default 20, max 50)
  */
 export interface NbUserSearchResult {
+  /** auth-service iç DB UUID'si — telefon/profil lookup için. NB üyeliği için KULLANMA. */
   userId: string;
+  /** Keycloak UUID (JWT sub) — NB sistemi kullanıcıyı bununla tanır; NbMember.userId bu olmalı. */
+  keycloakUserId?: string;
   email: string;
   firstName?: string;
   lastName?: string;

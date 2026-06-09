@@ -608,7 +608,9 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               createIfMissing: true,
             }
           : {
-              userId: user.selectedUser!.userId,
+              // NB üyeliği Keycloak UUID (JWT sub) ile anahtarlanır — auth iç id'sini (userId) DEĞİL
+              // keycloakUserId'yi gönder. Null ise (kullanıcı hiç login olmamış) email-lookup'a düşer.
+              userId: user.selectedUser!.keycloakUserId ?? undefined,
               email: user.selectedUser!.email,
               createIfMissing: false,
             };
