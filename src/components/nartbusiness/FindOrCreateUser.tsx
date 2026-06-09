@@ -289,7 +289,7 @@ export default function FindOrCreateUser({
                   ...params.InputProps,
                   endAdornment: (
                     <>
-                      {loading ? <CircularProgress size={18} /> : null}
+                      {loading ? <CircularProgress item xs={18} /> : null}
                       {params.InputProps.endAdornment}
                     </>
                   ),
@@ -309,7 +309,7 @@ export default function FindOrCreateUser({
       ) : (
         <>
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12 }}>
+            <Grid item xs={12}>
               <TextField
                 label="Email *"
                 fullWidth
@@ -331,7 +331,7 @@ export default function FindOrCreateUser({
                     <InputAdornment position="end">
                       {emailLookupLoading ? (
                         <Tooltip title="Duplicate kontrol ediliyor…">
-                          <CircularProgress size={16} />
+                          <CircularProgress item xs={16} />
                         </Tooltip>
                       ) : emailDuplicate ? (
                         <Tooltip
@@ -369,7 +369,7 @@ export default function FindOrCreateUser({
                 }}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 label="Ad *"
                 fullWidth
@@ -379,7 +379,7 @@ export default function FindOrCreateUser({
                 onChange={(e) => update({ firstName: e.target.value })}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 label="Soyad *"
                 fullWidth
@@ -389,7 +389,7 @@ export default function FindOrCreateUser({
                 onChange={(e) => update({ lastName: e.target.value })}
               />
             </Grid>
-            <Grid size={12}>
+            <Grid item xs={12}>
               <TextField
                 label="Telefon"
                 fullWidth

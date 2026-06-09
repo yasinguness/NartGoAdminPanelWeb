@@ -784,7 +784,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
 
         <SectionPaper title="Şirket Bilgisi">
           <Grid container spacing={2.5}>
-            <Grid size={12}>
+            <Grid item xs={12}>
               <CompanyPlacesAutocomplete
                 required
                 value={form.companyName ?? ''}
@@ -815,7 +815,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
             </Grid>
 
             {addr?.description && (
-              <Grid size={12}>
+              <Grid item xs={12}>
                 <Box
                   sx={{
                     display: 'flex',
@@ -850,7 +850,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               </Grid>
             )}
 
-            <Grid size={12}>
+            <Grid item xs={12}>
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
                 Sektör(ler) * <Typography component="span" variant="caption" color="text.secondary">— en fazla 3</Typography>
               </Typography>
@@ -862,7 +862,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               />
             </Grid>
 
-            <Grid size={{ xs: 12, md: 6 }}>
+            <Grid item xs={12} md={6}>
               <CatalogAutocomplete<string>
                 label="Şehir"
                 required
@@ -884,7 +884,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               />
             </Grid>
 
-            <Grid size={12}>
+            <Grid item xs={12}>
               <TextField
                 label="İşletme Tanıtımı (opsiyonel)"
                 fullWidth
@@ -915,7 +915,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
         hint="Halk seçimi sülale katalogunu filtreler."
       >
         <Grid container spacing={2.5}>
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <CatalogAutocomplete<{ value: NbRace; label: string }>
               label="Halk"
               required
@@ -931,7 +931,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               helperText={lockedHelper('race')}
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <Autocomplete<RaceFamily, false, false, true>
               size="small"
               fullWidth
@@ -1005,7 +1005,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                     ...params.InputProps,
                     endAdornment: (
                       <>
-                        {familiesLoading ? <CircularProgress size={16} /> : null}
+                        {familiesLoading ? <CircularProgress item xs={16} /> : null}
                         {params.InputProps.endAdornment}
                       </>
                     ),
@@ -1042,7 +1042,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                   variant="outlined"
                   startIcon={
                     familyCreating ? (
-                      <CircularProgress size={14} />
+                      <CircularProgress item xs={14} />
                     ) : (
                       <AddCircleOutlineIcon />
                     )
@@ -1060,7 +1060,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               </Stack>
             )}
           </Grid>
-          <Grid size={12}>
+          <Grid item xs={12}>
             <TextField
               label="Memleket (opsiyonel)"
               fullWidth
@@ -1091,7 +1091,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
         hint="Komite doğrulaması için yardımcı. En az biri zorunlu."
       >
         <Grid container spacing={2.5}>
-          <Grid size={12}>
+          <Grid item xs={12}>
             <SocialPrefixField
               kind="linkedin"
               value={form.linkedinUrl ?? ''}
@@ -1104,7 +1104,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               }
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <SocialPrefixField
               kind="website"
               value={form.websiteUrl ?? ''}
@@ -1113,7 +1113,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               helperText={!websiteValid ? 'Geçersiz URL' : undefined}
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <SocialPrefixField
               kind="instagram"
               value={form.instagramUrl ?? ''}
@@ -1714,7 +1714,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                   onClick={submit}
                   startIcon={
                     submitting ? (
-                      <CircularProgress size={16} color="inherit" />
+                      <CircularProgress item xs={16} color="inherit" />
                     ) : undefined
                   }
                   sx={{ minWidth: 150, px: 3 }}
