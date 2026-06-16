@@ -28,12 +28,9 @@ import {
   ArrowForward as ArrowIcon,
   CheckCircle as CheckCircleIcon,
   People as PeopleIcon,
-  EventSeat as SeatIcon,
 } from '@mui/icons-material';
-import { format } from 'date-fns';
-import { tr } from 'date-fns/locale';
 import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import { formatDate, formatDateTime, formatEventDateTime, eventZoneLabel } from '../utils/dateUtils';
+import { formatDate, formatEventDateTime, eventZoneLabel } from '../utils/dateUtils';
 import { PageContainer } from '../components/Page';
 import { useRole } from '../hooks/useRole';
 import { adminOperationsService } from '../services/admin/adminOperationsService';

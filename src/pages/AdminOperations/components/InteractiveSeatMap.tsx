@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -65,13 +65,13 @@ export default function InteractiveSeatMap({ initialRole = 'ADMIN', eventId, onS
   const [categories, setCategories] = useState(defaultCategories);
   const [auditLogs, setAuditLogs] = useState<{ time: string; actor: string; action: string }[]>([]);
   const [seatRows, setSeatRows] = useState(defaultRows);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   // Generate fallback seats from rows
   const generateSeats = (rows: string[]): Seat[] => {
     const seats: Seat[] = [];
     rows.forEach((r, rIdx) => {
-      let cat = categories.length > 3 ? categories[Math.min(rIdx < 2 ? 0 : rIdx < 4 ? 1 : rIdx < 6 ? 2 : 3, categories.length - 1)].name : 'Standart';
+      const cat = categories.length > 3 ? categories[Math.min(rIdx < 2 ? 0 : rIdx < 4 ? 1 : rIdx < 6 ? 2 : 3, categories.length - 1)].name : 'Standart';
       for (let c = 1; c <= 16; c++) {
         seats.push({ id: `${r}-${c}`, row: r, col: c, category: cat, status: 'AVAILABLE' });
       }
@@ -96,7 +96,7 @@ export default function InteractiveSeatMap({ initialRole = 'ADMIN', eventId, onS
         ]);
 
         const seatMap = seatMapRes.status === 'fulfilled' ? seatMapRes.value.data?.data : null;
-        const occupied = occupiedRes.status === 'fulfilled' ? (seatMapRes.value.data?.data || []) : [];
+        const occupied = occupiedRes.status === 'fulfilled' ? (occupiedRes.value.data?.data || []) : [];
         const reserved = reservedRes.status === 'fulfilled' ? (reservedRes.value.data?.data || []) : [];
         const auditData = auditRes.status === 'fulfilled' ? (auditRes.value.data?.data || []) : [];
 

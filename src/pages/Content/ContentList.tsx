@@ -10,7 +10,7 @@ import {
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon,
   Visibility as ViewIcon, Search as SearchIcon,
-  FileDownload as DownloadIcon, FilterList as FilterIcon,
+  FileDownload as DownloadIcon,
   CheckCircle as CheckCircleIcon, Archive as ArchiveIcon,
   Close as CloseIcon, ArrowBackIosNew, ArrowForwardIos,
   AccessTime, Article as ArticleIcon,
@@ -22,7 +22,6 @@ import {
   ArticleCategory, ArticleStatus, ArticleType,
   CATEGORY_LABELS, STATUS_LABELS, TYPE_LABELS,
 } from '../../types/article/articleModel';
-import type { ArticleDto } from '../../types/article/articleModel';
 import { useRole } from '../../hooks/useRole';
 import { PageContainer, PageHeader } from '../../components/Page';
 

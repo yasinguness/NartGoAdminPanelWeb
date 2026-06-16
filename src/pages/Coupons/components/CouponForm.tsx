@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, TextField, MenuItem, FormControlLabel, Switch, Grid, Typography, Stack,
+  Button, TextField, MenuItem, FormControlLabel, Switch, Grid, Typography,
 } from '@mui/material';
 import type { Coupon, CouponRequest, DiscountType } from '../../../services/coupons/couponTypes';
 

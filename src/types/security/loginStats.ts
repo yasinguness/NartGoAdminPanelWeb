@@ -1,4 +1,3 @@
-import { PageResponseDto } from '../common/pageResponse';
 
 export interface LoginStatsDateRangeQuery {
   startDate?: string;

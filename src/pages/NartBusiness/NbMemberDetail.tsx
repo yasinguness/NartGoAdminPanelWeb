@@ -32,6 +32,7 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
@@ -61,6 +62,7 @@ import {
 } from '../../utils/nbDisplay';
 import { NbSectionPaper, NbStatusBadge } from '../../components/nartbusiness';
 import NbMemberActionDialog from './NbMemberActionDialog';
+import NbEditBusinessDialog from './NbEditBusinessDialog';
 
 /**
  * Sprint 24 — Üye detay sayfası. Liste tablosundan satıra tıklayınca açılır.
@@ -88,6 +90,7 @@ export default function NbMemberDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionOpen, setActionOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   // Havale ile ödeme yapan üyenin manuel onayı — sadece status =
   // APPROVED_PENDING_PAYMENT + paymentMethod = BANK_TRANSFER ise gözükür
   const [bankConfirmOpen, setBankConfirmOpen] = useState(false);
@@ -292,6 +295,13 @@ export default function NbMemberDetail() {
                   Havale Ödemesini Onayla
                 </Button>
               )}
+            <Button
+              variant="outlined"
+              startIcon={<EditOutlinedIcon />}
+              onClick={() => setEditOpen(true)}
+            >
+              İşletmeyi Düzenle
+            </Button>
             <Button variant="contained" onClick={() => setActionOpen(true)}>
               Yönet
             </Button>
@@ -601,6 +611,13 @@ export default function NbMemberDetail() {
           setActionOpen(false);
           load();
         }}
+      />
+
+      <NbEditBusinessDialog
+        open={editOpen}
+        member={member}
+        onClose={() => setEditOpen(false)}
+        onSaved={load}
       />
 
       {/* Havale ödeme manuel onay dialogu */}

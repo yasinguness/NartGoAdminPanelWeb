@@ -6,8 +6,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
-  Save as SaveIcon, Publish as PublishIcon, ArrowBack as BackIcon,
-  Delete as DeleteIcon, AddPhotoAlternate as AddPhotoIcon,
+  Save as SaveIcon, Publish as PublishIcon, ArrowBack as BackIcon, AddPhotoAlternate as AddPhotoIcon,
   Visibility as PreviewIcon, Close as CloseIcon,
   Edit as EditIcon, Check as CheckMarkIcon,
   FiberManualRecord as DotIcon,
@@ -24,7 +23,7 @@ import {
   ArticleCategory, ArticleType, ArticleStatus,
   CATEGORY_LABELS, TYPE_LABELS,
 } from '../../types/article/articleModel';
-import type { ArticleCreateRequest, ArticleDto, CoverMediaRequest } from '../../types/article/articleModel';
+import type { ArticleCreateRequest, ArticleDto } from '../../types/article/articleModel';
 import RichContentEditor, { RichContentRenderer } from '../../components/RichContentEditor';
 import RichTextInput from '../../components/RichTextInput';
 import CoverImageEditor from '../../components/CoverImageEditor';
@@ -32,8 +31,7 @@ import OptionalImageCropDialog from '../../components/OptionalImageCropDialog';
 import type { ContentBlock } from '../../types/notification.types';
 import { useRole } from '../../hooks/useRole';
 import {
-  slugify, buildUploadPath, sanitizeHtml, isDataUrl, looksLikeHtml,
-  normalizeHtmlInput, htmlToBlocks, blocksToHtml, blocksToPlainText,
+  slugify, buildUploadPath, sanitizeHtml, isDataUrl, looksLikeHtml, htmlToBlocks, blocksToHtml, blocksToPlainText,
   hasMeaningfulBlockContent,
 } from './contentEditorUtils';
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
     Box, Typography, TextField, Stack, Grid, Paper,
     alpha, Divider, IconButton, Tooltip,
@@ -86,7 +86,7 @@ export default function ContentEditor({ content, onChange }: ContentEditorProps)
     );
 }
 
-function NotifPreview({ platform, title, body, imageUrl }: { platform: 'ios' | 'android'; title?: string; body?: string; imageUrl?: string }) {
+function NotifPreview({ platform, title, body }: { platform: 'ios' | 'android'; title?: string; body?: string; imageUrl?: string }) {
     const isIos = platform === 'ios';
     return (
         <Paper sx={{

@@ -30,6 +30,10 @@ export const ROLES = {
   ROLE_BUSINESS: 'ROLE_BUSINESS',
   ROLE_RAFFLE_ADMIN: 'ROLE_RAFFLE_ADMIN',
   STORE_ADMIN: 'STORE_ADMIN',
+  // NartBusiness rolleri (backend @PreAuthorize ile birebir)
+  NB_ADMIN: 'NB_ADMIN',
+  NB_CO_ADMIN: 'NB_CO_ADMIN',
+  NB_COMMITTEE: 'NB_COMMITTEE',
 } as const;
 
 export type Role = typeof ROLES[keyof typeof ROLES];
@@ -55,10 +59,13 @@ export const ORG: Role[] = [ROLES.ADMIN, ROLES.EVENT_ORGANIZATOR];
 export const ADMIN_ONLY: Role[] = [ROLES.ADMIN];
 export const CONTENT: Role[] = [ROLES.ADMIN, ROLES.EDITOR];
 export const RAFFLE: Role[] = [ROLES.ADMIN, ROLES.EVENT_ORGANIZATOR, ROLES.ROLE_RAFFLE_ADMIN, ROLES.RAFFLE_MODERATOR];
+/** NartBusiness yönetimi — admin + tüm NB rolleri. Granular yetkiyi backend @PreAuthorize uygular. */
+export const NB: Role[] = [ROLES.ADMIN, ROLES.NB_ADMIN, ROLES.NB_CO_ADMIN, ROLES.NB_COMMITTEE];
 export const AUTHENTICATED: Role[] = [
   ROLES.ADMIN, ROLES.EVENT_ORGANIZATOR, ROLES.EDITOR, ROLES.ASSOCIATION,
   ROLES.CHECK_IN_STAFF, ROLES.RAFFLE_MODERATOR, ROLES.ROLE_BUSINESS,
   ROLES.ROLE_RAFFLE_ADMIN, ROLES.STORE_ADMIN,
+  ROLES.NB_ADMIN, ROLES.NB_CO_ADMIN, ROLES.NB_COMMITTEE,
 ];
 
 // ─── Path → Rol eşlemesi ─────────────────────────────────────
@@ -146,6 +153,20 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   { path: '/audit-log', roles: ADMIN_ONLY, description: 'Denetim kayıtları' },
   { path: '/analytics', roles: ADMIN_ONLY, description: 'Panel analitik' },
   { path: '/settings', roles: AUTHENTICATED, description: 'Ayarlar (herkes)' },
+
+  // ── NartBusiness (NB rolleri + admin) ──
+  { path: '/nartbusiness/dashboard', roles: NB, description: 'NB KPI dashboard' },
+  { path: '/nartbusiness/members', roles: NB, description: 'NB üye yönetimi' },
+  { path: '/nartbusiness/verification', roles: NB, description: 'Doğrulama kuyruğu' },
+  { path: '/nartbusiness/verification-policies', roles: NB, description: 'Belge politikaları' },
+  { path: '/nartbusiness/sectors', roles: NB, description: 'Sektör katalogu' },
+  { path: '/nartbusiness/tiers', roles: NB, description: 'Üyelik tipleri' },
+  { path: '/nartbusiness/value-chain', roles: NB, description: 'Sektör değer zinciri' },
+  { path: '/nartbusiness/embedding-jobs', roles: NB, description: 'Embedding & matching' },
+  { path: '/nartbusiness/moderation', roles: NB, description: 'Moderasyon kuyruğu' },
+  { path: '/nartbusiness/dlq', roles: NB, description: 'NB DLQ' },
+  { path: '/nartbusiness/share-analytics', roles: NB, description: 'Paylaşım analitikleri' },
+  { path: '/nartbusiness/testimonials', roles: NB, description: 'Referanslar' },
 ];
 
 /**
@@ -198,7 +219,23 @@ export function getDefaultPath(roles: string[]): string {
   if (hasOrganizerRole(n)) return '/events';
   if (n.includes(ROLES.EDITOR)) return '/content';
   if (n.includes(ROLES.ASSOCIATION)) return '/associations';
+  // Yalnızca NB rolü olan kullanıcı /dashboard'a giremez → NB dashboard'a indir.
+  if (isNbOnlyRole(n)) return '/nartbusiness/dashboard';
   return '/dashboard';
+}
+
+/** Sadece NB rolü mü (klasik panel rollerinden hiçbiri yok)? */
+function isNbOnlyRole(normalizedRoles: string[]): boolean {
+  const hasNb = normalizedRoles.some(
+    (r) => r === ROLES.NB_ADMIN || r === ROLES.NB_CO_ADMIN || r === ROLES.NB_COMMITTEE,
+  );
+  if (!hasNb) return false;
+  const hasClassic =
+    normalizedRoles.includes(ROLES.ADMIN) ||
+    hasOrganizerRole(normalizedRoles) ||
+    normalizedRoles.includes(ROLES.EDITOR) ||
+    normalizedRoles.includes(ROLES.ASSOCIATION);
+  return !hasClassic;
 }
 
 /**
@@ -210,6 +247,7 @@ export function getFallbackPath(roles: string[]): string {
   if (hasOrganizerRole(n)) return '/events';
   if (n.includes(ROLES.EDITOR)) return '/content';
   if (n.includes(ROLES.ASSOCIATION)) return '/associations';
+  if (isNbOnlyRole(n)) return '/nartbusiness/dashboard';
   return '/dashboard';
 }
 

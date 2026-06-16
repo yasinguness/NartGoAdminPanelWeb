@@ -18,7 +18,7 @@ interface UserStore {
     getUserById: (userId: string) => Promise<UserDTO>;
 }
 
-export const useUserStore = create<UserStore>((set, get) => ({
+export const useUserStore = create<UserStore>((set) => ({
     users: [],
     currentUser: null,
     loading: false,

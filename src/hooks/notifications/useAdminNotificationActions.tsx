@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminNotificationService } from '../../services/notification/adminNotificationService';
 import { AdminBulkNotificationRequest, RecipientType } from '../../types/notifications/adminBulkNotificationRequest';
-import { AdminBulkNotificationResponse } from '../../types/notifications/adminBulkNotificationResponse';
 import type { BulkNotificationJob } from '../../types/notifications/bulkNotificationJob';
 
 const TERMINAL = new Set(['COMPLETED', 'FAILED', 'CANCELLED']);

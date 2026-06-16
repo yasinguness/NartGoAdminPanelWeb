@@ -10,7 +10,6 @@ import {
   CircularProgress,
   Divider,
   Grid,
-  MenuItem,
   Paper,
   Stack,
   Tab,
@@ -35,7 +34,6 @@ import { eventService } from '../../services/event/eventService';
 import { adminOperationsService } from '../../services/admin/adminOperationsService';
 import { EventResponseDTO } from '../../types/events/eventModel';
 import {
-  AdminTicketOverrideAction,
   SeatTargetState,
 } from '../../types/admin/adminOperations';
 import InteractiveSeatMap from './components/InteractiveSeatMap';
@@ -44,20 +42,6 @@ import InteractiveOrderManagement from './components/InteractiveOrderManagement'
 import InteractiveAuditLog from './components/InteractiveAuditLog';
 
 type TabValue = 'event' | 'seats' | 'orders' | 'audit' | 'checkin';
-
-const seatStateOptions: SeatTargetState[] = ['AVAILABLE', 'BLOCKED', 'RESERVED', 'SOLD', 'OCCUPIED'];
-const ticketOverrideActions: AdminTicketOverrideAction[] = ['REFUND', 'CANCEL', 'REISSUE', 'CHECK_IN_RESET'];
-
-const parseCsv = (value: string) =>
-  value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-const parseSeatNumbers = (value: string) =>
-  parseCsv(value)
-    .map((item) => Number(item))
-    .filter((item) => Number.isFinite(item));
 
 const prettyResponse = (value: unknown) => JSON.stringify(value, null, 2);
 
@@ -77,41 +61,7 @@ export default function EventOperations() {
   const [eventReason, setEventReason] = useState('Operasyonel admin aksiyonu');
   const [eventCapacity, setEventCapacity] = useState<number>(0);
 
-  const [seatReason, setSeatReason] = useState('Admin koltuk üstüne yazma');
-  const [seatTargetState, setSeatTargetState] = useState<SeatTargetState>('BLOCKED');
-  const [seatIdsInput, setSeatIdsInput] = useState('');
-  const [singleSeatId, setSingleSeatId] = useState('');
-  const [addCategoryId, setAddCategoryId] = useState('');
-  const [addRowLabel, setAddRowLabel] = useState('');
-  const [addSeatNumbers, setAddSeatNumbers] = useState('');
-  const [removeSeatIds, setRemoveSeatIds] = useState('');
-  const [moveSeatId, setMoveSeatId] = useState('');
-  const [moveTargetCategoryId, setMoveTargetCategoryId] = useState('');
-  const [moveTargetRowLabel, setMoveTargetRowLabel] = useState('');
-  const [moveTargetSeatNumber, setMoveTargetSeatNumber] = useState<number>(1);
-
-  const [orderReason, setOrderReason] = useState('Manuel admin düzeltmesi');
-  const [orderIdsInput, setOrderIdsInput] = useState('');
-  const [orderId, setOrderId] = useState('');
-  const [ticketId, setTicketId] = useState('');
-  const [ticketOverrideAction, setTicketOverrideAction] = useState<AdminTicketOverrideAction>('REFUND');
-  const [categoryId, setCategoryId] = useState('');
-  const [categoryCapacity, setCategoryCapacity] = useState<number>(0);
-
-  const [auditEventId, setAuditEventId] = useState(routeEventId ?? '');
-  const [auditActorId, setAuditActorId] = useState('');
-  const [auditAction, setAuditAction] = useState('');
-  const [auditPage, setAuditPage] = useState(0);
-  const [auditSize, setAuditSize] = useState(20);
-  const [auditTicketId, setAuditTicketId] = useState('');
-
-  const [staffUserId, setStaffUserId] = useState('');
-  const [ticketCode, setTicketCode] = useState('');
-  const [qrCodeData, setQrCodeData] = useState('');
-  const [deviceId, setDeviceId] = useState('gate-1');
-  const [platform, setPlatform] = useState('android');
-  const [gate, setGate] = useState('main');
-  const [offlineAttempts, setOfflineAttempts] = useState('[]');
+  const [, setAuditEventId] = useState(routeEventId ?? '');
 
   useEffect(() => {
     let mounted = true;

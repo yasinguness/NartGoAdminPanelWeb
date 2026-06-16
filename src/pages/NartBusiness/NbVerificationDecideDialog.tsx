@@ -49,7 +49,6 @@ import {
 import {
   CaseTimelineList,
   DOC_TYPE_LABELS,
-  LinkRow,
   RACE_LABELS,
   Row,
   STATUS_COLORS,

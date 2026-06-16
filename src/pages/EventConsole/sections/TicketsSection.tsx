@@ -43,7 +43,7 @@ export default function TicketsSection({ event }: Props) {
     setLoading(true);
     try {
       const res = await adminOperationsService.getTicketTypes(event.id);
-      setTicketTypes(res.data ?? []);
+      setTicketTypes((res.data ?? []) as unknown as TicketTypeResponse[]);
     } catch (err: any) {
       if (err?.response?.status !== 404) enqueueSnackbar('Bilet tipleri yüklenemedi', { variant: 'error' });
     } finally { setLoading(false); }
@@ -99,7 +99,7 @@ export default function TicketsSection({ event }: Props) {
         if (types.length > 0) {
           const totalCapacity = types.reduce((sum, t) => sum + (t.capacityTotal || 0), 0);
           if (totalCapacity > 0 && totalCapacity !== event.maxParticipants) {
-            await adminOperationsService.updateEventCapacity(event.id, { maxParticipants: totalCapacity });
+            await adminOperationsService.updateEventCapacity(event.id, { capacity: totalCapacity, reason: 'Bilet kapasitesi senkronizasyonu' });
           }
         }
       } catch { /* best-effort sync */ }

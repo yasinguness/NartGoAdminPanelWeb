@@ -289,7 +289,7 @@ export default function FindOrCreateUser({
                   ...params.InputProps,
                   endAdornment: (
                     <>
-                      {loading ? <CircularProgress item xs={18} /> : null}
+                      {loading ? <CircularProgress size={18} /> : null}
                       {params.InputProps.endAdornment}
                     </>
                   ),
@@ -331,7 +331,7 @@ export default function FindOrCreateUser({
                     <InputAdornment position="end">
                       {emailLookupLoading ? (
                         <Tooltip title="Duplicate kontrol ediliyor…">
-                          <CircularProgress item xs={16} />
+                          <CircularProgress size={16} />
                         </Tooltip>
                       ) : emailDuplicate ? (
                         <Tooltip

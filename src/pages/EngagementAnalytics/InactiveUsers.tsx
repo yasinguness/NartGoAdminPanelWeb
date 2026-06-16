@@ -249,7 +249,7 @@ export default function InactiveUsers() {
           { label: '>90 gün bu sayfada', value: kpis.b90, color: darkAdmin.status.error },
         ].map((c) => (
           <Grid item xs={6} md={3} key={c.label}>
-            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, ...darkAdmin.sx.statTile, height: '100%' }}>
+            <Paper variant="outlined" sx={{ p: 2, ...darkAdmin.sx.statTile, height: '100%' }}>
               <Typography sx={{ ...darkAdmin.sx.sectionLabel }}>
                 {c.label}
               </Typography>

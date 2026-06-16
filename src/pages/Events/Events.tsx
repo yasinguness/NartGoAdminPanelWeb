@@ -13,30 +13,17 @@ import {
   Stack,
   Avatar,
   TextField,
-  InputAdornment,
   Chip,
   LinearProgress,
   IconButton,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControlLabel,
-  Switch,
-  Autocomplete,
-  CircularProgress,
   Skeleton,
   alpha,
   Grid,
-  Paper,
-  Tooltip,
-  Zoom,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import {
   Add as AddIcon,
   Search as SearchIcon,
@@ -44,37 +31,24 @@ import {
   TrendingUp as TrendingUpIcon,
   People as PeopleIcon,
   ConfirmationNumber as TicketIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  MoreVert as MoreIcon,
-  PauseCircle as PauseIcon,
-  PlayCircle as PlayIcon,
   LocationOn as LocationIcon,
-  Category as CategoryIcon,
   Save as SaveIcon,
   Close as CloseIcon,
   Person as PersonIcon,
   CloudUpload as CloudUploadIcon,
-  InsertPhoto as PhotoIcon,
   ArrowForwardIos as ChevronIcon,
 } from '@mui/icons-material';
-import { format } from 'date-fns';
 import { formatDate, formatTime } from '../../utils/dateUtils';
 import { debounce } from 'lodash';
 import { useSnackbar } from 'notistack';
 
 import { useEvent } from '../../hooks/useEvent';
-import { EventResponseDTO, EventStatus, EventSearchDTO, EventCategoryDto } from '../../types/events/eventModel';
+import { EventResponseDTO, EventStatus, EventSearchDTO } from '../../types/events/eventModel';
 import { AddressDTO } from '../../types/businesses/addressModel';
-import { associationService } from '../../services/association/associationService';
-import { AssociationSummaryResponse } from '../../types/association/associationSummaryResponse';
-import { useEventCategories } from '../../hooks/useEventCategories';
-import { searchPlaces, getPlaceDetails, PlacePrediction, loadGoogleMapsScript } from '../../services/google/googlePlacesService';
 
 // Layout Components
 import { PageContainer, PageHeader } from '../../components/Page';
 import { ConfirmDialog } from '../../components/Feedback';
-import { FormSection, FormGrid } from '../../components/Form';
 import UserSearchAutocomplete from '../../components/UserSearchAutocomplete';
 import { UserDTO } from '../../types/users/userModel';
 
@@ -115,7 +89,6 @@ const statCardSx = (color: string) => ({
 export default function Events() {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  const theme = useTheme();
 
   const [page, setPage] = useState(0);
   const [rowsPerPage] = useState(20);
@@ -124,11 +97,8 @@ export default function Events() {
 
   // Dialog & Menu States
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<EventResponseDTO | undefined>();
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
-  const [eventToDelete, setEventToDelete] = useState<EventResponseDTO | null>(null);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [menuEvent, setMenuEvent] = useState<EventResponseDTO | null>(null);
+  const [eventToDelete] = useState<EventResponseDTO | null>(null);
 
   // Admin Create Dialog
   const [selectedOwner, setSelectedOwner] = useState<UserDTO | null>(null);
@@ -151,11 +121,8 @@ export default function Events() {
     events: allEvents,
     loading,
     getPopularEvents,
-    createEvent,
     createEventAsAdmin,
-    updateEvent,
     deleteEvent,
-    updateActiveStatus,
   } = useEvent();
 
   // Organizatör kendi etkinliklerini görür
@@ -208,14 +175,6 @@ export default function Events() {
     setSearchQuery(value);
     setPage(0);
   }, 500);
-
-  const handleOpenCreateDialog = () => {
-    setSelectedOwner(null);
-    setCreateFormData({ name: '', description: '', maxParticipants: 100, ticketPrice: 0, eventTime: '', endTime: '', city: '' });
-    setEventImage(null);
-    setImagePreview(null);
-    setOpenDialog(true);
-  };
 
   const handleCreateAsAdmin = async () => {
     if (!selectedOwner) {

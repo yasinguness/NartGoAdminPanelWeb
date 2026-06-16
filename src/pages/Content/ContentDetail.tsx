@@ -20,7 +20,6 @@ import {
   ArticleStatus,
   CATEGORY_LABELS, STATUS_LABELS, TYPE_LABELS,
 } from '../../types/article/articleModel';
-import type { ArticleDto } from '../../types/article/articleModel';
 import { RichContentRenderer } from '../../components/RichContentEditor';
 import type { ContentBlock } from '../../types/notification.types';
 import { PageContainer, PageHeader } from '../../components/Page';

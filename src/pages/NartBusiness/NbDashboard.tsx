@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Card,
+  CardActionArea,
   CardContent,
   Grid,
   Stack,
   Typography,
   CircularProgress,
   Alert,
+  alpha,
 } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
 import {
   PeopleAlt as PeopleIcon,
   CheckCircle as CheckIcon,
@@ -32,42 +36,62 @@ function StatCard({
   value,
   icon,
   color,
+  onClick,
+  hint,
 }: {
   title: string;
   value: number | string;
   icon: React.ReactNode;
-  color: string;
+  color: 'primary' | 'success' | 'warning' | 'error';
+  onClick?: () => void;
+  hint?: string;
 }) {
+  const body = (
+    <CardContent>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Box
+          sx={{
+            p: 1.5,
+            borderRadius: 2,
+            // Tema'da `.lighter` paleti yok → alpha ile yumuşak tint üret.
+            bgcolor: (theme: Theme) => alpha(theme.palette[color].main, 0.12),
+            color: `${color}.main`,
+            display: 'flex',
+          }}
+        >
+          {icon}
+        </Box>
+        <Box>
+          <Typography variant="h4" fontWeight={600}>
+            {value}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {title}
+          </Typography>
+          {hint && (
+            <Typography variant="caption" color={`${color}.main`}>
+              {hint}
+            </Typography>
+          )}
+        </Box>
+      </Stack>
+    </CardContent>
+  );
   return (
     <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: 2,
-              bgcolor: `${color}.lighter`,
-              color: `${color}.main`,
-              display: 'flex',
-            }}
-          >
-            {icon}
-          </Box>
-          <Box>
-            <Typography variant="h4" fontWeight={600}>
-              {value}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {title}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
+      {onClick ? (
+        <CardActionArea onClick={onClick} sx={{ height: '100%' }}>
+          {body}
+        </CardActionArea>
+      ) : (
+        body
+      )}
     </Card>
   );
 }
 
 export default function NbDashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<NbDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +141,8 @@ export default function NbDashboard() {
             value={stats.totalMembers}
             icon={<PeopleIcon />}
             color="primary"
+            hint="Üyeleri görüntüle →"
+            onClick={() => navigate('/nartbusiness/members')}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -125,6 +151,8 @@ export default function NbDashboard() {
             value={stats.activeMembers}
             icon={<CheckIcon />}
             color="success"
+            hint="Aktif üyeler →"
+            onClick={() => navigate('/nartbusiness/members')}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -133,6 +161,8 @@ export default function NbDashboard() {
             value={stats.pendingVerification}
             icon={<PendingIcon />}
             color="warning"
+            hint={stats.pendingVerification > 0 ? 'Kuyruğu incele →' : undefined}
+            onClick={() => navigate('/nartbusiness/verification')}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>

@@ -170,6 +170,18 @@ async function createMemberManually(
 }
 
 /**
+ * Mevcut üyenin işletme bilgilerini düzenle (CRUD-Update).
+ * Backend NbMember'ı günceller ve directory-service'e override sinyali yayar.
+ */
+async function updateMemberBusiness(
+  memberId: string,
+  body: import('./nbTypes').AdminUpdateBusinessRequest,
+): Promise<NbMember | null> {
+  const res = await api.put<any>(`/nb/admin/members/${memberId}/business`, body);
+  return unwrap<NbMember>(res.data);
+}
+
+/**
  * Sprint 23.1 — NartGo kullanıcı autocomplete arama (admin manuel üye dropdown).
  *
  * Backend: GET /api/v1/nb/admin/users/search?q=...&limit=20
@@ -499,6 +511,7 @@ export const nbAdminService = {
   listMembers,
   getMember,
   createMemberManually,
+  updateMemberBusiness,
   searchUsers,
   lookupUserByEmail,
   getUserById,

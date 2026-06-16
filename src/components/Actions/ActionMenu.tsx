@@ -50,7 +50,7 @@ export default function ActionMenu({
     setAnchorEl(event.currentTarget);
   };
 
-  const handleClose = (event: object, reason: string) => {
+  const handleClose = (_event: object, reason: string) => {
     if (reason !== 'backdropClick') {
        // stop propagation if needed? usually backdrop click is fine.
     }

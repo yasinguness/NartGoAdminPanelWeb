@@ -5,12 +5,12 @@
 import { useState } from 'react';
 import {
   Drawer, Box, Typography, Stack, IconButton, Chip, Divider, Button,
-  Avatar, Paper, Skeleton, alpha, useTheme, CircularProgress, TextField,
+  Avatar, Paper, alpha, CircularProgress, TextField,
   Tooltip,
 } from '@mui/material';
 import {
-  Close as CloseIcon, QrCode as QrIcon, ContentCopy as CopyIcon,
-  Cancel as CancelIcon, Replay as RefundIcon, Email as EmailIcon,
+  Close as CloseIcon, ContentCopy as CopyIcon,
+  Cancel as CancelIcon, Replay as RefundIcon,
   CheckCircle as CheckIcon, Warning as WarningIcon,
   EventSeat as SeatIcon, Person as PersonIcon,
   ConfirmationNumber as TicketIcon, Receipt as OrderIcon,
@@ -47,7 +47,6 @@ const STATUS_CONFIG: Record<string, { color: string; label: string; icon: React.
 export default function TicketDetailDrawer({
   open, onClose, ticket, order, transferHistory, transferConfig, onCancel, onRefund, cancelLoading, refundLoading,
 }: TicketDetailDrawerProps) {
-  const theme = useTheme();
   const [cancelReason, setCancelReason] = useState('');
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [showRefundForm, setShowRefundForm] = useState(false);

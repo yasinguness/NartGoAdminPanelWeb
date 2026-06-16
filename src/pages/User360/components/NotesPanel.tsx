@@ -45,7 +45,7 @@ export default function NotesPanel({ userId, notes, loading, onChange }: Props) 
 
   const handleDelete = async (noteId: string) => {
     try {
-      await userService.deleteAdminNote(userId, noteId);
+      await userService.deleteAdminNote(noteId);
       enqueueSnackbar('Not silindi', { variant: 'success' });
       onChange?.();
     } catch (err: any) {

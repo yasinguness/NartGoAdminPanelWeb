@@ -9,6 +9,8 @@ import Users from './pages/Users';
 import UserDetails from './pages/Users/UserDetails';
 import Login from './pages/Login';
 import PrivateRoute from './components/PrivateRoute';
+import { useAuthStore } from './store/authStore';
+import { getDefaultPath, normalizeRole } from './config/roles';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Businesses from './pages/Businesses/Businesses';
@@ -121,7 +123,7 @@ function App() {
               <Route path="/events/:eventId/seat-map/embed" element={<PrivateRoute><SeatMapLive /></PrivateRoute>} />
 
               <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route index element={<RoleLanding />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="executive" element={<ExecutiveDashboard />} />
                 <Route path="finance/overview" element={<FinanceOverview />} />
@@ -213,6 +215,9 @@ function App() {
                 <Route path="nartbusiness/share-analytics" element={<NbShareAnalytics />} />
                 <Route path="nartbusiness/testimonials" element={<NbTestimonials />} />
               </Route>
+
+              {/* Bilinmeyen path → rol-bilinçli landing (boş ekran yerine). */}
+              <Route path="*" element={<RoleLanding />} />
             </Routes>
           </BrowserRouter>
           {/* <ReactQueryDevtools initialIsOpen={false} /> */}
@@ -228,6 +233,23 @@ function EventDetailRedirect() {
   const { id } = useParams<{ id: string }>();
   if (!id) return <Navigate to="/events" replace />;
   return <Navigate to={`/event-console/${id}`} replace />;
+}
+
+/**
+ * Rol-bilinçli landing — index ("/") ve catch-all ("*") için. Kullanıcının
+ * rolüne göre erişebileceği varsayılan sayfaya yönlendirir (NB-only kullanıcı
+ * /dashboard yerine /nartbusiness/dashboard'a iner). Oturum yoksa /login'e.
+ */
+function RoleLanding() {
+  const user = useAuthStore((s) => s.user);
+  const roles: string[] = [];
+  const r = user?.role as unknown;
+  if (r instanceof Set) r.forEach((x) => roles.push(normalizeRole(String(x))));
+  else if (Array.isArray(r)) r.forEach((x) => roles.push(normalizeRole(String(x))));
+  else if (typeof r === 'string') roles.push(normalizeRole(r));
+
+  if (roles.length === 0) return <Navigate to="/login" replace />;
+  return <Navigate to={getDefaultPath(roles)} replace />;
 }
 
 export default App;

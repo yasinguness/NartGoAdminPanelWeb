@@ -15,8 +15,7 @@ import {
 import {
   ArrowBack as BackIcon, ArrowForward as ForwardIcon,
   CheckCircle as CheckIcon, CelebrationOutlined as CelebrationIcon,
-  Close as CloseIcon, Rocket as RocketIcon, Warning as WarningIcon,
-  Search as SearchIcon, Business as BusinessIcon,
+  Close as CloseIcon, Rocket as RocketIcon, Warning as WarningIcon, Business as BusinessIcon,
 } from '@mui/icons-material';
 import { userService } from '../../services/user/userService';
 import { useBusinessStore } from '../../store/businesses/businessStore';

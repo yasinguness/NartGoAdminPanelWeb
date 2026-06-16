@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -7,7 +7,6 @@ import {
   Tooltip,
   Divider,
   Stack,
-  Slider,
   Chip,
   Button,
   ButtonGroup,
@@ -20,19 +19,12 @@ import {
   CenterFocusStrong,
   PanTool,
   NearMe,
-  GridOn,
-  GridOff,
-  Undo,
-  Redo,
-  Delete,
-  DragIndicator
+  Delete
 } from '@mui/icons-material';
 import { 
   VenueLayout, 
-  SeatStatus, 
-  SeatCategory,
-  SeatSection,
-  VenueLayoutType 
+  SeatStatus,
+  SeatSection 
 } from '../../types/tickets/ticketTypes';
 import { TicketCategoryConfig } from './CategoryManager';
 
@@ -191,7 +183,7 @@ export const SeatingEditor: React.FC<SeatingEditorProps> = ({
   // -- Editor State --
   const [mode, setMode] = useState<'select' | 'pan' | 'drag-section'>('select');
   const [selectedSeatIds, setSelectedSeatIds] = useState<Set<string>>(new Set());
-  const [showGrid, setShowGrid] = useState(true);
+  const [showGrid, _setShowGrid] = useState(true);
   
   // -- Selection Box State --
   const [selectionBox, setSelectionBox] = useState<{ start: { x: number, y: number }, end: { x: number, y: number } } | null>(null);
@@ -212,11 +204,8 @@ export const SeatingEditor: React.FC<SeatingEditorProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
-    
-    const x = (e.clientX - rect.left - position.x - rect.width / 2) / scale;
-    const y = (e.clientY - rect.top - position.y - rect.height / 2) / scale;
 
-    if (mode === 'pan' || (e.button === 1)) { 
+    if (mode === 'pan' || (e.button === 1)) {
       setIsDragging(true);
       setStartPan({ x: e.clientX - position.x, y: e.clientY - position.y });
     } else if (mode === 'select') {

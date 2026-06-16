@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { salesCommandService } from '../../services/sales/salesCommand.service';
 import { useDefaultEvent } from '../../hooks/useDefaultEvent';
-import { parseDate, formatDateTime, formatDate } from '../../utils/dateUtils';
+import { formatDateTime, formatDate } from '../../utils/dateUtils';
 import {
   Box, Typography, Paper, Stack, Button, Chip, TextField, MenuItem,
   InputAdornment, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, IconButton, CircularProgress, LinearProgress, alpha, useTheme,
-  Drawer, Divider, Grid, Tooltip,
+  Drawer, Divider, Tooltip,
 } from '@mui/material';
 import {
   Search as SearchIcon, Refresh as RefreshIcon, Close as CloseIcon,
@@ -17,8 +17,6 @@ import {
   WarningAmber as WarningIcon, ArrowForward as ArrowIcon,
   Download as DownloadIcon, OpenInNew as OpenIcon,
 } from '@mui/icons-material';
-import { format } from 'date-fns';
-import { tr } from 'date-fns/locale';
 import { PageContainer } from '../../components/Page';
 
 // ─── Sabitler ────────────────────────────────────────────────

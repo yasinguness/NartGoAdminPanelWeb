@@ -27,7 +27,7 @@ interface BusinessStore {
     verifyBusiness: (businessId: string) => Promise<BusinessDto>;
 }
 
-export const useBusinessStore = create<BusinessStore>((set, get) => ({
+export const useBusinessStore = create<BusinessStore>((set) => ({
     businesses: [],
     loading: false,
     error: null,

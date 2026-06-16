@@ -4,12 +4,27 @@ import { LoginResponseData } from '../types/auth';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { UserModel } from '../types/user';
+import { getDefaultPath, normalizeRole } from '../config/roles';
 
 const authService = new AuthService();
 
 interface LoginCredentials {
     email: string;
     password: string;
+}
+
+/** user.role (Set | Array | string) → normalize → rol-bilinçli landing path. */
+function resolveLandingPath(user: UserModel): string {
+    const roles: string[] = [];
+    const r = user?.role as unknown;
+    if (r instanceof Set) {
+        r.forEach((x) => roles.push(normalizeRole(String(x))));
+    } else if (Array.isArray(r)) {
+        r.forEach((x) => roles.push(normalizeRole(String(x))));
+    } else if (typeof r === 'string') {
+        roles.push(normalizeRole(r));
+    }
+    return getDefaultPath(roles);
 }
 
 export const useAuth = () => {
@@ -37,7 +52,10 @@ export const useAuth = () => {
                 user: user,
                 token: data.bearerToken,
             });
-            navigate('/dashboard');
+            // Rol-bilinçli landing: NB-only kullanıcı /dashboard'a giremez,
+            // hardcoded '/dashboard' onları admin endpoint'lerinde 401→login'e
+            // savuruyordu. getDefaultPath doğru sayfaya indirir.
+            navigate(resolveLandingPath(user));
         },
         onError: (error) => {
             // removed debug log

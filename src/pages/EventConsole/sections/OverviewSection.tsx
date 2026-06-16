@@ -45,11 +45,11 @@ export default function OverviewSection({ event }: Props) {
       .then(res => {
         if (res.success && res.data) {
           setSeatMap(res.data);
-          const s = res.data.stats || {};
-          const gross = Number(s.currentRevenue) || 0;
+          const s = res.data.stats;
+          const gross = Number(s?.currentRevenue) || 0;
           setStats({
-            sold: s.occupiedSeats || 0,
-            capacity: s.totalSeats || event.maxParticipants || 0,
+            sold: s?.occupiedSeats || 0,
+            capacity: s?.totalSeats || event.maxParticipants || 0,
             grossRevenue: gross,
             netRevenue: calculateNetRevenue(gross),
             checkedIn: 0,

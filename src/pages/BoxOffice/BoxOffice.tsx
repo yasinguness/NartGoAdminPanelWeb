@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { boxOfficeService } from '../../services/box-office/boxOffice.service';
 import { useDefaultEvent } from '../../hooks/useDefaultEvent';
 import {
@@ -12,9 +12,7 @@ import {
   Divider,
   MenuItem,
   InputAdornment,
-  Avatar,
   IconButton,
-  Chip,
   RadioGroup,
   FormControlLabel,
   Radio,
@@ -22,8 +20,6 @@ import {
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  PointOfSale as PosIcon,
-  Phone as PhoneIcon,
   Email as EmailIcon,
   ShoppingCart as CartIcon,
   CreditCard as CardIcon,
@@ -42,7 +38,7 @@ export default function BoxOffice() {
   const { events, defaultEventId, mustSelect } = useDefaultEvent();
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [customerMode, setCustomerMode] = useState<'GUEST' | 'SEARCH'>('GUEST');
   const [customerPhone, setCustomerPhone] = useState('');
 

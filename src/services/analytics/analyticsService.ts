@@ -9,7 +9,6 @@
 
 const STORAGE_KEY = 'nartgo_admin_analytics';
 const MAX_EVENTS = 5000; // Trim oldest when exceeded
-const SYNC_INTERVAL = 60_000; // 60s batch sync
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -52,11 +51,10 @@ export interface AnalyticsSummary {
 
 // ─── Session ────────────────────────────────────────────────
 
-let sessionId = `s-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const sessionId = `s-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 let currentPagePath = '';
 let currentPageName = '';
 let pageEnterTime = 0;
-let pendingEvents: AnalyticsEvent[] = [];
 
 // ─── Storage ────────────────────────────────────────────────
 

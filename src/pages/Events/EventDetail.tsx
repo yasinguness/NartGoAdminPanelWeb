@@ -5,10 +5,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import {
-  Box, Typography, Avatar, Stack, Button, Tab, Tabs, Divider, Paper, Grid,
+  Box, Typography, Avatar, Stack, Button, Tab, Tabs, Paper, Grid,
   Table, TableHead, TableRow, TableCell, TableBody, Chip, LinearProgress,
   Switch, IconButton, alpha, Skeleton, CircularProgress, Tooltip,
-  TextField, InputAdornment, TablePagination, useTheme,
+  TextField, InputAdornment, TablePagination,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon, Event as EventIcon, Edit as EditIcon,
@@ -16,7 +16,7 @@ import {
   ContentCopy as CopyIcon, Email as EmailIcon, Lock as LockIcon,
   Download as DownloadIcon, TrendingUp as TrendingUpIcon,
   Search as SearchIcon, Refresh as RefreshIcon,
-  CheckCircle as CheckCircleIcon, HourglassEmpty as PendingIcon,
+  CheckCircle as CheckCircleIcon,
   QrCode as QrIcon,
   WarningAmber as WarningIcon,
   AccessTime as AccessTimeIcon,
@@ -96,7 +96,6 @@ export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  const theme = useTheme();
   const { deleteEvent } = useEvent();
 
   // ── Core state ────────────────────────────────────────────
@@ -120,8 +119,6 @@ export default function EventDetail() {
 
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [ordersSearch, setOrdersSearch] = useState('');
-  const [ordersPage, setOrdersPage] = useState(0);
 
   const [attendeesSearch, setAttendeesSearch] = useState('');
   const [attendeesPage, setAttendeesPage] = useState(0);
@@ -164,7 +161,7 @@ export default function EventDetail() {
         salesOpen: ev.isRegistrationOpen !== false,
       });
       // Koltuklu etkinlikse seating config backfill (rowLabelToCategoryId uyumsuzluğunu düzeltir)
-      if (ev.seatingConfig?.enabled) {
+      if ((ev as any).seatingConfig?.enabled) {
         adminOperationsService.backfillSeating(id).catch(() => {/* silent */});
       }
     } catch {
@@ -257,16 +254,6 @@ export default function EventDetail() {
 
   const participants: ParticipationDTO[] = event?.participants ?? [];
 
-  const resolvedParticipants = useMemo(() =>
-    participants.map(p => ({
-      ...p,
-      userName: (p.userName && p.userName !== 'null null' && p.userName !== 'null')
-        ? p.userName
-        : (p.userId?.slice(0, 8) ? `Kullanici #${p.userId.slice(0, 8)}` : 'Anonim'),
-    })),
-    [participants],
-  );
-
   const filteredAttendees = useMemo(() => {
     if (!attendeesSearch.trim()) return attendees;
     const q = attendeesSearch.toLowerCase();
@@ -285,12 +272,6 @@ export default function EventDetail() {
       l.ticketNumber?.toLowerCase().includes(q)
     );
   }, [checkInLogs, checkInLogsSearch]);
-
-  const filteredOrders = useMemo(() => {
-    if (!ordersSearch.trim()) return orders;
-    const q = ordersSearch.toLowerCase();
-    return orders.filter(o => o.id?.toLowerCase().includes(q));
-  }, [orders, ordersSearch]);
 
   const totalRevenue = useMemo(() =>
     orders.filter(o => o.status === 'PAID').reduce((sum, o) => sum + (o.totalAmount || 0), 0),
@@ -382,7 +363,7 @@ export default function EventDetail() {
       // Bilet sahibi e-postalarını topla (attendees > participants fallback)
       const emails = attendees.length > 0
         ? [...new Set(attendees.map((a: any) => a.email).filter(Boolean))]
-        : participants.map(p => p.email || p.userEmail).filter(Boolean) as string[];
+        : participants.map(p => (p as any).email || (p as any).userEmail).filter(Boolean) as string[];
       if (emails.length === 0) {
         enqueueSnackbar('Katılımcı bulunamadı', { variant: 'warning' });
         return;
@@ -405,7 +386,7 @@ export default function EventDetail() {
     if (!event) return;
     setActionLoading(true);
     try {
-      await adminOperationsService.updateEventCapacity(event.id, { maxParticipants: newCapacity });
+      await adminOperationsService.updateEventCapacity(event.id, { maxParticipants: newCapacity } as any);
       enqueueSnackbar(`Kapasite ${newCapacity} olarak güncellendi`, { variant: 'success' });
       setCapacityOpen(false);
       // Refresh event
@@ -529,11 +510,11 @@ export default function EventDetail() {
       // Bilet tiplerinin toplam kapasitesini hesapla ve event kapasitesini senkronize et
       try {
         const refreshed = await ticketService.getEventTicketTypes(id);
-        const types: TicketTypeResponse[] = refreshed?.data ?? [];
+        const types = refreshed?.data ?? [];
         if (types.length > 0) {
           const totalCapacity = types.reduce((sum, t) => sum + (t.capacityTotal || 0), 0);
           if (totalCapacity > 0 && totalCapacity !== event?.maxParticipants) {
-            await adminOperationsService.updateEventCapacity(id, { maxParticipants: totalCapacity });
+            await adminOperationsService.updateEventCapacity(id, { maxParticipants: totalCapacity } as any);
           }
         }
       } catch { /* best-effort sync */ }
@@ -569,10 +550,10 @@ export default function EventDetail() {
       // Event kapasitesini kalan bilet tiplerinin toplamıyla senkronize et
       try {
         const refreshed = await ticketService.getEventTicketTypes(id!);
-        const types: TicketTypeResponse[] = refreshed?.data ?? [];
+        const types = refreshed?.data ?? [];
         if (types.length > 0) {
           const totalCapacity = types.reduce((sum, t) => sum + (t.capacityTotal || 0), 0);
-          await adminOperationsService.updateEventCapacity(id!, { maxParticipants: Math.max(totalCapacity, 1) });
+          await adminOperationsService.updateEventCapacity(id!, { maxParticipants: Math.max(totalCapacity, 1) } as any);
         }
       } catch { /* best-effort sync */ }
     } catch {
@@ -1247,7 +1228,7 @@ export default function EventDetail() {
                 {/* Özet kartlar */}
                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 3 }}>
                   {(() => {
-                    const paidOrders = orders.filter(o => o.status === 'PAID' || o.status === 'COMPLETED');
+                    const paidOrders = orders.filter(o => o.status === 'PAID' || (o.status as string) === 'COMPLETED');
                     const cancelledOrders = orders.filter(o => o.status === 'CANCELLED' || o.status === 'REFUNDED');
                     const paidTicketCount = paidOrders.reduce((s, o) => s + (o.tickets?.length || 0), 0);
                     return (<>
@@ -1552,7 +1533,7 @@ export default function EventDetail() {
                   )}
 
                   {/* Seat Map linki */}
-                  {event.seatingConfig?.enabled && (
+                  {(event as any).seatingConfig?.enabled && (
                     <Button variant="text" size="small" fullWidth href={`/admin/events/${event.id}/seat-map`}
                       sx={{ mb: 2, textTransform: 'none', borderRadius: 2, fontWeight: 600, color: 'text.secondary', justifyContent: 'flex-start' }}>
                       🪑 Koltuk Haritasını Görüntüle →

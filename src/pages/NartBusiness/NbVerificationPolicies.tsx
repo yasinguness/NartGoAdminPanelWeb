@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
+  Button,
   Checkbox,
   Chip,
   CircularProgress,
@@ -20,7 +21,6 @@ import {
   Typography,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
-import LoadingButton from '@mui/lab/LoadingButton';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { MembershipTier, TierDocumentPolicy, VerificationDocumentType } from '../../services/nartbusiness/nbTypes';
 import { DOC_TYPE_LABELS } from './verificationShared';
@@ -199,18 +199,23 @@ export default function NbVerificationPolicies() {
                     </TableCell>
                   ))}
                   <TableCell align="right">
-                    <LoadingButton
+                    <Button
                       size="small"
                       variant={dirty ? 'contained' : 'outlined'}
                       color={dirty ? 'primary' : 'inherit'}
-                      loading={saving === tier}
-                      disabled={!dirty}
+                      disabled={!dirty || saving === tier}
                       onClick={() => save(tier)}
-                      startIcon={<SaveIcon />}
+                      startIcon={
+                        saving === tier ? (
+                          <CircularProgress size={16} color="inherit" />
+                        ) : (
+                          <SaveIcon />
+                        )
+                      }
                       sx={{ minWidth: 90 }}
                     >
                       Kaydet
-                    </LoadingButton>
+                    </Button>
                   </TableCell>
                 </TableRow>
               );

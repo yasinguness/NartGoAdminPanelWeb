@@ -40,7 +40,7 @@ export default function SettingsSection({ event }: { event: EventResponseDTO }) 
     if (!event.id || capacityValue < 1) return;
     setLoading('capacity');
     try {
-      await adminOperationsService.updateEventCapacity(event.id, { maxParticipants: capacityValue });
+      await adminOperationsService.updateEventCapacity(event.id, { capacity: capacityValue, reason: 'Konsol üzerinden güncellendi' });
       enqueueSnackbar('Kapasite güncellendi', { variant: 'success' });
       setCapacityOpen(false);
     } catch {
@@ -88,7 +88,7 @@ export default function SettingsSection({ event }: { event: EventResponseDTO }) 
   const handleStatusChange = async (newStatus: EventStatus, actionLabel: string) => {
     setLoading('status');
     try {
-      await adminOperationsService.updateEventStatus(event.id, newStatus);
+      await eventService.updateEventStatus(event.id, newStatus);
       setStatus(newStatus);
       enqueueSnackbar(`Etkinlik ${actionLabel}`, { variant: 'success' });
     } catch {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { campaignService } from '../../services/campaign/campaign.service';
 import {
   Box,
@@ -22,15 +22,11 @@ import {
   FilterList as FilterIcon,
   Add as AddIcon,
   LocalOffer as PromoIcon,
-  ElectricBolt as AutoIcon,
-  AccountBalance as BankIcon,
   CheckCircle as ValidIcon,
   Cancel as InvalidIcon,
-  Layers as StackIcon,
   Warning as WarningIcon,
   Rule as RuleIcon,
   Settings as SettingIcon,
-  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 
@@ -38,20 +34,6 @@ import { useSnackbar } from 'notistack';
 export type CampaignStatus = 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'PAUSED' | 'EXPIRED' | 'ARCHIVED';
 export type CampaignType = 'PROMO_CODE' | 'AUTO_DISCOUNT' | 'EARLY_BIRD' | 'BUNDLE' | 'BANK_PROMO' | 'AFFILIATE' | 'LOYALTY' | 'COMP';
 export type StackPolicy = 'EXCLUSIVE' | 'STACKABLE' | 'STACKABLE_WITH_RESTRICTIONS';
-
-interface CampaignMock {
-  id: string;
-  name: string;
-  type: CampaignType;
-  status: CampaignStatus;
-  stackPolicy: StackPolicy;
-  redemptions: number;
-  quota: number;
-  uplift: string;
-  fractionUsed: number;
-  fraudFlags: number;
-}
-
 
 const COLORS = {
   success: '#10b981',

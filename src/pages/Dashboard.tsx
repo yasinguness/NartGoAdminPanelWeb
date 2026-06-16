@@ -224,7 +224,7 @@ function AdminDashboard() {
   const { userName, isAdmin } = useRole();
 
   const [loading, setLoading] = useState(true);
-  const [overview, setOverview] = useState<LoginStatsOverviewDto | null>(null);
+  const [, setOverview] = useState<LoginStatsOverviewDto | null>(null);
   const [engagement, setEngagement] = useState<EngagementOverviewDto | null>(null);
   const [recentUsersData, setRecentUsersData] = useState<PageResponseDto<RecentLoggedInUserDto> | null>(null);
   const [topUsers, setTopUsers] = useState<TopLoginUserDto[]>([]);

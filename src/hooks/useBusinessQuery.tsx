@@ -1,9 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { businessService } from '../services/business/businessService';
-import { useBusinessStore } from '../store/businesses/businessStore';
 import { BusinessDto, BusinessStatus } from '../types/businesses/businessModel';
 import { PageResponseDto } from '../types/common/pageResponse';
-import { useEffect, useCallback } from 'react';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -32,8 +30,6 @@ interface BusinessQueryParams {
 }
 
 export const useBusinessQuery = (params: BusinessQueryParams = {}) => {
-  const businessStore = useBusinessStore();
-
   const { isLoading, isError, error, data, status, refetch } = useQuery<ApiResponse<PageResponseDto<BusinessDto>>>({
     queryKey: ['businesses', params],
     queryFn: () => businessService.getAllBusinesses({

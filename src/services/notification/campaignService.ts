@@ -1,9 +1,9 @@
 import { api } from '../api';
 import {
-    Campaign, CampaignType, CampaignStatus, CampaignContent,
-    NotificationChannel, TransactionalConfig,
+    Campaign, CampaignType, CampaignContent,
+    NotificationChannel,
 } from '../../types/notifications/campaign';
-import { AudienceSegment, SegmentFilter } from '../../types/notifications/audience';
+import { SegmentFilter } from '../../types/notifications/audience';
 import { ScheduleConfig } from '../../types/notifications/scheduling';
 import { NotificationPriority } from '../../types/notifications/notificationModel';
 

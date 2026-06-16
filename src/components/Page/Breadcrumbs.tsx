@@ -1,6 +1,7 @@
 import { Breadcrumbs as MuiBreadcrumbs, Link, Typography, styled } from '@mui/material';
 import { NavigateNext as NavigateNextIcon } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
+import type { MouseEvent } from 'react';
 
 export interface BreadcrumbItem {
     label: string;
@@ -43,7 +44,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
                         underline="hover"
                         color="inherit"
                         sx={{ cursor: 'pointer' }}
-                        onClick={(e) => {
+                        onClick={(e: MouseEvent) => {
                             if (!item.href) {
                                 e.preventDefault();
                             }

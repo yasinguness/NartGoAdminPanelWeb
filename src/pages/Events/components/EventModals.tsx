@@ -26,7 +26,6 @@ import GooglePlacesInput, { type AddressValue } from '../../../components/Google
 import {
   Close as CloseIcon,
   PauseCircle as PauseIcon,
-  Cancel as CancelIcon,
   DeleteForever as DeleteIcon,
   Warning as WarningIcon,
 } from '@mui/icons-material';

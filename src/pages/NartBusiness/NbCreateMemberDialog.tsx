@@ -35,10 +35,7 @@ import type {
   Sector,
   TierConfig,
 } from '../../services/nartbusiness/nbTypes';
-import type {
-  NbUserSearchResult,
-  RaceFamily,
-} from '../../services/nartbusiness/nbAdminService';
+import type { RaceFamily } from '../../services/nartbusiness/nbAdminService';
 import { TR_CITIES } from '../../constants/trCities';
 import {
   AuditNoteBlock,
@@ -587,7 +584,9 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     setError(null);
     try {
       const adminNote = buildAuditNote(auditCategory, auditNoteBody);
-      const phoneParts = splitPhone(user.mode === 'new' ? user.phone : user.selectedUser?.phone);
+      const phoneParts = splitPhone(
+        user.mode === 'new' ? user.phone : user.selectedUser?.phone ?? undefined,
+      );
 
       const baseForm: Partial<AdminCreateMemberRequest> = {
         ...form,
@@ -1007,7 +1006,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                     ...params.InputProps,
                     endAdornment: (
                       <>
-                        {familiesLoading ? <CircularProgress item xs={16} /> : null}
+                        {familiesLoading ? <CircularProgress size={16} /> : null}
                         {params.InputProps.endAdornment}
                       </>
                     ),
@@ -1044,7 +1043,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                   variant="outlined"
                   startIcon={
                     familyCreating ? (
-                      <CircularProgress item xs={14} />
+                      <CircularProgress size={14} />
                     ) : (
                       <AddCircleOutlineIcon />
                     )
@@ -1716,7 +1715,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                   onClick={submit}
                   startIcon={
                     submitting ? (
-                      <CircularProgress item xs={16} color="inherit" />
+                      <CircularProgress size={16} color="inherit" />
                     ) : undefined
                   }
                   sx={{ minWidth: 150, px: 3 }}

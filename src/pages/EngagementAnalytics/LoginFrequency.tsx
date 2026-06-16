@@ -144,7 +144,7 @@ export default function LoginFrequency() {
           { label: 'En Yüksek Login Sayısı', value: kpis.max, color: darkAdmin.status.success },
         ].map((c) => (
           <Grid item xs={12} md={4} key={c.label}>
-            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, ...darkAdmin.sx.statTile, height: '100%' }}>
+            <Paper variant="outlined" sx={{ p: 2, ...darkAdmin.sx.statTile, height: '100%' }}>
               <Typography sx={{ ...darkAdmin.sx.sectionLabel }}>{c.label}</Typography>
               {isLoading ? (
                 <Skeleton variant="text" width="60%" height={36} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />

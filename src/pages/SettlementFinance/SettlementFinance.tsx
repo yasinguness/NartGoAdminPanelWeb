@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
   Paper,
-  Grid,
   Stack,
   Button,
   TextField,
@@ -14,17 +13,8 @@ import {
   ListItemButton,
   Tabs,
   Tab,
-  IconButton,
-  Tooltip,
 } from '@mui/material';
 import {
-  AccountBalanceWallet as PayoutIcon,
-  ReceiptLong as LedgerIcon,
-  MoneyOff as RefundIcon,
-  TrendingDown as ChargebackIcon,
-  PointOfSale as SalesIcon,
-  CheckCircle as SettledIcon,
-  HourglassEmpty as PendingIcon,
   WarningAmber as WarningIcon,
   Download as ExportIcon,
   EditNote as AdjustIcon,
@@ -44,6 +34,7 @@ export interface SettlementKpi {
   pendingPayout: number;
   chargebackExposure: number;
   failedSettlementCount: number;
+  ledger?: LedgerEntry[];
 }
 
 export interface LedgerEntry {
@@ -78,6 +69,7 @@ const COLORS = {
   primary: '#3b82f6',
   surface: '#f8fafc',
   border: '#e2e8f0',
+  neutral: '#64748b',
 };
 
 // --- Component ---
@@ -274,7 +266,7 @@ export default function SettlementFinance() {
 
         {/* SAĞ: LEDGER / EXPORT (30%) */}
         <Box sx={{ width: '30%', minWidth: 350, borderLeft: `1px solid ${COLORS.border}`, bgcolor: 'white', display: 'flex', flexDirection: 'column' }}>
-            <Tabs value={rightTab} onChange={(e, v) => setRightTab(v)} sx={{ borderBottom: `1px solid ${COLORS.border}`, '& .MuiTab-root': { fontWeight: 700, textTransform: 'none' } }}>
+            <Tabs value={rightTab} onChange={(_e, v) => setRightTab(v)} sx={{ borderBottom: `1px solid ${COLORS.border}`, '& .MuiTab-root': { fontWeight: 700, textTransform: 'none' } }}>
                 <Tab label="Hesap Defteri" />
                 <Tab label="Düzeltmeler" />
                 <Tab label="Dışa Aktar" />

@@ -9,7 +9,7 @@ import {
   Edit as EditIcon, Refresh as RefreshIcon, Save as SaveIcon,
   Star as StarIcon, EmojiEvents as TrophyIcon, AccessTime as TimeIcon,
   Block as BlockIcon, LooksOne as RankOneIcon, LooksTwo as RankTwoIcon,
-  Looks3 as RankThreeIcon, Category as CategoryIcon, Delete as DeleteIcon,
+  Looks3 as RankThreeIcon, Category as CategoryIcon,
   Add as AddIcon, Bolt as BoltIcon, Shield as ShieldIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';

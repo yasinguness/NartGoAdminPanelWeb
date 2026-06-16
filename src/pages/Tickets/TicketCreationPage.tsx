@@ -2,7 +2,7 @@
  * EventCreationPage — 7-step guided wizard for creating events & tickets
  * Steps: (1) Organizer, (2) Event Type, (3) Event Info, (4) Seat Plan, (5) Ticket Config, (6) Refund Policy, (7) Preview
  */
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { ticketService } from '../../services/ticket/ticketService';
@@ -19,9 +19,8 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import {
   ArrowBack as BackIcon, ArrowForward as ForwardIcon, Add as AddIcon,
-  Close as CloseIcon, Rocket as RocketIcon, CheckCircle as CheckIcon,
+  Close as CloseIcon, CheckCircle as CheckIcon,
   Warning as WarningIcon, CelebrationOutlined as CelebrationIcon,
-  ContentCopy as CopyIcon, Search as SearchIcon, Link as LinkIcon,
   ImageNotSupported as NoImageIcon, CalendarMonth as CalendarIcon,
   Send as SendIcon, PhoneIphone as MobileIcon, DesktopWindows as DesktopIcon,
   Edit as EditIcon,
@@ -97,7 +96,6 @@ export default function TicketCreationPage() {
   const isConvertMode = searchParams.get('convert') === 'true' && !!eventId;
   const isEditMode = searchParams.get('edit') === 'true' && !!eventId;
   const { enqueueSnackbar } = useSnackbar();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { isAdmin } = useRole();
   const currentUser = useAuthStore((state) => state.user);
 
@@ -130,10 +128,6 @@ export default function TicketCreationPage() {
         } as UserDTO
       : null;
 
-  // URL import
-  const [importUrl, setImportUrl] = useState('');
-  const [importing, setImporting] = useState(false);
-
   // Step 2: Event type
   const [eventType, setEventType] = useState<EventType | null>(null);
 
@@ -158,7 +152,6 @@ export default function TicketCreationPage() {
   const [eventStartDate, setEventStartDate] = useState<Date | null>(null);
   const [eventEndDate, setEventEndDate] = useState<Date | null>(null);
   const [capacity, setCapacity] = useState('');
-  const [venueType, setVenueType] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [eventImage, setEventImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -185,8 +178,7 @@ export default function TicketCreationPage() {
   const [saleEndDate, setSaleEndDate] = useState<Date | null>(null);
   const [minTickets, setMinTickets] = useState(1);
   const [maxTickets, setMaxTickets] = useState(10);
-  const [waitlist, setWaitlist] = useState(false);
-  const [transferable, setTransferable] = useState(true);
+  const [transferable] = useState(true);
 
   // Step 6: Refund policy (NEW)
   const [refundPolicyConfig, setRefundPolicyConfig] = useState<RefundPolicy>({ ...DEFAULT_REFUND_POLICY });
@@ -373,7 +365,6 @@ export default function TicketCreationPage() {
   ], [effectiveOrganizer, eventName, eventStartDate, eventAddress, isSeated, eventType, tiers, refundPolicyConfig, coverMedia, capacity, saleStartDate]);
 
   const blockers = useMemo(() => checks.filter(c => !c.ok && c.blocker), [checks]);
-  const warnings = useMemo(() => checks.filter(c => !c.ok && !c.blocker), [checks]);
   const hasBlockers = blockers.length > 0;
 
   // Validate by logical step number (1-7)
@@ -458,18 +449,6 @@ export default function TicketCreationPage() {
   };
 
 
-
-  // ─── IMAGE ───────────────────────────────────────────
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { enqueueSnackbar('Sadece görsel dosyaları yüklenebilir', { variant: 'warning' }); return; }
-    if (file.size > 10 * 1024 * 1024) { enqueueSnackbar('Dosya boyutu 10MB\'ı aşamaz', { variant: 'warning' }); return; }
-    setEventImage(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-  };
 
   // ─── COVER IMAGE UPLOAD (deferred — sadece publish sirasinda) ──────
   const uploadCoverImage = async (file: File): Promise<string> => {

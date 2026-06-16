@@ -1,23 +1,17 @@
 import React, { useState } from 'react';
 import {
-  Box,
-  Typography,
   Button,
   Grid,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem,
   Stack,
-  alpha,
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Business as BusinessIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -26,7 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PageContainer, PageHeader, PageSection } from '../../components/Page';
 import { LoadingState, ErrorState, ConfirmDialog } from '../../components/Feedback';
 
-import { getAssociationBenefits, getAssociationTimeline, getAssociationLocation } from '../../services/association/associationService';
+import { getAssociationTimeline } from '../../services/association/associationService';
 import { AssociationBenefit } from '../../services/association/types';
 import AssociationStats from './components/AssociationStats';
 import AssociationInfoSidebar from './components/AssociationInfoSidebar';
@@ -41,10 +35,10 @@ function AssociationDetails() {
   const [tabValue, setTabValue] = useState(0);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
-  const [isAddEventDialogOpen, setIsAddEventDialogOpen] = useState(false);
+  const [_isAddEventDialogOpen, setIsAddEventDialogOpen] = useState(false);
   const [benefitsList, setBenefitsList] = useState<AssociationBenefit[]>([]);
   const [isBenefitDialogOpen, setIsBenefitDialogOpen] = useState(false);
-  const [isDeleteBenefitDialogOpen, setIsDeleteBenefitDialogOpen] = useState(false);
+  const [_isDeleteBenefitDialogOpen, setIsDeleteBenefitDialogOpen] = useState(false);
   const [selectedBenefit, setSelectedBenefit] = useState<AssociationBenefit | null>(null);
   const [benefitForm, setBenefitForm] = useState<Partial<AssociationBenefit>>({});
 
@@ -59,11 +53,10 @@ function AssociationDetails() {
     enabled: !!associationId,
   });
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
-  const handleBack = () => navigate('/associations');
   const handleEdit = () => { /* Implement edit */ };
   const handleDelete = () => setIsDeleteDialogOpen(true);
 
@@ -91,10 +84,11 @@ function AssociationDetails() {
       <PageHeader
         title={association.name}
         subtitle={association.description || 'Dernek Profili'}
-        backTo="/associations"
+        showBackButton
+        backPath="/associations"
         breadcrumbs={[
-          { label: 'Kontrol Paneli', path: '/' },
-          { label: 'Dernekler', path: '/associations' },
+          { label: 'Kontrol Paneli', href: '/' },
+          { label: 'Dernekler', href: '/associations' },
           { label: association.name, active: true },
         ]}
         actions={

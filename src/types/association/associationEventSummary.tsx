@@ -1,4 +1,3 @@
-import { List } from "@mui/material";
 import { AddressDTO } from "../businesses/addressModel";
 
 export interface AssociationEventSummary {

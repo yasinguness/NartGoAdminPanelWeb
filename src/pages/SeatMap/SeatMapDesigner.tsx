@@ -7,7 +7,7 @@ import { Box, Stack, Typography, IconButton, Drawer, useTheme, alpha, useMediaQu
 import { Add as AddIcon, Remove as RemoveIcon, RestartAlt as ResetIcon, Close as CloseIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import {
-  VenueConfig, VenueType, Seat, SeatCategory, SeatStatus, DEFAULT_CATEGORIES,
+  VenueConfig, VenueType, Seat, SeatCategory, DEFAULT_CATEGORIES,
   VENUE_TEMPLATES, generateVenueSeats, drawStageThemed, drawSeatThemed,
   drawStandingZone, drawSectionLabelThemed, getCategoryColor, findSeatAtPoint,
   computeStats, SEAT_SIZE, DARK_THEME, LIGHT_THEME, DrawTheme,
@@ -37,7 +37,6 @@ const SeatMapDesignerInner: React.FC<{ event: EventSummary; onBack: () => void }
   const surface = theme.palette.background.paper;
   const border = theme.palette.divider;
   const primary = theme.palette.primary.main;
-  const textSecondary = theme.palette.text.secondary;
   const textDisabled = theme.palette.text.disabled;
 
   // ── Core state ──────────────────────────────────────────

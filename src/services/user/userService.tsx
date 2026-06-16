@@ -13,7 +13,6 @@ import {
     UserSessionDto,
 } from '../../types/users/userModel';
 import { PageResponseDto } from '../../types/common/pageResponse';
-import { AddressDTO } from '../../types/businesses/addressModel';
 import {
     AdminUserGamificationRewardDetailDto,
     AdminUserGamificationRewardsPage,
@@ -112,7 +111,7 @@ export const userService = {
 
     // Get user activity logs
     getUserActivityLogs: async (userId: string, page = 0, size = 10) => {
-        const response = await api.get<ApiResponse<PageResponseDto<UserActivity>>>(`/auth/users/${userId}/activity`, {
+        const response = await api.get<ApiResponse<PageResponseDto<ActivityLogItem>>>(`/auth/users/${userId}/activity`, {
             params: { page, size }
         });
         return response.data;

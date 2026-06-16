@@ -104,7 +104,7 @@ export default function AudienceBuilder({ filters, onFiltersChange, onReachChang
 
     // User Selection Dialog state
     const [userDialogOpen, setUserDialogOpen] = useState(false);
-    const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+    const [, setSelectedUsers] = useState<string[]>([]);
     const [activeEmailFilterId, setActiveEmailFilterId] = useState<string | null>(null);
 
     // Estimate reach when filters change
@@ -776,8 +776,6 @@ export default function AudienceBuilder({ filters, onFiltersChange, onReachChang
                     setActiveEmailFilterId(null);
                 }}
                 onSuccess={() => { }}
-                selectedUsers={selectedUsers}
-                setSelectedUsers={setSelectedUsers}
                 onSelectionComplete={handleUserSelectionComplete}
             />
         </Box>

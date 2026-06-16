@@ -13,6 +13,7 @@ export type NbMemberStatus =
   | 'REJECTED'
   | 'APPROVED_PENDING_PAYMENT'
   | 'APPROVED_EXPIRED'
+  | 'TRIAL'
   | 'ACTIVE'
   | 'EXPIRED'
   | 'SUSPENDED'
@@ -85,6 +86,31 @@ export interface AdminCreateMemberRequest {
   adminNote: string;
 }
 
+/**
+ * Admin panel — mevcut üyenin işletme bilgilerini düzenleme payload'ı.
+ * Backend: PUT /api/v1/nb/admin/members/{memberId}/business
+ *
+ * Lifecycle alanları (tier/status/period/ödeme) buraya dahil değil — onlar
+ * suspend/cancel/reactivate gibi ayrı aksiyon endpoint'lerinde.
+ */
+export interface AdminUpdateBusinessRequest {
+  companyName: string;
+  sectorCodes: string[];
+  city: string;
+  companyAddress?: CompanyAddressRequest;
+  businessDescription?: string;
+  race: NbRace;
+  clanName: string;
+  hometownDetail?: string;
+  linkedinUrl?: string;
+  websiteUrl?: string;
+  instagramUrl?: string;
+  /** "Doğrulanmış İşletme" rozeti — admin elle açıp kapatabilir. */
+  verifiedBusiness?: boolean;
+  /** Audit trail — zorunlu. */
+  adminNote: string;
+}
+
 export interface NbMember {
   memberId: string;
   userId: string;
@@ -94,11 +120,20 @@ export interface NbMember {
   currentPeriodId?: string;
   verificationCaseId?: string;
 
+  // 1 aylık ücretsiz deneme
+  trialEndsAt?: string;
+  trialUsed?: boolean;
+
   // Sprint 23 — Hafif KYC
   companyName?: string;
   sectorCodes?: string[];
   sectorCode?: string;
   city?: string;
+  district?: string;
+  country?: string;
+  postalCode?: string;
+  companyFormattedAddress?: string;
+  businessDescription?: string;
   race?: NbRace;
   clanName?: string;
   hometownDetail?: string;
@@ -301,6 +336,7 @@ export type MembershipPeriodStatus =
   | 'PAYMENT_PENDING'
   | 'ACTIVE'
   | 'EXPIRED'
+  | 'REFUNDED'
   | 'CANCELLED';
 
 export interface NbPeriodView {

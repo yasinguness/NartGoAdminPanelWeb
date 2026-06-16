@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRaffleStore } from '../../store/raffle/raffleStore';
 import { formatRelativeTime } from '../../utils/raffle/formatters';

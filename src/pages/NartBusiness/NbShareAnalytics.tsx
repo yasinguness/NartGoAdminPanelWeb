@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Box, Grid, Paper, Typography, Stack, ToggleButton, ToggleButtonGroup,
+  Box, Grid, Paper, Typography, ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
 import ShareIcon from '@mui/icons-material/Share';
 import {

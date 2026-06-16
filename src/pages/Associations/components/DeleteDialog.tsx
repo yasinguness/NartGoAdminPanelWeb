@@ -7,7 +7,6 @@ import {
   DialogActions,
   Button,
 } from '@mui/material';
-import { AssociationDto } from '../../../types/association/associationDto';
 import { AssociationSummaryResponse } from '../../../types/association/associationSummaryResponse';
 
 interface DeleteDialogProps {

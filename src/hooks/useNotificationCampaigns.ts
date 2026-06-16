@@ -75,7 +75,7 @@ export const usePublishCampaign = () => {
   const { enqueueSnackbar } = useSnackbar();
   return useMutation({
     mutationFn: (id: string) => notificationCampaignService.publishCampaign(id),
-    onSuccess: (data) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.campaigns });
       enqueueSnackbar(`Kampanya gönderilmeye başlandı`, { variant: 'success' });
     },

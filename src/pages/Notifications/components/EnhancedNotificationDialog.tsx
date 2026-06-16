@@ -23,12 +23,9 @@ import {
     IconButton,
     Stack
 } from '@mui/material';
-import { alpha } from '@mui/material/styles';
 import {
     Notifications as NotificationsIcon,
     Send as SendIcon,
-    CheckCircle as CheckCircleIcon,
-    Error as ErrorIcon,
     Close as CloseIcon,
     People as PeopleIcon,
     Warning as WarningIcon
@@ -112,7 +109,7 @@ export default function EnhancedNotificationDialog({
     const [previewContent, setPreviewContent] = useState('');
 
     // Validation States
-    const [validationErrors, setValidationErrors] = useState<string[]>([]);
+    const [, setValidationErrors] = useState<string[]>([]);
     const [isValid, setIsValid] = useState(false);
 
     // Confirmation State
@@ -120,7 +117,7 @@ export default function EnhancedNotificationDialog({
 
     // User Selection States
     const [openUserSelector, setOpenUserSelector] = useState(false);
-    const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+    const [, setSelectedUserIds] = useState<string[]>([]);
 
     // Effects
     useEffect(() => {
@@ -1327,8 +1324,6 @@ export default function EnhancedNotificationDialog({
                 open={openUserSelector}
                 onClose={() => setOpenUserSelector(false)}
                 onSuccess={() => { }}
-                selectedUsers={selectedUserIds}
-                setSelectedUsers={setSelectedUserIds}
                 onSelectionComplete={(emails) => {
                     setFormData(prev => ({
                         ...prev,

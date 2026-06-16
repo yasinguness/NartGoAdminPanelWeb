@@ -82,7 +82,7 @@ export const createAdminBulkNotificationResponse = (data: Partial<AdminBulkNotif
         skippedDeliveries: 0,
         channelStats: {},
         errors: [],
-        recipientBreakdown: createRecipientBreakdown(),
+        recipientBreakdown: createRecipientBreakdown({}),
         ...data
     };
 };

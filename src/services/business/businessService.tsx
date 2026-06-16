@@ -72,7 +72,7 @@ export const businessService = {
     },
 
     updateUserBusiness: async (
-        userId: string,
+        _userId: string,
         businessId: string,
         businessData: Partial<BusinessDto>,
         profileImage?: File,

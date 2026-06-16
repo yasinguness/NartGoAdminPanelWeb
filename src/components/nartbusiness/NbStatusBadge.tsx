@@ -2,6 +2,9 @@ import { Chip } from '@mui/material';
 import type { ChipProps } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import type {
   NbMemberStatus,
   VerificationCaseStatus,
@@ -78,9 +81,10 @@ export default function NbStatusBadge({
     );
   }
   const meta = nbStatusMeta(status);
-  const isConflict = conflict ?? meta.conflict;
-  // Çakışma varsa filled + warning ikon — admin'in kaçırmaması için kontrastlı
-  if (isConflict) {
+  // Conflict styling YALNIZCA explicit `conflict` prop ile gelir (üye-arama
+  // autocomplete'i bunu kullanır: "bu kullanıcı zaten NB üyesi"). Liste/detayda
+  // prop geçilmez → her duruma kendi rengi/ikonu uygulanır (aktif = yeşil, vb.).
+  if (conflict === true) {
     return (
       <Chip
         size={size}
@@ -91,13 +95,23 @@ export default function NbStatusBadge({
       />
     );
   }
-  // Terminal/non-blocking status (REJECTED, CANCELLED, APPROVED_EXPIRED): outlined nötr
+  // Duruma uygun renk + ikon — outlined nötr taban.
   return (
     <Chip
       size={size}
       variant={variant ?? 'outlined'}
       color={meta.color}
+      icon={ICON_BY_COLOR[meta.color ?? 'default']}
       label={label ?? meta.label}
     />
   );
 }
+
+/** Çip rengine göre uygun durum ikonu — tutarlı görsel dil. */
+const ICON_BY_COLOR: Record<string, React.ReactElement | undefined> = {
+  success: <CheckCircleOutlineIcon />,
+  warning: <HourglassEmptyIcon />,
+  error: <CancelOutlinedIcon />,
+  info: <InfoOutlinedIcon />,
+  default: undefined,
+};

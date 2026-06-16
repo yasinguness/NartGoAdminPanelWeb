@@ -215,7 +215,7 @@ export default function ProductAnalytics() {
       {/* KPI Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, ...darkAdmin.sx.statTile, height: '100%' }}>
+          <Paper variant="outlined" sx={{ p: 2, ...darkAdmin.sx.statTile, height: '100%' }}>
             <Typography sx={{ ...darkAdmin.sx.sectionLabel }}>Toplam Event (son {days}g)</Typography>
             {anyLoading ? (
               <Skeleton variant="text" width="60%" height={36} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
@@ -231,7 +231,7 @@ export default function ProductAnalytics() {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, ...darkAdmin.sx.statTile, height: '100%' }}>
+          <Paper variant="outlined" sx={{ p: 2, ...darkAdmin.sx.statTile, height: '100%' }}>
             <Typography sx={{ ...darkAdmin.sx.sectionLabel }}>Unique Kullanıcı</Typography>
             {anyLoading ? (
               <Skeleton variant="text" width="60%" height={36} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />
@@ -247,7 +247,7 @@ export default function ProductAnalytics() {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, ...darkAdmin.sx.statTile, height: '100%' }}>
+          <Paper variant="outlined" sx={{ p: 2, ...darkAdmin.sx.statTile, height: '100%' }}>
             <Typography sx={{ ...darkAdmin.sx.sectionLabel }}>En Aktif Platform</Typography>
             {anyLoading ? (
               <Skeleton variant="text" width="60%" height={36} sx={{ bgcolor: 'rgba(0,0,0,0.06)' }} />

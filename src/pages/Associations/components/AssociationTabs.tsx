@@ -25,11 +25,10 @@ import {
     Business as BusinessIcon,
     ChevronRight as ChevronRightIcon, 
     Edit as EditIcon, 
-    Delete as DeleteIcon,
-    InfoOutlined as InfoIcon
+    Delete as DeleteIcon
 } from '@mui/icons-material';
-import { AssociationEvent, AssociationBenefit } from '../../../services/association/types';
-import { UpcomingEvent, AssociationEventSummary } from '../../../types/association/associationEventSummary';
+import { AssociationBenefit } from '../../../services/association/types';
+import { AssociationEventSummary } from '../../../types/association/associationEventSummary';
 import { AssociationMemberDto } from '../../../types/associationMember/associationMemberDto';
 import MemberDetailsDialog from './MemberDetailsDialog';
 import AssociationTransactions from './AssociationTransactions';

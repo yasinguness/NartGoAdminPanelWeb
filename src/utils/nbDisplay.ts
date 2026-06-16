@@ -102,6 +102,7 @@ export const PERIOD_STATUS_LABEL: Record<MembershipPeriodStatus, string> = {
   PAYMENT_PENDING: 'Ödeme bekliyor',
   ACTIVE: 'Aktif',
   EXPIRED: 'Süresi doldu',
+  REFUNDED: 'İade edildi',
   CANCELLED: 'İptal',
 };
 

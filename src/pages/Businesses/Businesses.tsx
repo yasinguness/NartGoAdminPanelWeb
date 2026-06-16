@@ -2,21 +2,20 @@
  * Businesses — Premium Card-Based Redesign
  * Matching Events page pattern with glass cards, chip filters, stat cards.
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Typography, Button, Stack, Avatar, TextField, Chip,
-  LinearProgress, IconButton, Menu, MenuItem, ListItemIcon, ListItemText,
+  Box, Typography, Button, Stack, Avatar, TextField, Chip, IconButton, Menu, MenuItem, ListItemIcon, ListItemText,
   Dialog, DialogTitle, DialogContent, DialogActions,
   alpha, Grid, Tooltip, Divider, Pagination,
 } from '@mui/material';
 import {
   Add as AddIcon, Search as SearchIcon, Business as BusinessIcon,
   Verified as VerifiedIcon, Star as StarIcon, Visibility as ViewIcon,
-  Favorite as FavoriteIcon, Edit as EditIcon, Delete as DeleteIcon,
+  Favorite as FavoriteIcon, Delete as DeleteIcon,
   MoreVert as MoreIcon, LocationOn as LocationIcon,
-  CheckCircle as CheckIcon, ArrowForwardIos as ChevronIcon,
-  Refresh as RefreshIcon, Category as CategoryIcon,
+  CheckCircle as CheckIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { debounce } from 'lodash';
 import { useSnackbar } from 'notistack';

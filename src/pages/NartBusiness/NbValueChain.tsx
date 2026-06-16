@@ -98,7 +98,8 @@ type DraftEdge = {
   weight: number;
   notes: string;
   active: boolean;
-  alsoReverse: boolean;
+  /** Yalnızca yeni kenar oluştururken anlamlı; mevcut kenarı düzenlerken set edilmez. */
+  alsoReverse?: boolean;
 };
 
 const EMPTY_DRAFT: DraftEdge = {
@@ -459,11 +460,6 @@ export default function NbValueChain() {
                   e.direction === draft.direction,
               );
             const wt = weightTier(draft.weight);
-            const fieldsValid =
-              !!draft.sourceSector &&
-              !!draft.targetSector &&
-              !sameSector &&
-              !duplicateEdge;
             return (
               <Stack spacing={2}>
                 <CatalogAutocomplete<Sector>
@@ -566,7 +562,7 @@ export default function NbValueChain() {
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={draft.alsoReverse}
+                        checked={!!draft.alsoReverse}
                         onChange={(e) =>
                           setDraft({ ...draft, alsoReverse: e.target.checked })
                         }

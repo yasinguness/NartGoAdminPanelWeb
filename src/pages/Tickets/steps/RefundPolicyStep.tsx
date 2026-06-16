@@ -18,9 +18,7 @@ import {
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
-  Info as InfoIcon,
   RestartAlt as ResetIcon,
-  CheckCircle as CheckIcon,
   ExpandMore as ExpandIcon,
   Visibility as PreviewIcon,
   HelpOutline as HelpIcon,
@@ -168,7 +166,6 @@ function TimelineBar({ tiers }: { tiers: RefundPolicyTier[] }) {
 
 // ─── User Preview ──────────────────────────────────────
 function UserPreview({ policy }: { policy: RefundPolicy }) {
-  const theme = useTheme();
   const sorted = [...policy.tiers].sort((a, b) => (b.maxDaysBefore ?? 999) - (a.maxDaysBefore ?? 999));
 
   return (

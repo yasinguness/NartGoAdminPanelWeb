@@ -66,7 +66,7 @@ const initialForm: FeedCreateRequest = {
     imageUrl: '',
     videoUrl: '',
     thumbnailUrl: '',
-    status: FeedStatus.DRAFT,
+    status: FeedStatus.UPLOADED_RAW,
     pinned: false
 };
 
@@ -112,7 +112,7 @@ export default function Feeds() {
 
     const [statusDialogOpen, setStatusDialogOpen] = useState(false);
     const [statusTarget, setStatusTarget] = useState<FeedDto | null>(null);
-    const [statusValue, setStatusValue] = useState<FeedStatus>(FeedStatus.PENDING);
+    const [statusValue, setStatusValue] = useState<FeedStatus>(FeedStatus.PENDING_APPROVAL);
     const [rejectionReason, setRejectionReason] = useState('');
 
     // --- Stories State (Tab 1) ---
@@ -201,7 +201,7 @@ export default function Feeds() {
 
     const openStatusDialog = (feed: FeedDto) => {
         setStatusTarget(feed);
-        setStatusValue(feed.status || FeedStatus.PENDING);
+        setStatusValue(feed.status || FeedStatus.PENDING_APPROVAL);
         setRejectionReason(feed.rejectionReason || '');
         setStatusDialogOpen(true);
     };
@@ -209,7 +209,7 @@ export default function Feeds() {
     const closeStatusDialog = () => {
         setStatusDialogOpen(false);
         setStatusTarget(null);
-        setStatusValue(FeedStatus.PENDING);
+        setStatusValue(FeedStatus.PENDING_APPROVAL);
         setRejectionReason('');
     };
 

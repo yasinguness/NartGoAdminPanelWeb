@@ -7,8 +7,6 @@ import {
     DialogContent,
     DialogActions,
     TextField,
-    IconButton,
-    Tooltip,
     Stack
 } from '@mui/material';
 import {
@@ -22,7 +20,7 @@ import { useEventCategories } from '../../hooks/useEventCategories';
 import { PageContainer, PageHeader, PageSection } from '../../components/Page';
 import { DataTable } from '../../components/Data';
 import { LoadingState, ErrorState } from '../../components/Feedback';
-import { ActionButton, ActionMenu } from '../../components/Actions';
+import { ActionMenu } from '../../components/Actions';
 import { MenuItem, ListItemIcon, ListItemText } from '@mui/material';
 import { FormGrid } from '../../components/Form';
 

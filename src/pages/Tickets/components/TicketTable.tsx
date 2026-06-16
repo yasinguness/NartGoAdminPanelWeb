@@ -6,7 +6,6 @@ import {
   Checkbox, Chip, Typography, Tooltip, IconButton, Skeleton, Box,
 } from '@mui/material';
 import { QrCode as QrIcon } from '@mui/icons-material';
-import { TicketStatus } from '../../../types/tickets/ticketTypes';
 import type { TicketListItem } from '../../../types/tickets/ticketManagementTypes';
 
 const STATUS_CHIP: Record<string, { color: 'success' | 'warning' | 'error' | 'info' | 'default'; label: string }> = {

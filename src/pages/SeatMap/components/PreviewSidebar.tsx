@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Typography, Button, IconButton, TextField, Stack, useTheme, alpha } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import type { SeatCategory, VenueConfig } from '../venueEngine';

@@ -181,7 +181,7 @@ export default function CustomSeatEditor({ sections, onChange, isEditingExisting
 
       {/* Sections */}
       <Stack spacing={2}>
-        {sections.map((section, sIdx) => {
+        {sections.map((section, _sIdx) => {
           const isExpanded = expandedSection === section.id;
           const sectionSeats = section.rows.reduce((s, r) => s + r.seats.length, 0);
 

@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Box, Paper, Typography, Stack, Grid, alpha, useTheme, LinearProgress, Chip, Skeleton, Divider,
+  Box, Paper, Typography, Stack, Grid, alpha, useTheme, LinearProgress, Skeleton, Divider,
 } from '@mui/material';
 import {
   TrendingUp as SalesIcon, Payments as RevenueIcon,

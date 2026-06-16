@@ -34,7 +34,7 @@ interface EventStore {
     getCategoryById: (id: string) => Promise<EventCategoryDto>;
 }
 
-export const useEventStore = create<EventStore>((set, get) => ({
+export const useEventStore = create<EventStore>((set) => ({
     // Initial state
     events: [],
     categories: [],

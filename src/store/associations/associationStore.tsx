@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 import { AssociationDto } from '../../types/association/associationDto';
+import { AssociationSummaryResponse } from '../../types/association/associationSummaryResponse';
 import { AssociationCreateRequest } from '../../types/association/associationCreateRequest';
 import { AssociationUpdateRequest } from '../../types/association/associationUpdateRequest';
 import { associationService } from '../../services/association/associationService';
-import { PageResponseDto } from '../../types/common/pageResponse';
 
 interface AssociationState {
-  associations: AssociationDto[];
+  associations: AssociationSummaryResponse[];
   selectedAssociation: AssociationDto | null;
   isLoading: boolean;
   error: string | null;

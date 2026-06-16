@@ -10,7 +10,6 @@ import {
   Box,
   Chip,
   Avatar,
-  Divider,
   Card,
   CardContent,
 } from '@mui/material';

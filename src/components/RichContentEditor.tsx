@@ -125,7 +125,7 @@ function parsePastedText(text: string): ContentBlock[] {
   return blocks.length ? blocks : [{ type: 'paragraph', text: text }];
 }
 
-export default function RichContentEditor({ blocks, onChange, compact, onImageUpload }: RichContentEditorProps) {
+export default function RichContentEditor({ blocks, onChange, compact: _compact, onImageUpload }: RichContentEditorProps) {
   const theme = useTheme();
   const [addMenuAnchor, setAddMenuAnchor] = useState<{ el: HTMLElement; index: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

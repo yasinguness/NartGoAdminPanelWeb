@@ -5,9 +5,8 @@
 import { useState, useMemo } from 'react';
 import {
   Box, Typography, Stack, Paper, Chip, Button, Select, MenuItem,
-  FormControl, InputLabel, Table, TableHead, TableRow, TableCell,
+  FormControl, Table, TableHead, TableRow, TableCell,
   TableBody, LinearProgress, Tooltip, IconButton, alpha, useTheme,
-  Divider,
 } from '@mui/material';
 import {
   TrendingUp as TrendingIcon, AccessTime as TimeIcon,
@@ -303,7 +302,7 @@ export default function AnalyticsDashboard() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {summary.topActions.slice(0, 10).map((action, i) => (
+              {summary.topActions.slice(0, 10).map((action) => (
                 <TableRow key={action.action} hover>
                   <TableCell>
                     <Typography variant="body2" fontWeight={600} fontSize={13}>{action.action}</Typography>

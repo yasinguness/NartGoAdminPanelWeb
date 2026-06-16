@@ -8,7 +8,7 @@
  */
 import { useState, useRef, useCallback } from 'react';
 import {
-  Box, TextField, Paper, Typography, Stack, Chip, alpha, useTheme,
+  Box, TextField, Paper, Typography, Stack, Chip, alpha,
   CircularProgress, Collapse,
 } from '@mui/material';
 import { Place as PlaceIcon, CheckCircle as CheckIcon } from '@mui/icons-material';
@@ -56,7 +56,6 @@ export default function GooglePlacesInput({
   size = 'small',
   fullWidth = true,
 }: Props) {
-  const theme = useTheme();
   const [search, setSearch] = useState(value?.description || '');
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [loading, setLoading] = useState(false);

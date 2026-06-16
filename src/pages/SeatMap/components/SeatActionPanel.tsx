@@ -4,18 +4,16 @@
  * + Koltuk detay popup
  */
 import { useState } from 'react';
-import {
-  Box, Typography, Stack, Button, IconButton, TextField, Chip, Paper,
+import { Typography, Stack, Button, IconButton, TextField, Chip, Paper,
   Dialog, DialogTitle, DialogContent, DialogActions, Divider, Tooltip,
   alpha, useTheme, CircularProgress,
 } from '@mui/material';
 import {
-  Block as BlockIcon, BookOnline as ReserveIcon, PersonAdd as AssignIcon,
-  LockOpen as UnlockIcon, CheckCircle as AvailableIcon, Close as CloseIcon,
-  Info as InfoIcon, Delete as DeleteIcon,
+  Block as BlockIcon, BookOnline as ReserveIcon, PersonAdd as AssignIcon, CheckCircle as AvailableIcon, Close as CloseIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { ticketService } from '../../../services/ticket/ticketService';
+import { DEFAULT_CATEGORIES } from '../venueEngine';
 import type { Seat, SeatStatus, SeatAssignment } from '../venueEngine';
 
 interface SeatActionPanelProps {

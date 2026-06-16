@@ -1,7 +1,6 @@
 import { api } from "../api";
 import { SubscriptionPaymentDto } from "../../types/subscriptionPayment/subscriptionPaymentDto";
 import { SubscriptionPaymentFilterDto } from "../../types/subscriptionPayment/subscriptionPaymentFilterDto";
-import { AssociationRevenueDto } from "../../types/subscriptionPayment/associationRevenueDto";
 import { AssociationAnalyticsDto } from "../../types/subscriptionPayment/associationAnalyticsDto";
 import { ApiResponse } from "../../types/api";
 import { AdminSubscriptionPaymentDto } from "../../types/subscriptionPayment/adminSubscriptionPaymentDto";

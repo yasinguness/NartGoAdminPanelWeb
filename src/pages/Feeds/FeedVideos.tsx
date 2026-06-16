@@ -1,12 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, TextField, InputAdornment, Chip, Stack,
-  IconButton, Tooltip, Menu, MenuItem, Paper, Skeleton, Snackbar, Alert,
-  Fade, Pagination, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
+  IconButton, Tooltip, Menu, MenuItem, Paper, Skeleton, Snackbar, Alert, Pagination, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
 } from '@mui/material';
 import {
   Search, LayoutGrid, List, ChevronDown,
-  Bookmark, CheckCircle2, XCircle, Archive, Trash2, X, Keyboard,
+  Bookmark, CheckCircle2, XCircle, Trash2, X, Keyboard,
   Video, Filter, Instagram,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -48,7 +47,7 @@ export default function FeedVideos() {
 
   // View state
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize] = useState(12);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
