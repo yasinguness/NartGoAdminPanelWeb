@@ -167,6 +167,7 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   { path: '/nartbusiness/dlq', roles: NB, description: 'NB DLQ' },
   { path: '/nartbusiness/share-analytics', roles: NB, description: 'Paylaşım analitikleri' },
   { path: '/nartbusiness/testimonials', roles: NB, description: 'Referanslar' },
+  { path: '/nartbusiness/market-opinions', roles: NB, description: 'Üye görüşleri moderasyonu' },
 ];
 
 /**

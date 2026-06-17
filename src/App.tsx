@@ -27,6 +27,8 @@ import AssociationDetails from './pages/Associations/AssociationDetails';
 import Associations from './pages/Associations/Associations';
 import AssociationCreatePage from './pages/Associations/AssociationCreatePage';
 import NotificationsRefactored from './pages/Notifications/NotificationsRefactored';
+import ManualEmailSender from './pages/ManualEmail/ManualEmailSender';
+import EmailLogs from './pages/ManualEmail/EmailLogs';
 import TicketCreationPage from './pages/Tickets/TicketCreationPage';
 import RaffleLivePage from './pages/Event/RaffleLivePage';
 import FeedVideos from './pages/Feeds/FeedVideos';
@@ -91,6 +93,7 @@ import NbModerationQueue from './pages/NartBusiness/NbModerationQueue';
 import NbDlqPanel from './pages/NartBusiness/NbDlqPanel';
 import NbShareAnalytics from './pages/NartBusiness/NbShareAnalytics';
 import NbTestimonials from './pages/NartBusiness/NbTestimonials';
+import NbMarketOpinions from './pages/NartBusiness/NbMarketOpinions';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -150,6 +153,8 @@ function App() {
 
                 <Route path="devices" element={<Devices />} />
                 <Route path="notifications" element={<NotificationsRefactored />} />
+                <Route path="manual-email" element={<ManualEmailSender />} />
+                <Route path="email-logs" element={<EmailLogs />} />
                 <Route path="feeds" element={<FeedVideos />} />
                 <Route path="bulletins" element={<Bulletins />} />
                 <Route path="content" element={<ContentList />} />
@@ -214,6 +219,7 @@ function App() {
                 <Route path="nartbusiness/dlq" element={<NbDlqPanel />} />
                 <Route path="nartbusiness/share-analytics" element={<NbShareAnalytics />} />
                 <Route path="nartbusiness/testimonials" element={<NbTestimonials />} />
+                <Route path="nartbusiness/market-opinions" element={<NbMarketOpinions />} />
               </Route>
 
               {/* Bilinmeyen path → rol-bilinçli landing (boş ekran yerine). */}

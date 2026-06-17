@@ -14,6 +14,7 @@ import {
   DialogTitle,
   IconButton,
   Link,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -33,9 +34,11 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
+import LockResetIcon from '@mui/icons-material/LockReset';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import VerifiedIcon from '@mui/icons-material/Verified';
@@ -48,7 +51,7 @@ import type {
   VerificationCase,
   VerificationDocument,
 } from '../../services/nartbusiness/nbTypes';
-import type { NbUserSearchResult } from '../../services/nartbusiness/nbAdminService';
+import type { NbUserSearchResult, NbResendTemplate } from '../../services/nartbusiness/nbAdminService';
 import {
   fullDate,
   monthsBetween,
@@ -92,6 +95,36 @@ export default function NbMemberDetail() {
   const [error, setError] = useState<string | null>(null);
   const [actionOpen, setActionOpen] = useState(false);
   const [trialBusy, setTrialBusy] = useState(false);
+  const [pwBusy, setPwBusy] = useState(false);
+
+  // "Şifrenizi belirleyin" — Keycloak UPDATE_PASSWORD + VERIFY_EMAIL action maili.
+  // manual-email Thymeleaf akışından ayrıdır: link Keycloak token'ı taşır, 72 saat geçerli.
+  const handleSendSetPassword = async () => {
+    if (!member) return;
+    const target = user?.email ? ` (${user.email})` : '';
+    if (
+      !window.confirm(
+        `Bu üyeye "şifrenizi belirleyin" e-postası gönderilsin mi?${target}\n\n` +
+          'Keycloak üzerinden 72 saat geçerli, gerçek bir şifre-belirleme + e-posta ' +
+          'doğrulama linki gönderilir. Şifresini hiç belirlememiş ya da onboarding ' +
+          'maili ulaşmamış üye için kullanın.',
+      )
+    )
+      return;
+    setPwBusy(true);
+    try {
+      const r = await nbAdminService.sendSetPasswordEmail(member.memberId);
+      alert(`Şifre belirleme e-postası gönderildi${r.to ? `: ${r.to}` : '.'}`);
+    } catch (e: any) {
+      alert(
+        e?.response?.data?.error?.message ??
+          e?.message ??
+          'Şifre belirleme e-postası gönderilemedi.',
+      );
+    } finally {
+      setPwBusy(false);
+    }
+  };
 
   const handleTrial = async (kind: 'grant' | 'extend' | 'revoke') => {
     if (!member) return;
@@ -122,6 +155,14 @@ export default function NbMemberDetail() {
   const [bankConfirmNote, setBankConfirmNote] = useState('');
   const [bankConfirming, setBankConfirming] = useState(false);
   const [bankConfirmError, setBankConfirmError] = useState<string | null>(null);
+
+  // Hazır e-posta template'ini elle yeniden gönderme.
+  const [resendOpen, setResendOpen] = useState(false);
+  const [resendTemplate, setResendTemplate] = useState<NbResendTemplate>('APPROVED');
+  const [resendEmailOverride, setResendEmailOverride] = useState('');
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [resendOk, setResendOk] = useState<string | null>(null);
 
   const load = async () => {
     if (!memberId) return;
@@ -355,6 +396,34 @@ export default function NbMemberDetail() {
               onClick={() => setEditOpen(true)}
             >
               İşletmeyi Düzenle
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<EmailOutlinedIcon />}
+              onClick={() => {
+                setResendEmailOverride('');
+                setResendError(null);
+                setResendOk(null);
+                setResendTemplate(
+                  member.status === 'NEEDS_INFO'
+                    ? 'NEEDS_INFO'
+                    : member.status === 'SUBMITTED'
+                    ? 'RECEIVED'
+                    : 'APPROVED',
+                );
+                setResendOpen(true);
+              }}
+            >
+              Mail Gönder
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<LockResetIcon />}
+              disabled={pwBusy}
+              onClick={handleSendSetPassword}
+            >
+              {pwBusy ? 'Gönderiliyor…' : 'Şifre Belirleme E-postası'}
             </Button>
             <Button variant="contained" onClick={() => setActionOpen(true)}>
               Yönet
@@ -750,6 +819,93 @@ export default function NbMemberDetail() {
             }}
           >
             {bankConfirming ? 'Onaylanıyor…' : 'Ödemeyi Onayla'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Hazır e-posta template'ini elle yeniden gönder */}
+      <Dialog
+        open={resendOpen}
+        onClose={() => !resendBusy && setResendOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={fullScreen}
+      >
+        <DialogTitle>Hazır E-posta Gönder</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Hazır başvuru e-postalarından birini bu üyeye yeniden gönderir. İçerik
+            kayıttan otomatik oluşturulur. Adres yanlış girilmişse aşağıya doğru
+            adresi yazabilirsin; boş bırakırsan hesaptaki güncel adrese gider.
+          </DialogContentText>
+          <TextField
+            select
+            fullWidth
+            label="Template"
+            value={resendTemplate}
+            onChange={(e) => setResendTemplate(e.target.value as NbResendTemplate)}
+            size="small"
+            sx={{ mb: 2 }}
+            disabled={resendBusy}
+          >
+            <MenuItem value="RECEIVED">Başvuru Alındı</MenuItem>
+            <MenuItem value="APPROVED">Başvuru Onaylandı (ödeme/aktivasyon)</MenuItem>
+            <MenuItem value="NEEDS_INFO">Ek Bilgi Gerekli</MenuItem>
+          </TextField>
+          <TextField
+            fullWidth
+            type="email"
+            label="Gönderilecek adres (opsiyonel)"
+            placeholder={user?.email ? `Boş = ${user.email}` : 'Boş = hesaptaki adres'}
+            value={resendEmailOverride}
+            onChange={(e) => setResendEmailOverride(e.target.value)}
+            size="small"
+            disabled={resendBusy}
+            helperText="Yanlış adrese gitmişse, düzeltilmiş adresi buraya yaz."
+          />
+          {resendError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {resendError}
+            </Alert>
+          )}
+          {resendOk && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              {resendOk}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setResendOpen(false)} disabled={resendBusy}>
+            Kapat
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<EmailOutlinedIcon />}
+            disabled={resendBusy}
+            onClick={async () => {
+              if (!member) return;
+              setResendBusy(true);
+              setResendError(null);
+              setResendOk(null);
+              try {
+                const r = await nbAdminService.resendEmail(
+                  member.memberId,
+                  resendTemplate,
+                  resendEmailOverride,
+                );
+                setResendOk(`E-posta kuyruğa alındı: ${r.to}`);
+              } catch (e: any) {
+                setResendError(
+                  e?.response?.data?.error?.message ??
+                    e?.message ??
+                    'E-posta gönderilemedi.',
+                );
+              } finally {
+                setResendBusy(false);
+              }
+            }}
+          >
+            {resendBusy ? 'Gönderiliyor…' : 'Gönder'}
           </Button>
         </DialogActions>
       </Dialog>

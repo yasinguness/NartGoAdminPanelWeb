@@ -23,7 +23,7 @@ export default function NotificationsSection({ event }: { event: EventResponseDT
     setSending(true);
     try {
       const topic = target === 'attendees' ? `event_${event.id}` : 'all_users';
-      await api.post('/notifications/admin/bulk/send-topic', {
+      await api.post('/notifications/admin/push/topic', {
         topic,
         title,
         body,

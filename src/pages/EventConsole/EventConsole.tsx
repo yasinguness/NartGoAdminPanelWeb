@@ -188,8 +188,9 @@ export default function EventConsole() {
     <Box sx={{
       width: DRAWER_WIDTH,
       height: '100%',
-      bgcolor: '#F8FAFC', // dark green-black
-      color: 'white',
+      bgcolor: '#F8FAFC', // açık zemin
+      color: 'text.primary',
+      borderRight: '1px solid rgba(15,23,42,0.08)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -224,8 +225,8 @@ export default function EventConsole() {
               variant="caption"
               sx={{
                 px: 2.5, mb: 1, display: 'block',
-                color: 'rgba(255,255,255,0.4)',
-                fontSize: 10, letterSpacing: 1.5, fontWeight: 600,
+                color: 'rgba(15,23,42,0.5)',
+                fontSize: 10, letterSpacing: 1.5, fontWeight: 700,
               }}
             >
               {group}
@@ -271,10 +272,10 @@ export default function EventConsole() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1.5,
-                    bgcolor: isActive ? 'rgba(201,162,39,0.12)' : 'transparent',
-                    color: isActive ? '#C9A227' : 'rgba(255,255,255,0.75)',
+                    bgcolor: isActive ? 'rgba(201,162,39,0.16)' : 'transparent',
+                    color: isActive ? '#8A6D1A' : 'rgba(15,23,42,0.7)',
                     transition: 'all 0.15s',
-                    '&:hover': { bgcolor: 'rgba(0,0,0,0.03)', color: 'white' },
+                    '&:hover': { bgcolor: 'rgba(15,23,42,0.05)', color: 'text.primary' },
                     '&:focus-visible': {
                       outline: '2px solid #C9A227',
                       outlineOffset: 2,
@@ -293,8 +294,8 @@ export default function EventConsole() {
       </Box>
 
       {/* Footer — etkinlik adı */}
-      <Box sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, letterSpacing: 0.5 }}>
+      <Box sx={{ p: 2, borderTop: '1px solid rgba(15,23,42,0.08)' }}>
+        <Typography variant="caption" sx={{ color: 'rgba(15,23,42,0.5)', fontSize: 10, letterSpacing: 0.5 }}>
           ETKİNLİK
         </Typography>
         <Typography variant="body2" fontWeight={600} noWrap sx={{ mt: 0.3 }}>

@@ -169,6 +169,40 @@ async function revokeTrial(memberId: string): Promise<NbMember | null> {
   return unwrap<NbMember>(res.data);
 }
 
+// ── Hazır e-posta template'ini elle yeniden gönderme ──
+
+export type NbResendTemplate = 'RECEIVED' | 'APPROVED' | 'NEEDS_INFO';
+
+/**
+ * Hazır NB başvuru e-postasını üyenin güncel (auth'ta düzeltilmiş) adresine —
+ * ya da `email` verilirse o adrese — yeniden gönderir. Değişkenler backend'de
+ * kayıttan yeniden kurulur. Dönen `to` = gönderim yapılan adres.
+ */
+async function resendEmail(
+  memberId: string,
+  template: NbResendTemplate,
+  email?: string,
+): Promise<{ template: string; to: string }> {
+  const res = await api.post<any>(`/nb/admin/members/${memberId}/resend-email`, {
+    template,
+    email: email?.trim() || undefined,
+  });
+  return (unwrap<{ template: string; to: string }>(res.data) ?? { template, to: email ?? '' });
+}
+
+/**
+ * Üyenin NartGo hesabına "şifrenizi belirleyin" e-postası (Keycloak UPDATE_PASSWORD
+ * + VERIFY_EMAIL — gerçek, 72 saat geçerli link) gönderir. Onboarding maili kaybolan
+ * ya da şifresini hiç belirlememiş üye için. Dönen `to` = gönderim yapılan adres.
+ */
+async function sendSetPasswordEmail(memberId: string): Promise<{ to: string }> {
+  const res = await api.post<any>(
+    `/nb/admin/members/${memberId}/send-set-password-email`,
+    {},
+  );
+  return unwrap<{ to: string }>(res.data) ?? { to: '' };
+}
+
 /**
  * Havale/EFT ile ödeme yapan üyenin manuel onayı. Sadece
  * APPROVED_PENDING_PAYMENT durumundaki üyelerde geçerli — admin WhatsApp'tan
@@ -573,6 +607,8 @@ export const nbAdminService = {
   confirmBankTransfer,
   hardDeleteMember,
   listMemberPeriods,
+  resendEmail,
+  sendSetPasswordEmail,
   // Deneme
   grantTrial,
   extendTrial,
