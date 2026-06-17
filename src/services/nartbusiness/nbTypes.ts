@@ -332,6 +332,21 @@ export interface ReferralImpact {
   wonCountLast12Months: number;
 }
 
+/**
+ * Admin "Modül Aktivitesi" — topluluk modüllerinin kullanım hacmi.
+ * Backend: GET /api/v1/nb/community/stats/module-activity
+ */
+export interface ModuleActivity {
+  mentorshipTotal: number;
+  mentorshipMatched: number;
+  mentorshipLast30: number;
+  ventureTotal: number;
+  ventureFormed: number;
+  ventureLast30: number;
+  questionTotal: number;
+  questionLast30: number;
+}
+
 export interface NbDashboardStats {
   totalMembers: number;
   activeMembers: number;

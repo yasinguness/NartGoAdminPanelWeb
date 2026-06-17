@@ -79,6 +79,21 @@ async function getReferralImpact(): Promise<import('./nbTypes').ReferralImpact |
   }
 }
 
+/**
+ * Admin "Modül Aktivitesi" — topluluk modüllerinin kullanım hacmi (aktivasyon ölçümü).
+ * nb-community-service'ten gelir; endpoint yoksa null (defansif).
+ */
+async function getModuleActivity(): Promise<import('./nbTypes').ModuleActivity | null> {
+  try {
+    const res = await api.get<any>('/nb/community/stats/module-activity');
+    return unwrap<import('./nbTypes').ModuleActivity>(res.data);
+  } catch (err: any) {
+    const code = err?.response?.status;
+    if (code === 404 || code === 501) return null;
+    throw err;
+  }
+}
+
 // ============================================================
 // Members
 // ============================================================
@@ -537,6 +552,7 @@ export const nbAdminService = {
   // Dashboard
   getDashboardStats,
   getReferralImpact,
+  getModuleActivity,
   // Tiers
   listTiers,
   upsertTier,

@@ -26,6 +26,7 @@ import type {
   NbDashboardStats,
   MembershipTier,
   ReferralImpact,
+  ModuleActivity,
 } from '../../services/nartbusiness/nbTypes';
 
 /** ₺ tam sayı tutarı okunur biçimde basar: 4.250.000 → "₺4.250.000". */
@@ -103,6 +104,7 @@ export default function NbDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<NbDashboardStats | null>(null);
   const [impact, setImpact] = useState<ReferralImpact | null>(null);
+  const [activity, setActivity] = useState<ModuleActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -128,6 +130,15 @@ export default function NbDashboard() {
       })
       .catch(() => {
         /* yoksay — endpoint yoksa banner gizli kalır */
+      });
+    // Modül aktivitesi — best-effort, dashboard'u bloklamaz.
+    nbAdminService
+      .getModuleActivity()
+      .then((data) => {
+        if (mounted) setActivity(data);
+      })
+      .catch(() => {
+        /* yoksay — endpoint yoksa kart gizli kalır */
       });
     return () => {
       mounted = false;
@@ -268,6 +279,79 @@ export default function NbDashboard() {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Modül Aktivitesi — topluluk modüllerinin kullanım hacmi (aktivasyon ölçümü). */}
+      {activity && (
+        <Card sx={{ mt: 2 }}>
+          <CardContent>
+            <Stack direction="row" spacing={1} alignItems="center" mb={2}>
+              <BusinessIcon color="primary" />
+              <Typography variant="h6">Modül Aktivitesi</Typography>
+              <Typography variant="caption" color="text.secondary">
+                (toplam · son 30 gün)
+              </Typography>
+            </Stack>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <ModuleStat
+                  label="Mentörlük talebi"
+                  total={activity.mentorshipTotal}
+                  last30={activity.mentorshipLast30}
+                  extra={`${activity.mentorshipMatched} eşleşti`}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <ModuleStat
+                  label="Ortak girişim"
+                  total={activity.ventureTotal}
+                  last30={activity.ventureLast30}
+                  extra={`${activity.ventureFormed} kuruldu`}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <ModuleStat
+                  label="Topluluk sorusu"
+                  total={activity.questionTotal}
+                  last30={activity.questionLast30}
+                />
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+      )}
+    </Box>
+  );
+}
+
+function ModuleStat({
+  label,
+  total,
+  last30,
+  extra,
+}: {
+  label: string;
+  total: number;
+  last30: number;
+  extra?: string;
+}) {
+  return (
+    <Box>
+      <Stack direction="row" spacing={1} alignItems="baseline">
+        <Typography variant="h4" fontWeight={600}>
+          {total}
+        </Typography>
+        <Typography variant="body2" color={last30 > 0 ? 'success.main' : 'text.disabled'}>
+          +{last30}
+        </Typography>
+      </Stack>
+      <Typography variant="body2" color="text.secondary">
+        {label}
+      </Typography>
+      {extra && (
+        <Typography variant="caption" color="text.secondary">
+          {extra}
+        </Typography>
+      )}
     </Box>
   );
 }
