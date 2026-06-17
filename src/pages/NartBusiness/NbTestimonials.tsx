@@ -24,6 +24,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useNbMobile } from '../../components/nartbusiness';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -49,6 +50,7 @@ const EMPTY_DRAFT: Draft = {
 };
 
 export default function NbTestimonials() {
+  const fullScreen = useNbMobile();
   const [items, setItems] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -242,7 +244,7 @@ export default function NbTestimonials() {
       </TableContainer>
 
       {/* Oluştur / Düzenle */}
-      <Dialog open={!!draft} onClose={() => setDraft(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!draft} onClose={() => setDraft(null)} maxWidth="sm" fullWidth fullScreen={fullScreen}>
         <DialogTitle>{draft?.id ? 'Referansı Düzenle' : 'Yeni Referans'}</DialogTitle>
         <DialogContent>
           {draft && (
@@ -328,7 +330,7 @@ export default function NbTestimonials() {
       </Dialog>
 
       {/* Silme onayı */}
-      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)}>
+      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} fullScreen={fullScreen}>
         <DialogTitle>Referansı sil</DialogTitle>
         <DialogContent>
           <Typography>

@@ -81,6 +81,7 @@ export const STATUS_LABEL: Record<NbMemberStatus, string> = {
   REJECTED: 'Reddedildi',
   APPROVED_PENDING_PAYMENT: 'Onaylandı · ödeme bekliyor',
   APPROVED_EXPIRED: 'Onay süresi doldu',
+  TRIAL: 'Ücretsiz deneme',
   ACTIVE: 'Aktif',
   EXPIRED: 'Süresi doldu',
   SUSPENDED: 'Askıda',

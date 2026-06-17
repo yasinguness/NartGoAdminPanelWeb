@@ -11,6 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useNbMobile } from '../../components/nartbusiness';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export default function NbMemberHardDeleteDialog({ open, member, onClose, onDeleted }: Props) {
+  const fullScreen = useNbMobile();
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export default function NbMemberHardDeleteDialog({ open, member, onClose, onDele
   const companyName = member?.companyName ?? member?.memberId ?? '—';
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth fullScreen={fullScreen}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
         <DeleteForeverIcon />
         Hard Delete — Kalıcı Silme

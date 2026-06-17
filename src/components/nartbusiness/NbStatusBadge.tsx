@@ -33,6 +33,7 @@ const META: Record<string, StatusMeta> = {
   REJECTED: { label: 'Reddedildi', color: 'error', conflict: false },
   APPROVED_PENDING_PAYMENT: { label: 'Ödeme bekliyor', color: 'warning', conflict: true },
   APPROVED_EXPIRED: { label: 'Süresi doldu', color: 'default', conflict: false },
+  TRIAL: { label: 'Deneme', color: 'info', conflict: true },
   ACTIVE: { label: 'Aktif üye', color: 'success', conflict: true },
   EXPIRED: { label: 'Süresi doldu', color: 'default', conflict: true },
   SUSPENDED: { label: 'Askıya alındı', color: 'warning', conflict: true },

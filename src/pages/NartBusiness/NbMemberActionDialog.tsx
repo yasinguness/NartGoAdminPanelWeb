@@ -33,6 +33,7 @@ import {
   NbStatusBadge,
   RadioCardGroup,
   isAuditNoteValid,
+  useNbMobile,
   type AuditCategoryOption,
   type RadioCardOption,
 } from '../../components/nartbusiness';
@@ -133,6 +134,7 @@ export default function NbMemberActionDialog({
   onClose,
   onActionDone,
 }: Props) {
+  const fullScreen = useNbMobile();
   const [step, setStep] = useState(0);
   const [impact, setImpact] = useState<AdminImpactPreview | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<NbPeriodView | null>(null);
@@ -488,7 +490,7 @@ export default function NbMemberActionDialog({
     : 'İptal Et';
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth fullScreen={fullScreen}>
       <DialogTitle sx={{ pb: 1 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" gap={2}>
           <Box>

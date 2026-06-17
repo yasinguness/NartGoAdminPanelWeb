@@ -4,12 +4,13 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   FormControl,
   InputLabel,
+  LinearProgress,
   MenuItem,
   Paper,
   Select,
+  Skeleton,
   Stack,
   Table,
   TableBody,
@@ -40,6 +41,7 @@ export default function NbVerificationQueue() {
   const [queue, setQueue] = useState<VerificationCase[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [decideCaseId, setDecideCaseId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<VerificationCaseStatus | 'ALL'>(
@@ -54,10 +56,12 @@ export default function NbVerificationQueue() {
       .then((res) => {
         setQueue(res?.content ?? []);
         setLoading(false);
+        setLoaded(true);
       })
       .catch((err) => {
         setError(err?.message ?? 'Veri yüklenemedi');
         setLoading(false);
+        setLoaded(true);
       });
   };
 
@@ -116,13 +120,13 @@ export default function NbVerificationQueue() {
         </Alert>
       )}
 
-      {loading ? (
-        <Box display="flex" justifyContent="center" p={4}>
-          <CircularProgress />
-        </Box>
+      {loading && !loaded ? (
+        <QueueSkeleton />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
+        <>
+          <Box sx={{ height: 4, mb: 0.5 }}>{loading && <LinearProgress />}</Box>
+          <TableContainer component={Paper}>
+          <Table size="small" sx={{ minWidth: 900 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Durum</TableCell>
@@ -194,6 +198,7 @@ export default function NbVerificationQueue() {
             </TableBody>
           </Table>
         </TableContainer>
+        </>
       )}
 
       <NbVerificationDecideDialog
@@ -206,5 +211,48 @@ export default function NbVerificationQueue() {
         }}
       />
     </Box>
+  );
+}
+
+/** İlk yükleme iskeleti — 9 kolonlu kuyruk tablosuyla hizalı. */
+function QueueSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <>
+      <Box sx={{ height: 4, mb: 0.5 }}>
+        <LinearProgress />
+      </Box>
+      <TableContainer component={Paper}>
+        <Table size="small" sx={{ minWidth: 900 }}>
+          <TableHead>
+            <TableRow>
+              <TableCell>Durum</TableCell>
+              <TableCell>Şirket</TableCell>
+              <TableCell>Sektör</TableCell>
+              <TableCell>Şehir</TableCell>
+              <TableCell>Halk · Sülale</TableCell>
+              <TableCell>NartGo Kıdemi</TableCell>
+              <TableCell>Ek Bilgi Turu</TableCell>
+              <TableCell>Başvuru</TableCell>
+              <TableCell>Aksiyon</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {Array.from({ length: rows }).map((_, i) => (
+              <TableRow key={i}>
+                <TableCell><Skeleton variant="rounded" width={90} height={22} /></TableCell>
+                <TableCell><Skeleton variant="text" width={140} /></TableCell>
+                <TableCell><Skeleton variant="text" width={110} /></TableCell>
+                <TableCell><Skeleton variant="text" width={70} /></TableCell>
+                <TableCell><Skeleton variant="text" width={120} /></TableCell>
+                <TableCell><Skeleton variant="text" width={50} /></TableCell>
+                <TableCell><Skeleton variant="text" width={40} /></TableCell>
+                <TableCell><Skeleton variant="text" width={90} /></TableCell>
+                <TableCell><Skeleton variant="rounded" width={120} height={28} /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </>
   );
 }

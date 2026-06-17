@@ -43,6 +43,7 @@ import {
   ConfirmationStep,
   isAuditNoteValid,
   RadioCardGroup,
+  useNbMobile,
   type AuditCategoryOption,
   type RadioCardOption,
 } from '../../components/nartbusiness';
@@ -189,6 +190,7 @@ export default function NbVerificationDecideDialog({
   onClose,
   onDecided,
 }: Props) {
+  const fullScreen = useNbMobile();
   const [step, setStep] = useState(0);
   const [reviewTab, setReviewTab] = useState(0);
   const [detail, setDetail] = useState<VerificationCase | null>(null);
@@ -866,7 +868,7 @@ export default function NbVerificationDecideDialog({
   };
 
   return (
-    <Dialog open={open} onClose={handleCloseRequest} maxWidth="lg" fullWidth>
+    <Dialog open={open} onClose={handleCloseRequest} maxWidth="lg" fullWidth fullScreen={fullScreen}>
       <DialogTitle>Başvuru Değerlendirmesi</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={3}>

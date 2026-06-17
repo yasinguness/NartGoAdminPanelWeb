@@ -44,6 +44,7 @@ import type {
 import {
   CatalogAutocomplete,
   RadioCardGroup,
+  useNbMobile,
   type RadioCardOption,
 } from '../../components/nartbusiness';
 
@@ -122,6 +123,7 @@ const EMPTY_DRAFT: DraftEdge = {
  * Matching algoritması bu matrisi MatchingService.suggestionsFor içinde okur.
  */
 export default function NbValueChain() {
+  const fullScreen = useNbMobile();
   const [view, setView] = useState<'list' | 'matrix'>('list');
   const [edges, setEdges] = useState<ValueChainEdge[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
@@ -441,7 +443,7 @@ export default function NbValueChain() {
         </Paper>
       )}
 
-      <Dialog open={!!draft} onClose={() => setDraft(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!draft} onClose={() => setDraft(null)} maxWidth="sm" fullWidth fullScreen={fullScreen}>
         <DialogTitle>{draft?.id ? 'Kenar Düzenle' : 'Yeni Kenar'}</DialogTitle>
         <DialogContent dividers>
           {draft && (() => {
@@ -616,6 +618,7 @@ export default function NbValueChain() {
         onClose={() => setConfirmDelete(null)}
         maxWidth="xs"
         fullWidth
+        fullScreen={fullScreen}
       >
         <DialogTitle>Kenarı Sil?</DialogTitle>
         <DialogContent dividers>
@@ -664,7 +667,7 @@ export default function NbValueChain() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="md" fullWidth>
+      <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="md" fullWidth fullScreen={fullScreen}>
         <DialogTitle>CSV İçe Aktar — Sektör Değer Zinciri</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>

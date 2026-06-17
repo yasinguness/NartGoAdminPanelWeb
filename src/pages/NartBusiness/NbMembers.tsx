@@ -6,11 +6,11 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   FormControl,
   IconButton,
   InputAdornment,
   InputLabel,
+  LinearProgress,
   ListItemIcon,
   ListItemText,
   Menu,
@@ -18,6 +18,7 @@ import {
   Pagination,
   Paper,
   Select,
+  Skeleton,
   Stack,
   Table,
   TableBody,
@@ -486,16 +487,20 @@ export default function NbMembers() {
         </FormControl>
       </Stack>
 
-      {loading && (
-        <Box display="flex" justifyContent="center" p={4}>
-          <CircularProgress />
-        </Box>
-      )}
       {error && <Alert severity="error">{error}</Alert>}
-      {!loading && !error && data && (
+
+      {/* İlk yükleme: skeleton tablo (boş ekran/spinner yerine). */}
+      {loading && !data && !error && <MemberTableSkeleton />}
+
+      {/* Veri geldiyse SWR: filtre/sayfa değişiminde tabloyu koru, üstte ince
+          ilerleme çubuğu göster — mevcut listeyi shimmer'a kurban etme. */}
+      {data && !error && (
         <>
+          <Box sx={{ height: 4, mb: 0.5 }}>
+            {loading && <LinearProgress />}
+          </Box>
           <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
+            <Table size="small" sx={{ minWidth: 720 }}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={cellHeadSx}>Üye</TableCell>
@@ -587,6 +592,53 @@ export default function NbMembers() {
         }}
       />
     </Box>
+  );
+}
+
+/** İlk yükleme iskeleti — gerçek tablo düzeniyle hizalı satır placeholder'ları. */
+function MemberTableSkeleton({ rows = 8 }: { rows?: number }) {
+  return (
+    <>
+      <Box sx={{ height: 4, mb: 0.5 }}>
+        <LinearProgress />
+      </Box>
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small" sx={{ minWidth: 720 }}>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={cellHeadSx}>Üye</TableCell>
+              <TableCell sx={cellHeadSx}>Kademe</TableCell>
+              <TableCell sx={cellHeadSx}>Durum</TableCell>
+              <TableCell sx={cellHeadSx}>Rozet</TableCell>
+              <TableCell sx={cellHeadSx}>Katılım</TableCell>
+              <TableCell sx={cellHeadSx} align="right">
+                {' '}
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {Array.from({ length: rows }).map((_, i) => (
+              <TableRow key={i}>
+                <TableCell>
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Skeleton variant="circular" width={36} height={36} />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Skeleton variant="text" width={180} />
+                      <Skeleton variant="text" width={120} height={14} />
+                    </Box>
+                  </Stack>
+                </TableCell>
+                <TableCell><Skeleton variant="rounded" width={64} height={22} /></TableCell>
+                <TableCell><Skeleton variant="rounded" width={88} height={22} /></TableCell>
+                <TableCell><Skeleton variant="rounded" width={88} height={22} /></TableCell>
+                <TableCell><Skeleton variant="text" width={70} /></TableCell>
+                <TableCell align="right"><Skeleton variant="circular" width={24} height={24} sx={{ ml: 'auto' }} /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </>
   );
 }
 

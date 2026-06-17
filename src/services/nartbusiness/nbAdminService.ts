@@ -64,6 +64,21 @@ async function getDashboardStats(): Promise<NbDashboardStats | null> {
   }
 }
 
+/**
+ * TYFCB — topluluğun yönlendirmelerle ürettiği kapanan iş değeri (ROI kanıtı).
+ * nb-needs-service'ten gelir; endpoint yoksa null (defansif).
+ */
+async function getReferralImpact(): Promise<import('./nbTypes').ReferralImpact | null> {
+  try {
+    const res = await api.get<any>('/nb/needs/stats/referral-impact');
+    return unwrap<import('./nbTypes').ReferralImpact>(res.data);
+  } catch (err: any) {
+    const code = err?.response?.status;
+    if (code === 404 || code === 501) return null;
+    throw err;
+  }
+}
+
 // ============================================================
 // Members
 // ============================================================
@@ -119,6 +134,23 @@ async function cancelMember(
   body: AdminActionRequest,
 ): Promise<NbMember | null> {
   const res = await api.patch<any>(`/nb/admin/members/${memberId}/cancel`, body);
+  return unwrap<NbMember>(res.data);
+}
+
+// ── 1 aylık ücretsiz deneme yönetimi ──
+
+async function grantTrial(memberId: string): Promise<NbMember | null> {
+  const res = await api.patch<any>(`/nb/admin/members/${memberId}/grant-trial`);
+  return unwrap<NbMember>(res.data);
+}
+
+async function extendTrial(memberId: string, days = 7): Promise<NbMember | null> {
+  const res = await api.patch<any>(`/nb/admin/members/${memberId}/extend-trial?days=${days}`);
+  return unwrap<NbMember>(res.data);
+}
+
+async function revokeTrial(memberId: string): Promise<NbMember | null> {
+  const res = await api.patch<any>(`/nb/admin/members/${memberId}/revoke-trial`);
   return unwrap<NbMember>(res.data);
 }
 
@@ -504,6 +536,7 @@ async function replayDlqEntry(service: string, eventDbId: string): Promise<NbDlq
 export const nbAdminService = {
   // Dashboard
   getDashboardStats,
+  getReferralImpact,
   // Tiers
   listTiers,
   upsertTier,
@@ -524,6 +557,10 @@ export const nbAdminService = {
   confirmBankTransfer,
   hardDeleteMember,
   listMemberPeriods,
+  // Deneme
+  grantTrial,
+  extendTrial,
+  revokeTrial,
   // Verification
   listVerificationQueue,
   getVerificationCase,

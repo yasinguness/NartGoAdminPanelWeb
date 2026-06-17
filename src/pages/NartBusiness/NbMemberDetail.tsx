@@ -60,7 +60,7 @@ import {
   TIER_LABEL,
   formatMoney,
 } from '../../utils/nbDisplay';
-import { NbSectionPaper, NbStatusBadge } from '../../components/nartbusiness';
+import { NbSectionPaper, NbStatusBadge, useNbMobile } from '../../components/nartbusiness';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbEditBusinessDialog from './NbEditBusinessDialog';
 
@@ -79,6 +79,7 @@ import NbEditBusinessDialog from './NbEditBusinessDialog';
 export default function NbMemberDetail() {
   const { memberId } = useParams<{ memberId: string }>();
   const navigate = useNavigate();
+  const fullScreen = useNbMobile();
 
   const [member, setMember] = useState<NbMember | null>(null);
   const [user, setUser] = useState<NbUserSearchResult | null>(null);
@@ -90,6 +91,29 @@ export default function NbMemberDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionOpen, setActionOpen] = useState(false);
+  const [trialBusy, setTrialBusy] = useState(false);
+
+  const handleTrial = async (kind: 'grant' | 'extend' | 'revoke') => {
+    if (!member) return;
+    const msg = {
+      grant: '1 aylık ücretsiz deneme verilsin mi?',
+      extend: 'Deneme 7 gün uzatılsın mı?',
+      revoke: 'Deneme şimdi sonlandırılsın mı? (üye ödeme bekleyene döner)',
+    }[kind];
+    if (!window.confirm(msg)) return;
+    setTrialBusy(true);
+    try {
+      if (kind === 'grant') await nbAdminService.grantTrial(member.memberId);
+      else if (kind === 'extend') await nbAdminService.extendTrial(member.memberId, 7);
+      else await nbAdminService.revokeTrial(member.memberId);
+      const m = await nbAdminService.getMember(member.memberId);
+      setMember(m);
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message ?? e?.message ?? 'Deneme işlemi başarısız');
+    } finally {
+      setTrialBusy(false);
+    }
+  };
   const [editOpen, setEditOpen] = useState(false);
   // Havale ile ödeme yapan üyenin manuel onayı — sadece status =
   // APPROVED_PENDING_PAYMENT + paymentMethod = BANK_TRANSFER ise gözükür
@@ -295,6 +319,36 @@ export default function NbMemberDetail() {
                   Havale Ödemesini Onayla
                 </Button>
               )}
+            {member.status === 'APPROVED_PENDING_PAYMENT' && !member.trialUsed && (
+              <Button
+                variant="outlined"
+                color="info"
+                disabled={trialBusy}
+                onClick={() => handleTrial('grant')}
+              >
+                Deneme Ver (1 ay)
+              </Button>
+            )}
+            {member.status === 'TRIAL' && (
+              <>
+                <Button
+                  variant="outlined"
+                  color="info"
+                  disabled={trialBusy}
+                  onClick={() => handleTrial('extend')}
+                >
+                  Deneme +7 gün
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  disabled={trialBusy}
+                  onClick={() => handleTrial('revoke')}
+                >
+                  Denemeyi Sonlandır
+                </Button>
+              </>
+            )}
             <Button
               variant="outlined"
               startIcon={<EditOutlinedIcon />}
@@ -626,6 +680,7 @@ export default function NbMemberDetail() {
         onClose={() => !bankConfirming && setBankConfirmOpen(false)}
         maxWidth="sm"
         fullWidth
+        fullScreen={fullScreen}
       >
         <DialogTitle>Havale Ödemesini Onayla</DialogTitle>
         <DialogContent>

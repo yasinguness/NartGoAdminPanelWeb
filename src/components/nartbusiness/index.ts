@@ -1,4 +1,5 @@
 export { default as NbStatusBadge, nbStatusMeta } from './NbStatusBadge';
+export { useNbMobile } from './useNbMobile';
 export { default as RadioCardGroup } from './RadioCardGroup';
 export type { RadioCardOption } from './RadioCardGroup';
 export { default as CatalogAutocomplete } from './CatalogAutocomplete';

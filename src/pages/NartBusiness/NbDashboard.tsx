@@ -22,7 +22,16 @@ import {
   Business as BusinessIcon,
 } from '@mui/icons-material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
-import type { NbDashboardStats, MembershipTier } from '../../services/nartbusiness/nbTypes';
+import type {
+  NbDashboardStats,
+  MembershipTier,
+  ReferralImpact,
+} from '../../services/nartbusiness/nbTypes';
+
+/** ₺ tam sayı tutarı okunur biçimde basar: 4.250.000 → "₺4.250.000". */
+function formatTry(amount: number): string {
+  return `₺${new Intl.NumberFormat('tr-TR').format(amount)}`;
+}
 
 const TIER_LABELS: Record<MembershipTier, string> = {
   KURUCU: 'Kurucu',
@@ -93,6 +102,7 @@ function StatCard({
 export default function NbDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<NbDashboardStats | null>(null);
+  const [impact, setImpact] = useState<ReferralImpact | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,6 +119,15 @@ export default function NbDashboard() {
         if (!mounted) return;
         setError(err?.message ?? 'Veri yüklenemedi');
         setLoading(false);
+      });
+    // TYFCB ROI — best-effort, dashboard'u bloklamaz.
+    nbAdminService
+      .getReferralImpact()
+      .then((data) => {
+        if (mounted) setImpact(data);
+      })
+      .catch(() => {
+        /* yoksay — endpoint yoksa banner gizli kalır */
       });
     return () => {
       mounted = false;
@@ -133,6 +152,39 @@ export default function NbDashboard() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         Üyelik, doğrulama ve ödeme akışlarının özet KPI'ları.
       </Typography>
+
+      {/* TYFCB — topluluğun ürettiği ekonomik değer (ROI kanıtı). */}
+      {impact && impact.wonCount > 0 && (
+        <Card
+          sx={{
+            mb: 3,
+            background: (theme: Theme) =>
+              `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.12)} 0%, ${alpha(
+                theme.palette.success.main,
+                0.04,
+              )} 100%)`,
+            border: (theme: Theme) => `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+          }}
+        >
+          <CardContent>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <TrendingIcon color="success" sx={{ fontSize: 32 }} />
+              <Box>
+                <Typography variant="h4" fontWeight={700} color="success.dark">
+                  {formatTry(impact.totalDealValueTry)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Üyelerin birbirine yaptırdığı toplam iş ·{' '}
+                  <b>{impact.wonCount}</b> kazanılan yönlendirme
+                  {impact.dealValueTryLast12Months > 0 && (
+                    <> · son 12 ay {formatTry(impact.dealValueTryLast12Months)}</>
+                  )}
+                </Typography>
+              </Box>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
 
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>

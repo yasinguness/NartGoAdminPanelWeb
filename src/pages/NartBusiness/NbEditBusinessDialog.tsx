@@ -40,6 +40,7 @@ import {
   NbSectionPaper,
   SectorCheckboxGrid,
   SocialPrefixField,
+  useNbMobile,
   type AuditCategoryOption,
   type CompanyPlaceResult,
 } from '../../components/nartbusiness';
@@ -117,6 +118,7 @@ function matchTrCity(googleCity: string): string | undefined {
  * Tek-sayfa form; lifecycle (tier/status/ödeme) buraya dahil değil.
  */
 export default function NbEditBusinessDialog({ open, member, onClose, onSaved }: Props) {
+  const fullScreen = useNbMobile();
   const [form, setForm] = useState<Partial<AdminUpdateBusinessRequest>>({});
   const [instaHandle, setInstaHandle] = useState('');
   const [placeCityHint, setPlaceCityHint] = useState<string | null>(null);
@@ -312,7 +314,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
   const addr = form.companyAddress;
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth fullScreen={fullScreen}>
       <DialogTitle sx={{ pr: 6 }}>
         İşletme Bilgilerini Düzenle
         <Typography variant="body2" color="text.secondary">

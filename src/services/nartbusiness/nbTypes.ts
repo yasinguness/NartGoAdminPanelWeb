@@ -321,6 +321,17 @@ export interface MatchBatchSummary {
   elapsedMs: number;
 }
 
+/**
+ * TYFCB — topluluğun yönlendirmelerle ürettiği kapanan iş değeri.
+ * Backend: GET /api/v1/nb/needs/stats/referral-impact
+ */
+export interface ReferralImpact {
+  totalDealValueTry: number;
+  wonCount: number;
+  dealValueTryLast12Months: number;
+  wonCountLast12Months: number;
+}
+
 export interface NbDashboardStats {
   totalMembers: number;
   activeMembers: number;

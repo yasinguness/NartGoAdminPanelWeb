@@ -24,6 +24,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useNbMobile } from '../../components/nartbusiness';
 import { Edit as EditIcon } from '@mui/icons-material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { TierConfig, TierConfigUpdate } from '../../services/nartbusiness/nbTypes';
@@ -40,6 +41,7 @@ const EMPTY_UPDATE: TierConfigUpdate = {
 };
 
 export default function NbTierManagement() {
+  const fullScreen = useNbMobile();
   const [items, setItems] = useState<TierConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -178,7 +180,7 @@ export default function NbTierManagement() {
         </TableContainer>
       )}
 
-      <Dialog open={isEditing} onClose={closeEdit} maxWidth="sm" fullWidth>
+      <Dialog open={isEditing} onClose={closeEdit} maxWidth="sm" fullWidth fullScreen={fullScreen}>
         <DialogTitle>
           Kademe Düzenle — <Typography component="span" fontFamily="monospace">{editingTier?.code}</Typography>
         </DialogTitle>

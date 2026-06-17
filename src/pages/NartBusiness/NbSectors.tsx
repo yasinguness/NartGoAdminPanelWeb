@@ -26,7 +26,7 @@ import {
 import { Edit as EditIcon, Add as AddIcon } from '@mui/icons-material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { Sector } from '../../services/nartbusiness/nbTypes';
-import { CatalogAutocomplete } from '../../components/nartbusiness';
+import { CatalogAutocomplete, useNbMobile } from '../../components/nartbusiness';
 
 const EMPTY: Sector = {
   code: '',
@@ -41,6 +41,7 @@ const EMPTY: Sector = {
 const CODE_RX = /^[A-Z][A-Z0-9_]{1,49}$/;
 
 export default function NbSectors() {
+  const fullScreen = useNbMobile();
   const [items, setItems] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -189,7 +190,7 @@ export default function NbSectors() {
         </TableContainer>
       )}
 
-      <Dialog open={!!editing} onClose={() => setEditing(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!editing} onClose={() => setEditing(null)} maxWidth="sm" fullWidth fullScreen={fullScreen}>
         <DialogTitle>{isExisting ? 'Sektör Düzenle' : 'Yeni Sektör'}</DialogTitle>
         <DialogContent dividers>
           {editing && (
