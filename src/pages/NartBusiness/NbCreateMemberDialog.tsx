@@ -61,7 +61,11 @@ import {
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  /**
+   * Başarıda çağrılır. result.invited=true ise hesap yoktu → davet e-postası
+   * gönderildi (üye listede HENÜZ görünmez); false ise üye anında oluşturuldu.
+   */
+  onCreated: (result?: import('../../services/nartbusiness/nbAdminService').CreateMemberResult) => void;
 }
 
 type ActivationFlow = 'ACTIVE' | 'APPROVED_PENDING_PAYMENT';
@@ -620,9 +624,9 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
         ...phoneParts,
       } as AdminCreateMemberRequest;
 
-      await nbAdminService.createMemberManually(payload);
+      const result = await nbAdminService.createMemberManually(payload);
       reset();
-      onCreated();
+      onCreated(result);
       onClose();
     } catch (e: any) {
       setError(e?.response?.data?.error?.message ?? e?.message ?? 'Oluşturulamadı');

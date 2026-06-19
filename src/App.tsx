@@ -94,6 +94,7 @@ import NbDlqPanel from './pages/NartBusiness/NbDlqPanel';
 import NbShareAnalytics from './pages/NartBusiness/NbShareAnalytics';
 import NbTestimonials from './pages/NartBusiness/NbTestimonials';
 import NbMarketOpinions from './pages/NartBusiness/NbMarketOpinions';
+import NbMarketNews from './pages/NartBusiness/NbMarketNews';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -220,6 +221,7 @@ function App() {
                 <Route path="nartbusiness/share-analytics" element={<NbShareAnalytics />} />
                 <Route path="nartbusiness/testimonials" element={<NbTestimonials />} />
                 <Route path="nartbusiness/market-opinions" element={<NbMarketOpinions />} />
+                <Route path="nartbusiness/market-news" element={<NbMarketNews />} />
               </Route>
 
               {/* Bilinmeyen path → rol-bilinçli landing (boş ekran yerine). */}

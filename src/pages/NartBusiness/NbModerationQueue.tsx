@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   IconButton,
@@ -24,6 +25,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { api } from '../../services/api';
+import { BulkActionBar, useRowSelection } from '../../components/Actions';
 
 type ReportStatus =
   | 'OPEN'
@@ -69,6 +71,8 @@ export default function NbModerationQueue() {
   const [items, setItems] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const sel = useRowSelection();
 
   const load = async () => {
     setLoading(true);
@@ -104,6 +108,25 @@ export default function NbModerationQueue() {
     }
   };
 
+  const bulkAction = async (action: 'HIDE' | 'KEEP' | 'DISMISS') => {
+    const ids = sel.ids;
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    setError(null);
+    try {
+      await api.post('/nb/admin/community/reports/bulk', { ids, action });
+      sel.clear();
+      await load();
+    } catch (e: any) {
+      setError(e?.message ?? 'Toplu işlem başarısız');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const allSelected = items.length > 0 && items.every((r) => sel.has(r.id));
+  const someSelected = items.some((r) => sel.has(r.id));
+
   return (
     <Box p={3}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
@@ -132,10 +155,29 @@ export default function NbModerationQueue() {
           <CircularProgress />
         </Box>
       ) : (
+        <>
+        <BulkActionBar
+          count={sel.count}
+          busy={bulkBusy}
+          onClear={sel.clear}
+          actions={[
+            { label: 'İçeriği Gizle', color: 'error', icon: <HideIcon fontSize="small" />, confirm: `${sel.count} raporun içeriği gizlensin mi?`, onClick: () => bulkAction('HIDE') },
+            { label: 'Koru', color: 'success', icon: <KeepIcon fontSize="small" />, onClick: () => bulkAction('KEEP') },
+            { label: 'Raporu Kapat', color: 'inherit', icon: <DismissIcon fontSize="small" />, onClick: () => bulkAction('DISMISS') },
+          ]}
+        />
         <TableContainer component={Paper}>
           <Table size="small">
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    size="small"
+                    checked={allSelected}
+                    indeterminate={someSelected && !allSelected}
+                    onChange={(e) => sel.setAll(items.map((r) => r.id), e.target.checked)}
+                  />
+                </TableCell>
                 <TableCell>Tip</TableCell>
                 <TableCell>Hedef ID</TableCell>
                 <TableCell>Sebep</TableCell>
@@ -146,7 +188,14 @@ export default function NbModerationQueue() {
             </TableHead>
             <TableBody>
               {items.map((r) => (
-                <TableRow key={r.id} hover>
+                <TableRow key={r.id} hover selected={sel.has(r.id)}>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      checked={sel.has(r.id)}
+                      onChange={() => sel.toggle(r.id)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Chip
                       size="small"
@@ -191,7 +240,7 @@ export default function NbModerationQueue() {
               ))}
               {items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={7} align="center">
                     <Typography variant="body2" color="text.secondary" py={3}>
                       Açık moderasyon talebi yok.
                     </Typography>
@@ -201,6 +250,7 @@ export default function NbModerationQueue() {
             </TableBody>
           </Table>
         </TableContainer>
+        </>
       )}
     </Box>
   );

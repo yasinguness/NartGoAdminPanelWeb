@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Box, Checkbox, CircularProgress, FormControlLabel, Typography } from '@mui/material';
 import type { Sector } from '../../services/nartbusiness/nbTypes';
 
@@ -11,8 +12,10 @@ interface Props {
 }
 
 /**
- * Apply formundaki sektör checkbox grid'inin admin-MUI eşdeğeri.
- * Katalogdan beslenir; `max` üzeri seçim disabled olur.
+ * ANA sektör seçimi (admin). Katalog tek kaynak (nb-directory); web başvuru formu
+ * ve mobil ile aynı kanonik kodlar. Yalnız ÜST kategoriler (parentCode yok) gösterilir
+ * — alt-sektör üyenin broad sektör seçimine girmez; tekil `subSectorCode` olarak
+ * dizin profilinde (profil düzenleme) seçilir. `max` üzeri seçim disabled olur.
  */
 export default function SectorCheckboxGrid({
   sectors,
@@ -21,6 +24,11 @@ export default function SectorCheckboxGrid({
   onChange,
   max = 3,
 }: Props) {
+  const mains = useMemo(
+    () => sectors.filter((s) => !s.parentCode).sort((a, b) => a.sortOrder - b.sortOrder),
+    [sectors],
+  );
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
@@ -32,7 +40,7 @@ export default function SectorCheckboxGrid({
     );
   }
 
-  if (sectors.length === 0) {
+  if (mains.length === 0) {
     return (
       <Typography variant="caption" color="text.secondary">
         Sektör katalogu boş.
@@ -49,7 +57,7 @@ export default function SectorCheckboxGrid({
         rowGap: 0.5,
       }}
     >
-      {sectors.map((s) => {
+      {mains.map((s) => {
         const checked = value.includes(s.code);
         const disabled = !checked && value.length >= max;
         return (

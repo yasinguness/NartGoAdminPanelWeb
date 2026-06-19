@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Avatar,
   Box,
   Button,
   Chip,
+  CircularProgress,
   FormControl,
   IconButton,
   InputAdornment,
@@ -18,6 +22,7 @@ import {
   Pagination,
   Paper,
   Select,
+  Snackbar,
   Skeleton,
   Stack,
   Table,
@@ -32,6 +37,9 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
@@ -39,6 +47,7 @@ import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import type { NbPendingInvite } from '../../services/nartbusiness/nbAdminService';
 import type {
   MembershipTier,
   NbMember,
@@ -272,6 +281,156 @@ function MemberRow({
   );
 }
 
+/**
+ * Bekleyen email-davetleri (hesabı henüz olmayan/profil tamamlamamış kişiler).
+ * Davet edilen kişi üye listesinde GÖRÜNMEZ — bu panel admin'in tek görünürlüğü.
+ * refreshKey değiştiğinde (yeni davet oluşturulunca) listeyi yeniden çeker.
+ */
+function PendingInvitesPanel({ refreshKey }: { refreshKey: number }) {
+  const [invites, setInvites] = useState<NbPendingInvite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    nbAdminService
+      .listPendingInvites()
+      .then(setInvites)
+      .catch(() => setInvites([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [refreshKey]);
+
+  const handleResend = (inv: NbPendingInvite) => {
+    setBusyId(inv.id);
+    nbAdminService
+      .resendInvite(inv.id)
+      .then(() => setMsg({ severity: 'success', text: `Davet tekrar gönderildi: ${inv.email}` }))
+      .catch((e) =>
+        setMsg({ severity: 'error', text: e?.response?.data?.error?.message ?? 'Gönderilemedi' }),
+      )
+      .finally(() => setBusyId(null));
+  };
+
+  const handleCancel = (inv: NbPendingInvite) => {
+    if (!window.confirm(`Davet iptal edilsin mi?\n${inv.email}\n\nKişi sonradan kaydolursa üyelik otomatik tanımlanmaz.`)) {
+      return;
+    }
+    setBusyId(inv.id);
+    nbAdminService
+      .cancelInvite(inv.id)
+      .then(() => {
+        setMsg({ severity: 'success', text: `Davet iptal edildi: ${inv.email}` });
+        setInvites((prev) => prev.filter((x) => x.id !== inv.id));
+      })
+      .catch((e) =>
+        setMsg({ severity: 'error', text: e?.response?.data?.error?.message ?? 'İptal edilemedi' }),
+      )
+      .finally(() => setBusyId(null));
+  };
+
+  return (
+    <Accordion variant="outlined" disableGutters sx={{ mb: 2, '&:before': { display: 'none' } }} defaultExpanded={false}>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <MailOutlineIcon fontSize="small" color="action" />
+          <Typography fontWeight={600}>Bekleyen Kayıtlar</Typography>
+          <Chip
+            size="small"
+            color={invites.length > 0 ? 'warning' : 'default'}
+            label={loading ? '…' : invites.length}
+          />
+        </Stack>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          Hesabı olmayan kişiler için bekleyen kayıtlar — admin daveti veya public başvuru. Kişi aynı
+          e-postayla (Apple/Google/e-posta) kaydolup profilini tamamlayınca otomatik bağlanır
+          (davet→üye, başvuru→komiteye SUBMITTED) ve listeden düşer.
+        </Typography>
+
+        {msg && (
+          <Alert severity={msg.severity} onClose={() => setMsg(null)} sx={{ mb: 1.5 }}>
+            {msg.text}
+          </Alert>
+        )}
+
+        {loading ? (
+          <Stack alignItems="center" py={3}>
+            <CircularProgress size={22} />
+          </Stack>
+        ) : invites.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" py={1}>
+            Bekleyen davet yok.
+          </Typography>
+        ) : (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>E-posta</TableCell>
+                  <TableCell>Tür</TableCell>
+                  <TableCell>İşletme</TableCell>
+                  <TableCell>Kademe</TableCell>
+                  <TableCell>Oluşturulma</TableCell>
+                  <TableCell align="right">İşlem</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {invites.map((inv) => (
+                  <TableRow key={inv.id} hover>
+                    <TableCell>{inv.email}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color={inv.origin === 'SELF_APPLY' ? 'info' : 'default'}
+                        label={inv.origin === 'SELF_APPLY' ? 'Başvuru' : 'Davet'}
+                      />
+                    </TableCell>
+                    <TableCell>{inv.companyName || '—'}</TableCell>
+                    <TableCell>
+                      {inv.tier ? TIER_LABEL[inv.tier as MembershipTier] ?? inv.tier : '—'}
+                    </TableCell>
+                    <TableCell>{inv.createdAt ? relativeDate(inv.createdAt) : '—'}</TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Daveti tekrar gönder">
+                        <span>
+                          <IconButton
+                            size="small"
+                            disabled={busyId === inv.id}
+                            onClick={() => handleResend(inv)}
+                          >
+                            <RefreshIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Daveti iptal et">
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            disabled={busyId === inv.id}
+                            onClick={() => handleCancel(inv)}
+                          >
+                            <CancelOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </AccordionDetails>
+    </Accordion>
+  );
+}
+
 export default function NbMembers() {
   const navigate = useNavigate();
   const [data, setData] = useState<PagedResult<NbMember> | null>(null);
@@ -284,6 +443,8 @@ export default function NbMembers() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
   const [createOpen, setCreateOpen] = useState(false);
+  const [createMsg, setCreateMsg] = useState<{ severity: 'success' | 'info'; text: string } | null>(null);
+  const [invitesRefresh, setInvitesRefresh] = useState(0);
   const [actionMember, setActionMember] = useState<NbMember | null>(null);
   const [deleteMember, setDeleteMember] = useState<NbMember | null>(null);
 
@@ -398,6 +559,9 @@ export default function NbMembers() {
           )}
         </Stack>
       </Paper>
+
+      {/* Email-davet modeli — bekleyen davetler (üye listesinde görünmezler) */}
+      <PendingInvitesPanel refreshKey={invitesRefresh} />
 
       {/* Arama */}
       <TextField
@@ -569,8 +733,39 @@ export default function NbMembers() {
       <NbCreateMemberDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={load}
+        onCreated={(result) => {
+          load();
+          if (result?.invited) {
+            setInvitesRefresh((n) => n + 1);
+            setCreateMsg({
+              severity: 'info',
+              text:
+                result.message ||
+                `Davet e-postası gönderildi (${result.email ?? ''}). Kullanıcı aynı e-postayla kaydolup profilini tamamlayınca üyelik otomatik tanımlanacak.`,
+            });
+          } else {
+            setCreateMsg({ severity: 'success', text: result?.message || 'Üye oluşturuldu.' });
+          }
+        }}
       />
+
+      <Snackbar
+        open={!!createMsg}
+        autoHideDuration={createMsg?.severity === 'info' ? 9000 : 5000}
+        onClose={() => setCreateMsg(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        {createMsg ? (
+          <Alert
+            severity={createMsg.severity}
+            variant="filled"
+            onClose={() => setCreateMsg(null)}
+            sx={{ maxWidth: 520 }}
+          >
+            {createMsg.text}
+          </Alert>
+        ) : undefined}
+      </Snackbar>
 
       <NbMemberActionDialog
         open={!!actionMember}

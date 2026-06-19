@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { DataTable, DataTableColumn, StatusChip } from '../../components/Data';
+import { BulkActionBar } from '../../components/Actions';
 import { FilterBar, FilterSelect } from '../../components/Filter';
 import { PageContainer, PageHeader, PageSection } from '../../components/Page';
 import { businessClaimService } from '../../services/business/businessClaimService';
@@ -65,6 +66,12 @@ export default function BusinessClaims() {
   const [verificationMethod, setVerificationMethod] = useState('');
   const [verificationNotes, setVerificationNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+
+  // Toplu seçim + toplu reddet gerekçe dialog'u
+  const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState('');
 
   const queryParams = useMemo(
     () => ({
@@ -132,6 +139,30 @@ export default function BusinessClaims() {
       enqueueSnackbar('Talep değerlendirme işlemi başarısız oldu.', { variant: 'error' });
     },
   });
+
+  const runBulk = async (review: { decision: BusinessClaimDecision; rejectionReason?: string }) => {
+    const ids = selectedIds.map(String);
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const res = await businessClaimService.reviewClaimsBulk(ids, review);
+      setSelectedIds([]);
+      setBulkRejectOpen(false);
+      setBulkRejectReason('');
+      await claimsQuery.refetch();
+      const failed = res.requested - res.succeeded;
+      enqueueSnackbar(
+        failed > 0
+          ? `${res.succeeded}/${res.requested} talep işlendi (${failed} atlandı — beklemede olmayabilir).`
+          : `${res.succeeded} talep ${review.decision === 'APPROVE' ? 'onaylandı' : 'reddedildi'}.`,
+        { variant: failed > 0 ? 'warning' : 'success' },
+      );
+    } catch {
+      enqueueSnackbar('Toplu işlem başarısız oldu.', { variant: 'error' });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   const columns: DataTableColumn<BusinessClaimResponse>[] = [
     {
@@ -254,12 +285,35 @@ export default function BusinessClaims() {
 
       <Grid container spacing={2}>
         <Grid item xs={12} md={7}>
+          <BulkActionBar
+            count={selectedIds.length}
+            busy={bulkBusy}
+            onClear={() => setSelectedIds([])}
+            actions={[
+              {
+                label: 'Toplu Onayla',
+                color: 'success',
+                icon: <ApproveIcon fontSize="small" />,
+                confirm: `${selectedIds.length} talep onaylansın mı?`,
+                onClick: () => runBulk({ decision: 'APPROVE' }),
+              },
+              {
+                label: 'Toplu Reddet',
+                color: 'error',
+                icon: <RejectIcon fontSize="small" />,
+                onClick: () => setBulkRejectOpen(true),
+              },
+            ]}
+          />
           <PageSection title="Talep Listesi" noPadding>
             <DataTable
               columns={columns}
               data={claimsQuery.data?.content || []}
               loading={claimsQuery.isLoading || claimsQuery.isFetching}
               getRowKey={(row) => row.claimId}
+              selectable
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
               onRowClick={(row) => setSelectedClaim(row)}
               pagination={{
                 page,
@@ -439,6 +493,49 @@ export default function BusinessClaims() {
             disabled={reviewMutation.isPending}
           >
             {reviewDialog.decision === 'APPROVE' ? 'Onayı Kaydet' : 'Reddi Kaydet'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={bulkRejectOpen}
+        onClose={() => setBulkRejectOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>{selectedIds.length} Talebi Reddet</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Seçilen tüm taleplere aynı ret sebebi uygulanır.
+            </Typography>
+            <TextField
+              label="Ret Sebebi"
+              value={bulkRejectReason}
+              onChange={(event) => setBulkRejectReason(event.target.value)}
+              fullWidth
+              required
+              multiline
+              minRows={2}
+              inputProps={{ maxLength: 1000 }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkRejectOpen(false)}>İptal</Button>
+          <Button
+            onClick={() => {
+              if (!bulkRejectReason.trim()) {
+                enqueueSnackbar('Ret sebebi zorunludur.', { variant: 'warning' });
+                return;
+              }
+              void runBulk({ decision: 'REJECT', rejectionReason: bulkRejectReason.trim() });
+            }}
+            variant="contained"
+            color="error"
+            disabled={bulkBusy}
+          >
+            Reddi Kaydet
           </Button>
         </DialogActions>
       </Dialog>

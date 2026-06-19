@@ -48,6 +48,7 @@ import {
     BarChart as BarChartIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import { useAdminBadgeCounts } from '../hooks/useAdminBadgeCounts';
 import { usePageTracking } from '../hooks/analytics/useAnalytics';
 import { useRole } from '../hooks/useRole';
 import { useDefaultEvent } from '../hooks/useDefaultEvent';
@@ -137,6 +138,7 @@ const navSections: NavSection[] = [
             { text: 'Embedding & Matching', icon: <ToggleOnIcon />, path: '/nartbusiness/embedding-jobs', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Moderasyon Kuyruğu', icon: <FactCheckIcon />, path: '/nartbusiness/moderation', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
             { text: 'Üye Görüşleri', icon: <FactCheckIcon />, path: '/nartbusiness/market-opinions', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
+            { text: 'Piyasa Haberleri', icon: <FactCheckIcon />, path: '/nartbusiness/market-news', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
             { text: 'NB DLQ', icon: <ToggleOnIcon />, path: '/nartbusiness/dlq', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Paylaşım Analitikleri', icon: <ShareIcon />, path: '/nartbusiness/share-analytics', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Referanslar', icon: <StarIcon />, path: '/nartbusiness/testimonials', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
@@ -223,6 +225,8 @@ export default function Layout() {
     const location = useLocation();
     const { roles, userName, isEditorOnly, isAdmin, isOrganizer, canAccess } = useRole();
     const { logout } = useAuth();
+    // Sidebar "müdahale bekleyen" kuyruk sayıları (60sn polling).
+    const badgeCounts = useAdminBadgeCounts();
 
     // Organizator için aktif etkinlik sayısı (sidebar context indicator)
     const { events, defaultEventId } = useDefaultEvent();
@@ -418,6 +422,28 @@ export default function Layout() {
                                     }}>
                                         {item.text}
                                     </Typography>
+                                    {badgeCounts[item.path] > 0 && (
+                                        <Box
+                                            component="span"
+                                            aria-label={`${badgeCounts[item.path]} bekleyen`}
+                                            sx={{
+                                                ml: 'auto',
+                                                flexShrink: 0,
+                                                minWidth: 18,
+                                                height: 18,
+                                                px: 0.75,
+                                                borderRadius: 9,
+                                                bgcolor: '#C0392B',
+                                                color: 'white',
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                lineHeight: '18px',
+                                                textAlign: 'center',
+                                            }}
+                                        >
+                                            {badgeCounts[item.path] > 99 ? '99+' : badgeCounts[item.path]}
+                                        </Box>
+                                    )}
                                 </Box>
                             );
                         })}

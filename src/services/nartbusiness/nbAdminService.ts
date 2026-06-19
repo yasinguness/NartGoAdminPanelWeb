@@ -41,6 +41,31 @@ import type {
   VerificationDocumentType,
 } from './nbTypes';
 
+/**
+ * Manuel üye oluşturma sonucu.
+ * - invited=true  → hesabı olmayan e-posta; davet oluşturuldu, davet e-postası gitti.
+ * - invited=false → hesap mevcuttu; üye anında oluşturuldu (member dolu).
+ */
+export interface CreateMemberResult {
+  invited: boolean;
+  message: string;
+  member?: NbMember | null;
+  inviteId?: string;
+  email?: string;
+}
+
+/** Bekleyen kayıt satırı (admin liste görünümü) — davet veya public başvuru. */
+export interface NbPendingInvite {
+  id: string;
+  email: string;
+  /** ADMIN_INVITE (admin daveti) | SELF_APPLY (public web başvurusu). */
+  origin?: string | null;
+  tier?: string | null;
+  companyName?: string | null;
+  adminNote?: string | null;
+  createdAt?: string | null;
+}
+
 function unwrap<T>(body: any): T | null {
   if (!body) return null;
   if (typeof body === 'object' && 'success' in body && 'data' in body) {
@@ -242,12 +267,34 @@ async function listMemberPeriods(memberId: string): Promise<NbPeriodView[]> {
 /**
  * Sprint 23 — Admin manuel üye oluşturma.
  * Self-service apply akışını atlayarak offline anlaşmalı işletmeler için.
+ *
+ * Email-davet modeli: girilen e-postanın hesabı yoksa backend Keycloak hesabı
+ * AÇMAZ; bekleyen bir NB daveti oluşturup davet e-postası gönderir (invited=true).
+ * Kullanıcı aynı e-postayla kaydolup profilini tamamlayınca üyelik otomatik tanımlanır.
+ * Hesap zaten varsa eskisi gibi üye anında oluşturulur (invited=false, member dolu).
  */
 async function createMemberManually(
   body: import('./nbTypes').AdminCreateMemberRequest,
-): Promise<NbMember | null> {
+): Promise<CreateMemberResult> {
   const res = await api.post<any>('/nb/admin/members', body);
-  return unwrap<NbMember>(res.data);
+  const data = unwrap<CreateMemberResult>(res.data);
+  return data ?? { invited: false, message: 'Üye oluşturuldu.' };
+}
+
+/** Bekleyen email-davetleri (hesabı henüz olmayan/profil tamamlamamış kişiler). */
+async function listPendingInvites(): Promise<NbPendingInvite[]> {
+  const res = await api.get<any>('/nb/admin/membership/invites');
+  return unwrap<NbPendingInvite[]>(res.data) ?? [];
+}
+
+/** Bekleyen daveti tekrar e-postayla gönder. */
+async function resendInvite(inviteId: string): Promise<void> {
+  await api.post(`/nb/admin/membership/invites/${inviteId}/resend`);
+}
+
+/** Bekleyen daveti iptal et (CANCELLED). */
+async function cancelInvite(inviteId: string): Promise<void> {
+  await api.post(`/nb/admin/membership/invites/${inviteId}/cancel`);
 }
 
 /**
@@ -594,6 +641,9 @@ export const nbAdminService = {
   listMembers,
   getMember,
   createMemberManually,
+  listPendingInvites,
+  resendInvite,
+  cancelInvite,
   updateMemberBusiness,
   searchUsers,
   lookupUserByEmail,
