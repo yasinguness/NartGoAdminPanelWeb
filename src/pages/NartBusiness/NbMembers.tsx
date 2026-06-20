@@ -744,7 +744,12 @@ export default function NbMembers() {
                 `Davet e-postası gönderildi (${result.email ?? ''}). Kullanıcı aynı e-postayla kaydolup profilini tamamlayınca üyelik otomatik tanımlanacak.`,
             });
           } else {
-            setCreateMsg({ severity: 'success', text: result?.message || 'Üye oluşturuldu.' });
+            setCreateMsg({
+              severity: 'success',
+              text:
+                result?.message ||
+                'Üye oluşturuldu. Hesabı yoksa NartGo hesabı açıldı ve şifre belirleme e-postası gönderildi.',
+            });
           }
         }}
       />
