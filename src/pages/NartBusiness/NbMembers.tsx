@@ -68,6 +68,21 @@ import NbMemberHardDeleteDialog from './NbMemberHardDeleteDialog';
 
 type QuickFilter = 'all' | 'pending' | 'recent7d' | 'incomplete' | 'kurucu';
 
+/**
+ * TRIAL üyenin kalan deneme süresi — status badge altına gösterilir.
+ * Renk: ≤2 gün/bitmiş → error, ≤7 gün → warning, aksi → text.secondary.
+ */
+function trialRemaining(trialEndsAt?: string): { text: string; color: string } | null {
+  if (!trialEndsAt) return null;
+  const ends = new Date(trialEndsAt).getTime();
+  if (Number.isNaN(ends)) return null;
+  const diffDays = Math.ceil((ends - Date.now()) / 86_400_000);
+  if (diffDays <= 0) return { text: 'Süresi doldu', color: 'error.main' };
+  const text = diffDays === 1 ? 'Son gün' : `${diffDays} gün kaldı`;
+  const color = diffDays <= 2 ? 'error.main' : diffDays <= 7 ? 'warning.main' : 'text.secondary';
+  return { text, color };
+}
+
 const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
   { value: 'all', label: 'Tümü' },
   { value: 'pending', label: 'Bekleyenler' },
@@ -242,6 +257,24 @@ function MemberRow({
       {/* Durum */}
       <TableCell>
         <NbStatusBadge status={member.status} label={STATUS_LABEL[member.status]} />
+        {member.status === 'TRIAL' &&
+          (() => {
+            const r = trialRemaining(member.trialEndsAt);
+            return r ? (
+              <Tooltip
+                title={member.trialEndsAt ? `Deneme bitişi: ${fullDate(member.trialEndsAt)}` : ''}
+                arrow
+              >
+                <Typography
+                  variant="caption"
+                  display="block"
+                  sx={{ mt: 0.25, color: r.color, fontWeight: 500 }}
+                >
+                  {r.text}
+                </Typography>
+              </Tooltip>
+            ) : null;
+          })()}
       </TableCell>
 
       {/* Rozet */}
@@ -517,6 +550,7 @@ export default function NbMembers() {
     return {
       total: data?.totalElements ?? 0,
       active: all.filter((m) => m.status === 'ACTIVE').length,
+      trial: all.filter((m) => m.status === 'TRIAL').length,
       pending: all.filter(
         (m) =>
           m.status === 'SUBMITTED' ||
@@ -551,6 +585,7 @@ export default function NbMembers() {
         <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
           <StatChip label="Toplam" value={stats.total} />
           <StatChip label="Aktif" value={stats.active} color="success" />
+          {stats.trial > 0 && <StatChip label="Deneme" value={stats.trial} color="info" />}
           <StatChip label="Bekleyen" value={stats.pending} color="warning" />
           <StatChip label="Askıda" value={stats.suspended} color="error" />
           <StatChip label="İptal" value={stats.cancelled} color="default" />
@@ -858,7 +893,7 @@ function StatChip({
 }: {
   label: string;
   value: number;
-  color?: 'default' | 'success' | 'warning' | 'error';
+  color?: 'default' | 'success' | 'warning' | 'error' | 'info';
 }) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
@@ -875,6 +910,8 @@ function StatChip({
             ? 'warning.main'
             : color === 'error'
             ? 'error.main'
+            : color === 'info'
+            ? 'info.main'
             : 'text.primary'
         }
       >

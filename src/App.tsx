@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard';
 import Devices from './pages/Devices';
 import Users from './pages/Users';
 import UserDetails from './pages/Users/UserDetails';
+import UserActivity from './pages/Users/UserActivity';
+import NbAuditLog from './pages/NartBusiness/NbAuditLog';
 import Login from './pages/Login';
 import PrivateRoute from './components/PrivateRoute';
 import { useAuthStore } from './store/authStore';
@@ -29,6 +31,7 @@ import AssociationCreatePage from './pages/Associations/AssociationCreatePage';
 import NotificationsRefactored from './pages/Notifications/NotificationsRefactored';
 import ManualEmailSender from './pages/ManualEmail/ManualEmailSender';
 import EmailLogs from './pages/ManualEmail/EmailLogs';
+import EmailTemplateEditor from './pages/ManualEmail/EmailTemplateEditor';
 import TicketCreationPage from './pages/Tickets/TicketCreationPage';
 import RaffleLivePage from './pages/Event/RaffleLivePage';
 import FeedVideos from './pages/Feeds/FeedVideos';
@@ -155,6 +158,7 @@ function App() {
                 <Route path="devices" element={<Devices />} />
                 <Route path="notifications" element={<NotificationsRefactored />} />
                 <Route path="manual-email" element={<ManualEmailSender />} />
+                <Route path="email-templates" element={<EmailTemplateEditor />} />
                 <Route path="email-logs" element={<EmailLogs />} />
                 <Route path="feeds" element={<FeedVideos />} />
                 <Route path="bulletins" element={<Bulletins />} />
@@ -163,6 +167,7 @@ function App() {
                 <Route path="content/:id" element={<ContentDetail />} />
                 <Route path="content/:id/edit" element={<ContentEditor />} />
                 <Route path="users" element={<Users />} />
+                <Route path="user-activity" element={<UserActivity />} />
                 <Route path="users/:id" element={<UserDetails />} />
                 <Route path="users/:id/360" element={<User360 />} />
                 <Route path="businesses" element={<Businesses />} />
@@ -205,6 +210,7 @@ function App() {
                 <Route path="analytics" element={<AnalyticsDashboard />} />
                 {/* NartBusiness (Sprint 7) */}
                 <Route path="nartbusiness/dashboard" element={<NbDashboard />} />
+                <Route path="nartbusiness/audit" element={<NbAuditLog />} />
                 <Route path="nartbusiness/members" element={<NbMembers />} />
                 <Route
                   path="nartbusiness/members/:memberId"

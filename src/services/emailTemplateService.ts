@@ -41,6 +41,32 @@ export interface SendTemplateBody {
   templateName: string;
   subject?: string;
   variables?: Record<string, string>;
+  /** Editörden gelen kaydedilmemiş taslak HTML — yalnız preview için. */
+  htmlContent?: string;
+}
+
+/** Tek şablonun düzenleme görünümü (GET /{key}). */
+export interface EmailTemplateDetail {
+  key: string;
+  title: string;
+  product?: string;
+  category?: string;
+  description?: string;
+  variables: EmailTemplateVar[];
+  originalSubject: string;
+  originalHtml: string;
+  overrideSubject?: string | null;
+  overrideHtml?: string | null;
+  hasOverride: boolean;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+  effectiveSubject: string;
+  effectiveHtml: string;
+}
+
+export interface SaveOverrideBody {
+  subject?: string;
+  htmlContent?: string;
 }
 
 export interface SendTemplateResult {
@@ -64,6 +90,22 @@ export const emailTemplateService = {
   async preview(body: SendTemplateBody): Promise<EmailPreviewResult> {
     const res = await api.post<EmailPreviewResult>('/notifications/admin/email-templates/preview', body);
     return res.data;
+  },
+
+  /** Tek şablonun düzenleme görünümü (orijinal + override + efektif). */
+  async getTemplate(key: string): Promise<EmailTemplateDetail> {
+    const res = await api.get<EmailTemplateDetail>(`/notifications/admin/email-templates/${key}`);
+    return res.data;
+  },
+
+  /** Şablonun konu/HTML override'ını kaydeder. Tüm gönderimleri etkiler. */
+  async saveOverride(key: string, body: SaveOverrideBody): Promise<void> {
+    await api.put(`/notifications/admin/email-templates/${key}`, body);
+  },
+
+  /** Override'ı siler → şablon orijinal (dosya/katalog) içeriğine döner. */
+  async revertOverride(key: string): Promise<void> {
+    await api.delete(`/notifications/admin/email-templates/${key}`);
   },
 
   /** Gönderilen e-posta logları (sayfalı, filtreli). */

@@ -130,6 +130,7 @@ const navSections: NavSection[] = [
         items: [
             { text: 'NB Dashboard', icon: <BusinessIcon />, path: '/nartbusiness/dashboard' },
             { text: 'NB Üyeler', icon: <PeopleIcon />, path: '/nartbusiness/members' },
+            { text: 'İşlem Kayıtları', icon: <FactCheckIcon />, path: '/nartbusiness/audit', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Doğrulama Kuyruğu', icon: <FactCheckIcon />, path: '/nartbusiness/verification' },
             { text: 'Belge Politikaları', icon: <PolicyIcon />, path: '/nartbusiness/verification-policies', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Üyelik Tipleri', icon: <CategoryIcon />, path: '/nartbusiness/tiers', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
@@ -149,6 +150,7 @@ const navSections: NavSection[] = [
         allowedRoles: ['ADMIN', 'ASSOCIATION'],
         items: [
             { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users', allowedRoles: ['ADMIN'] },
+            { text: 'Kullanıcı Aktivitesi', icon: <PeopleIcon />, path: '/user-activity', allowedRoles: ['ADMIN'] },
             { text: 'Dernekler', icon: <HomeWork />, path: '/associations' },
         ],
     },
@@ -158,6 +160,7 @@ const navSections: NavSection[] = [
         items: [
             { text: 'Bildirimler', icon: <NotificationsIcon />, path: '/notifications' },
             { text: 'Hazır Mail Gönder', icon: <EmailIcon />, path: '/manual-email' },
+            { text: 'E-posta Şablonları', icon: <EmailIcon />, path: '/email-templates' },
             { text: 'E-posta Logları', icon: <EmailIcon />, path: '/email-logs' },
             { text: 'Bildirim Takvimi', icon: <NotificationsIcon />, path: '/notification-calendar' },
             { text: 'Video Akışı', icon: <FeedIcon />, path: '/feeds' },
