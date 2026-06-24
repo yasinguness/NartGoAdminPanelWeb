@@ -54,6 +54,30 @@ export interface CreateMemberResult {
   email?: string;
 }
 
+/** İş ilanı (admin moderasyon görünümü). */
+export interface NbJobPostingRow {
+  id: string;
+  ownerMemberId: string;
+  ownerDisplayName?: string | null;
+  ownerCompanyName?: string | null;
+  title: string;
+  description?: string | null;
+  employmentType?: string | null;
+  seniority?: string | null;
+  city?: string | null;
+  district?: string | null;
+  remoteAllowed?: boolean;
+  sectorCode?: string | null;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  currency?: string | null;
+  applyEmail?: string | null;
+  applyUrl?: string | null;
+  status: 'PUBLISHED' | 'CLOSED' | 'HIDDEN';
+  createdAt?: string | null;
+  expiresAt?: string | null;
+}
+
 /** Bekleyen kayıt satırı (admin liste görünümü) — davet veya public başvuru. */
 export interface NbPendingInvite {
   id: string;
@@ -295,6 +319,38 @@ async function resendInvite(inviteId: string): Promise<void> {
 /** Bekleyen daveti iptal et (CANCELLED). */
 async function cancelInvite(inviteId: string): Promise<void> {
   await api.post(`/nb/admin/membership/invites/${inviteId}/cancel`);
+}
+
+// ── İş İlanları moderasyonu ──────────────────────────────────
+
+interface NbJobPage {
+  content: NbJobPostingRow[];
+  page: number;
+  totalPages: number;
+  totalElements: number;
+}
+
+/** İş ilanları — duruma göre (boş = tümü). */
+async function listJobPostings(
+  status?: 'PUBLISHED' | 'CLOSED' | 'HIDDEN',
+  page = 0,
+  size = 25,
+): Promise<NbJobPage> {
+  const res = await api.get<any>('/nb/needs/jobs/admin', {
+    params: { status, page, size },
+  });
+  const d = unwrap<NbJobPage>(res.data);
+  return d ?? { content: [], page: 0, totalPages: 0, totalElements: 0 };
+}
+
+/** İlanı gizle (HIDDEN). */
+async function hideJobPosting(id: string): Promise<void> {
+  await api.post(`/nb/needs/jobs/admin/${id}/hide`);
+}
+
+/** Gizlenen ilanı yeniden yayınla (PUBLISHED). */
+async function publishJobPosting(id: string): Promise<void> {
+  await api.post(`/nb/needs/jobs/admin/${id}/publish`);
 }
 
 /**
@@ -644,6 +700,9 @@ export const nbAdminService = {
   listPendingInvites,
   resendInvite,
   cancelInvite,
+  listJobPostings,
+  hideJobPosting,
+  publishJobPosting,
   updateMemberBusiness,
   searchUsers,
   lookupUserByEmail,

@@ -72,6 +72,7 @@ export const TIER_LABEL: Record<MembershipTier, string> = {
   KURUCU: 'Kurucu',
   STANDART: 'Standart',
   GENC_GIRISIMCI: 'Genç Girişimci',
+  PROFESYONEL: 'Profesyonel',
   PATRON: 'Patron',
 };
 

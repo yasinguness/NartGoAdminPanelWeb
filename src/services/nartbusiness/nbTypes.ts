@@ -1,7 +1,7 @@
 // NartBusiness admin panel için DTO tipleri
 // Sprint 7 — backend response şekilleriyle eşleşmeli.
 
-export type MembershipTier = 'KURUCU' | 'STANDART' | 'GENC_GIRISIMCI' | 'PATRON';
+export type MembershipTier = 'KURUCU' | 'STANDART' | 'GENC_GIRISIMCI' | 'PROFESYONEL' | 'PATRON';
 
 // Sprint 23 — Komite-onaylı-sonra-öde akışı:
 //   SUBMITTED → NEEDS_INFO → SUBMITTED → APPROVED_PENDING_PAYMENT → ACTIVE
@@ -66,7 +66,13 @@ export interface AdminCreateMemberRequest {
   gsmNo?: string;
   createIfMissing?: boolean;
   requestedTier: MembershipTier;
+  /** Üye tipi: BUSINESS (varsayılan) | PROFESSIONAL (kurumda karar verici). */
+  memberType?: 'BUSINESS' | 'PROFESSIONAL';
   companyName: string;
+  /** PROFESSIONAL: ünvan/pozisyon. */
+  personJobTitle?: string;
+  /** PROFESSIONAL: uzmanlık alanları. */
+  expertise?: string;
   sectorCodes: string[];
   city: string;
   /** Google Places'tan gelen yapılandırılmış adres — opsiyonel ama önerilir. */
@@ -115,10 +121,16 @@ export interface NbMember {
   memberId: string;
   userId: string;
   tier: MembershipTier;
+  /** Üye tipi: BUSINESS (işletme) | PROFESSIONAL (kurumda karar verici). */
+  memberType?: 'BUSINESS' | 'PROFESSIONAL';
   status: NbMemberStatus;
   joinedAt: string;
   currentPeriodId?: string;
   verificationCaseId?: string;
+
+  // Profesyonel
+  personJobTitle?: string;
+  expertise?: string;
 
   // 1 aylık ücretsiz deneme
   trialEndsAt?: string;
@@ -226,6 +238,21 @@ export interface VerificationCase {
 }
 
 // Sprint 26 — admin'den yönetilen dinamik üyelik tier konfigürasyonu
+/** Tier'a bağlı yetkiler — admin düzenler, üye UI'ında gösterilir. */
+export interface NbEntitlements {
+  directoryBoost: boolean;
+  weeklySpotlight: boolean;
+  goldBadge: boolean;
+  searchPriority: boolean;
+  mediaSlots: number;
+  matchPriority: boolean;
+  profileAnalytics: boolean;
+  conciergeSupport: boolean;
+  teamSeats: number;
+  jobPostingEnabled: boolean;
+  rfqEarlyAccess: boolean;
+}
+
 export interface TierConfig {
   id: string;
   code: string;
@@ -237,6 +264,7 @@ export interface TierConfig {
   features: string[];
   sortOrder: number;
   active: boolean;
+  entitlements?: NbEntitlements;
 }
 
 export interface TierConfigUpdate {
@@ -248,6 +276,7 @@ export interface TierConfigUpdate {
   features: string[];
   sortOrder: number;
   active: boolean;
+  entitlements?: NbEntitlements;
 }
 
 export interface Sector {

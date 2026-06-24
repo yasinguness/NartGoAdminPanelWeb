@@ -140,6 +140,7 @@ const navSections: NavSection[] = [
             { text: 'Moderasyon Kuyruğu', icon: <FactCheckIcon />, path: '/nartbusiness/moderation', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
             { text: 'Üye Görüşleri', icon: <FactCheckIcon />, path: '/nartbusiness/market-opinions', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
             { text: 'Piyasa Haberleri', icon: <FactCheckIcon />, path: '/nartbusiness/market-news', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
+            { text: 'İş İlanları', icon: <FactCheckIcon />, path: '/nartbusiness/jobs', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
             { text: 'NB DLQ', icon: <ToggleOnIcon />, path: '/nartbusiness/dlq', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Paylaşım Analitikleri', icon: <ShareIcon />, path: '/nartbusiness/share-analytics', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Referanslar', icon: <StarIcon />, path: '/nartbusiness/testimonials', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },

@@ -70,6 +70,20 @@ interface Props {
 
 type ActivationFlow = 'ACTIVE' | 'APPROVED_PENDING_PAYMENT';
 
+const MEMBER_TYPE_OPTIONS: RadioCardOption<'BUSINESS' | 'PROFESSIONAL'>[] = [
+  {
+    value: 'BUSINESS',
+    title: 'İşletme',
+    description: 'Şirket sahibi — arz tarafı. Dizin vitrini, arz/talep/teklif. (Varsayılan)',
+  },
+  {
+    value: 'PROFESSIONAL',
+    title: 'Profesyonel',
+    description:
+      'Kurumda yönetici/karar verici — talep tarafı. Dizinde "Profesyonel" rozeti, yalnız talep açar.',
+  },
+];
+
 const TARGET_STATUS_OPTIONS: RadioCardOption<ActivationFlow>[] = [
   {
     value: 'ACTIVE',
@@ -315,7 +329,9 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     targetStatus: 'ACTIVE',
     grantFreeMembership: false,
     verifiedBusiness: false,
+    memberType: 'BUSINESS',
   });
+  const isProfessional = form.memberType === 'PROFESSIONAL';
 
   // Katalog state'leri
   const [sectors, setSectors] = useState<Sector[]>([]);
@@ -502,10 +518,13 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   const instagramValid = !form.instagramUrl || /^[A-Za-z0-9._]{1,30}$/.test(form.instagramUrl);
   const hasSocial = !!(form.linkedinUrl || form.websiteUrl || form.instagramUrl);
 
-  const businessValid =
-    !!form.companyName?.trim() &&
-    !!form.sectorCodes?.length &&
-    !!form.city;
+  const businessValid = isProfessional
+    ? // Profesyonel: şirket/kurum + ünvan + uzmanlık + sektör (şehir opsiyonel)
+      !!form.companyName?.trim() &&
+      !!form.personJobTitle?.trim() &&
+      !!form.expertise?.trim() &&
+      !!form.sectorCodes?.length
+    : !!form.companyName?.trim() && !!form.sectorCodes?.length && !!form.city;
   const identityValid = !!form.race && !!form.clanName?.trim();
   const socialValid = hasSocial && linkedinValid && websiteValid && instagramValid;
   const tierValid = !!form.requestedTier && !!form.targetStatus;
@@ -537,9 +556,11 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     }
     if (step === 1) {
       const missing: string[] = [];
-      if (!form.companyName?.trim()) missing.push('Şirket Adı');
+      if (!form.companyName?.trim()) missing.push(isProfessional ? 'Şirket/Kurum' : 'Şirket Adı');
+      if (isProfessional && !form.personJobTitle?.trim()) missing.push('Ünvan');
+      if (isProfessional && !form.expertise?.trim()) missing.push('Uzmanlık');
       if (!form.sectorCodes?.length) missing.push('Sektör');
-      if (!form.city) missing.push('Şehir');
+      if (!isProfessional && !form.city) missing.push('Şehir');
       return missing.length ? `Eksik: ${missing.join(', ')}` : null;
     }
     if (step === 2) {
@@ -787,7 +808,48 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       <Stack spacing={2}>
         {prefillBanner}
 
-        <SectionPaper title="Şirket Bilgisi">
+        <SectionPaper title="Üye Tipi">
+          <RadioCardGroup
+            options={MEMBER_TYPE_OPTIONS}
+            value={(form.memberType as 'BUSINESS' | 'PROFESSIONAL') ?? 'BUSINESS'}
+            onChange={(v) => {
+              setForm((f) => ({
+                ...f,
+                memberType: v,
+                // Profesyonel seçilince kademe PROFESYONEL'e, işletmeye dönünce temizle.
+                requestedTier: v === 'PROFESSIONAL' ? ('PROFESYONEL' as MembershipTier) : f.requestedTier,
+              }));
+            }}
+          />
+          {isProfessional && (
+            <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Ünvan / Pozisyon"
+                  placeholder="Genel Müdür, CFO, Satınalma Direktörü…"
+                  value={form.personJobTitle ?? ''}
+                  onChange={(e) => set('personJobTitle', e.target.value)}
+                  fullWidth
+                  required
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Uzmanlık Alanları"
+                  placeholder="Tedarik zinciri, finans, dış ticaret…"
+                  value={form.expertise ?? ''}
+                  onChange={(e) => set('expertise', e.target.value)}
+                  fullWidth
+                  required
+                  size="small"
+                />
+              </Grid>
+            </Grid>
+          )}
+        </SectionPaper>
+
+        <SectionPaper title={isProfessional ? 'Mevcut Şirket / Kurum' : 'Şirket Bilgisi'}>
           <Grid container spacing={2.5}>
             <Grid item xs={12}>
               <CompanyPlacesAutocomplete

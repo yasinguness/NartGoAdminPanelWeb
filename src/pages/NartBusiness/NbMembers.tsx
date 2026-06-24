@@ -66,7 +66,7 @@ import NbCreateMemberDialog from './NbCreateMemberDialog';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbMemberHardDeleteDialog from './NbMemberHardDeleteDialog';
 
-type QuickFilter = 'all' | 'pending' | 'recent7d' | 'incomplete' | 'kurucu';
+type QuickFilter = 'all' | 'pending' | 'recent7d' | 'incomplete' | 'kurucu' | 'professional';
 
 /**
  * TRIAL üyenin kalan deneme süresi — status badge altına gösterilir.
@@ -89,6 +89,7 @@ const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
   { value: 'recent7d', label: 'Son 7 gün' },
   { value: 'incomplete', label: 'Eksik profil' },
   { value: 'kurucu', label: 'Kurucu' },
+  { value: 'professional', label: 'Profesyonel' },
 ];
 
 /** Listede gösterilecek küçük üye-aksiyon menüsü (kebab). */
@@ -220,30 +221,39 @@ function MemberRow({
             {initial}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
-            {member.companyName ? (
-              <Typography
-                variant="body2"
-                fontWeight={600}
-                sx={{
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: 280,
-                }}
-              >
-                {member.companyName}
-              </Typography>
-            ) : (
-              <Chip
-                size="small"
-                color="warning"
-                variant="outlined"
-                label="Şirket bilgisi eksik"
-              />
-            )}
+            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+              {member.companyName ? (
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: 240,
+                  }}
+                >
+                  {member.companyName}
+                </Typography>
+              ) : (
+                <Chip
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  label="Şirket bilgisi eksik"
+                />
+              )}
+              {member.memberType === 'PROFESSIONAL' && (
+                <Chip size="small" color="info" label="Profesyonel" sx={{ height: 20 }} />
+              )}
+            </Stack>
             <Typography variant="caption" color="text.secondary">
-              {[member.city, identityLine].filter(Boolean).join(' · ') ||
-                'Profil bilgisi yok'}
+              {[
+                member.memberType === 'PROFESSIONAL' ? member.personJobTitle : member.city,
+                identityLine,
+              ]
+                .filter(Boolean)
+                .join(' · ') || 'Profil bilgisi yok'}
             </Typography>
           </Box>
         </Stack>
@@ -540,6 +550,9 @@ export default function NbMembers() {
       result = result.filter(
         (m) => !m.companyName || (!(m.sectorCodes?.length) && !m.sectorCode) || !m.race || !m.clanName,
       );
+    }
+    if (quickFilter === 'professional') {
+      result = result.filter((m) => m.memberType === 'PROFESSIONAL');
     }
     return result;
   }, [data?.content, debouncedSearch, quickFilter]);
