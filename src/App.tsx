@@ -89,6 +89,7 @@ import NbMemberDetail from './pages/NartBusiness/NbMemberDetail';
 import NbVerificationQueue from './pages/NartBusiness/NbVerificationQueue';
 import NbVerificationPolicies from './pages/NartBusiness/NbVerificationPolicies';
 import NbSectors from './pages/NartBusiness/NbSectors';
+import NbJobTitles from './pages/NartBusiness/NbJobTitles';
 import NbTierManagement from './pages/NartBusiness/NbTierManagement';
 import NbValueChain from './pages/NartBusiness/NbValueChain';
 import NbEmbeddingJobs from './pages/NartBusiness/NbEmbeddingJobs';
@@ -220,6 +221,7 @@ function App() {
                 <Route path="nartbusiness/verification" element={<NbVerificationQueue />} />
                 <Route path="nartbusiness/verification-policies" element={<NbVerificationPolicies />} />
                 <Route path="nartbusiness/sectors" element={<NbSectors />} />
+                <Route path="nartbusiness/job-titles" element={<NbJobTitles />} />
                 <Route path="nartbusiness/tiers" element={<NbTierManagement />} />
                 <Route path="nartbusiness/value-chain" element={<NbValueChain />} />
                 <Route path="nartbusiness/embedding-jobs" element={<NbEmbeddingJobs />} />

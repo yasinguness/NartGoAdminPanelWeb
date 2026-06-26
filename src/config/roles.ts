@@ -160,6 +160,7 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   { path: '/nartbusiness/verification', roles: NB, description: 'Doğrulama kuyruğu' },
   { path: '/nartbusiness/verification-policies', roles: NB, description: 'Belge politikaları' },
   { path: '/nartbusiness/sectors', roles: NB, description: 'Sektör katalogu' },
+  { path: '/nartbusiness/job-titles', roles: NB, description: 'Ünvan katalogu' },
   { path: '/nartbusiness/tiers', roles: NB, description: 'Üyelik tipleri' },
   { path: '/nartbusiness/value-chain', roles: NB, description: 'Sektör değer zinciri' },
   { path: '/nartbusiness/embedding-jobs', roles: NB, description: 'Embedding & matching' },

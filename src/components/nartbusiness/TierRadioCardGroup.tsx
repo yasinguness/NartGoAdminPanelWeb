@@ -7,6 +7,11 @@ interface Props {
   loading?: boolean;
   value: MembershipTier | undefined;
   onChange: (code: MembershipTier) => void;
+  /**
+   * Verilirse yalnız bu kademe seçilebilir; diğer kartlar muted + disabled olur.
+   * (Profesyonel üye tipinde PROFESYONEL'e kilitlemek için.)
+   */
+  lockedTo?: MembershipTier;
 }
 
 /**
@@ -18,6 +23,7 @@ export default function TierRadioCardGroup({
   loading,
   value,
   onChange,
+  lockedTo,
 }: Props) {
   if (loading) {
     return (
@@ -47,7 +53,11 @@ export default function TierRadioCardGroup({
     <FormControl fullWidth>
       <RadioGroup
         value={value ?? ''}
-        onChange={(e) => onChange(e.target.value as MembershipTier)}
+        onChange={(e) => {
+          const next = e.target.value as MembershipTier;
+          if (lockedTo && next !== lockedTo) return; // kilitli kademe dışı seçim engellenir
+          onChange(next);
+        }}
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
@@ -56,6 +66,7 @@ export default function TierRadioCardGroup({
       >
         {tiers.map((t) => {
           const selected = value === t.code;
+          const locked = !!lockedTo && t.code !== lockedTo;
           const priceLabel =
             t.priceAmount > 0
               ? `${t.priceAmount.toLocaleString('tr-TR')} ${t.currency}`
@@ -64,6 +75,7 @@ export default function TierRadioCardGroup({
             <FormControlLabel
               key={t.id}
               value={t.code}
+              disabled={locked}
               sx={{
                 m: 0,
                 alignItems: 'flex-start',
@@ -72,10 +84,11 @@ export default function TierRadioCardGroup({
                 borderColor: selected ? 'primary.main' : 'divider',
                 bgcolor: selected ? 'action.selected' : 'background.paper',
                 borderRadius: 1.5,
-                cursor: 'pointer',
+                cursor: locked ? 'not-allowed' : 'pointer',
+                opacity: locked ? 0.45 : 1,
                 transition: 'border-color 0.15s ease, background-color 0.15s ease',
                 '&:hover': {
-                  borderColor: selected ? 'primary.main' : 'primary.light',
+                  borderColor: locked ? 'divider' : selected ? 'primary.main' : 'primary.light',
                 },
                 '.MuiFormControlLabel-label': { flexGrow: 1, minWidth: 0, pt: 0.25 },
               }}

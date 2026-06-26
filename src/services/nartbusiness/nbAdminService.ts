@@ -26,6 +26,7 @@ import type {
   NbPeriodView,
   PagedResult,
   Sector,
+  JobTitle,
   Testimonial,
   TestimonialUpsert,
   TierConfig,
@@ -589,6 +590,24 @@ async function upsertSector(body: Sector): Promise<Sector | null> {
 }
 
 // ============================================================
+// Job Titles (ünvan/pozisyon kataloğu — profesyonel üyelik)
+// ============================================================
+
+async function listJobTitles(): Promise<JobTitle[]> {
+  const res = await api.get<any>('/nb/admin/directory/job-titles');
+  return unwrap<JobTitle[]>(res.data) ?? [];
+}
+
+async function upsertJobTitle(body: JobTitle): Promise<JobTitle | null> {
+  const res = await api.put<any>('/nb/admin/directory/job-titles', body);
+  return unwrap<JobTitle>(res.data);
+}
+
+async function deleteJobTitle(id: string): Promise<void> {
+  await api.delete(`/nb/admin/directory/job-titles/${id}`);
+}
+
+// ============================================================
 // Testimonials (referanslar — küratörlü üye sözleri)
 // ============================================================
 
@@ -733,6 +752,10 @@ export const nbAdminService = {
   // Sectors
   listSectors,
   upsertSector,
+  // Job Titles
+  listJobTitles,
+  upsertJobTitle,
+  deleteJobTitle,
   // Testimonials (referanslar)
   listTestimonials,
   createTestimonial,

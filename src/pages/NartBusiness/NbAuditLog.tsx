@@ -19,6 +19,13 @@ import {
   Typography,
 } from '@mui/material';
 import { nbAuditService, type NbAuditRow } from '../../services/nartbusiness/nbAuditService';
+import {
+  actionLabel,
+  outcomeLabel,
+  sourceLabel,
+  targetTypeLabel,
+  formatMeta,
+} from './nbAuditLabels';
 
 function fmt(ts?: string | null): string {
   if (!ts) return '—';
@@ -154,19 +161,33 @@ export default function NbAuditLog() {
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((r) => (
+                rows.map((r) => {
+                  const metaRows = formatMeta(r.meta);
+                  return (
                   <TableRow key={r.id} hover>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmt(r.occurredAt)}</TableCell>
-                    <TableCell><Chip size="small" label={r.action} /></TableCell>
-                    <TableCell sx={{ color: 'text.secondary' }}>{r.source}</TableCell>
+                    <TableCell>
+                      <Tooltip title={r.action}>
+                        <Chip size="small" label={actionLabel(r.action)} />
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>
+                      <Tooltip title={r.source}><span>{sourceLabel(r.source)}</span></Tooltip>
+                    </TableCell>
                     <TableCell>
                       <Stack>
-                        {r.actorRole && (
+                        {/* İsim çözülmüşse onu öne çıkar; rol + ID ikincil. */}
+                        {r.actorName ? (
+                          <Typography variant="caption" fontWeight={600}>{r.actorName}</Typography>
+                        ) : r.actorRole ? (
                           <Typography variant="caption" fontWeight={600}>{r.actorRole}</Typography>
+                        ) : null}
+                        {r.actorName && r.actorRole && (
+                          <Typography variant="caption" color="text.secondary">{r.actorRole}</Typography>
                         )}
-                        {r.actorUserId && (
+                        {!r.actorName && r.actorUserId && (
                           <Tooltip title={r.actorUserId}>
-                            <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 120 }}>
+                            <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 140 }}>
                               {r.actorUserId.slice(0, 8)}…
                             </Typography>
                           </Tooltip>
@@ -175,12 +196,17 @@ export default function NbAuditLog() {
                     </TableCell>
                     <TableCell>
                       <Stack>
+                        {r.targetName ? (
+                          <Typography variant="caption" fontWeight={600}>{r.targetName}</Typography>
+                        ) : null}
                         {r.targetType && (
-                          <Typography variant="caption">{r.targetType}</Typography>
+                          <Typography variant="caption" color={r.targetName ? 'text.secondary' : 'text.primary'}>
+                            {targetTypeLabel(r.targetType)}
+                          </Typography>
                         )}
-                        {r.targetId && (
+                        {!r.targetName && r.targetId && (
                           <Tooltip title={r.targetId}>
-                            <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 120 }}>
+                            <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 140 }}>
                               {r.targetId.slice(0, 8)}…
                             </Typography>
                           </Tooltip>
@@ -188,19 +214,23 @@ export default function NbAuditLog() {
                       </Stack>
                     </TableCell>
                     <TableCell>
-                      <Chip size="small" color={outcomeColor(r.outcome)} label={r.outcome ?? '—'} />
+                      <Chip size="small" color={outcomeColor(r.outcome)} label={outcomeLabel(r.outcome)} />
                     </TableCell>
-                    <TableCell>
-                      {r.meta && Object.keys(r.meta).length > 0 && (
-                        <Tooltip title={<pre style={{ margin: 0 }}>{JSON.stringify(r.meta, null, 2)}</pre>}>
-                          <Typography variant="caption" color="primary" sx={{ cursor: 'help' }}>
-                            {Object.keys(r.meta).length} alan
-                          </Typography>
-                        </Tooltip>
+                    <TableCell sx={{ maxWidth: 260 }}>
+                      {metaRows.length > 0 && (
+                        <Stack spacing={0.25}>
+                          {metaRows.map((m) => (
+                            <Typography key={m.key} variant="caption" color="text.secondary" sx={{ lineHeight: 1.35 }}>
+                              <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>{m.label}:</Box>{' '}
+                              {m.value}
+                            </Typography>
+                          ))}
+                        </Stack>
                       )}
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>

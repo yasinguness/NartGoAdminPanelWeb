@@ -289,6 +289,14 @@ export interface Sector {
   active: boolean;
 }
 
+// Profesyonel üye ünvan/pozisyon kataloğu (admin'den yönetilir — sektörler gibi).
+export interface JobTitle {
+  id?: string; // null/undefined = yeni kayıt
+  label: string;
+  sortOrder: number;
+  active: boolean;
+}
+
 // Sprint 9 — sektör değer-zinciri (Matching #1)
 export type ChainDirection = 'SUPPLIES_TO' | 'BUYS_FROM' | 'COLLABORATES';
 

@@ -135,6 +135,7 @@ const navSections: NavSection[] = [
             { text: 'Belge Politikaları', icon: <PolicyIcon />, path: '/nartbusiness/verification-policies', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Üyelik Tipleri', icon: <CategoryIcon />, path: '/nartbusiness/tiers', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Sektör Katalogu', icon: <CategoryIcon />, path: '/nartbusiness/sectors', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
+            { text: 'Ünvan Katalogu', icon: <CategoryIcon />, path: '/nartbusiness/job-titles', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Sektör Değer Zinciri', icon: <CategoryIcon />, path: '/nartbusiness/value-chain', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Embedding & Matching', icon: <ToggleOnIcon />, path: '/nartbusiness/embedding-jobs', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Moderasyon Kuyruğu', icon: <FactCheckIcon />, path: '/nartbusiness/moderation', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },

@@ -9,8 +9,12 @@ export interface NbAuditRow {
   action: string;
   actorRole?: string | null;
   actorUserId?: string | null;
+  /** Backend'te çözülen aktör adı (admin/kullanıcı). Yoksa rol+ID gösterilir. */
+  actorName?: string | null;
   targetId?: string | null;
   targetType?: string | null;
+  /** Backend'te çözülen hedef adı (üye/işletme). Yoksa tip+ID gösterilir. */
+  targetName?: string | null;
   outcome?: string | null;
   meta?: Record<string, unknown> | null;
   correlationId?: string | null;

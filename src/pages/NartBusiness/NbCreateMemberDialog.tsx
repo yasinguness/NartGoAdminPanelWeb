@@ -13,6 +13,7 @@ import {
   Grid,
   IconButton,
   Link,
+  MenuItem,
   Stack,
   TextField,
   Tooltip,
@@ -69,6 +70,31 @@ interface Props {
 }
 
 type ActivationFlow = 'ACTIVE' | 'APPROVED_PENDING_PAYMENT';
+
+/** Profesyonel üye için önceden tanımlı ünvan/pozisyonlar. Listede yoksa "Diğer". */
+const NB_JOB_TITLES = [
+  'Genel Müdür',
+  'Genel Müdür Yardımcısı',
+  'CEO',
+  'CFO',
+  'CTO',
+  'COO',
+  'Yönetim Kurulu Üyesi',
+  'Direktör',
+  'Bölüm Müdürü',
+  'Satınalma Müdürü',
+  'Operasyon Müdürü',
+  'Finans Müdürü',
+  'İnsan Kaynakları Müdürü',
+  'Pazarlama Müdürü',
+  'Satış Müdürü',
+  'Takım Lideri',
+  'Müdür',
+  'Danışman',
+] as const;
+const JOB_TITLE_OTHER = '__OTHER__';
+/** Serbest girilen ünvanı Türkçe-uyumlu büyük harfe çevirir (i→İ, ı→I). */
+const toTrUpper = (s: string) => s.toLocaleUpperCase('tr-TR');
 
 const MEMBER_TYPE_OPTIONS: RadioCardOption<'BUSINESS' | 'PROFESSIONAL'>[] = [
   {
@@ -332,10 +358,15 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     memberType: 'BUSINESS',
   });
   const isProfessional = form.memberType === 'PROFESSIONAL';
+  // Ünvan "Diğer" modu: serbest metin girişi açık mı (UPPERCASE normalize edilir).
+  const [titleOther, setTitleOther] = useState(false);
 
   // Katalog state'leri
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [sectorsLoading, setSectorsLoading] = useState(false);
+  // Ünvan katalogu (DB-config; fetch boşsa hardcoded fallback)
+  const [jobTitles, setJobTitles] = useState<string[]>([]);
+  const jobTitleOptions: readonly string[] = jobTitles.length ? jobTitles : NB_JOB_TITLES;
   const [families, setFamilies] = useState<RaceFamily[]>([]);
   const [familiesLoading, setFamiliesLoading] = useState(false);
   const [tiers, setTiers] = useState<TierConfig[]>([]);
@@ -404,6 +435,19 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       .then((rows) => setSectors(rows.filter((s) => s.active)))
       .catch(() => setSectors([]))
       .finally(() => setSectorsLoading(false));
+  }, [open]);
+
+  // ------------------------------------------------------------------
+  // Ünvan katalogu (DB-config) — aktif ünvanları çek
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    if (!open) return;
+    nbAdminService
+      .listJobTitles()
+      .then((rows) =>
+        setJobTitles(rows.filter((t) => t.active).map((t) => t.label)),
+      )
+      .catch(() => setJobTitles([]));
   }, [open]);
 
   // ------------------------------------------------------------------
@@ -526,7 +570,8 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       !!form.sectorCodes?.length
     : !!form.companyName?.trim() && !!form.sectorCodes?.length && !!form.city;
   const identityValid = !!form.race && !!form.clanName?.trim();
-  const socialValid = hasSocial && linkedinValid && websiteValid && instagramValid;
+  // Profesyonel üyede sosyal/ağ profili zorunlu değil; girilirse format yine doğrulanır.
+  const socialValid = (isProfessional || hasSocial) && linkedinValid && websiteValid && instagramValid;
   const tierValid = !!form.requestedTier && !!form.targetStatus;
   const auditValid = isAuditNoteValid(auditNoteBody);
 
@@ -570,7 +615,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       return missing.length ? `Eksik: ${missing.join(', ')}` : null;
     }
     if (step === 3) {
-      if (!hasSocial) return 'En az bir sosyal bağlantı gerekli';
+      if (!isProfessional && !hasSocial) return 'En az bir sosyal bağlantı gerekli';
       const missing: string[] = [];
       if (!linkedinValid) missing.push('Geçerli LinkedIn URL');
       if (!websiteValid) missing.push('Geçerli Web URL');
@@ -587,7 +632,10 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   }, [
     step,
     user,
+    isProfessional,
     form.companyName,
+    form.personJobTitle,
+    form.expertise,
     form.sectorCodes,
     form.city,
     form.race,
@@ -813,26 +861,67 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
             options={MEMBER_TYPE_OPTIONS}
             value={(form.memberType as 'BUSINESS' | 'PROFESSIONAL') ?? 'BUSINESS'}
             onChange={(v) => {
-              setForm((f) => ({
-                ...f,
-                memberType: v,
-                // Profesyonel seçilince kademe PROFESYONEL'e, işletmeye dönünce temizle.
-                requestedTier: v === 'PROFESSIONAL' ? ('PROFESYONEL' as MembershipTier) : f.requestedTier,
-              }));
+              setForm((f) => {
+                // Profesyonel → PROFESYONEL'e kilitle. İşletmeye dönerken kademe
+                // PROFESYONEL kalmışsa (artık business listesinde yok) ilk business
+                // kademesine resetle ki seçim boş/çakışık kalmasın.
+                const firstBusinessTier = tiers.find((t) => t.code !== 'PROFESYONEL')?.code as
+                  | MembershipTier
+                  | undefined;
+                const requestedTier =
+                  v === 'PROFESSIONAL'
+                    ? ('PROFESYONEL' as MembershipTier)
+                    : f.requestedTier === 'PROFESYONEL'
+                      ? firstBusinessTier
+                      : f.requestedTier;
+                return { ...f, memberType: v, requestedTier };
+              });
             }}
           />
           {isProfessional && (
             <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
+                  select
                   label="Ünvan / Pozisyon"
-                  placeholder="Genel Müdür, CFO, Satınalma Direktörü…"
-                  value={form.personJobTitle ?? ''}
-                  onChange={(e) => set('personJobTitle', e.target.value)}
+                  value={
+                    titleOther
+                      ? JOB_TITLE_OTHER
+                      : jobTitleOptions.includes(form.personJobTitle ?? '')
+                        ? form.personJobTitle
+                        : ''
+                  }
+                  onChange={(e) => {
+                    if (e.target.value === JOB_TITLE_OTHER) {
+                      setTitleOther(true);
+                      set('personJobTitle', '');
+                    } else {
+                      setTitleOther(false);
+                      set('personJobTitle', e.target.value);
+                    }
+                  }}
                   fullWidth
                   required
                   size="small"
-                />
+                >
+                  {jobTitleOptions.map((t) => (
+                    <MenuItem key={t} value={t}>{t}</MenuItem>
+                  ))}
+                  <MenuItem value={JOB_TITLE_OTHER}>Diğer…</MenuItem>
+                </TextField>
+                {titleOther && (
+                  <TextField
+                    label="Ünvan (serbest)"
+                    placeholder="örn. Tedarik Zinciri Lideri"
+                    value={form.personJobTitle ?? ''}
+                    onChange={(e) => set('personJobTitle', toTrUpper(e.target.value))}
+                    fullWidth
+                    required
+                    size="small"
+                    sx={{ mt: 1 }}
+                    helperText="Büyük harfe çevrilerek kaydedilir."
+                  />
+                )}
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -1209,12 +1298,22 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   // ------------------------------------------------------------------
   const renderPackageStep = () => (
     <Stack spacing={2}>
-      <SectionPaper title="Kademe" hint="Üyenin paket seviyesi — kaynak: tier katalog.">
+      <SectionPaper
+        title="Kademe"
+        hint={
+          isProfessional
+            ? 'Profesyonel üye yalnız Profesyonel kademede yer alır.'
+            : 'Üyenin paket seviyesi — kaynak: tier katalog.'
+        }
+      >
         <TierRadioCardGroup
-          tiers={tiers}
+          // İşletme üyesine Profesyonel kademe gösterilmez; profesyonel ise
+          // tüm kartlar görünür ama PROFESYONEL'e kilitlidir (diğerleri muted).
+          tiers={isProfessional ? tiers : tiers.filter((t) => t.code !== 'PROFESYONEL')}
           loading={tiersLoading}
           value={form.requestedTier}
           onChange={(code) => set('requestedTier', code)}
+          lockedTo={isProfessional ? ('PROFESYONEL' as MembershipTier) : undefined}
         />
       </SectionPaper>
 
