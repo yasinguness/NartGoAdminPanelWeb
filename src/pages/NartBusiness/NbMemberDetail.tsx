@@ -148,8 +148,8 @@ export default function NbMemberDetail() {
     }
   };
   const [editOpen, setEditOpen] = useState(false);
-  // Havale ile ödeme yapan üyenin manuel onayı — sadece status =
-  // APPROVED_PENDING_PAYMENT + paymentMethod = BANK_TRANSFER ise gözükür
+  // Manuel ödeme onayı (havale/EFT veya elle tahsilat) — status =
+  // APPROVED_PENDING_PAYMENT olan her üyede gösterilir; üyeyi ACTIVE'e taşır.
   const [bankConfirmOpen, setBankConfirmOpen] = useState(false);
   const [bankConfirmRef, setBankConfirmRef] = useState('');
   const [bankConfirmNote, setBankConfirmNote] = useState('');
@@ -344,22 +344,21 @@ export default function NbMemberDetail() {
             </Stack>
           </Box>
           <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} sx={{ flexShrink: 0 }}>
-            {member.status === 'APPROVED_PENDING_PAYMENT' &&
-              member.paymentMethod === 'BANK_TRANSFER' && (
-                <Button
-                  variant="contained"
-                  color="success"
-                  startIcon={<CheckCircleOutlineIcon />}
-                  onClick={() => {
-                    setBankConfirmRef('');
-                    setBankConfirmNote('');
-                    setBankConfirmError(null);
-                    setBankConfirmOpen(true);
-                  }}
-                >
-                  Havale Ödemesini Onayla
-                </Button>
-              )}
+            {member.status === 'APPROVED_PENDING_PAYMENT' && (
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<CheckCircleOutlineIcon />}
+                onClick={() => {
+                  setBankConfirmRef('');
+                  setBankConfirmNote('');
+                  setBankConfirmError(null);
+                  setBankConfirmOpen(true);
+                }}
+              >
+                Ödemeyi Onayla
+              </Button>
+            )}
             {member.status === 'APPROVED_PENDING_PAYMENT' && !member.trialUsed && (
               <Button
                 variant="outlined"
@@ -743,7 +742,7 @@ export default function NbMemberDetail() {
         onSaved={load}
       />
 
-      {/* Havale ödeme manuel onay dialogu */}
+      {/* Manuel ödeme onay dialogu (havale/EFT veya elle tahsilat) */}
       <Dialog
         open={bankConfirmOpen}
         onClose={() => !bankConfirming && setBankConfirmOpen(false)}
@@ -751,12 +750,13 @@ export default function NbMemberDetail() {
         fullWidth
         fullScreen={fullScreen}
       >
-        <DialogTitle>Havale Ödemesini Onayla</DialogTitle>
+        <DialogTitle>Ödemeyi Onayla</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            Üye <strong>{member.companyName ?? '—'}</strong> havale/EFT ile
-            ödeme yaptığını WhatsApp üzerinden iletti. Onaylarsanız üyelik
-            <strong> ACTIVE</strong>'e geçer ve İyzico akışı atlanır.
+            <strong>{member.companyName ?? '—'}</strong> üyesinin ödemesinin
+            alındığını onaylıyorsun (havale/EFT veya manuel tahsilat).
+            Onaylarsan üyelik <strong> ACTIVE</strong>'e geçer ve çevrimiçi
+            ödeme (İyzico) akışı atlanır.
           </DialogContentText>
           <TextField
             fullWidth

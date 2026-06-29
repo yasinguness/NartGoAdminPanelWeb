@@ -28,6 +28,11 @@ import type {
   ReferralImpact,
   ModuleActivity,
 } from '../../services/nartbusiness/nbTypes';
+import type {
+  NbListingAdminStats,
+  NbReferralAdminStats,
+  NbQuestionAdminStats,
+} from '../../services/nartbusiness/nbAdminService';
 
 /** ₺ tam sayı tutarı okunur biçimde basar: 4.250.000 → "₺4.250.000". */
 function formatTry(amount: number): string {
@@ -105,6 +110,9 @@ export default function NbDashboard() {
   const [stats, setStats] = useState<NbDashboardStats | null>(null);
   const [impact, setImpact] = useState<ReferralImpact | null>(null);
   const [activity, setActivity] = useState<ModuleActivity | null>(null);
+  const [listingStats, setListingStats] = useState<NbListingAdminStats | null>(null);
+  const [refStats, setRefStats] = useState<NbReferralAdminStats | null>(null);
+  const [qStats, setQStats] = useState<NbQuestionAdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -140,6 +148,10 @@ export default function NbDashboard() {
       .catch(() => {
         /* yoksay — endpoint yoksa kart gizli kalır */
       });
+    // Domain özet istatistikleri — her biri best-effort.
+    nbAdminService.listingStats().then((d) => { if (mounted) setListingStats(d); }).catch(() => {});
+    nbAdminService.referralStats().then((d) => { if (mounted) setRefStats(d); }).catch(() => {});
+    nbAdminService.questionStats().then((d) => { if (mounted) setQStats(d); }).catch(() => {});
     return () => {
       mounted = false;
     };
@@ -234,6 +246,51 @@ export default function NbDashboard() {
             value={stats.paymentPending}
             icon={<PaymentIcon />}
             color="error"
+          />
+        </Grid>
+      </Grid>
+
+      {/* İçerik yönetimi — İlanlar / Yönlendirmeler / Sorular (tek bakışta + yönet). */}
+      <Typography variant="h6" sx={{ mb: 1.5 }}>İçerik Yönetimi</Typography>
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Aktif İlan"
+            value={listingStats?.active ?? '—'}
+            icon={<BusinessIcon />}
+            color="primary"
+            hint="İlanları yönet →"
+            onClick={() => navigate('/nartbusiness/listings')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Toplam İlan"
+            value={listingStats?.total ?? '—'}
+            icon={<BusinessIcon />}
+            color="success"
+            hint="Talep / Arz →"
+            onClick={() => navigate('/nartbusiness/listings')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Açık Yönlendirme"
+            value={refStats ? refStats.proposed + refStats.accepted : '—'}
+            icon={<TrendingIcon />}
+            color="warning"
+            hint="Yönlendirmeler →"
+            onClick={() => navigate('/nartbusiness/referrals')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Açık Soru"
+            value={qStats?.open ?? '—'}
+            icon={<PeopleIcon />}
+            color="primary"
+            hint="Topluluk soruları →"
+            onClick={() => navigate('/nartbusiness/questions')}
           />
         </Grid>
       </Grid>

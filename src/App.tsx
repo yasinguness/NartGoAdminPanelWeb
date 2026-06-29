@@ -100,6 +100,9 @@ import NbTestimonials from './pages/NartBusiness/NbTestimonials';
 import NbMarketOpinions from './pages/NartBusiness/NbMarketOpinions';
 import NbMarketNews from './pages/NartBusiness/NbMarketNews';
 import NbJobModeration from './pages/NartBusiness/NbJobModeration';
+import NbListingModeration from './pages/NartBusiness/NbListingModeration';
+import NbReferralModeration from './pages/NartBusiness/NbReferralModeration';
+import NbQuestionModeration from './pages/NartBusiness/NbQuestionModeration';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -232,6 +235,9 @@ function App() {
                 <Route path="nartbusiness/market-opinions" element={<NbMarketOpinions />} />
                 <Route path="nartbusiness/market-news" element={<NbMarketNews />} />
                 <Route path="nartbusiness/jobs" element={<NbJobModeration />} />
+                <Route path="nartbusiness/listings" element={<NbListingModeration />} />
+                <Route path="nartbusiness/referrals" element={<NbReferralModeration />} />
+                <Route path="nartbusiness/questions" element={<NbQuestionModeration />} />
               </Route>
 
               {/* Bilinmeyen path → rol-bilinçli landing (boş ekran yerine). */}

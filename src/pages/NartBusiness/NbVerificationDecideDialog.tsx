@@ -30,7 +30,7 @@ import {
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import HistoryIcon from '@mui/icons-material/History';
-import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import { nbAdminService, type NbUserSearchResult } from '../../services/nartbusiness/nbAdminService';
 import type {
   CaseTimelineEntry,
   CommitteeVoteType,
@@ -194,6 +194,7 @@ export default function NbVerificationDecideDialog({
   const [step, setStep] = useState(0);
   const [reviewTab, setReviewTab] = useState(0);
   const [detail, setDetail] = useState<VerificationCase | null>(null);
+  const [applicant, setApplicant] = useState<NbUserSearchResult | null>(null);
   const [timeline, setTimeline] = useState<CaseTimelineEntry[] | null>(null);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(false);
@@ -242,6 +243,18 @@ export default function NbVerificationDecideDialog({
       .catch((e: any) => setError(e?.message ?? 'Vaka yüklenemedi'))
       .finally(() => setLoading(false));
   }, [open, caseId]);
+
+  // Başvuranın adı/e-postasını çöz — ham userId yerine anlamlı kimlik göster.
+  useEffect(() => {
+    setApplicant(null);
+    const uid = detail?.userId;
+    if (!open || !uid) return;
+    let cancelled = false;
+    nbAdminService.getUserById(uid)
+      .then((u) => { if (!cancelled) setApplicant(u); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [open, detail?.userId]);
 
   const sectorLabel = useMemo(() => {
     const codes = detail?.sectorCodes?.length ? detail.sectorCodes : detail?.sectorCode ? [detail.sectorCode] : [];
@@ -375,6 +388,17 @@ export default function NbVerificationDecideDialog({
           <Typography variant="h6" fontWeight={700} lineHeight={1.2}>
             {detail.companyName ?? '—'}
           </Typography>
+          {(() => {
+            const fullName =
+              applicant?.displayName?.trim() ||
+              [applicant?.firstName, applicant?.lastName].filter(Boolean).join(' ').trim();
+            const idLine = [fullName, applicant?.email].filter(Boolean).join(' · ');
+            return idLine ? (
+              <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 600 }} color="text.primary">
+                {idLine}
+              </Typography>
+            ) : null;
+          })()}
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             {[sectorLabel ?? detail.sectorCode, detail.city, detail.district]
               .filter(Boolean)

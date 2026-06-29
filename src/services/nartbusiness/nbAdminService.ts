@@ -79,6 +79,41 @@ export interface NbJobPostingRow {
   expiresAt?: string | null;
 }
 
+export type NbListingStatus = 'ACTIVE' | 'CLOSED' | 'EXPIRED' | 'DELETED';
+export type NbListingType = 'REQUEST' | 'OFFER';
+
+export interface NbListingRow {
+  id: string;
+  ownerMemberId: string;
+  ownerDisplayName?: string | null;
+  ownerCompanyName?: string | null;
+  ownerSpotlight?: boolean;
+  type: NbListingType;
+  title: string;
+  description?: string | null;
+  budgetMin?: number | null;
+  budgetMax?: number | null;
+  currency?: string | null;
+  city?: string | null;
+  district?: string | null;
+  sectorCode?: string | null;
+  status: NbListingStatus;
+  interestCount?: number;
+  createdAt?: string | null;
+  expiresAt?: string | null;
+}
+
+export interface NbListingAdminStats {
+  total: number;
+  active: number;
+  closed: number;
+  expired: number;
+  deleted: number;
+  requests: number;
+  offers: number;
+  openedLast7d: number;
+}
+
 /** Bekleyen kayıt satırı (admin liste görünümü) — davet veya public başvuru. */
 export interface NbPendingInvite {
   id: string;
@@ -352,6 +387,183 @@ async function hideJobPosting(id: string): Promise<void> {
 /** Gizlenen ilanı yeniden yayınla (PUBLISHED). */
 async function publishJobPosting(id: string): Promise<void> {
   await api.post(`/nb/needs/jobs/admin/${id}/publish`);
+}
+
+// ── İlan (Talep/Arz) yönetimi ──────────────────────────────────
+
+interface NbListingPage {
+  content: NbListingRow[];
+  page: number;
+  totalPages: number;
+  totalElements: number;
+}
+
+/** İlanlar — filtreli, sayfalı (tüm durumlar; boş filtre = tümü). */
+async function listListings(params: {
+  type?: NbListingType;
+  status?: NbListingStatus;
+  sectorCode?: string;
+  city?: string;
+  q?: string;
+  page?: number;
+  size?: number;
+} = {}): Promise<NbListingPage> {
+  const res = await api.get<any>('/nb/needs/admin', {
+    params: { page: 0, size: 25, ...params },
+  });
+  const d = unwrap<NbListingPage>(res.data);
+  return d ?? { content: [], page: 0, totalPages: 0, totalElements: 0 };
+}
+
+/** İlan detayı (durum farketmez). */
+async function getListing(id: string): Promise<NbListingRow | null> {
+  const res = await api.get<any>(`/nb/needs/admin/${id}`);
+  return unwrap<NbListingRow>(res.data);
+}
+
+/** Moderasyon: durum değiştir (ACTIVE=yeniden aç, CLOSED=kapat, DELETED=sil). */
+async function setListingStatus(id: string, status: NbListingStatus): Promise<void> {
+  await api.post(`/nb/needs/admin/${id}/status`, null, { params: { status } });
+}
+
+/** İlan yönetim özet istatistikleri. */
+async function listingStats(): Promise<NbListingAdminStats | null> {
+  const res = await api.get<any>('/nb/needs/admin/stats');
+  return unwrap<NbListingAdminStats>(res.data);
+}
+
+// ── Yönlendirme (Referral) yönetimi ──────────────────────────────────
+
+export type NbReferralStatus =
+  | 'PROPOSED' | 'ACCEPTED' | 'DECLINED' | 'CLOSED_WON' | 'CLOSED_LOST' | 'CANCELLED';
+
+export interface NbReferralRow {
+  id: string;
+  referrerMemberId: string;
+  targetMemberId: string;
+  customerName: string;
+  customerPhone?: string | null;
+  customerContext?: string | null;
+  sectorCode?: string | null;
+  status: NbReferralStatus;
+  proposedAt?: string | null;
+  decidedAt?: string | null;
+  closedAt?: string | null;
+  outcomeNote?: string | null;
+  dealValueTry?: number | null;
+}
+
+export interface NbReferralAdminStats {
+  total: number;
+  proposed: number;
+  accepted: number;
+  declined: number;
+  closedWon: number;
+  closedLost: number;
+  cancelled: number;
+  totalDealValueTry: number;
+  winRatePct: number;
+}
+
+interface NbReferralPage {
+  content: NbReferralRow[];
+  page: number;
+  totalPages: number;
+  totalElements: number;
+}
+
+async function listReferrals(params: {
+  status?: NbReferralStatus;
+  q?: string;
+  page?: number;
+  size?: number;
+} = {}): Promise<NbReferralPage> {
+  const res = await api.get<any>('/nb/referrals/admin', {
+    params: { page: 0, size: 25, ...params },
+  });
+  const d = unwrap<NbReferralPage>(res.data);
+  return d ?? { content: [], page: 0, totalPages: 0, totalElements: 0 };
+}
+
+async function getReferral(id: string): Promise<NbReferralRow | null> {
+  const res = await api.get<any>(`/nb/referrals/admin/${id}`);
+  return unwrap<NbReferralRow>(res.data);
+}
+
+/** Moderasyon: durum değiştir (örn. CANCELLED ile iptal). */
+async function setReferralStatus(id: string, status: NbReferralStatus): Promise<void> {
+  await api.post(`/nb/referrals/admin/${id}/status`, null, { params: { status } });
+}
+
+async function referralStats(): Promise<NbReferralAdminStats | null> {
+  const res = await api.get<any>('/nb/referrals/admin/stats');
+  return unwrap<NbReferralAdminStats>(res.data);
+}
+
+// ── Topluluk Soruları (Open-Call) yönetimi ──────────────────────────────────
+
+export type NbQuestionStatus = 'OPEN' | 'ANSWERED' | 'CLOSED' | 'EXPIRED' | 'HIDDEN';
+
+export interface NbQuestionRow {
+  id: string;
+  askerMemberId?: string | null;
+  askerDisplayName?: string | null;
+  askerCompanyName?: string | null;
+  title: string;
+  body?: string | null;
+  sectorCode?: string | null;
+  city?: string | null;
+  anonymous?: boolean;
+  status: NbQuestionStatus;
+  acceptedAnswerId?: string | null;
+  answerCount?: number;
+  viewCount?: number;
+  expiresAt?: string | null;
+  createdAt?: string | null;
+}
+
+export interface NbQuestionAdminStats {
+  total: number;
+  open: number;
+  answered: number;
+  closed: number;
+  expired: number;
+  hidden: number;
+}
+
+interface NbQuestionPage {
+  content: NbQuestionRow[];
+  page: number;
+  totalPages: number;
+  totalElements: number;
+}
+
+async function listQuestions(params: {
+  status?: NbQuestionStatus;
+  q?: string;
+  page?: number;
+  size?: number;
+} = {}): Promise<NbQuestionPage> {
+  const res = await api.get<any>('/nb/admin/community/questions', {
+    params: { page: 0, size: 25, ...params },
+  });
+  const d = unwrap<NbQuestionPage>(res.data);
+  return d ?? { content: [], page: 0, totalPages: 0, totalElements: 0 };
+}
+
+async function getQuestion(id: string): Promise<NbQuestionRow | null> {
+  const res = await api.get<any>(`/nb/admin/community/questions/${id}`);
+  return unwrap<NbQuestionRow>(res.data);
+}
+
+/** Moderasyon: durum değiştir (OPEN=aç, CLOSED=kapat, HIDDEN=gizle/kaldır). */
+async function setQuestionStatus(id: string, status: NbQuestionStatus): Promise<void> {
+  await api.post(`/nb/admin/community/questions/${id}/status`, null, { params: { status } });
+}
+
+async function questionStats(): Promise<NbQuestionAdminStats | null> {
+  const res = await api.get<any>('/nb/admin/community/questions/stats');
+  return unwrap<NbQuestionAdminStats>(res.data);
 }
 
 /**
@@ -722,6 +934,18 @@ export const nbAdminService = {
   listJobPostings,
   hideJobPosting,
   publishJobPosting,
+  listListings,
+  getListing,
+  setListingStatus,
+  listingStats,
+  listReferrals,
+  getReferral,
+  setReferralStatus,
+  referralStats,
+  listQuestions,
+  getQuestion,
+  setQuestionStatus,
+  questionStats,
   updateMemberBusiness,
   searchUsers,
   lookupUserByEmail,
