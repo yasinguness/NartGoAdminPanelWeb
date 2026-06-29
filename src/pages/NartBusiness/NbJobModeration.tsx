@@ -97,7 +97,7 @@ export default function NbJobModeration() {
     <Box p={3}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h4" fontWeight={600}>
-          İş İlanları — Moderasyon
+          Pozisyon İlanları — Moderasyon
         </Typography>
         <FormControl size="small" sx={{ minWidth: 180 }}>
           <InputLabel>Durum</InputLabel>
