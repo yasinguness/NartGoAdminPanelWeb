@@ -421,6 +421,22 @@ async function getListing(id: string): Promise<NbListingRow | null> {
   return unwrap<NbListingRow>(res.data);
 }
 
+/** Admin düzenleme — gönderilen alanlar güncellenir (null/eksik dokunulmaz). */
+async function updateListing(
+  id: string,
+  body: Partial<{
+    title: string;
+    description: string | null;
+    budgetMin: number | null;
+    budgetMax: number | null;
+    city: string | null;
+    sectorCode: string | null;
+  }>,
+): Promise<NbListingRow | null> {
+  const res = await api.put<any>(`/nb/needs/admin/${id}`, body);
+  return unwrap<NbListingRow>(res.data);
+}
+
 /** Moderasyon: durum değiştir (ACTIVE=yeniden aç, CLOSED=kapat, DELETED=sil). */
 async function setListingStatus(id: string, status: NbListingStatus): Promise<void> {
   await api.post(`/nb/needs/admin/${id}/status`, null, { params: { status } });
@@ -490,6 +506,22 @@ async function getReferral(id: string): Promise<NbReferralRow | null> {
   return unwrap<NbReferralRow>(res.data);
 }
 
+/** Admin düzenleme — müşteri/bağlam/sektör/iş değeri/sonuç notu. */
+async function updateReferral(
+  id: string,
+  body: Partial<{
+    customerName: string;
+    customerPhone: string | null;
+    customerContext: string | null;
+    sectorCode: string | null;
+    dealValueTry: number | null;
+    outcomeNote: string | null;
+  }>,
+): Promise<NbReferralRow | null> {
+  const res = await api.put<any>(`/nb/referrals/admin/${id}`, body);
+  return unwrap<NbReferralRow>(res.data);
+}
+
 /** Moderasyon: durum değiştir (örn. CANCELLED ile iptal). */
 async function setReferralStatus(id: string, status: NbReferralStatus): Promise<void> {
   await api.post(`/nb/referrals/admin/${id}/status`, null, { params: { status } });
@@ -553,6 +585,20 @@ async function listQuestions(params: {
 
 async function getQuestion(id: string): Promise<NbQuestionRow | null> {
   const res = await api.get<any>(`/nb/admin/community/questions/${id}`);
+  return unwrap<NbQuestionRow>(res.data);
+}
+
+/** Admin düzenleme — başlık/içerik/sektör/şehir. */
+async function updateQuestion(
+  id: string,
+  body: Partial<{
+    title: string;
+    body: string;
+    sectorCode: string | null;
+    city: string | null;
+  }>,
+): Promise<NbQuestionRow | null> {
+  const res = await api.put<any>(`/nb/admin/community/questions/${id}`, body);
   return unwrap<NbQuestionRow>(res.data);
 }
 
@@ -936,14 +982,17 @@ export const nbAdminService = {
   publishJobPosting,
   listListings,
   getListing,
+  updateListing,
   setListingStatus,
   listingStats,
   listReferrals,
   getReferral,
+  updateReferral,
   setReferralStatus,
   referralStats,
   listQuestions,
   getQuestion,
+  updateQuestion,
   setQuestionStatus,
   questionStats,
   updateMemberBusiness,

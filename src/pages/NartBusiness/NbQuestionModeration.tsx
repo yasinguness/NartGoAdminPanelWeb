@@ -27,6 +27,14 @@ import {
 import BlockIcon from '@mui/icons-material/Block';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import RestoreIcon from '@mui/icons-material/Restore';
+import EditIcon from '@mui/icons-material/Edit';
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+} from '@mui/material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type {
   NbQuestionRow,
@@ -80,6 +88,7 @@ export default function NbQuestionModeration() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [stats, setStats] = useState<NbQuestionAdminStats | null>(null);
+  const [editing, setEditing] = useState<NbQuestionRow | null>(null);
 
   useEffect(() => { setPage(0); }, [status, q]);
   useEffect(() => {
@@ -201,7 +210,12 @@ export default function NbQuestionModeration() {
                         label={STATUS_LABEL[r.status] ?? r.status} />
                     </TableCell>
                     <TableCell align="right">
-                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
+                        <Tooltip title="Detay / Düzenle">
+                          <IconButton size="small" onClick={() => setEditing(r)}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         {(r.status === 'HIDDEN' || r.status === 'CLOSED' || r.status === 'EXPIRED') && (
                           <Tooltip title="Yeniden aç (OPEN)">
                             <span>
@@ -246,6 +260,80 @@ export default function NbQuestionModeration() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         {msg ? <Alert severity="success" variant="filled" onClose={() => setMsg(null)}>{msg}</Alert> : undefined}
       </Snackbar>
+
+      {editing && (
+        <_QuestionEditDialog
+          row={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(m) => {
+            setEditing(null);
+            setMsg(m);
+            load();
+          }}
+        />
+      )}
     </Box>
+  );
+}
+
+function _QuestionEditDialog({
+  row,
+  onClose,
+  onSaved,
+}: {
+  row: NbQuestionRow;
+  onClose: () => void;
+  onSaved: (msg: string) => void;
+}) {
+  const [title, setTitle] = useState(row.title ?? '');
+  const [body, setBody] = useState(row.body ?? '');
+  const [sectorCode, setSectorCode] = useState(row.sectorCode ?? '');
+  const [city, setCity] = useState(row.city ?? '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const save = async () => {
+    setSaving(true);
+    setErr(null);
+    try {
+      await nbAdminService.updateQuestion(row.id, {
+        title: title.trim(),
+        body: body.trim(),
+        sectorCode: sectorCode.trim() || null,
+        city: city.trim() || null,
+      });
+      onSaved('Soru güncellendi.');
+    } catch (e: any) {
+      setErr(e?.response?.data?.error?.message ?? 'Kaydedilemedi');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Soruyu Düzenle</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 0.5 }}>
+          <Typography variant="caption" color="text.secondary">
+            Soran: {row.anonymous ? 'Anonim' : (row.askerCompanyName || row.askerDisplayName || '—')} · Durum: {STATUS_LABEL[row.status] ?? row.status}
+          </Typography>
+          <TextField label="Başlık" value={title} onChange={(e) => setTitle(e.target.value)} size="small" fullWidth />
+          <TextField label="İçerik" value={body} onChange={(e) => setBody(e.target.value)}
+            size="small" fullWidth multiline minRows={4} />
+          <Stack direction="row" spacing={2}>
+            <TextField label="Sektör kodu" value={sectorCode} onChange={(e) => setSectorCode(e.target.value)} size="small" fullWidth />
+            <TextField label="Şehir" value={city} onChange={(e) => setCity(e.target.value)} size="small" fullWidth />
+          </Stack>
+          {err && <Alert severity="error">{err}</Alert>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saving}>Kapat</Button>
+        <Button onClick={save} variant="contained" disabled={saving || !title.trim() || !body.trim()}>
+          {saving ? 'Kaydediliyor…' : 'Kaydet'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

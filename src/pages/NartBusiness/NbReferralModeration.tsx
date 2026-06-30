@@ -25,6 +25,14 @@ import {
   Typography,
 } from '@mui/material';
 import BlockIcon from '@mui/icons-material/Block';
+import EditIcon from '@mui/icons-material/Edit';
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+} from '@mui/material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type {
   NbReferralRow,
@@ -85,6 +93,7 @@ export default function NbReferralModeration() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [stats, setStats] = useState<NbReferralAdminStats | null>(null);
+  const [editing, setEditing] = useState<NbReferralRow | null>(null);
 
   useEffect(() => { setPage(0); }, [status, q]);
   useEffect(() => {
@@ -207,6 +216,12 @@ export default function NbReferralModeration() {
                     </TableCell>
                     <TableCell>{fmtDate(r.proposedAt)}</TableCell>
                     <TableCell align="right">
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
+                      <Tooltip title="Detay / Düzenle">
+                        <IconButton size="small" onClick={() => setEditing(r)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       {CANCELLABLE.includes(r.status) ? (
                         <Tooltip title="İptal et (CANCELLED)">
                           <span>
@@ -217,6 +232,7 @@ export default function NbReferralModeration() {
                       ) : (
                         <Typography variant="caption" color="text.secondary">—</Typography>
                       )}
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -236,6 +252,88 @@ export default function NbReferralModeration() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         {msg ? <Alert severity="success" variant="filled" onClose={() => setMsg(null)}>{msg}</Alert> : undefined}
       </Snackbar>
+
+      {editing && (
+        <_ReferralEditDialog
+          row={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(m) => {
+            setEditing(null);
+            setMsg(m);
+            load();
+          }}
+        />
+      )}
     </Box>
+  );
+}
+
+function _ReferralEditDialog({
+  row,
+  onClose,
+  onSaved,
+}: {
+  row: NbReferralRow;
+  onClose: () => void;
+  onSaved: (msg: string) => void;
+}) {
+  const [customerName, setCustomerName] = useState(row.customerName ?? '');
+  const [customerPhone, setCustomerPhone] = useState(row.customerPhone ?? '');
+  const [customerContext, setCustomerContext] = useState(row.customerContext ?? '');
+  const [sectorCode, setSectorCode] = useState(row.sectorCode ?? '');
+  const [dealValue, setDealValue] = useState(row.dealValueTry?.toString() ?? '');
+  const [outcomeNote, setOutcomeNote] = useState(row.outcomeNote ?? '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const save = async () => {
+    setSaving(true);
+    setErr(null);
+    try {
+      await nbAdminService.updateReferral(row.id, {
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim() || null,
+        customerContext: customerContext.trim() || null,
+        sectorCode: sectorCode.trim() || null,
+        dealValueTry: dealValue.trim() ? Number(dealValue) : null,
+        outcomeNote: outcomeNote.trim() || null,
+      });
+      onSaved('Yönlendirme güncellendi.');
+    } catch (e: any) {
+      setErr(e?.response?.data?.error?.message ?? 'Kaydedilemedi');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Yönlendirmeyi Düzenle</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 0.5 }}>
+          <Typography variant="caption" color="text.secondary">
+            Durum: {STATUS_LABEL[row.status] ?? row.status}
+          </Typography>
+          <TextField label="Müşteri adı" value={customerName} onChange={(e) => setCustomerName(e.target.value)} size="small" fullWidth />
+          <TextField label="Telefon" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} size="small" fullWidth />
+          <TextField label="Bağlam / not" value={customerContext} onChange={(e) => setCustomerContext(e.target.value)}
+            size="small" fullWidth multiline minRows={2} />
+          <Stack direction="row" spacing={2}>
+            <TextField label="Sektör kodu" value={sectorCode} onChange={(e) => setSectorCode(e.target.value)} size="small" fullWidth />
+            <TextField label="İş değeri (₺)" value={dealValue} onChange={(e) => setDealValue(e.target.value)}
+              size="small" fullWidth type="number" />
+          </Stack>
+          <TextField label="Sonuç notu" value={outcomeNote} onChange={(e) => setOutcomeNote(e.target.value)}
+            size="small" fullWidth multiline minRows={2} />
+          {err && <Alert severity="error">{err}</Alert>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saving}>Kapat</Button>
+        <Button onClick={save} variant="contained" disabled={saving || !customerName.trim()}>
+          {saving ? 'Kaydediliyor…' : 'Kaydet'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

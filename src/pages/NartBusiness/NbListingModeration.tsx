@@ -28,6 +28,14 @@ import BlockIcon from '@mui/icons-material/Block';
 import RestoreIcon from '@mui/icons-material/Restore';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import StarIcon from '@mui/icons-material/Star';
+import EditIcon from '@mui/icons-material/Edit';
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+} from '@mui/material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type {
   NbListingRow,
@@ -91,6 +99,7 @@ export default function NbListingModeration() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [stats, setStats] = useState<NbListingAdminStats | null>(null);
+  const [editing, setEditing] = useState<NbListingRow | null>(null);
 
   useEffect(() => { setPage(0); }, [type, status, q]);
 
@@ -240,7 +249,12 @@ export default function NbListingModeration() {
                         label={STATUS_LABEL[r.status] ?? r.status} />
                     </TableCell>
                     <TableCell align="right">
-                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
+                        <Tooltip title="Detay / Düzenle">
+                          <IconButton size="small" onClick={() => setEditing(r)}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         {r.status !== 'ACTIVE' && (
                           <Tooltip title="Yeniden aç (ACTIVE)">
                             <span>
@@ -285,6 +299,90 @@ export default function NbListingModeration() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         {msg ? <Alert severity="success" variant="filled" onClose={() => setMsg(null)}>{msg}</Alert> : undefined}
       </Snackbar>
+
+      {editing && (
+        <_ListingEditDialog
+          row={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(updatedMsg) => {
+            setEditing(null);
+            setMsg(updatedMsg);
+            load();
+          }}
+        />
+      )}
     </Box>
+  );
+}
+
+function _ListingEditDialog({
+  row,
+  onClose,
+  onSaved,
+}: {
+  row: NbListingRow;
+  onClose: () => void;
+  onSaved: (msg: string) => void;
+}) {
+  const [title, setTitle] = useState(row.title ?? '');
+  const [description, setDescription] = useState(row.description ?? '');
+  const [city, setCity] = useState(row.city ?? '');
+  const [sectorCode, setSectorCode] = useState(row.sectorCode ?? '');
+  const [budgetMin, setBudgetMin] = useState(row.budgetMin?.toString() ?? '');
+  const [budgetMax, setBudgetMax] = useState(row.budgetMax?.toString() ?? '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const save = async () => {
+    setSaving(true);
+    setErr(null);
+    try {
+      await nbAdminService.updateListing(row.id, {
+        title: title.trim(),
+        description: description.trim() || null,
+        city: city.trim() || null,
+        sectorCode: sectorCode.trim() || null,
+        budgetMin: budgetMin.trim() ? Number(budgetMin) : null,
+        budgetMax: budgetMax.trim() ? Number(budgetMax) : null,
+      });
+      onSaved('İlan güncellendi.');
+    } catch (e: any) {
+      setErr(e?.response?.data?.error?.message ?? 'Kaydedilemedi');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>İlanı Düzenle</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 0.5 }}>
+          <Typography variant="caption" color="text.secondary">
+            {TYPE_LABEL[row.type]} · {row.ownerCompanyName || row.ownerDisplayName || '—'} · {STATUS_LABEL[row.status]}
+          </Typography>
+          <TextField label="Başlık" value={title} onChange={(e) => setTitle(e.target.value)} fullWidth size="small" />
+          <TextField label="Açıklama" value={description} onChange={(e) => setDescription(e.target.value)}
+            fullWidth size="small" multiline minRows={3} />
+          <Stack direction="row" spacing={2}>
+            <TextField label="Şehir" value={city} onChange={(e) => setCity(e.target.value)} size="small" fullWidth />
+            <TextField label="Sektör kodu" value={sectorCode} onChange={(e) => setSectorCode(e.target.value)} size="small" fullWidth />
+          </Stack>
+          <Stack direction="row" spacing={2}>
+            <TextField label="Bütçe min (₺)" value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)}
+              size="small" fullWidth type="number" />
+            <TextField label="Bütçe max (₺)" value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)}
+              size="small" fullWidth type="number" />
+          </Stack>
+          {err && <Alert severity="error">{err}</Alert>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saving}>Kapat</Button>
+        <Button onClick={save} variant="contained" disabled={saving || !title.trim()}>
+          {saving ? 'Kaydediliyor…' : 'Kaydet'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
