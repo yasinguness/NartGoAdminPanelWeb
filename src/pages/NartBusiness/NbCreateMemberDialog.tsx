@@ -1016,6 +1016,10 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                 value={form.sectorCodes ?? []}
                 onChange={(codes) => set('sectorCodes', codes)}
               />
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                Ana kategoriyi seçmek yeterli; alt kategoriler üyelik sonrası profilden eklenir.
+                Kategori listede yoksa en yakınını ya da “Diğer”i seçin.
+              </Typography>
             </Grid>
 
             <Grid item xs={12} md={6}>
