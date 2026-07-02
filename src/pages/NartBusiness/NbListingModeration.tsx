@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Chip,
+  Switch,
   CircularProgress,
   FormControl,
   Grid,
@@ -144,6 +145,20 @@ export default function NbListingModeration() {
     }
   };
 
+  // Görünürlük toggle: true → web'de blur yok + paylaşılabilir (public detay).
+  const togglePublic = async (row: NbListingRow, value: boolean) => {
+    setBusyId(row.id);
+    try {
+      await nbAdminService.setListingPublic(row.id, value);
+      setMsg(value ? 'İlan herkese açıldı (public).' : 'İlan üyeye özel yapıldı.');
+      load();
+    } catch (e: any) {
+      setMsg(e?.response?.data?.error?.message ?? 'İşlem başarısız');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <Box p={3}>
       <Typography variant="h4" fontWeight={600} mb={2}>
@@ -211,6 +226,7 @@ export default function NbListingModeration() {
                   <TableCell align="center">İlgi</TableCell>
                   <TableCell>Tarih</TableCell>
                   <TableCell>Durum</TableCell>
+                  <TableCell align="center">Herkese Açık</TableCell>
                   <TableCell align="right">İşlem</TableCell>
                 </TableRow>
               </TableHead>
@@ -247,6 +263,18 @@ export default function NbListingModeration() {
                       <Chip size="small" variant="outlined"
                         color={STATUS_COLOR[r.status] ?? 'default'}
                         label={STATUS_LABEL[r.status] ?? r.status} />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title={r.isPublic ? 'Herkese açık — web\'de blur yok, paylaşılabilir' : 'Üyeye özel — non-member maskeli teaser görür'}>
+                        <span>
+                          <Switch
+                            size="small"
+                            checked={!!r.isPublic}
+                            disabled={busyId === r.id}
+                            onChange={(e) => togglePublic(r, e.target.checked)}
+                          />
+                        </span>
+                      </Tooltip>
                     </TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">

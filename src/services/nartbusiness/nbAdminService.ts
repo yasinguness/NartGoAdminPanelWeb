@@ -101,6 +101,10 @@ export interface NbListingRow {
   interestCount?: number;
   createdAt?: string | null;
   expiresAt?: string | null;
+  /** Herkese açık mı? true → web'de blur yok + paylaşılabilir (public detay). */
+  isPublic?: boolean;
+  /** Editöryel (NartGo derleme) ilan. */
+  curated?: boolean;
 }
 
 export interface NbListingAdminStats {
@@ -440,6 +444,11 @@ async function updateListing(
 /** Moderasyon: durum değiştir (ACTIVE=yeniden aç, CLOSED=kapat, DELETED=sil). */
 async function setListingStatus(id: string, status: NbListingStatus): Promise<void> {
   await api.post(`/nb/needs/admin/${id}/status`, null, { params: { status } });
+}
+
+/** Görünürlük: ilanı herkese aç/kapat. value=true → web'de blur yok + paylaşılabilir. */
+async function setListingPublic(id: string, value: boolean): Promise<void> {
+  await api.post(`/nb/needs/admin/${id}/public`, null, { params: { value } });
 }
 
 /** İlan yönetim özet istatistikleri. */
@@ -984,6 +993,7 @@ export const nbAdminService = {
   getListing,
   updateListing,
   setListingStatus,
+  setListingPublic,
   listingStats,
   listReferrals,
   getReferral,
