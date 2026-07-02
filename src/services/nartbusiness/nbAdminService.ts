@@ -207,6 +207,20 @@ async function getMember(memberId: string): Promise<NbMember | null> {
   return unwrap<NbMember>(res.data);
 }
 
+export interface NbMemberViewStats {
+  memberId: string;
+  total: number;
+  mobile: number;
+  web: number;
+  unknown: number;
+}
+
+/** İşletme (profil) görüntülenme sayıları: toplam + mobil/web (nb-directory). */
+async function memberViewStats(memberId: string): Promise<NbMemberViewStats | null> {
+  const res = await api.get<any>(`/nb/admin/directory/${memberId}/view-stats`);
+  return unwrap<NbMemberViewStats>(res.data);
+}
+
 /**
  * Sprint 24 — Admin aksiyon etki önizlemesi. Suspend/cancel öncesi çağrılır;
  * UI hangi aksiyonların geçerli olduğunu (allowedActions) ve hangi kayıtların
@@ -455,6 +469,23 @@ async function setListingPublic(id: string, value: boolean): Promise<void> {
 async function listingStats(): Promise<NbListingAdminStats | null> {
   const res = await api.get<any>('/nb/needs/admin/stats');
   return unwrap<NbListingAdminStats>(res.data);
+}
+
+export interface NbListingViewStats {
+  listingId: string;
+  total: number;
+  mobile: number;
+  web: number;
+  unknown: number;
+}
+
+/** Verilen ilanlar için mobil/web/toplam görüntülenme sayıları (toplu). */
+async function listingViewStats(ids: string[]): Promise<NbListingViewStats[]> {
+  if (!ids.length) return [];
+  const res = await api.get<any>('/nb/needs/admin/view-stats', {
+    params: { ids: ids.join(',') },
+  });
+  return unwrap<NbListingViewStats[]>(res.data) ?? [];
 }
 
 // ── Yönlendirme (Referral) yönetimi ──────────────────────────────────
@@ -982,6 +1013,7 @@ export const nbAdminService = {
   // Members
   listMembers,
   getMember,
+  memberViewStats,
   createMemberManually,
   listPendingInvites,
   resendInvite,
@@ -995,6 +1027,7 @@ export const nbAdminService = {
   setListingStatus,
   setListingPublic,
   listingStats,
+  listingViewStats,
   listReferrals,
   getReferral,
   updateReferral,

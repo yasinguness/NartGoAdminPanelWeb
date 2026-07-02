@@ -51,7 +51,7 @@ import type {
   VerificationCase,
   VerificationDocument,
 } from '../../services/nartbusiness/nbTypes';
-import type { NbUserSearchResult, NbResendTemplate } from '../../services/nartbusiness/nbAdminService';
+import type { NbUserSearchResult, NbResendTemplate, NbMemberViewStats } from '../../services/nartbusiness/nbAdminService';
 import {
   fullDate,
   monthsBetween,
@@ -85,6 +85,7 @@ export default function NbMemberDetail() {
   const fullScreen = useNbMobile();
 
   const [member, setMember] = useState<NbMember | null>(null);
+  const [viewStats, setViewStats] = useState<NbMemberViewStats | null>(null);
   const [user, setUser] = useState<NbUserSearchResult | null>(null);
   const [userLoadError, setUserLoadError] = useState<string | null>(null);
   const [periods, setPeriods] = useState<NbPeriodView[]>([]);
@@ -174,6 +175,8 @@ export default function NbMemberDetail() {
     try {
       const m = await nbAdminService.getMember(memberId);
       setMember(m);
+      // İşletme görüntülenme sayıları (mobil/web) — best-effort.
+      nbAdminService.memberViewStats(memberId).then(setViewStats).catch(() => setViewStats(null));
       if (m) {
         let userFetchError: string | null = null;
         const fetchPromises: [Promise<any>, Promise<any>, Promise<any>, Promise<any>] = [
@@ -532,6 +535,26 @@ export default function NbMemberDetail() {
             emptyLabel="Sektör seçilmedi"
           />
           <DetailRow label="Şehir" value={member.city} emptyLabel="Şehir girilmedi" />
+        </NbSectionPaper>
+
+        {/* Görüntülenme — bu işletme profiline mobil/web'den kaç kez girildi */}
+        <NbSectionPaper title="Görüntülenme — İşletme Profili">
+          <Stack direction="row" spacing={4} flexWrap="wrap">
+            {[
+              ['Toplam', viewStats?.total ?? 0],
+              ['Mobil', viewStats?.mobile ?? 0],
+              ['Web', viewStats?.web ?? 0],
+              ...(viewStats && viewStats.unknown > 0 ? [['Diğer', viewStats.unknown] as const] : []),
+            ].map(([label, value]) => (
+              <Stack key={label as string} alignItems="flex-start" sx={{ minWidth: 72 }}>
+                <Typography variant="h5" fontWeight={700}>{value as number}</Typography>
+                <Typography variant="caption" color="text.secondary">{label as string}</Typography>
+              </Stack>
+            ))}
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+            Aynı kişinin 6 saat içindeki tekrar ziyaretleri tek sayılır.
+          </Typography>
         </NbSectionPaper>
 
         {/* Kafkas Kimliği */}

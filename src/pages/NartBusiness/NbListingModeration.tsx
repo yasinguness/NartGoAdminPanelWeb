@@ -43,6 +43,7 @@ import type {
   NbListingStatus,
   NbListingType,
   NbListingAdminStats,
+  NbListingViewStats,
 } from '../../services/nartbusiness/nbAdminService';
 
 const STATUS_LABEL: Record<NbListingStatus, string> = {
@@ -100,6 +101,7 @@ export default function NbListingModeration() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [stats, setStats] = useState<NbListingAdminStats | null>(null);
+  const [views, setViews] = useState<Record<string, NbListingViewStats>>({});
   const [editing, setEditing] = useState<NbListingRow | null>(null);
 
   useEffect(() => { setPage(0); }, [type, status, q]);
@@ -123,6 +125,11 @@ export default function NbListingModeration() {
       .then((p) => {
         setRows(p.content);
         setTotalPages(Math.max(1, p.totalPages));
+        // Sayfadaki ilanlar için görüntülenme (mobil/web) sayılarını çek.
+        nbAdminService
+          .listingViewStats(p.content.map((r) => r.id))
+          .then((list) => setViews(Object.fromEntries(list.map((v) => [v.listingId, v]))))
+          .catch(() => {});
       })
       .catch((e) => setError(e?.response?.data?.error?.message ?? 'Yüklenemedi'))
       .finally(() => setLoading(false));
@@ -224,6 +231,7 @@ export default function NbListingModeration() {
                   <TableCell>Sektör / Şehir</TableCell>
                   <TableCell>Bütçe</TableCell>
                   <TableCell align="center">İlgi</TableCell>
+                  <TableCell align="center">Görüntülenme</TableCell>
                   <TableCell>Tarih</TableCell>
                   <TableCell>Durum</TableCell>
                   <TableCell align="center">Herkese Açık</TableCell>
@@ -258,6 +266,22 @@ export default function NbListingModeration() {
                     </TableCell>
                     <TableCell>{fmtBudget(r)}</TableCell>
                     <TableCell align="center">{r.interestCount ?? 0}</TableCell>
+                    <TableCell align="center">
+                      {(() => {
+                        const v = views[r.id];
+                        if (!v || v.total === 0) return <span style={{ color: '#999' }}>0</span>;
+                        return (
+                          <Tooltip title={`Mobil: ${v.mobile} · Web: ${v.web}${v.unknown ? ` · Diğer: ${v.unknown}` : ''}`}>
+                            <span style={{ fontWeight: 600 }}>
+                              {v.total}
+                              <span style={{ color: '#888', fontWeight: 400, fontSize: 12 }}>
+                                {' '}({v.mobile}m/{v.web}w)
+                              </span>
+                            </span>
+                          </Tooltip>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell>{fmtDate(r.createdAt)}</TableCell>
                     <TableCell>
                       <Chip size="small" variant="outlined"
