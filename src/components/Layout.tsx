@@ -26,6 +26,8 @@ import {
     HomeWork,
     Feed as FeedIcon,
     EmojiEvents as EmojiEventsIcon,
+    Casino as CasinoIcon,
+    LiveTv as LiveTvIcon,
     FactCheck as FactCheckIcon,
     Policy as PolicyIcon,
     AccountBalance as AccountBalanceIcon,
@@ -219,9 +221,11 @@ const navSections: NavSection[] = [
         items: [
             { text: 'Cihazlar', icon: <DevicesIcon />, path: '/devices' },
             { text: 'Oyunlaştırma', icon: <EmojiEventsIcon />, path: '/gamification' },
+            { text: 'Çekiliş', icon: <CasinoIcon />, path: '/raffle' },
             { text: 'Audit Log', icon: <AuditIcon />, path: '/audit-log' },
             { text: 'Panel Analitik', icon: <TrendingUpIcon />, path: '/analytics' },
             { text: 'Ayarlar', icon: <SettingsIcon />, path: '/settings' },
+            { text: 'Çekiliş Ekranı', icon: <LiveTvIcon />, path: '/event/raffle-live' },
         ],
     },
 ];

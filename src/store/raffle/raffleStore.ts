@@ -1,194 +1,184 @@
 import { create } from 'zustand';
-import { RaffleState, Participant, TicketSale, Winner, RaffleStats } from '../../types/raffle';
-import { api } from '../../services/api';
+import { RaffleState, Participant, Winner, RaffleStats } from '../../types/raffle';
+import {
+    raffleAdminService,
+    RaffleCampaign,
+    RaffleWinner,
+} from '../../services/raffle/raffleAdminService';
 
+/**
+ * Canlı çekiliş sahnesi — GERÇEK kampanya verisiyle çalışır.
+ *
+ * Akış:
+ *  1. init(): kampanyaları yükle, aktif olanı seç (entries + winners dahil).
+ *  2. startDrawing(count):
+ *     - Backend'de henüz çekim yoksa: TEK seferde count kazanan çekilir
+ *       (rank 1 = asıl, 2+ = yedek) ve rank 1 sahnede açıklanır.
+ *     - Çekim zaten yapılmışsa: backend'e GİTMEDEN sıradaki rank açıklanır
+ *       (yanlışlıkla yeniden çekim imkânsız; sayfa yenilense bile kazananlar
+ *       yüklenir ve sırayla tekrar açıklanabilir).
+ *  3. Tüm kazananlar açıklandıysa yeni basış hata mesajı gösterir.
+ */
 interface RaffleStore {
     // State
     raffleState: RaffleState;
+    campaigns: RaffleCampaign[];
+    campaign: RaffleCampaign | null;
     participants: Participant[];
-    ticketSales: TicketSale[];
-    winners: Winner[];
     stats: RaffleStats;
+    drawnWinners: RaffleWinner[];
+    revealIndex: number;
     currentWinner: Winner | null;
-    raffleEventId: string | null;
+    currentRank: number | null;
+    loading: boolean;
+    error: string | null;
 
     // Actions
-    loadRaffleData: (raffleEventId: string) => Promise<void>;
-    startDrawing: () => void;
-    selectWinner: () => void;
+    init: () => Promise<void>;
+    selectCampaign: (campaignId: string) => Promise<void>;
+    startDrawing: (count: number) => void;
     resetRaffle: () => void;
-    addTicketSale: (sale: TicketSale) => void;
-    simulateTicketSales: () => void;
-    stopSimulation: () => void;
 }
 
-const emojis = ['🚀', '🎉', '⭐', '🎊', '💫', '🔥'];
+function toParticipant(userId: string, name?: string | null, email?: string | null, entries?: number): Participant {
+    return {
+        id: userId,
+        name: (name && name.trim()) || email || 'Katılımcı',
+        email: email || '',
+        ticketCount: entries || 1,
+        avatarUrl: '',
+    };
+}
 
-let simulationInterval: NodeJS.Timeout | null = null;
+function toStageWinner(w: RaffleWinner, prize: string): Winner {
+    return {
+        participant: toParticipant(w.userId, w.displayName, w.email, w.entryCount),
+        prize,
+        timestamp: new Date(w.drawnAt),
+    };
+}
 
 export const useRaffleStore = create<RaffleStore>((set, get) => ({
-    // Initial state
     raffleState: RaffleState.IDLE,
+    campaigns: [],
+    campaign: null,
     participants: [],
-    ticketSales: [],
-    winners: [],
+    stats: { totalRevenue: 0, totalTickets: 0, participantCount: 0 },
+    drawnWinners: [],
+    revealIndex: 0,
     currentWinner: null,
-    raffleEventId: null,
-    stats: {
-        totalRevenue: 0,
-        totalTickets: 0,
-        participantCount: 0,
-        nextDrawTime: new Date(Date.now() + 15 * 60 * 1000),
+    currentRank: null,
+    loading: false,
+    error: null,
+
+    // Kampanyaları yükle; aktif (yoksa en yeni) kampanyayı seç.
+    init: async () => {
+        set({ loading: true, error: null });
+        try {
+            const campaigns = await raffleAdminService.list();
+            set({ campaigns });
+            const preferred = campaigns.find((c) => c.status === 'ACTIVE') ?? campaigns[0];
+            if (preferred) {
+                await get().selectCampaign(preferred.id);
+            } else {
+                set({ loading: false, error: 'Kampanya bulunamadı. Önce admin panelden kampanya oluşturun.' });
+            }
+        } catch {
+            set({ loading: false, error: 'Kampanyalar yüklenemedi.' });
+        }
     },
 
-    // Load raffle data from API
-    loadRaffleData: async (raffleEventId: string) => {
-        set({ raffleEventId });
+    selectCampaign: async (campaignId: string) => {
+        set({ loading: true, error: null });
         try {
-            const [participantsRes, winnersRes] = await Promise.allSettled([
-                api.get(`/raffle/events/${raffleEventId}/participants`),
-                api.get(`/raffle/events/${raffleEventId}/winners`),
+            const [campaign, entries, winners] = await Promise.all([
+                raffleAdminService.get(campaignId),
+                raffleAdminService.entries(campaignId, 500),
+                raffleAdminService.winners(campaignId),
             ]);
-            const participants = participantsRes.status === 'fulfilled'
-                ? (participantsRes.value.data?.data || []).map((p: any) => ({
-                    id: p.id || p.userId || String(Math.random()),
-                    name: p.name || p.displayName || p.email || 'Katılımcı',
-                    ticketCount: p.ticketCount || 1,
-                    avatarUrl: p.avatarUrl || p.imageUrl,
-                    joinedAt: p.joinedAt || p.createdAt,
-                  }))
-                : [];
-            const winners = winnersRes.status === 'fulfilled'
-                ? (winnersRes.value.data?.data || []).map((w: any) => ({
-                    participant: {
-                      id: w.participantId || w.userId || '',
-                      name: w.participantName || w.name || '',
-                      ticketCount: w.ticketCount || 1,
-                    },
-                    prize: w.prize || w.prizeName || '',
-                    timestamp: w.timestamp || w.drawnAt || new Date().toISOString(),
-                    emoji: emojis[Math.floor(Math.random() * emojis.length)],
-                  }))
-                : [];
+            const participants = entries.map((e) =>
+                toParticipant(e.userId, e.displayName, e.email, e.entries));
             set({
+                campaign,
                 participants,
-                winners,
+                drawnWinners: winners, // rank asc
+                revealIndex: 0, // yenileme sonrası sahnede yeniden açıklanabilsin
+                currentWinner: null,
+                currentRank: null,
+                raffleState: RaffleState.IDLE,
+                loading: false,
                 stats: {
-                    ...get().stats,
+                    totalRevenue: 0,
                     participantCount: participants.length,
-                    totalTickets: participants.reduce((sum: number, p: any) => sum + (p.ticketCount || 1), 0),
+                    totalTickets: participants.reduce((sum, p) => sum + p.ticketCount, 0),
                 },
             });
         } catch {
-            // silently handle — keep empty state
+            set({ loading: false, error: 'Kampanya verisi yüklenemedi.' });
         }
     },
 
-    // Start the raffle drawing animation
-    startDrawing: () => {
-        set({ raffleState: RaffleState.DRAWING });
+    /**
+     * count: toplam kazanan sayısı (1 asıl + yedekler). Yalnızca İLK basışta
+     * backend çekimi yapılır; sonraki basışlar sıradaki yedeği açıklar.
+     */
+    startDrawing: (count: number) => {
+        const { campaign, participants, drawnWinners, revealIndex } = get();
+        if (!campaign) {
+            set({ error: 'Önce kampanya seçin.' });
+            return;
+        }
+        if (participants.length === 0) {
+            set({ error: 'Bu kampanyada hak kazanan katılımcı yok.' });
+            return;
+        }
+        if (drawnWinners.length > 0 && revealIndex >= drawnWinners.length) {
+            set({ error: 'Tüm kazananlar açıklandı. Yeniden çekim için kampanya yönetim sayfasını kullanın.' });
+            return;
+        }
 
-        // Automatically select winner after 3-5 seconds
-        setTimeout(() => {
-            get().selectWinner();
-        }, 4000);
-    },
+        set({ raffleState: RaffleState.DRAWING, error: null });
 
-    // Select a random winner
-    selectWinner: () => {
-        const { participants, winners } = get();
-
-        // Create weighted array based on ticket counts
-        const weightedParticipants: Participant[] = [];
-        participants.forEach(participant => {
-            for (let i = 0; i < participant.ticketCount; i++) {
-                weightedParticipants.push(participant);
-            }
-        });
-
-        // Randomly select
-        const randomIndex = Math.floor(Math.random() * weightedParticipants.length);
-        const selectedParticipant = weightedParticipants[randomIndex];
-
-        // Select a random prize from defaults
-        const defaultPrizes = ['Büyük Ödül', 'VIP Bilet', 'Hediye Çeki', 'Özel Paket', 'Sürpriz Hediye'];
-        const availablePrizes = defaultPrizes.filter(
-            prize => !winners.find(w => w.prize === prize)
-        );
-        const randomPrize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)] || 'Özel Hediye';
-
-        const winner: Winner = {
-            participant: selectedParticipant,
-            prize: randomPrize,
-            timestamp: new Date(),
+        const revealNext = (winners: RaffleWinner[], index: number) => {
+            const w = winners[index];
+            set({
+                raffleState: RaffleState.CELEBRATING,
+                currentWinner: toStageWinner(w, campaign.prize),
+                currentRank: w.rank,
+                drawnWinners: winners,
+                revealIndex: index + 1,
+            });
+            setTimeout(() => set({ raffleState: RaffleState.WINNER_REVEALED }), 5000);
         };
 
-        set({
-            raffleState: RaffleState.CELEBRATING,
-            currentWinner: winner,
-        });
-
-        // After celebration, move to winner revealed state
-        setTimeout(() => {
-            set(state => ({
-                raffleState: RaffleState.WINNER_REVEALED,
-                winners: [winner, ...state.winners].slice(0, 10), // Keep last 10 winners
-            }));
-        }, 5000);
-    },
-
-    // Reset raffle to idle state
-    resetRaffle: () => {
-        set({
-            raffleState: RaffleState.IDLE,
-            currentWinner: null,
-        });
-    },
-
-    // Add a new ticket sale to the feed
-    addTicketSale: (sale: TicketSale) => {
-        set(state => {
-            const newStats = {
-                ...state.stats,
-                totalTickets: state.stats.totalTickets + sale.ticketCount,
-                totalRevenue: state.stats.totalRevenue + (sale.ticketCount * 50), // Assuming 50 TL per ticket
-            };
-
-            return {
-                ticketSales: [sale, ...state.ticketSales].slice(0, 50), // Keep last 50
-                stats: newStats,
-            };
-        });
-    },
-
-    // Simulate ticket sales for demo
-    simulateTicketSales: () => {
-        if (simulationInterval) return; // Already running
-
-        simulationInterval = setInterval(() => {
-            const { participants, addTicketSale } = get();
-            const randomParticipant = participants[Math.floor(Math.random() * participants.length)];
-            const ticketCount = Math.floor(Math.random() * 5) + 1;
-            const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-
-            const sale: TicketSale = {
-                userId: randomParticipant.id,
-                userName: randomParticipant.name,
-                userEmail: randomParticipant.email,
-                ticketCount,
-                timestamp: new Date(),
-                emoji,
-            };
-
-            addTicketSale(sale);
-        }, 3000); // New sale every 3 seconds
-    },
-
-    // Stop ticket sale simulation
-    stopSimulation: () => {
-        if (simulationInterval) {
-            clearInterval(simulationInterval);
-            simulationInterval = null;
+        if (drawnWinners.length > 0) {
+            // Çekim zaten yapılmış → backend'e gitmeden sıradaki rank'ı açıkla.
+            setTimeout(() => revealNext(drawnWinners, revealIndex), 4000);
+            return;
         }
+
+        // İlk çekim: animasyon (min 4sn) + backend çekimi paralel.
+        // force=true: canlı çekim etkinlikte, kampanya penceresi kapanmadan yapılır.
+        const minAnimation = new Promise<void>((resolve) => setTimeout(resolve, 4000));
+        const drawCall = raffleAdminService.draw(campaign.id, Math.max(1, count), true);
+
+        Promise.all([drawCall, minAnimation])
+            .then(([winners]) => {
+                if (winners.length === 0) {
+                    set({ raffleState: RaffleState.IDLE, error: 'Çekim sonuç döndürmedi.' });
+                    return;
+                }
+                revealNext(winners, 0);
+            })
+            .catch((e: any) => {
+                set({
+                    raffleState: RaffleState.IDLE,
+                    error: e?.response?.data?.message || 'Çekim başarısız — tekrar deneyin.',
+                });
+            });
+    },
+
+    resetRaffle: () => {
+        set({ raffleState: RaffleState.IDLE, currentWinner: null, currentRank: null });
     },
 }));

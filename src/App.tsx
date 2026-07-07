@@ -40,6 +40,7 @@ import ContentList from './pages/Content/ContentList';
 import ContentDetail from './pages/Content/ContentDetail';
 import ContentEditor from './pages/Content/ContentEditor';
 import GamificationSettings from './pages/Gamification/GamificationSettings';
+import RaffleCampaigns from './pages/Raffle/RaffleCampaigns';
 import SubMerchants from './pages/SubMerchants/SubMerchants';
 import SubMerchantForm from './pages/SubMerchants/SubMerchantForm';
 import SubMerchantDetails from './pages/SubMerchants/SubMerchantDetails';
@@ -207,6 +208,7 @@ function App() {
                 <Route path="events/:eventId/seat-map" element={<SeatMapLive />} />
                 <Route path="associations/:associationId/:ownerId" element={<AssociationDetails />} />
                 <Route path="gamification" element={<GamificationSettings />} />
+                <Route path="raffle" element={<RaffleCampaigns />} />
                 <Route path="sub-merchants" element={<SubMerchants />} />
                 <Route path="sub-merchants/new" element={<SubMerchantForm />} />
                 <Route path="sub-merchants/:id" element={<SubMerchantDetails />} />
