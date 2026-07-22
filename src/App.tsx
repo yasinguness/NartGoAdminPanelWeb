@@ -39,6 +39,7 @@ import Bulletins from './pages/Bulletins/Bulletins';
 import ContentList from './pages/Content/ContentList';
 import ContentDetail from './pages/Content/ContentDetail';
 import ContentEditor from './pages/Content/ContentEditor';
+import ContentIngest from './pages/Content/ContentIngest';
 import GamificationSettings from './pages/Gamification/GamificationSettings';
 import RaffleCampaigns from './pages/Raffle/RaffleCampaigns';
 import SubMerchants from './pages/SubMerchants/SubMerchants';
@@ -169,6 +170,7 @@ function App() {
                 <Route path="feeds" element={<FeedVideos />} />
                 <Route path="bulletins" element={<Bulletins />} />
                 <Route path="content" element={<ContentList />} />
+                <Route path="content/ingest" element={<ContentIngest />} />
                 <Route path="content/new" element={<ContentEditor />} />
                 <Route path="content/:id" element={<ContentDetail />} />
                 <Route path="content/:id/edit" element={<ContentEditor />} />

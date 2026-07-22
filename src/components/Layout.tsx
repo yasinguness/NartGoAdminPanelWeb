@@ -42,6 +42,7 @@ import {
     Badge as BadgeIcon,
     EventSeat as EventSeatIcon,
     Article as ArticleIcon,
+    CloudSync as CloudSyncIcon,
     Menu as MenuIcon,
     Search as SearchIcon,
     ManageSearch as AuditIcon,
@@ -99,6 +100,7 @@ const navSections: NavSection[] = [
         allowedRoles: ['ADMIN', 'EDITOR'],
         items: [
             { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
+            { text: 'İçerik Toplama', icon: <CloudSyncIcon />, path: '/content/ingest' },
         ],
     },
     {
