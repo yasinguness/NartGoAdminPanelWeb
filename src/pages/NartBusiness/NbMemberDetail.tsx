@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
+  Autocomplete,
   Avatar,
   Box,
   Button,
@@ -35,6 +36,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
+import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
@@ -163,6 +166,45 @@ export default function NbMemberDetail() {
   const [resendEmailOverride, setResendEmailOverride] = useState('');
   const [resendBusy, setResendBusy] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
+
+  // Admin iletişim: üyeye tekil push (in-app kaydı + FCM; NB tercih kapılı).
+  const [pushOpen, setPushOpen] = useState(false);
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushMessage, setPushMessage] = useState('');
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+
+  // Tanıştır — iki üyeye bildirim + e-posta; kayıt "Tanıştırmalar"a düşer.
+  const [introOpen, setIntroOpen] = useState(false);
+  const [introOptions, setIntroOptions] = useState<NbMember[]>([]);
+  const [introLoading, setIntroLoading] = useState(false);
+  const [introTarget, setIntroTarget] = useState<NbMember | null>(null);
+  const [introReason, setIntroReason] = useState('');
+  const [introBusy, setIntroBusy] = useState(false);
+  const [introError, setIntroError] = useState<string | null>(null);
+
+  // Tanıştırılabilir üyeler: aktif + deneme (kendisi hariç).
+  const openIntroDialog = async () => {
+    setIntroTarget(null);
+    setIntroReason('');
+    setIntroError(null);
+    setIntroOpen(true);
+    setIntroLoading(true);
+    try {
+      const [active, trial] = await Promise.all([
+        nbAdminService.listMembers({ status: 'ACTIVE', page: 0, size: 200 }),
+        nbAdminService.listMembers({ status: 'TRIAL', page: 0, size: 200 }),
+      ]);
+      const all = [...(active?.content ?? []), ...(trial?.content ?? [])].filter(
+        (m) => m.memberId !== memberId,
+      );
+      setIntroOptions(all);
+    } catch {
+      setIntroOptions([]);
+    } finally {
+      setIntroLoading(false);
+    }
+  };
   const [resendOk, setResendOk] = useState<string | null>(null);
 
   const load = async () => {
@@ -417,6 +459,25 @@ export default function NbMemberDetail() {
               }}
             >
               Mail Gönder
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<NotificationsActiveOutlinedIcon />}
+              onClick={() => {
+                setPushTitle('');
+                setPushMessage('');
+                setPushError(null);
+                setPushOpen(true);
+              }}
+            >
+              Push Gönder
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<HandshakeOutlinedIcon />}
+              onClick={openIntroDialog}
+            >
+              Tanıştır
             </Button>
             <Button
               variant="outlined"
@@ -929,6 +990,140 @@ export default function NbMemberDetail() {
             }}
           >
             {resendBusy ? 'Gönderiliyor…' : 'Gönder'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Push bildirimi — üyeye tekil (in-app + FCM) */}
+      <Dialog open={pushOpen} onClose={() => !pushBusy && setPushOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Push Bildirimi Gönder</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {pushError && <Alert severity="error">{pushError}</Alert>}
+            <Alert severity="info">
+              Bildirim üyenin uygulamasına anlık gider ve bildirim listesine kaydedilir.
+              Üye NB bildirimlerini kapattıysa yalnız listeye düşer.
+            </Alert>
+            <TextField
+              label="Başlık"
+              value={pushTitle}
+              onChange={(e) => setPushTitle(e.target.value)}
+              disabled={pushBusy}
+              fullWidth
+              inputProps={{ maxLength: 80 }}
+            />
+            <TextField
+              label="Mesaj"
+              value={pushMessage}
+              onChange={(e) => setPushMessage(e.target.value)}
+              disabled={pushBusy}
+              fullWidth
+              multiline
+              minRows={3}
+              inputProps={{ maxLength: 400 }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPushOpen(false)} disabled={pushBusy}>
+            Vazgeç
+          </Button>
+          <Button
+            variant="contained"
+            disabled={pushBusy || !pushTitle.trim() || !pushMessage.trim()}
+            onClick={async () => {
+              if (!member) return;
+              setPushBusy(true);
+              setPushError(null);
+              try {
+                await nbAdminService.sendPush(member.memberId, {
+                  title: pushTitle.trim(),
+                  message: pushMessage.trim(),
+                });
+                setPushOpen(false);
+                alert('Bildirim gönderildi.');
+              } catch (e: any) {
+                setPushError(
+                  e?.response?.data?.error?.message ?? e?.message ?? 'Bildirim gönderilemedi.',
+                );
+              } finally {
+                setPushBusy(false);
+              }
+            }}
+          >
+            {pushBusy ? 'Gönderiliyor…' : 'Gönder'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Tanıştır — iki üyeye bildirim + e-posta, kayıt Tanıştırmalar'a düşer */}
+      <Dialog open={introOpen} onClose={() => !introBusy && setIntroOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>
+          Üye Tanıştır
+          <Typography variant="body2" color="text.secondary">
+            {member?.companyName} ↔ seçeceğiniz üye — iki tarafa da bildirim ve e-posta gider.
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {introError && <Alert severity="error">{introError}</Alert>}
+            <Autocomplete
+              options={introOptions}
+              loading={introLoading}
+              value={introTarget}
+              onChange={(_, v) => setIntroTarget(v)}
+              getOptionLabel={(o) => o.companyName ?? o.memberId}
+              isOptionEqualToValue={(o, v) => o.memberId === v.memberId}
+              renderInput={(params) => (
+                <TextField {...params} label="Tanıştırılacak üye" placeholder="Şirket adıyla ara…" />
+              )}
+              disabled={introBusy}
+            />
+            <TextField
+              label="Tanıştırma sebebi"
+              placeholder='Örn. "Taşeronluk iş birliği potansiyeli — ikisi de inşaat sektöründe."'
+              value={introReason}
+              onChange={(e) => setIntroReason(e.target.value)}
+              disabled={introBusy}
+              fullWidth
+              multiline
+              minRows={3}
+              helperText="Bu metin iki tarafa da aynen gösterilir."
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIntroOpen(false)} disabled={introBusy}>
+            Vazgeç
+          </Button>
+          <Button
+            variant="contained"
+            disabled={introBusy || !introTarget || !introReason.trim()}
+            onClick={async () => {
+              if (!member || !introTarget) return;
+              setIntroBusy(true);
+              setIntroError(null);
+              try {
+                await nbAdminService.createIntroduction({
+                  memberAId: member.memberId,
+                  memberBId: introTarget.memberId,
+                  reason: introReason.trim(),
+                });
+                setIntroOpen(false);
+                alert(
+                  'Tanıştırma iletildi — iki tarafa bildirim ve e-posta gönderildi. ' +
+                    'Takip için: NartBusiness > Tanıştırmalar.',
+                );
+              } catch (e: any) {
+                setIntroError(
+                  e?.response?.data?.error?.message ?? e?.message ?? 'Tanıştırma gönderilemedi.',
+                );
+              } finally {
+                setIntroBusy(false);
+              }
+            }}
+          >
+            {introBusy ? 'Gönderiliyor…' : 'Tanıştır'}
           </Button>
         </DialogActions>
       </Dialog>

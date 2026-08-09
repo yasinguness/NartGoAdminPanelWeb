@@ -8,6 +8,7 @@ import Devices from './pages/Devices';
 import Users from './pages/Users';
 import UserDetails from './pages/Users/UserDetails';
 import UserActivity from './pages/Users/UserActivity';
+import NartLiveUsers from './pages/NartLive/NartLiveUsers';
 import NbAuditLog from './pages/NartBusiness/NbAuditLog';
 import Login from './pages/Login';
 import PrivateRoute from './components/PrivateRoute';
@@ -96,6 +97,7 @@ import NbTierManagement from './pages/NartBusiness/NbTierManagement';
 import NbValueChain from './pages/NartBusiness/NbValueChain';
 import NbEmbeddingJobs from './pages/NartBusiness/NbEmbeddingJobs';
 import NbModerationQueue from './pages/NartBusiness/NbModerationQueue';
+import NbIntroductions from './pages/NartBusiness/NbIntroductions';
 import NbDlqPanel from './pages/NartBusiness/NbDlqPanel';
 import NbShareAnalytics from './pages/NartBusiness/NbShareAnalytics';
 import NbTestimonials from './pages/NartBusiness/NbTestimonials';
@@ -176,6 +178,7 @@ function App() {
                 <Route path="content/:id/edit" element={<ContentEditor />} />
                 <Route path="users" element={<Users />} />
                 <Route path="user-activity" element={<UserActivity />} />
+                <Route path="nartlive/users" element={<NartLiveUsers />} />
                 <Route path="users/:id" element={<UserDetails />} />
                 <Route path="users/:id/360" element={<User360 />} />
                 <Route path="businesses" element={<Businesses />} />
@@ -233,6 +236,7 @@ function App() {
                 <Route path="nartbusiness/value-chain" element={<NbValueChain />} />
                 <Route path="nartbusiness/embedding-jobs" element={<NbEmbeddingJobs />} />
                 <Route path="nartbusiness/moderation" element={<NbModerationQueue />} />
+                <Route path="nartbusiness/introductions" element={<NbIntroductions />} />
                 <Route path="nartbusiness/dlq" element={<NbDlqPanel />} />
                 <Route path="nartbusiness/share-analytics" element={<NbShareAnalytics />} />
                 <Route path="nartbusiness/testimonials" element={<NbTestimonials />} />

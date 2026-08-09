@@ -1002,6 +1002,76 @@ async function replayDlqEntry(service: string, eventDbId: string): Promise<NbDlq
   return unwrap<NbDlqEntry>(res.data);
 }
 
+// ── Admin İletişim & Tanıştırma (docs/plan/nb-admin-iletisim-tanistir.md) ────
+
+/** Üyeye tekil push bildirimi (in-app kaydı + FCM; NB tercih kapısı uygulanır). */
+async function sendPush(
+  memberId: string,
+  body: { title: string; message: string },
+): Promise<void> {
+  await api.post(`/nb/admin/members/${memberId}/push`, body);
+}
+
+export type NbIntroductionStatus =
+  | 'INTRODUCED'
+  | 'MEETING_PENDING'
+  | 'MET'
+  | 'CLOSED_SUCCESS'
+  | 'CLOSED_NO_RESULT';
+
+export const NB_INTRODUCTION_STATUS_LABEL: Record<NbIntroductionStatus, string> = {
+  INTRODUCED: 'Tanıştırıldı',
+  MEETING_PENDING: 'Görüşme bekliyor',
+  MET: 'Görüştüler',
+  CLOSED_SUCCESS: 'Sonuç: iş birliği',
+  CLOSED_NO_RESULT: 'Sonuçsuz kapandı',
+};
+
+export interface NbIntroduction {
+  id: string;
+  memberAId: string;
+  memberAName: string;
+  memberBId: string;
+  memberBName: string;
+  reason: string;
+  status: NbIntroductionStatus;
+  adminNote?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** İki üyeyi tanıştır — iki tarafa push + e-posta gider, kayıt döner. */
+async function createIntroduction(body: {
+  memberAId: string;
+  memberBId: string;
+  reason: string;
+}): Promise<NbIntroduction> {
+  const res = await api.post<any>('/nb/admin/introductions', body);
+  return unwrap<NbIntroduction>(res.data) as NbIntroduction;
+}
+
+async function listIntroductions(params: {
+  memberId?: string;
+  page?: number;
+  size?: number;
+}): Promise<{ items: NbIntroduction[]; totalElements: number; totalPages: number; page: number }> {
+  const res = await api.get<any>('/nb/admin/introductions', { params });
+  return (
+    unwrap<{ items: NbIntroduction[]; totalElements: number; totalPages: number; page: number }>(
+      res.data,
+    ) ?? { items: [], totalElements: 0, totalPages: 0, page: 0 }
+  );
+}
+
+/** Tanıştırma takip kaydını güncelle (durum ve/veya not). */
+async function updateIntroduction(
+  introId: string,
+  body: { status?: NbIntroductionStatus; adminNote?: string },
+): Promise<NbIntroduction> {
+  const res = await api.patch<any>(`/nb/admin/introductions/${introId}`, body);
+  return unwrap<NbIntroduction>(res.data) as NbIntroduction;
+}
+
 export const nbAdminService = {
   // Dashboard
   getDashboardStats,
@@ -1053,6 +1123,11 @@ export const nbAdminService = {
   listMemberPeriods,
   resendEmail,
   sendSetPasswordEmail,
+  // İletişim & Tanıştırma
+  sendPush,
+  createIntroduction,
+  listIntroductions,
+  updateIntroduction,
   // Deneme
   grantTrial,
   extendTrial,

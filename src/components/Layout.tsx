@@ -134,6 +134,7 @@ const navSections: NavSection[] = [
         items: [
             { text: 'NB Dashboard', icon: <BusinessIcon />, path: '/nartbusiness/dashboard' },
             { text: 'NB Üyeler', icon: <PeopleIcon />, path: '/nartbusiness/members' },
+            { text: 'Tanıştırmalar', icon: <PeopleIcon />, path: '/nartbusiness/introductions', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'İşlem Kayıtları', icon: <FactCheckIcon />, path: '/nartbusiness/audit', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
             { text: 'Doğrulama Kuyruğu', icon: <FactCheckIcon />, path: '/nartbusiness/verification' },
             { text: 'Belge Politikaları', icon: <PolicyIcon />, path: '/nartbusiness/verification-policies', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
@@ -160,6 +161,7 @@ const navSections: NavSection[] = [
         items: [
             { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users', allowedRoles: ['ADMIN'] },
             { text: 'Kullanıcı Aktivitesi', icon: <PeopleIcon />, path: '/user-activity', allowedRoles: ['ADMIN'] },
+            { text: 'NartLive Haritası', icon: <PeopleIcon />, path: '/nartlive/users', allowedRoles: ['ADMIN'] },
             { text: 'Dernekler', icon: <HomeWork />, path: '/associations' },
         ],
     },
