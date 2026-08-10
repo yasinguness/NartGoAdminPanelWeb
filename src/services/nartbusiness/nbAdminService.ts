@@ -255,10 +255,11 @@ async function cancelMember(
   return unwrap<NbMember>(res.data);
 }
 
-// ── 1 aylık ücretsiz deneme yönetimi ──
+// ── Ücretsiz deneme yönetimi (süre üyeye göre admin'ce belirlenebilir) ──
 
-async function grantTrial(memberId: string): Promise<NbMember | null> {
-  const res = await api.patch<any>(`/nb/admin/members/${memberId}/grant-trial`);
+async function grantTrial(memberId: string, days?: number): Promise<NbMember | null> {
+  const qs = days && days > 0 ? `?days=${days}` : '';
+  const res = await api.patch<any>(`/nb/admin/members/${memberId}/grant-trial${qs}`);
   return unwrap<NbMember>(res.data);
 }
 

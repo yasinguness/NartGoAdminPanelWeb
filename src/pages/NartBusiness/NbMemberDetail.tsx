@@ -132,16 +132,29 @@ export default function NbMemberDetail() {
 
   const handleTrial = async (kind: 'grant' | 'extend' | 'revoke') => {
     if (!member) return;
-    const msg = {
-      grant: '1 aylık ücretsiz deneme verilsin mi?',
-      extend: 'Deneme 7 gün uzatılsın mı?',
-      revoke: 'Deneme şimdi sonlandırılsın mı? (üye ödeme bekleyene döner)',
-    }[kind];
-    if (!window.confirm(msg)) return;
+
+    // Süre üyeye göre belirlenebilir: verirken ve uzatırken gün sorulur.
+    let days: number | undefined;
+    if (kind === 'grant' || kind === 'extend') {
+      const label =
+        kind === 'grant'
+          ? 'Deneme süresi kaç gün olsun? (örn. 30, 60, 90)'
+          : 'Deneme kaç gün uzatılsın?';
+      const raw = window.prompt(label, kind === 'grant' ? '30' : '7');
+      if (raw === null) return; // vazgeçti
+      days = parseInt(raw, 10);
+      if (!Number.isFinite(days) || days <= 0 || days > 365) {
+        alert('Geçerli bir gün sayısı gir (1-365).');
+        return;
+      }
+    } else if (!window.confirm('Deneme şimdi sonlandırılsın mı? (üye ödeme bekleyene döner)')) {
+      return;
+    }
+
     setTrialBusy(true);
     try {
-      if (kind === 'grant') await nbAdminService.grantTrial(member.memberId);
-      else if (kind === 'extend') await nbAdminService.extendTrial(member.memberId, 7);
+      if (kind === 'grant') await nbAdminService.grantTrial(member.memberId, days);
+      else if (kind === 'extend') await nbAdminService.extendTrial(member.memberId, days ?? 7);
       else await nbAdminService.revokeTrial(member.memberId);
       const m = await nbAdminService.getMember(member.memberId);
       setMember(m);
@@ -411,7 +424,7 @@ export default function NbMemberDetail() {
                 disabled={trialBusy}
                 onClick={() => handleTrial('grant')}
               >
-                Deneme Ver (1 ay)
+                Deneme Ver…
               </Button>
             )}
             {member.status === 'TRIAL' && (
@@ -422,7 +435,7 @@ export default function NbMemberDetail() {
                   disabled={trialBusy}
                   onClick={() => handleTrial('extend')}
                 >
-                  Deneme +7 gün
+                  Süre Uzat…
                 </Button>
                 <Button
                   variant="outlined"

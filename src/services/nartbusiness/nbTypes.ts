@@ -132,7 +132,7 @@ export interface NbMember {
   personJobTitle?: string;
   expertise?: string;
 
-  // 1 aylık ücretsiz deneme
+  // Ücretsiz deneme
   trialEndsAt?: string;
   trialUsed?: boolean;
 
