@@ -24,11 +24,13 @@ import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type {
   AdminUpdateBusinessRequest,
+  AdminUpdateDirectoryProfileRequest,
   CompanyAddressRequest,
   NbMember,
   NbRace,
   Sector,
 } from '../../services/nartbusiness/nbTypes';
+import { ImageUploader } from '../../components/ImageUploader';
 import type { RaceFamily } from '../../services/nartbusiness/nbAdminService';
 import { TR_CITIES } from '../../constants/trCities';
 import {
@@ -119,7 +121,8 @@ function matchTrCity(googleCity: string): string | undefined {
  */
 export default function NbEditBusinessDialog({ open, member, onClose, onSaved }: Props) {
   const fullScreen = useNbMobile();
-  const [form, setForm] = useState<Partial<AdminUpdateBusinessRequest>>({});
+  const [form, setForm] = useState<Partial<AdminUpdateBusinessRequest & AdminUpdateDirectoryProfileRequest>>({});
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [instaHandle, setInstaHandle] = useState('');
   const [placeCityHint, setPlaceCityHint] = useState<string | null>(null);
 
@@ -136,9 +139,9 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const set = <K extends keyof AdminUpdateBusinessRequest>(
+  const set = <K extends keyof (AdminUpdateBusinessRequest & AdminUpdateDirectoryProfileRequest)>(
     k: K,
-    v: AdminUpdateBusinessRequest[K] | undefined,
+    v: (AdminUpdateBusinessRequest & AdminUpdateDirectoryProfileRequest)[K] | undefined,
   ) => setForm((prev) => ({ ...prev, [k]: v }));
 
   // Üye değişince / dialog açılınca formu mevcut değerlerle doldur.
@@ -160,8 +163,23 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
       linkedinUrl: member.linkedinUrl ?? '',
       websiteUrl: member.websiteUrl ?? '',
       verifiedBusiness: !!member.verifiedBusiness,
+      logoUrl: member.logoUrl ?? '',
+      displayName: member.displayName ?? '',
+      personRole: member.personRole ?? '',
+      companySize: member.companySize,
+      foundedYear: member.foundedYear,
+      phoneNumber: member.phoneNumber ?? '',
+      whatsappEnabled: !!member.whatsappEnabled,
+      phoneVisibility: member.phoneVisibility ?? 'VERIFIED_MEMBERS',
+      expertise: member.expertise ?? '',
+      facebookUrl: member.facebookUrl ?? '',
+      twitterUrl: member.twitterUrl ?? '',
+      tiktokUrl: member.tiktokUrl ?? '',
+      youtubeUrl: member.youtubeUrl ?? '',
+      companyType: member.companyType,
     });
     setInstaHandle(instagramHandle(member.instagramUrl));
+    setLogoFile(null);
     setPlaceCityHint(null);
     setAuditCategory('CORRECTION');
     setAuditNoteBody('');
@@ -209,6 +227,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
 
   const valid =
     !!form.companyName?.trim() &&
+    !!form.displayName?.trim() &&
     !!form.sectorCodes?.length &&
     !!form.city &&
     !!form.race &&
@@ -284,6 +303,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
     setSubmitting(true);
     setError(null);
     try {
+      const adminNote = buildAuditNote(auditCategory, auditNoteBody);
       const payload: AdminUpdateBusinessRequest = {
         companyName: form.companyName!.trim(),
         sectorCodes: form.sectorCodes!,
@@ -299,9 +319,46 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
           ? `https://instagram.com/${instaHandle}`
           : undefined,
         verifiedBusiness: !!form.verifiedBusiness,
-        adminNote: buildAuditNote(auditCategory, auditNoteBody),
+        adminNote,
       };
       await nbAdminService.updateMemberBusiness(member.memberId, payload);
+
+      // Logo yükleme
+      let newLogoUrl = form.logoUrl;
+      if (logoFile) {
+        const { uploadUrl } = await nbAdminService.getPresignedProfileUpload(
+          member.memberId,
+          'avatar',
+          logoFile.type,
+          logoFile.size,
+        );
+        await nbAdminService.uploadFileToPresigned(uploadUrl, logoFile, logoFile.type);
+        // R2'ye yüklenen dosyanın public URL'i (presigned URL query parametreleri olmadan)
+        newLogoUrl = uploadUrl.split('?')[0];
+      }
+
+      // Directory Profile Güncelleme
+      const dirPayload: import('../../services/nartbusiness/nbTypes').AdminUpdateDirectoryProfileRequest = {
+        ...payload,
+        summary: payload.businessDescription,
+        adminNote,
+        logoUrl: newLogoUrl,
+        displayName: form.displayName?.trim() || undefined,
+        personRole: form.personRole?.trim() || undefined,
+        expertise: form.expertise?.trim() || undefined,
+        companySize: form.companySize,
+        foundedYear: form.foundedYear,
+        phoneNumber: form.phoneNumber?.trim() || undefined,
+        whatsappEnabled: !!form.whatsappEnabled,
+        phoneVisibility: form.phoneVisibility,
+        facebookUrl: form.facebookUrl?.trim() || undefined,
+        twitterUrl: form.twitterUrl?.trim() || undefined,
+        tiktokUrl: form.tiktokUrl?.trim() || undefined,
+        youtubeUrl: form.youtubeUrl?.trim() || undefined,
+        companyType: form.companyType,
+      };
+      await nbAdminService.updateDirectoryProfile(member.memberId, dirPayload);
+
       onSaved();
       onClose();
     } catch (e: any) {
@@ -341,6 +398,33 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
           <SectionPaper title="Şirket Bilgisi">
             <Grid container spacing={2.5}>
               <Grid item xs={12}>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                  Firma Logosu
+                </Typography>
+                <ImageUploader
+                  currentImage={form.logoUrl || undefined}
+                  onImageSelect={(file) => {
+                    if (Array.isArray(file)) {
+                      setLogoFile(file[0] || null);
+                    } else {
+                      setLogoFile(file as File);
+                    }
+                  }}
+                  multiple={false}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Profil Görünen Adı (DisplayName) *"
+                  fullWidth
+                  size="small"
+                  value={form.displayName ?? ''}
+                  onChange={(e) => set('displayName', e.target.value)}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
                 <CompanyPlacesAutocomplete
                   required
                   value={form.companyName ?? ''}
@@ -349,6 +433,40 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                   helperText="Google'dan seçebilir veya elle yazabilirsiniz."
                 />
               </Grid>
+
+              <Grid item xs={12} md={4}>
+                <CatalogAutocomplete<string>
+                  label="Şirket Türü"
+                  options={['SOLE_PROPRIETOR', 'LLC', 'JSC', 'COOPERATIVE', 'OTHER']}
+                  value={form.companyType ?? null}
+                  onChange={(v) => set('companyType', v as any)}
+                  placeholder="LTD, AŞ vb."
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <CatalogAutocomplete<string>
+                  label="Şirket Büyüklüğü"
+                  options={['MICRO', 'SMALL', 'MEDIUM', 'LARGE', 'ENTERPRISE']}
+                  value={form.companySize ?? null}
+                  onChange={(v) => set('companySize', v as any)}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Kuruluş Yılı"
+                  fullWidth
+                  size="small"
+                  type="number"
+                  value={form.foundedYear ?? ''}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    set('foundedYear', isNaN(val) ? undefined : val);
+                  }}
+                />
+              </Grid>
+
 
               {addr?.description && (
                 <Grid item xs={12}>
@@ -428,6 +546,60 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                   onChange={(e) => set('businessDescription', e.target.value)}
                   inputProps={{ maxLength: 300 }}
                   helperText={`${form.businessDescription?.length ?? 0} / 300`}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Kişinin Şirketteki Rolü"
+                  fullWidth
+                  size="small"
+                  value={form.personRole ?? ''}
+                  onChange={(e) => set('personRole', e.target.value)}
+                  placeholder="Örn: Kurucu, Genel Müdür"
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Uzmanlık Alanı / Deneyim"
+                  fullWidth
+                  size="small"
+                  value={form.expertise ?? ''}
+                  onChange={(e) => set('expertise', e.target.value)}
+                  placeholder="Örn: E-ticaret, B2B Pazarlama"
+                />
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Telefon Numarası"
+                  fullWidth
+                  size="small"
+                  value={form.phoneNumber ?? ''}
+                  onChange={(e) => set('phoneNumber', e.target.value)}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={form.whatsappEnabled ?? false}
+                      onChange={(e) => set('whatsappEnabled', e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label="WhatsApp Aktif"
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <CatalogAutocomplete<string>
+                  label="Telefon Görünürlüğü"
+                  options={['NOBODY', 'VERIFIED_MEMBERS', 'MESSAGE_SENDERS', 'EVERYONE']}
+                  value={form.phoneVisibility ?? null}
+                  onChange={(v) => set('phoneVisibility', v as any)}
                 />
               </Grid>
             </Grid>
@@ -580,22 +752,62 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
               </Grid>
               <Grid item xs={12} md={6}>
                 <SocialPrefixField
+                  prefix="https://instagram.com/"
+                  label="Instagram Kullanıcı Adı (opsiyonel)"
+                  value={instaHandle}
+                  onChange={setInstaHandle}
+                  error={!instaValid}
+                  helperText={!instaValid ? 'Geçersiz kullanıcı adı formatı' : undefined}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Facebook URL (opsiyonel)"
+                  fullWidth
+                  size="small"
+                  value={form.facebookUrl ?? ''}
+                  onChange={(e) => set('facebookUrl', e.target.value)}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Twitter / X URL (opsiyonel)"
+                  fullWidth
+                  size="small"
+                  value={form.twitterUrl ?? ''}
+                  onChange={(e) => set('twitterUrl', e.target.value)}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="TikTok URL (opsiyonel)"
+                  fullWidth
+                  size="small"
+                  value={form.tiktokUrl ?? ''}
+                  onChange={(e) => set('tiktokUrl', e.target.value)}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="YouTube URL (opsiyonel)"
+                  fullWidth
+                  size="small"
+                  value={form.youtubeUrl ?? ''}
+                  onChange={(e) => set('youtubeUrl', e.target.value)}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <SocialPrefixField
                   kind="website"
                   value={form.websiteUrl ?? ''}
                   onChange={(v) => set('websiteUrl', v || undefined)}
                   error={!websiteValid}
                   helperText={!websiteValid ? 'Geçersiz URL' : undefined}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <SocialPrefixField
-                  kind="instagram"
-                  value={instaHandle}
-                  onChange={(v) => setInstaHandle(v)}
-                  error={!instaValid}
-                  helperText={
-                    !instaValid ? 'Sadece harf/rakam/nokta/alt çizgi' : undefined
-                  }
                 />
               </Grid>
             </Grid>

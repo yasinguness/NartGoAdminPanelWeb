@@ -666,6 +666,49 @@ async function updateMemberBusiness(
 }
 
 /**
+ * Admin panel — directory profilini ve logoyu güncelle.
+ * Backend DirectoryProfile'ı günceller.
+ */
+async function updateDirectoryProfile(
+  memberId: string,
+  body: import('./nbTypes').AdminUpdateDirectoryProfileRequest,
+): Promise<any> {
+  const res = await api.put<any>(`/nb/admin/directory/${memberId}/profile`, body);
+  return unwrap(res.data);
+}
+
+/**
+ * Profil fotoğrafı/logo upload için presigned URL al (admin yetkisiyle).
+ */
+async function getPresignedProfileUpload(
+  memberId: string,
+  kind: 'avatar' | 'cover' | 'gallery' | 'video',
+  contentType: string,
+  fileSize: number,
+): Promise<{ uploadUrl: string }> {
+  const body = { memberId, kind, contentType, fileSize };
+  const res = await api.post<any>('/media/nb/presign/profile', body);
+  return unwrap(res.data);
+}
+
+/**
+ * Dosyayı presigned URL'e doğrudan (PUT) yükle
+ */
+async function uploadFileToPresigned(uploadUrl: string, file: File, contentType: string): Promise<void> {
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': contentType,
+    },
+    body: file,
+  });
+  if (!res.ok) {
+    throw new Error('Upload failed');
+  }
+}
+
+
+/**
  * Sprint 23.1 — NartGo kullanıcı autocomplete arama (admin manuel üye dropdown).
  *
  * Backend: GET /api/v1/nb/admin/users/search?q=...&limit=20
@@ -1110,6 +1153,9 @@ export const nbAdminService = {
   setQuestionStatus,
   questionStats,
   updateMemberBusiness,
+  updateDirectoryProfile,
+  getPresignedProfileUpload,
+  uploadFileToPresigned,
   searchUsers,
   lookupUserByEmail,
   getUserById,

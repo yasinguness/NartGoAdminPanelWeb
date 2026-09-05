@@ -597,8 +597,28 @@ export default function NbMemberDetail() {
 
         {/* Şirket Bilgisi */}
         <NbSectionPaper title="Şirket Bilgisi">
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
+            {member.logoUrl ? (
+              <Box
+                component="img"
+                src={member.logoUrl}
+                alt="Logo"
+                sx={{ width: 80, height: 80, borderRadius: 2, objectFit: 'contain', bgcolor: 'white', border: '1px solid', borderColor: 'divider' }}
+              />
+            ) : (
+              <Box
+                sx={{ width: 80, height: 80, borderRadius: 2, bgcolor: 'action.hover', border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Typography variant="caption" color="text.secondary">Logosuz</Typography>
+              </Box>
+            )}
+            <Box>
+              <Typography variant="h6">{member.displayName || member.companyName || 'Şirket adı eksik'}</Typography>
+              <Typography variant="body2" color="text.secondary">{member.personRole || 'Rol belirtilmedi'}</Typography>
+            </Box>
+          </Stack>
           <DetailRow
-            label="Şirket adı"
+            label="Resmi Şirket adı"
             value={member.companyName}
             emptyLabel="Şirket adı eksik"
             warnOnEmpty
@@ -609,6 +629,7 @@ export default function NbMemberDetail() {
             emptyLabel="Sektör seçilmedi"
           />
           <DetailRow label="Şehir" value={member.city} emptyLabel="Şehir girilmedi" />
+          <DetailRow label="Telefon" value={member.phoneNumber} emptyLabel="Telefon girilmedi" />
         </NbSectionPaper>
 
         {/* Görüntülenme — bu işletme profiline mobil/web'den kaç kez girildi */}

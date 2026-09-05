@@ -117,6 +117,50 @@ export interface AdminUpdateBusinessRequest {
   adminNote: string;
 }
 
+/**
+ * Admin panel — directory profil alanlarını ve logoyu güncelleme payload'ı.
+ * Backend: PUT /api/v1/nb/admin/directory/{memberId}/profile
+ */
+export interface AdminUpdateDirectoryProfileRequest {
+  adminNote: string;
+  logoUrl?: string;
+  displayName?: string;
+  personRole?: string;
+  expertise?: string;
+  companyName?: string;
+  sectorCodes?: string[];
+  sectorCode?: string;
+  subSectorCode?: string;
+  companySize?: 'MICRO' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'ENTERPRISE';
+  foundedYear?: number;
+  address?: CompanyAddressRequest;
+  websiteUrl?: string;
+  summary?: string;
+  isPublic?: boolean;
+  race?: NbRace;
+  clanName?: string;
+  hometownDetail?: string;
+  linkedinUrl?: string;
+  instagramUrl?: string;
+  phoneNumber?: string;
+  whatsappEnabled?: boolean;
+  phoneVisibility?: 'NOBODY' | 'VERIFIED_MEMBERS' | 'MESSAGE_SENDERS' | 'EVERYONE';
+  offerings?: any[];
+  seeking?: any[];
+  facebookUrl?: string;
+  twitterUrl?: string;
+  tiktokUrl?: string;
+  youtubeUrl?: string;
+  companyType?: 'SOLE_PROPRIETOR' | 'LLC' | 'JSC' | 'COOPERATIVE' | 'OTHER';
+  brands?: string[];
+  serviceCategories?: string[];
+  workingHours?: Record<string, any>;
+  photoUrls?: string[];
+  promoVideoUrl?: string;
+  promoVideoDurationSeconds?: number;
+  verifiedBusiness?: boolean;
+}
+
 export interface NbMember {
   memberId: string;
   userId: string;
@@ -164,6 +208,9 @@ export interface NbMember {
   // Sprint 23 — "Doğrulanmış İşletme" rozeti
   verifiedBusiness?: boolean;
   verifiedAt?: string;
+  
+  // Directory Profile Alanları
+  logoUrl?: string;
 
   // Sprint 27 — Apply form'da seçilen ödeme yöntemi (Kart vs Havale)
   paymentMethod?: 'IYZICO' | 'BANK_TRANSFER';
