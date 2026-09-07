@@ -42,6 +42,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
 import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
+import Settings from '@mui/icons-material/Settings';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
@@ -104,6 +105,7 @@ export default function NbMemberDetail() {
   const [actionOpen, setActionOpen] = useState(false);
   const [trialBusy, setTrialBusy] = useState(false);
   const [pwBusy, setPwBusy] = useState(false);
+  const [actionMenuAnchor, setActionMenuAnchor] = useState<null | HTMLElement>(null);
 
   // "Şifrenizi belirleyin" — Keycloak UPDATE_PASSWORD + VERIFY_EMAIL action maili.
   // manual-email Thymeleaf akışından ayrıdır: link Keycloak token'ı taşır, 72 saat geçerli.
@@ -113,9 +115,9 @@ export default function NbMemberDetail() {
     if (
       !window.confirm(
         `Bu üyeye "şifrenizi belirleyin" e-postası gönderilsin mi?${target}\n\n` +
-          'Keycloak üzerinden 72 saat geçerli, gerçek bir şifre-belirleme + e-posta ' +
-          'doğrulama linki gönderilir. Şifresini hiç belirlememiş ya da onboarding ' +
-          'maili ulaşmamış üye için kullanın.',
+        'Keycloak üzerinden 72 saat geçerli, gerçek bir şifre-belirleme + e-posta ' +
+        'doğrulama linki gönderilir. Şifresini hiç belirlememiş ya da onboarding ' +
+        'maili ulaşmamış üye için kullanın.',
       )
     )
       return;
@@ -126,8 +128,8 @@ export default function NbMemberDetail() {
     } catch (e: any) {
       alert(
         e?.response?.data?.error?.message ??
-          e?.message ??
-          'Şifre belirleme e-postası gönderilemedi.',
+        e?.message ??
+        'Şifre belirleme e-postası gönderilemedi.',
       );
     } finally {
       setPwBusy(false);
@@ -296,7 +298,7 @@ export default function NbMemberDetail() {
           // (NartGo hesabı silinmiş veya nb.internal-token boş olabilir).
           setUserLoadError(
             userFetchError ??
-              'NartGo hesabı bulunamadı (orphan üye veya hesap silinmiş olabilir)'
+            'NartGo hesabı bulunamadı (orphan üye veya hesap silinmiş olabilir)'
           );
         }
       }
@@ -438,7 +440,7 @@ export default function NbMemberDetail() {
               </Tooltip>
             </Stack>
           </Box>
-          <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} sx={{ flexShrink: 0 }}>
+          <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap' }} useFlexGap>
             {member.status === 'APPROVED_PENDING_PAYMENT' && (
               <Button
                 variant="contained"
@@ -456,17 +458,17 @@ export default function NbMemberDetail() {
             )}
             {(member.status === 'APPROVED_EXPIRED' ||
               member.status === 'APPROVED_PENDING_PAYMENT') && (
-              <Button
-                variant={member.status === 'APPROVED_EXPIRED' ? 'contained' : 'outlined'}
-                color="warning"
-                disabled={trialBusy}
-                onClick={handleReopenApproval}
-              >
-                {member.status === 'APPROVED_EXPIRED'
-                  ? 'Ödeme Süresini Yeniden Aç…'
-                  : 'Ödeme Süresini Uzat…'}
-              </Button>
-            )}
+                <Button
+                  variant={member.status === 'APPROVED_EXPIRED' ? 'contained' : 'outlined'}
+                  color="warning"
+                  disabled={trialBusy}
+                  onClick={handleReopenApproval}
+                >
+                  {member.status === 'APPROVED_EXPIRED'
+                    ? 'Ödeme Süresini Yeniden Aç…'
+                    : 'Ödeme Süresini Uzat…'}
+                </Button>
+              )}
             {member.status === 'APPROVED_PENDING_PAYMENT' && !member.trialUsed && (
               <Button
                 variant="outlined"
@@ -538,8 +540,8 @@ export default function NbMemberDetail() {
                     member.status === 'NEEDS_INFO'
                       ? 'NEEDS_INFO'
                       : member.status === 'SUBMITTED'
-                      ? 'RECEIVED'
-                      : 'APPROVED',
+                        ? 'RECEIVED'
+                        : 'APPROVED',
                   );
                   setResendOpen(true);
                 }}
@@ -618,8 +620,8 @@ export default function NbMemberDetail() {
                 {currentPeriod.paymentId
                   ? ' · Ödeme alındı'
                   : currentPeriod.status === 'PAYMENT_PENDING'
-                  ? ' · Ödeme bekleniyor'
-                  : ' · Offline tahsil'}
+                    ? ' · Ödeme bekleniyor'
+                    : ' · Offline tahsil'}
               </Typography>
             </Box>
           ) : (
@@ -649,8 +651,8 @@ export default function NbMemberDetail() {
                 {daysLeft <= 0
                   ? 'Üyelik süresi bugün sona eriyor. Scheduler henüz çalışmamış olabilir.'
                   : daysLeft === 1
-                  ? 'Üyelik süresi yarın sona eriyor.'
-                  : `Üyelik süresi ${daysLeft} gün içinde sona eriyor.`}{' '}
+                    ? 'Üyelik süresi yarın sona eriyor.'
+                    : `Üyelik süresi ${daysLeft} gün içinde sona eriyor.`}{' '}
                 Bitiş: <b>{shortDate(currentPeriod.endsAt)}</b>.
                 Üye yenileme yapmazsa sistem otomatik olarak erişimini kısıtlayacak.
               </Alert>
@@ -811,8 +813,8 @@ export default function NbMemberDetail() {
                             p.status === 'ACTIVE'
                               ? 'success'
                               : p.status === 'PAYMENT_PENDING'
-                              ? 'warning'
-                              : 'default'
+                                ? 'warning'
+                                : 'default'
                           }
                           label={PERIOD_STATUS_LABEL[p.status]}
                         />
@@ -1020,8 +1022,8 @@ export default function NbMemberDetail() {
               } catch (e: any) {
                 setBankConfirmError(
                   e?.response?.data?.error?.message ??
-                    e?.message ??
-                    'Onaylama başarısız.',
+                  e?.message ??
+                  'Onaylama başarısız.',
                 );
               } finally {
                 setBankConfirming(false);
@@ -1107,8 +1109,8 @@ export default function NbMemberDetail() {
               } catch (e: any) {
                 setResendError(
                   e?.response?.data?.error?.message ??
-                    e?.message ??
-                    'E-posta gönderilemedi.',
+                  e?.message ??
+                  'E-posta gönderilemedi.',
                 );
               } finally {
                 setResendBusy(false);
@@ -1238,7 +1240,7 @@ export default function NbMemberDetail() {
                 setIntroOpen(false);
                 alert(
                   'Tanıştırma iletildi — iki tarafa bildirim ve e-posta gönderildi. ' +
-                    'Takip için: NartBusiness > Tanıştırmalar.',
+                  'Takip için: NartBusiness > Tanıştırmalar.',
                 );
               } catch (e: any) {
                 setIntroError(
@@ -1385,8 +1387,8 @@ function NextActionBanner({ member }: { member: NbMember }) {
         d == null
           ? 'Ödeme bekleniyor'
           : d <= 0
-          ? 'Ödeme süresi bugün doluyor'
-          : `Ödeme için ${d} gün kaldı`;
+            ? 'Ödeme süresi bugün doluyor'
+            : `Ödeme için ${d} gün kaldı`;
       body =
         'Ödeme geldiyse "Ödemeyi Onayla" ile üyeliği aktifleştir. ' +
         'Daha uzun süre gerekiyorsa pencereyi uzatabilirsin.';
@@ -1603,10 +1605,10 @@ function TimelineEntry({ entry }: { entry: CaseTimelineEntry }) {
           bgcolor: isUserResponse
             ? 'primary.main'
             : isNeedsInfo
-            ? 'warning.main'
-            : isDecision
-            ? entry.type === 'APPROVED' ? 'success.main' : 'error.main'
-            : 'divider',
+              ? 'warning.main'
+              : isDecision
+                ? entry.type === 'APPROVED' ? 'success.main' : 'error.main'
+                : 'divider',
           border: '2px solid',
           borderColor: 'background.paper',
           boxShadow: '0 0 0 2px',
@@ -1621,13 +1623,17 @@ function TimelineEntry({ entry }: { entry: CaseTimelineEntry }) {
           bgcolor: isUserResponse
             ? 'primary.50'
             : isNeedsInfo
-            ? 'warning.50'
-            : 'background.paper',
+              ? 'warning.50'
+              : isDecision
+                ? entry.type === 'APPROVED' ? 'success.50' : 'error.50'
+                : 'background.paper',
           borderColor: isUserResponse
             ? 'primary.200'
             : isNeedsInfo
-            ? 'warning.200'
-            : 'divider',
+              ? 'warning.200'
+              : isDecision
+                ? entry.type === 'APPROVED' ? 'success.200' : 'error.200'
+                : 'divider',
         }}
       >
         <Stack direction="row" spacing={1} alignItems="flex-start">

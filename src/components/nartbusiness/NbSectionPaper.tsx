@@ -41,7 +41,15 @@ export default function NbSectionPaper({
   const canToggle = collapsible;
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+    <Paper
+      sx={{
+        borderRadius: 2,
+        overflow: 'hidden',
+        border: '1px solid',
+        borderColor: 'divider',
+        boxShadow: '0px 2px 8px rgba(0,0,0,0.04)',
+      }}
+    >
       <Box
         component={canToggle ? 'button' : 'div'}
         type={canToggle ? 'button' : undefined}
@@ -83,7 +91,7 @@ export default function NbSectionPaper({
           </Box>
         )}
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography variant="subtitle2" fontWeight={700} letterSpacing={0.1}>
+          <Typography variant="subtitle1" fontWeight={700} letterSpacing={0}>
             {title}
           </Typography>
           {hint && (

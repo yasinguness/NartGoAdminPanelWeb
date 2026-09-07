@@ -553,9 +553,48 @@ async function updateListing(
     budgetMax: number | null;
     city: string | null;
     sectorCode: string | null;
+    subSectorCode: string | null;
+    requestType: NbRequestType | null;
+    quantity: number | null;
+    unit: string | null;
+    durationDays: number | null;
   }>,
 ): Promise<NbListingRow | null> {
   const res = await api.put<any>(`/nb/needs/admin/${id}`, body);
+  return unwrap<NbListingRow>(res.data);
+}
+
+/** İlan talep alt türü (talep ilanlarında ne aradığını belirtir). */
+export type NbRequestType =
+  | 'SUPPLIER' | 'BUYER' | 'SERVICE' | 'LOGISTICS' | 'PARTNER' | 'OTHER';
+
+export interface NbListingCreateBody {
+  /**
+   * İlanın kimin adına açılacağı. Verilirse ilan o üyenin ilanı olarak
+   * yayımlanır (işletme kendi açmış gibi). Boş bırakılırsa backend ilanı
+   * küratör hesabına (Pazar Panosu, curated=true) yazar.
+   */
+  ownerMemberId?: string;
+  type: NbListingType;
+  title: string;
+  description?: string | null;
+  requestType?: NbRequestType | null;
+  budgetMin?: number | null;
+  budgetMax?: number | null;
+  currency?: string | null;
+  city?: string | null;
+  district?: string | null;
+  sectorCode?: string | null;
+  subSectorCode?: string | null;
+  /** Sahipsiz (curated) ilanlarda aksiyon yolu: wa.me/…, tel:…, https://… */
+  externalContact?: string | null;
+  source?: string | null;
+  durationDays?: number | null;
+}
+
+/** Admin adına ilan oluşturur. ownerMemberId verilirse ilan o işletmenin olur. */
+async function createListing(body: NbListingCreateBody): Promise<NbListingRow | null> {
+  const res = await api.post<any>('/nb/needs/admin/needs', body);
   return unwrap<NbListingRow>(res.data);
 }
 
@@ -1433,6 +1472,7 @@ export const nbAdminService = {
   hideJobPosting,
   publishJobPosting,
   listListings,
+  createListing,
   getListing,
   updateListing,
   setListingStatus,

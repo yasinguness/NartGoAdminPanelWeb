@@ -119,11 +119,13 @@ export const ImageUploader = ({ onImageSelect, currentImage, multiple = false }:
                             border: '2px dashed',
                             borderColor: 'divider',
                             borderRadius: 1,
-                            p: 3,
+                            p: 4,
                             textAlign: 'center',
                             cursor: 'pointer',
+                            transition: 'all 0.2s ease',
                             '&:hover': {
                                 borderColor: 'primary.main',
+                                bgcolor: 'action.hover',
                             },
                         }}
                         onClick={handleClick}
@@ -155,9 +157,9 @@ export const ImageUploader = ({ onImageSelect, currentImage, multiple = false }:
                             </Box>
                         ) : (
                             <>
-                                <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-                                <Typography variant="body1" color="text.secondary">
-                                    Click to upload image
+                                <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1, opacity: 0.8 }} />
+                                <Typography variant="body1" color="text.secondary" fontWeight={500}>
+                                    Sürükle bırak veya seçmek için tıklayın
                                 </Typography>
                             </>
                         )}

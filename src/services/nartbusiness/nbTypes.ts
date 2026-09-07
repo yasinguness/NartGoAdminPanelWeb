@@ -204,6 +204,18 @@ export interface NbMember {
   linkedinUrl?: string;
   websiteUrl?: string;
   instagramUrl?: string;
+  displayName?: string;
+  personRole?: string;
+  companySize?: 'MICRO' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'ENTERPRISE';
+  foundedYear?: number;
+  phoneNumber?: string;
+  whatsappEnabled?: boolean;
+  phoneVisibility?: 'NOBODY' | 'VERIFIED_MEMBERS' | 'MESSAGE_SENDERS' | 'EVERYONE';
+  facebookUrl?: string;
+  twitterUrl?: string;
+  tiktokUrl?: string;
+  youtubeUrl?: string;
+  companyType?: 'SOLE_PROPRIETOR' | 'LLC' | 'JSC' | 'COOPERATIVE' | 'OTHER';
   nartgoTenureMonths?: number | null;
 
   // Sprint 23 — Komite döngüsü

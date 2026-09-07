@@ -14,6 +14,8 @@ import {
   Grid,
   IconButton,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -123,6 +125,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
   const fullScreen = useNbMobile();
   const [form, setForm] = useState<Partial<AdminUpdateBusinessRequest & AdminUpdateDirectoryProfileRequest>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
   const [instaHandle, setInstaHandle] = useState('');
   const [placeCityHint, setPlaceCityHint] = useState<string | null>(null);
 
@@ -348,8 +351,6 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
         logoUrl: newLogoUrl,
         companyName: payload.companyName,
         sectorCodes: payload.sectorCodes,
-        sectorCode: payload.sectorCode,
-        subSectorCode: payload.subSectorCode,
         address: payload.companyAddress,
         summary: payload.businessDescription,
         race: payload.race,
@@ -404,16 +405,32 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
         </IconButton>
       </DialogTitle>
 
-      <DialogContent dividers>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+      <DialogContent dividers sx={{ p: 0 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ borderBottom: 1, borderColor: 'divider', px: 2, bgcolor: 'background.paper', position: 'sticky', top: 0, zIndex: 10 }}
+        >
+          <Tab label="Genel Bilgiler" />
+          <Tab label="İletişim & Sosyal" />
+          <Tab label="Yönetim & Durum" />
+        </Tabs>
 
-        <Stack spacing={2}>
-          {/* Şirket */}
-          <SectionPaper title="Şirket Bilgisi">
+        <Box sx={{ p: { xs: 2, md: 3 } }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Stack spacing={2}>
+            {/* TAB 0 */}
+            <Box sx={{ display: activeTab === 0 ? 'block' : 'none' }}>
+              <Stack spacing={2}>
+                {/* Şirket */}
+                <SectionPaper title="Şirket Bilgisi">
             <Grid container spacing={2.5}>
               <Grid item xs={12}>
                 <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
@@ -457,7 +474,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                   label="Şirket Türü"
                   options={['SOLE_PROPRIETOR', 'LLC', 'JSC', 'COOPERATIVE', 'OTHER']}
                   value={form.companyType ?? null}
-                  onChange={(v) => set('companyType', v as any)}
+                  onChange={(v) => set('companyType', v as import('../../services/nartbusiness/nbTypes').AdminUpdateDirectoryProfileRequest['companyType'])}
                   placeholder="LTD, AŞ vb."
                 />
               </Grid>
@@ -467,7 +484,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                   label="Şirket Büyüklüğü"
                   options={['MICRO', 'SMALL', 'MEDIUM', 'LARGE', 'ENTERPRISE']}
                   value={form.companySize ?? null}
-                  onChange={(v) => set('companySize', v as any)}
+                  onChange={(v) => set('companySize', v as import('../../services/nartbusiness/nbTypes').AdminUpdateDirectoryProfileRequest['companySize'])}
                 />
               </Grid>
 
@@ -617,14 +634,19 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                   label="Telefon Görünürlüğü"
                   options={['NOBODY', 'VERIFIED_MEMBERS', 'MESSAGE_SENDERS', 'EVERYONE']}
                   value={form.phoneVisibility ?? null}
-                  onChange={(v) => set('phoneVisibility', v as any)}
+                  onChange={(v) => set('phoneVisibility', v as import('../../services/nartbusiness/nbTypes').AdminUpdateDirectoryProfileRequest['phoneVisibility'])}
                 />
               </Grid>
             </Grid>
           </SectionPaper>
+              </Stack>
+            </Box>
 
-          {/* Kimlik */}
-          <SectionPaper title="Kafkas Kimliği" hint="Halk seçimi sülale katalogunu filtreler.">
+            {/* TAB 1 */}
+            <Box sx={{ display: activeTab === 1 ? 'block' : 'none' }}>
+              <Stack spacing={2}>
+                {/* Kimlik */}
+                <SectionPaper title="Kafkas Kimliği" hint="Halk seçimi sülale katalogunu filtreler.">
             <Grid container spacing={2.5}>
               <Grid item xs={12} md={6}>
                 <CatalogAutocomplete<{ value: NbRace; label: string }>
@@ -769,8 +791,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
               </Grid>
               <Grid item xs={12} md={6}>
                 <SocialPrefixField
-                  prefix="https://instagram.com/"
-                  label="Instagram Kullanıcı Adı (opsiyonel)"
+                  kind="instagram"
                   value={instaHandle}
                   onChange={setInstaHandle}
                   error={!instaValid}
@@ -829,9 +850,14 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
               </Grid>
             </Grid>
           </SectionPaper>
+              </Stack>
+            </Box>
 
-          {/* Rozet */}
-          <SectionPaper title="Doğrulanmış İşletme Rozeti">
+            {/* TAB 2 */}
+            <Box sx={{ display: activeTab === 2 ? 'block' : 'none' }}>
+              <Stack spacing={2}>
+                {/* Rozet */}
+                <SectionPaper title="Doğrulanmış İşletme Rozeti">
             <FormControlLabel
               control={
                 <Checkbox
@@ -866,7 +892,10 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
               placeholder="Ne değişti ve neden? (örn. 'Üye talebiyle şirket adı güncellendi, fatura no #1234')"
             />
           </SectionPaper>
-        </Stack>
+              </Stack>
+            </Box>
+          </Stack>
+        </Box>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
