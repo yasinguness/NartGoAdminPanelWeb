@@ -158,7 +158,8 @@ export interface AdminUpdateDirectoryProfileRequest {
   photoUrls?: string[];
   promoVideoUrl?: string;
   promoVideoDurationSeconds?: number;
-  verifiedBusiness?: boolean;
+  // verifiedBusiness bilerek yok: rozetin doğruluk kaynağı üyelik servisi,
+  // dizin profili oradan periyodik olarak hizalanıyor.
 }
 
 export interface NbMember {

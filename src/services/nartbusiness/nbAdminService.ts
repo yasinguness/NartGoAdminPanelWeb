@@ -685,9 +685,11 @@ async function getPresignedProfileUpload(
   kind: 'avatar' | 'cover' | 'gallery' | 'video',
   contentType: string,
   fileSize: number,
-): Promise<{ uploadUrl: string }> {
+): Promise<{ uploadUrl: string; publicUrl: string }> {
   const body = { memberId, kind, contentType, fileSize };
   const res = await api.post<any>('/media/nb/presign/profile', body);
+  // publicUrl = dosyanın okunacağı CDN adresi. uploadUrl yalnız PUT içindir;
+  // query'si kırpılıp saklanamaz (R2'nin özel S3 adresi kalır, herkese açık değil).
   return unwrap(res.data);
 }
 
@@ -1116,6 +1118,198 @@ async function updateIntroduction(
   return unwrap<NbIntroduction>(res.data) as NbIntroduction;
 }
 
+
+// ─────────────────────────────────────────────────────────────
+// İhale modülü (docs/NartBusiness_Ihale_Modulu_Spec.docx)
+//
+// Sistem önerir, insan karar verir: eşleşmeler ÖNERİdir, yönlendirmeyi
+// admin manuel yapar. Otomatik toplu bildirim yok.
+// ─────────────────────────────────────────────────────────────
+
+export type NbTenderStatus = 'NEW' | 'REVIEWED' | 'ARCHIVED';
+export type NbTenderReferralStatus = 'SENT' | 'INTERESTED' | 'DECLINED' | 'WON';
+export type NbTenderChannel = 'WHATSAPP' | 'IN_APP';
+
+export const NB_TENDER_STATUS_LABEL: Record<NbTenderStatus, string> = {
+  NEW: 'Yeni',
+  REVIEWED: 'İncelendi',
+  ARCHIVED: 'Arşiv',
+};
+
+export const NB_TENDER_REFERRAL_STATUS_LABEL: Record<NbTenderReferralStatus, string> = {
+  SENT: 'Gönderildi',
+  INTERESTED: 'İlgilendi',
+  DECLINED: 'İlgilenmedi',
+  WON: 'Kazandı',
+};
+
+export interface NbTenderListItem {
+  id: string;
+  source: string;
+  externalId: string;
+  title: string;
+  tenderType?: string | null;
+  province?: string | null;
+  authority?: string | null;
+  deadline?: string | null;
+  status: NbTenderStatus;
+  matchCount: number;
+  createdAt: string;
+}
+
+export interface NbTenderMatch {
+  memberId: string;
+  memberName: string;
+  city?: string | null;
+  sectorCodes: string[];
+  score: number;
+  matchedOn: string[];
+  alreadyReferred: boolean;
+  /** Üyelik durumu (ACTIVE, TRIAL, APPROVED_PENDING_PAYMENT, EXPIRED…). */
+  memberStatus?: string | null;
+  /**
+   * Üye bildirimi alır ama ihaleyi göremez — ödemesi bekliyor.
+   * Bu üyeye yönlendirme yapmak kasıtlı olabilir: haber onu geri getirir,
+   * içerik ödemeden sonra açılır.
+   */
+  paywalled: boolean;
+}
+
+export interface NbTenderReferral {
+  id: string;
+  memberId: string;
+  memberName: string;
+  channel: NbTenderChannel;
+  status: NbTenderReferralStatus;
+  note?: string | null;
+  consortiumIds: string[];
+  createdAt: string;
+  /** Uygulama içi bildirimin gerçekten gittiği an (IN_APP kanalı). */
+  notifiedAt?: string | null;
+  /** Gönderim anında üye ödemesizdi — maskeli teaser gördü. */
+  lockedOnSend: boolean;
+  /** Üyenin yönlendirmeyi ilk açtığı an. */
+  viewedAt?: string | null;
+  /** Kilitli gidip ödeme sonrası açılan yönlendirme — duvarın getirisi. */
+  unlockedAt?: string | null;
+}
+
+export interface NbTenderDetail {
+  id: string;
+  source: string;
+  externalId: string;
+  title: string;
+  description?: string | null;
+  tenderType?: string | null;
+  okasCodes: string[];
+  province?: string | null;
+  authority?: string | null;
+  deadline?: string | null;
+  sourceUrl?: string | null;
+  status: NbTenderStatus;
+  createdAt: string;
+  matches: NbTenderMatch[];
+  referrals: NbTenderReferral[];
+}
+
+export interface NbConsortiumCandidate {
+  memberId: string;
+  memberName: string;
+  sector: string;
+  score: number;
+  matchedOn: string[];
+}
+
+async function listTenders(params: {
+  status?: NbTenderStatus;
+  page?: number;
+  size?: number;
+}): Promise<PagedResult<NbTenderListItem>> {
+  const res = await api.get<any>('/nb/admin/tenders', { params });
+  return (
+    unwrap<PagedResult<NbTenderListItem>>(res.data) ?? {
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      number: 0,
+      size: 0,
+    }
+  );
+}
+
+async function getTenderCounts(): Promise<Record<string, number>> {
+  const res = await api.get<any>('/nb/admin/tenders/counts');
+  return unwrap<Record<string, number>>(res.data) ?? {};
+}
+
+async function getTenderDetail(id: string): Promise<NbTenderDetail | null> {
+  const res = await api.get<any>(`/nb/admin/tenders/${id}`);
+  return unwrap<NbTenderDetail>(res.data);
+}
+
+async function updateTenderStatus(id: string, status: NbTenderStatus): Promise<void> {
+  await api.patch(`/nb/admin/tenders/${id}/status`, { status });
+}
+
+/** Üye profilleri değiştiyse eşleştirmeyi yeniden çalıştırır. */
+async function rematchTender(id: string): Promise<number> {
+  const res = await api.post<any>(`/nb/admin/tenders/${id}/rematch`);
+  return unwrap<number>(res.data) ?? 0;
+}
+
+/** Mesaj taslağı — partnerIds verilirse konsorsiyum şablonu döner. */
+async function getTenderDraft(
+  id: string,
+  memberId: string,
+  partnerIds?: string[],
+): Promise<string> {
+  const res = await api.get<any>(`/nb/admin/tenders/${id}/draft`, {
+    params: { memberId, partnerIds },
+    paramsSerializer: { indexes: null },
+  });
+  return unwrap<{ draft: string }>(res.data)?.draft ?? '';
+}
+
+async function referTender(
+  id: string,
+  body: { memberId: string; channel?: NbTenderChannel; consortiumIds?: string[]; note?: string },
+): Promise<NbTenderReferral | null> {
+  const res = await api.post<any>(`/nb/admin/tenders/${id}/refer`, body);
+  return unwrap<NbTenderReferral>(res.data);
+}
+
+async function updateTenderReferral(
+  referralId: string,
+  body: { status?: NbTenderReferralStatus; note?: string },
+): Promise<NbTenderReferral | null> {
+  const res = await api.patch<any>(`/nb/admin/tenders/referrals/${referralId}`, body);
+  return unwrap<NbTenderReferral>(res.data);
+}
+
+async function listTenderReferrals(params: {
+  status?: NbTenderReferralStatus;
+  page?: number;
+  size?: number;
+}): Promise<PagedResult<NbTenderReferral>> {
+  const res = await api.get<any>('/nb/admin/tenders/referrals', { params });
+  return (
+    unwrap<PagedResult<NbTenderReferral>>(res.data) ?? {
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      number: 0,
+      size: 0,
+    }
+  );
+}
+
+/** Tamamlayıcı (farklı sektörlerden) üye grubu önerisi. */
+async function suggestConsortium(id: string): Promise<NbConsortiumCandidate[]> {
+  const res = await api.get<any>(`/nb/admin/tenders/${id}/consortium`);
+  return unwrap<NbConsortiumCandidate[]>(res.data) ?? [];
+}
+
+
 export const nbAdminService = {
   // Dashboard
   getDashboardStats,
@@ -1212,4 +1406,15 @@ export const nbAdminService = {
   // DLQ
   listDlqEntries,
   replayDlqEntry,
+  // İhale modülü
+  listTenders,
+  getTenderCounts,
+  getTenderDetail,
+  updateTenderStatus,
+  rematchTender,
+  getTenderDraft,
+  referTender,
+  updateTenderReferral,
+  listTenderReferrals,
+  suggestConsortium,
 };

@@ -326,23 +326,40 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
       // Logo yükleme
       let newLogoUrl = form.logoUrl;
       if (logoFile) {
-        const { uploadUrl } = await nbAdminService.getPresignedProfileUpload(
+        const { uploadUrl, publicUrl } = await nbAdminService.getPresignedProfileUpload(
           member.memberId,
           'avatar',
           logoFile.type,
           logoFile.size,
         );
         await nbAdminService.uploadFileToPresigned(uploadUrl, logoFile, logoFile.type);
-        // R2'ye yüklenen dosyanın public URL'i (presigned URL query parametreleri olmadan)
-        newLogoUrl = uploadUrl.split('?')[0];
+        // Okunacak adres backend'in verdiği publicUrl'dir (CDN alan adı).
+        // uploadUrl'in query'sini kırpmak İŞE YARAMAZ: geriye R2'nin özel S3
+        // API adresi kalır, o adres herkese açık değildir ve logo kırık görünür.
+        newLogoUrl = publicUrl;
       }
 
       // Directory Profile Güncelleme
+      // Alanlar TEK TEK yazılıyor; `...payload` yaymak cazip ama yanlış:
+      // üyelik payload'ının alan adları dizin DTO'sununkilerle birebir aynı
+      // değil (`companyAddress` ↔ `address`, ayrıca dizinde karşılığı olmayan
+      // `city`/`verifiedBusiness`). Yayma yapıldığında backend bilinmeyen
+      // alanları sessizce yutuyor ve adres dizin profiline hiç yazılmıyordu.
       const dirPayload: import('../../services/nartbusiness/nbTypes').AdminUpdateDirectoryProfileRequest = {
-        ...payload,
-        summary: payload.businessDescription,
         adminNote,
         logoUrl: newLogoUrl,
+        companyName: payload.companyName,
+        sectorCodes: payload.sectorCodes,
+        sectorCode: payload.sectorCode,
+        subSectorCode: payload.subSectorCode,
+        address: payload.companyAddress,
+        summary: payload.businessDescription,
+        race: payload.race,
+        clanName: payload.clanName,
+        hometownDetail: payload.hometownDetail,
+        linkedinUrl: payload.linkedinUrl,
+        websiteUrl: payload.websiteUrl,
+        instagramUrl: payload.instagramUrl,
         displayName: form.displayName?.trim() || undefined,
         personRole: form.personRole?.trim() || undefined,
         expertise: form.expertise?.trim() || undefined,
@@ -356,6 +373,9 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
         tiktokUrl: form.tiktokUrl?.trim() || undefined,
         youtubeUrl: form.youtubeUrl?.trim() || undefined,
         companyType: form.companyType,
+        // verifiedBusiness BİLEREK yok — rozetin doğruluk kaynağı üyelik
+        // servisi; yukarıdaki updateMemberBusiness çağrısı onu zaten
+        // gönderiyor. Dizine yazılsaydı reconciler geri alırdı.
       };
       await nbAdminService.updateDirectoryProfile(member.memberId, dirPayload);
 
