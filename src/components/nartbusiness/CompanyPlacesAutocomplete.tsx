@@ -15,6 +15,7 @@ import {
 import { AddressDTO } from '../../types/businesses/addressModel';
 
 export interface CompanyPlaceResult {
+  placeId?: string;
   companyName: string;
   address: Partial<AddressDTO> & { displayName?: string };
 }
@@ -38,6 +39,8 @@ export function CompanyPlacesAutocomplete({
 }: Props) {
   const [options, setOptions] = useState<PlacePrediction[]>([]);
   const [loading, setLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState(false);
+  const selectionRef = useRef(0);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastQueryRef = useRef('');
@@ -70,16 +73,21 @@ export function CompanyPlacesAutocomplete({
   const handleSelect = async (_: unknown, option: PlacePrediction | string | null) => {
     if (!option || typeof option === 'string') return;
     const name = option.structured_formatting.main_text || option.description;
+    const selection = ++selectionRef.current;
+    setDetailsError(false);
     onChange(name);
     setOpen(false);
 
     const details = await getPlaceDetails(option.place_id);
+    if (selection !== selectionRef.current) return;
     if (details) {
       onPlaceSelect({
+        placeId: option.place_id,
         companyName: (details as { displayName?: string }).displayName || name,
         address: details,
       });
     } else {
+      setDetailsError(true);
       onPlaceSelect({ companyName: name, address: {} });
     }
   };
@@ -98,7 +106,11 @@ export function CompanyPlacesAutocomplete({
       loading={loading}
       inputValue={value}
       onInputChange={(_, val, reason) => {
-        if (reason === 'input') onChange(val);
+        if (reason === 'input') {
+          selectionRef.current += 1;
+          setDetailsError(false);
+          onChange(val);
+        }
       }}
       onChange={handleSelect}
       renderOption={(props, opt) => {
@@ -121,7 +133,7 @@ export function CompanyPlacesAutocomplete({
           size="small"
           fullWidth
           error={error}
-          helperText={helperText}
+          helperText={detailsError ? 'Adres alınamadı. Adresi ve ili elle doldurun.' : helperText}
           placeholder="Şirket adı yazın veya Google'dan ara"
           InputProps={{
             ...params.InputProps,

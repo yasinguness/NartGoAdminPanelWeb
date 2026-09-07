@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Autocomplete,
@@ -130,6 +130,37 @@ export default function NbMemberDetail() {
     }
   };
 
+  /**
+   * Ödeme penceresini yeniden açar. APPROVED_EXPIRED'da tek aksiyon buydu;
+   * öncesinde o durum çıkmaz sokaktı ve tek çare üyeyi silip yeniden
+   * yaratmaktı (başvuru numarası ve iz kaybolurdu).
+   */
+  const handleReopenApproval = async () => {
+    if (!member) return;
+    const raw = window.prompt(
+      'Ödeme süresi kaç gün olsun? (üyeye bildirim ve e-posta gönderilecek)',
+      '14',
+    );
+    if (raw === null) return;
+    const days = parseInt(raw, 10);
+    if (!Number.isFinite(days) || days <= 0 || days > 365) {
+      alert('Geçerli bir gün sayısı gir (1-365).');
+      return;
+    }
+    const note = window.prompt('Üyeye iletilecek kısa not (opsiyonel):', '') ?? undefined;
+
+    setTrialBusy(true);
+    try {
+      await nbAdminService.reopenApproval(member.memberId, days, note);
+      const m = await nbAdminService.getMember(member.memberId);
+      setMember(m);
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message ?? e?.message ?? 'Süre yeniden açılamadı');
+    } finally {
+      setTrialBusy(false);
+    }
+  };
+
   const handleTrial = async (kind: 'grant' | 'extend' | 'revoke') => {
     if (!member) return;
 
@@ -164,7 +195,8 @@ export default function NbMemberDetail() {
       setTrialBusy(false);
     }
   };
-  const [editOpen, setEditOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [editOpen, setEditOpen] = useState(searchParams.get('edit') === 'business');
   // Manuel ödeme onayı (havale/EFT veya elle tahsilat) — status =
   // APPROVED_PENDING_PAYMENT olan her üyede gösterilir; üyeyi ACTIVE'e taşır.
   const [bankConfirmOpen, setBankConfirmOpen] = useState(false);
@@ -415,6 +447,19 @@ export default function NbMemberDetail() {
                 }}
               >
                 Ödemeyi Onayla
+              </Button>
+            )}
+            {(member.status === 'APPROVED_EXPIRED' ||
+              member.status === 'APPROVED_PENDING_PAYMENT') && (
+              <Button
+                variant={member.status === 'APPROVED_EXPIRED' ? 'contained' : 'outlined'}
+                color="warning"
+                disabled={trialBusy}
+                onClick={handleReopenApproval}
+              >
+                {member.status === 'APPROVED_EXPIRED'
+                  ? 'Ödeme Süresini Yeniden Aç…'
+                  : 'Ödeme Süresini Uzat…'}
               </Button>
             )}
             {member.status === 'APPROVED_PENDING_PAYMENT' && !member.trialUsed && (
@@ -856,7 +901,14 @@ export default function NbMemberDetail() {
       <NbEditBusinessDialog
         open={editOpen}
         member={member}
-        onClose={() => setEditOpen(false)}
+        onClose={() => {
+          setEditOpen(false);
+          if (searchParams.has('edit')) {
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete('edit');
+            setSearchParams(nextParams, { replace: true });
+          }
+        }}
         onSaved={load}
       />
 

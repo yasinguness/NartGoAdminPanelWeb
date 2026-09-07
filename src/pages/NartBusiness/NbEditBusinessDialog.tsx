@@ -157,7 +157,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
       city: member.city ?? '',
       companyAddress: seedAddress(member),
       businessDescription: member.businessDescription ?? '',
-      race: member.race ?? 'adige',
+      race: member.race ?? undefined,
       clanName: member.clanName ?? '',
       hometownDetail: member.hometownDetail ?? '',
       linkedinUrl: member.linkedinUrl ?? '',
@@ -230,8 +230,6 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
     !!form.displayName?.trim() &&
     !!form.sectorCodes?.length &&
     !!form.city &&
-    !!form.race &&
-    !!form.clanName?.trim() &&
     linkedinValid &&
     websiteValid &&
     instaValid &&
@@ -310,8 +308,8 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
         city: form.city!,
         companyAddress: form.companyAddress,
         businessDescription: form.businessDescription?.trim() || undefined,
-        race: form.race!,
-        clanName: form.clanName!.trim(),
+        race: form.race,
+        clanName: form.clanName?.trim(),
         hometownDetail: form.hometownDetail?.trim() || undefined,
         linkedinUrl: form.linkedinUrl?.trim() || undefined,
         websiteUrl: form.websiteUrl?.trim() || undefined,
@@ -630,8 +628,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
             <Grid container spacing={2.5}>
               <Grid item xs={12} md={6}>
                 <CatalogAutocomplete<{ value: NbRace; label: string }>
-                  label="Halk"
-                  required
+                  label="Halk (opsiyonel)"
                   options={RACES}
                   value={RACES.find((r) => r.value === form.race) ?? null}
                   onChange={(v) => {
@@ -697,7 +694,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Sülale *"
+                      label="Sülale (opsiyonel)"
                       placeholder={form.race ? 'Katalogdan seç veya yeni yaz' : 'Önce halk seç'}
                       helperText={
                         !form.clanName?.trim()

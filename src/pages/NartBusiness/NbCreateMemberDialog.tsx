@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Autocomplete,
@@ -69,7 +70,7 @@ interface Props {
   onCreated: (result?: import('../../services/nartbusiness/nbAdminService').CreateMemberResult) => void;
 }
 
-type ActivationFlow = 'ACTIVE' | 'APPROVED_PENDING_PAYMENT';
+type ActivationFlow = 'ACTIVE' | 'APPROVED_PENDING_PAYMENT' | 'TRIAL';
 
 /** Profesyonel üye için önceden tanımlı ünvan/pozisyonlar. Listede yoksa "Diğer". */
 const NB_JOB_TITLES = [
@@ -112,6 +113,11 @@ const MEMBER_TYPE_OPTIONS: RadioCardOption<'BUSINESS' | 'PROFESSIONAL'>[] = [
 
 const TARGET_STATUS_OPTIONS: RadioCardOption<ActivationFlow>[] = [
   {
+    value: 'TRIAL',
+    title: 'Ücretsiz deneme',
+    description: 'Tam üyelik erişimi. Ödeme penceresi deneme bitince başlar. KAFSİAD için 60 gün seçin.',
+  },
+  {
     value: 'ACTIVE',
     title: 'Hemen aktive et',
     description:
@@ -126,6 +132,7 @@ const TARGET_STATUS_OPTIONS: RadioCardOption<ActivationFlow>[] = [
 ];
 
 const TARGET_STATUS_LABEL: Record<ActivationFlow, string> = {
+  TRIAL: 'Ücretsiz deneme',
   ACTIVE: 'Hemen aktive et',
   APPROVED_PENDING_PAYMENT: 'Ödeme bekleyen',
 };
@@ -343,6 +350,8 @@ function splitPhone(input: string | undefined): { phoneCode?: string; gsmNo?: st
 const SectionPaper = NbSectionPaper;
 
 export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props) {
+  const navigate = useNavigate();
+  const [createdMember, setCreatedMember] = useState<{ id: string; name: string; existing: boolean } | null>(null);
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -351,7 +360,6 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   const [user, setUser] = useState<FindOrCreateUserValue>(initialUser);
 
   const [form, setForm] = useState<Partial<AdminCreateMemberRequest>>({
-    race: 'adige',
     targetStatus: 'ACTIVE',
     grantFreeMembership: false,
     verifiedBusiness: false,
@@ -410,7 +418,6 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     setStep(0);
     setUser(initialUser);
     setForm({
-      race: 'adige',
       targetStatus: 'ACTIVE',
       grantFreeMembership: false,
       verifiedBusiness: false,
@@ -567,12 +574,17 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       !!form.companyName?.trim() &&
       !!form.personJobTitle?.trim() &&
       !!form.expertise?.trim() &&
-      !!form.sectorCodes?.length
+      !!form.sectorCodes?.length && !!form.city
     : !!form.companyName?.trim() && !!form.sectorCodes?.length && !!form.city;
-  const identityValid = !!form.race && !!form.clanName?.trim();
+  const identityValid = true;
   // Profesyonel üyede sosyal/ağ profili zorunlu değil; girilirse format yine doğrulanır.
   const socialValid = (isProfessional || hasSocial) && linkedinValid && websiteValid && instagramValid;
-  const tierValid = !!form.requestedTier && !!form.targetStatus;
+  const tierValid = !!form.requestedTier && !!form.targetStatus &&
+    (form.targetStatus !== 'TRIAL' || (Number.isInteger(form.trialDurationDays) &&
+      form.trialDurationDays! >= 1 && form.trialDurationDays! <= 365)) &&
+    (form.targetStatus !== 'APPROVED_PENDING_PAYMENT' ||
+      (Number.isInteger(form.paymentWindowDays) &&
+        form.paymentWindowDays! >= 1 && form.paymentWindowDays! <= 365));
   const auditValid = isAuditNoteValid(auditNoteBody);
 
   const stepValid: Record<number, boolean> = {
@@ -605,14 +617,11 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       if (isProfessional && !form.personJobTitle?.trim()) missing.push('Ünvan');
       if (isProfessional && !form.expertise?.trim()) missing.push('Uzmanlık');
       if (!form.sectorCodes?.length) missing.push('Sektör');
-      if (!isProfessional && !form.city) missing.push('Şehir');
+      if (!form.city) missing.push('Şehir');
       return missing.length ? `Eksik: ${missing.join(', ')}` : null;
     }
     if (step === 2) {
-      const missing: string[] = [];
-      if (!form.race) missing.push('Halk');
-      if (!form.clanName?.trim()) missing.push('Sülale');
-      return missing.length ? `Eksik: ${missing.join(', ')}` : null;
+      return null;
     }
     if (step === 3) {
       if (!isProfessional && !hasSocial) return 'En az bir sosyal bağlantı gerekli';
@@ -663,6 +672,12 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
 
       const baseForm: Partial<AdminCreateMemberRequest> = {
         ...form,
+        race: form.race || undefined,
+        clanName: form.clanName?.trim() || undefined,
+        companyAddress: form.companyAddress ? { ...form.companyAddress, city: form.city } : undefined,
+        trialDurationDays: form.targetStatus === 'TRIAL' ? form.trialDurationDays : undefined,
+        paymentWindowDays:
+          form.targetStatus === 'APPROVED_PENDING_PAYMENT' ? form.paymentWindowDays : undefined,
         adminNote,
         // Instagram alanı handle olarak saklanıyor — backend full URL bekliyor
         instagramUrl: form.instagramUrl
@@ -694,9 +709,12 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       } as AdminCreateMemberRequest;
 
       const result = await nbAdminService.createMemberManually(payload);
+      if (result.member?.memberId) {
+        setCreatedMember({ id: result.member.memberId, name: form.companyName ?? '', existing: user.mode === 'existing' });
+      }
       reset();
       onCreated(result);
-      onClose();
+      if (!result.member?.memberId) onClose();
     } catch (e: any) {
       setError(e?.response?.data?.error?.message ?? e?.message ?? 'Oluşturulamadı');
     } finally {
@@ -722,11 +740,16 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
         set('city', matched);
         setPlaceCityHint(null);
       } else {
+        set('city', undefined);
         setPlaceCityHint(result.address.city);
       }
+    } else {
+      set('city', undefined);
+      setPlaceCityHint(null);
     }
 
     const addr: CompanyAddressRequest = {
+      placeId: result.placeId,
       city: result.address.city ?? undefined,
       district: result.address.district ?? undefined,
       country: result.address.country ?? undefined,
@@ -944,7 +967,10 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               <CompanyPlacesAutocomplete
                 required
                 value={form.companyName ?? ''}
-                onChange={(v) => set('companyName', v)}
+                onChange={(v) => {
+                  set('companyName', v);
+                  set('companyAddress', undefined);
+                }}
                 onPlaceSelect={handlePlaceSelect}
                 helperText={(() => {
                   const nartgoCompany = user.selectedUser?.companyName?.trim();
@@ -991,7 +1017,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                       {addr.description}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Google&apos;dan alındı
+                      {addr.placeId ? 'Google’dan alındı' : 'Elle girilen adres'}
                     </Typography>
                   </Box>
                   <Tooltip title="Adresi temizle">
@@ -1022,15 +1048,27 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               </Typography>
             </Grid>
 
+            <Grid item xs={12}>
+              <TextField fullWidth size="small" label="Açık adres (opsiyonel)"
+                value={addr?.description ?? ''}
+                onChange={(event) => set('companyAddress', { city: form.city, district: addr?.district, description: event.target.value })}
+                helperText="Google’da bulunamıyorsa adresi elle yazın ve ili seçin." />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField fullWidth size="small" label="İlçe (opsiyonel)"
+                value={addr?.district ?? ''}
+                onChange={(event) => set('companyAddress', { city: form.city, description: addr?.description, district: event.target.value })} />
+            </Grid>
             <Grid item xs={12} md={6}>
               <CatalogAutocomplete<string>
                 label="Şehir"
                 required
-                disabled={lockedFields.has('city')}
+                disabled={lockedFields.has('city') && !!form.city}
                 options={TR_CITIES as unknown as string[]}
                 value={form.city ?? null}
                 onChange={(v) => {
                   set('city', v ?? undefined);
+                  if (addr) set('companyAddress', { city: v ?? undefined, description: addr.description });
                   setPlaceCityHint(null);
                 }}
                 placeholder="81 il listesi"
@@ -1072,13 +1110,12 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       {prefillBanner}
       <SectionPaper
         title="Kafkas Kimliği"
-        hint="Halk seçimi sülale katalogunu filtreler."
+        hint="Bu alanlar opsiyoneldir; boş geçebilirsiniz. Üye isterse profilinden doldurabilir. Bilgi girmeden önce üyenin açık rızasını alın."
       >
         <Grid container spacing={2.5}>
           <Grid item xs={12} md={6}>
             <CatalogAutocomplete<{ value: NbRace; label: string }>
-              label="Halk"
-              required
+              label="Halk (opsiyonel)"
               disabled={lockedFields.has('race')}
               options={RACES}
               value={RACES.find((r) => r.value === form.race) ?? null}
@@ -1150,7 +1187,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Sülale *"
+                  label="Sülale (opsiyonel)"
                   placeholder={form.race ? 'Katalogdan seç veya yeni yaz' : 'Önce halk seç'}
                   helperText={
                     lockedFields.has('clanName')
@@ -1302,6 +1339,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   // ------------------------------------------------------------------
   const renderPackageStep = () => (
     <Stack spacing={2}>
+      <Alert severity="info">KAFSİAD karşılamasını hesabı oluşturmadan önce WhatsApp veya e-posta ile gönderin. Yeni hesap açılırsa sistem giriş bilgilerini gönderir; mevcut kullanıcıyı elle bilgilendirin.</Alert>
       <SectionPaper
         title="Kademe"
         hint={
@@ -1328,8 +1366,34 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
         <RadioCardGroup
           options={TARGET_STATUS_OPTIONS}
           value={form.targetStatus as ActivationFlow | undefined}
-          onChange={(v) => set('targetStatus', v)}
+          onChange={(v) => {
+            set('targetStatus', v);
+            set('trialDurationDays', v === 'TRIAL' ? 60 : undefined);
+            set('paymentWindowDays', v === 'APPROVED_PENDING_PAYMENT' ? 7 : undefined);
+          }}
         />
+        {form.targetStatus === 'TRIAL' && (
+          <TextField
+            label="Deneme süresi (gün)"
+            type="number"
+            value={form.trialDurationDays ?? 60}
+            onChange={(event) => set('trialDurationDays', Number(event.target.value))}
+            inputProps={{ min: 1, max: 365, step: 1 }}
+            helperText="KAFSİAD: 60 gün ücretsiz erişim, ardından ödeme penceresi."
+            sx={{ mt: 2 }}
+          />
+        )}
+        {form.targetStatus === 'APPROVED_PENDING_PAYMENT' && (
+          <TextField
+            label="Ödeme penceresi (gün)"
+            type="number"
+            value={form.paymentWindowDays ?? 7}
+            onChange={(event) => set('paymentWindowDays', Number(event.target.value))}
+            inputProps={{ min: 1, max: 365, step: 1 }}
+            helperText="Varsayılan 7 gün. Uzun bir tanıtım dönemi sözü verdiysen mutlaka uzat — süre dolunca üye 'onay süresi doldu'ya düşer."
+            sx={{ mt: 2 }}
+          />
+        )}
       </SectionPaper>
 
       {form.targetStatus === 'ACTIVE' && (
@@ -1460,7 +1524,9 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                       ? form.grantFreeMembership
                         ? 'Ücretsiz (0 TL)'
                         : 'Offline tahsil edildi'
-                      : 'Üye kendi ödeyecek (7 gün penceresi)',
+                      : form.targetStatus === 'TRIAL'
+                        ? `${form.trialDurationDays} gün ücretsiz deneme; ödeme penceresi deneme sonunda başlar`
+                        : `Üye kendi ödeyecek (${form.paymentWindowDays ?? 7} gün penceresi)`,
                 },
                 {
                   label: 'Doğrulanmış İşletme rozeti',
@@ -1513,6 +1579,36 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   };
 
   const sidebar = STEP_SIDEBAR[step] ?? STEP_SIDEBAR[0];
+
+  if (createdMember) {
+    const closeSuccess = () => {
+      setCreatedMember(null);
+      onClose();
+    };
+    return (
+      <Dialog open={open} onClose={closeSuccess} maxWidth="sm" fullWidth>
+        <DialogContent>
+          <Stack spacing={2}>
+            <Typography variant="h6">Üye oluşturuldu: {createdMember.name}</Typography>
+            <Typography>Şimdi profilini zenginleştirmek ister misin? Logo, açıklama, hizmetler ve adres ekleyebilirsin.</Typography>
+            <Alert severity="info">
+              {createdMember.existing
+                ? 'Mevcut NartGo hesabına otomatik giriş maili gönderilmez. Üyeyi elle bilgilendirin.'
+                : 'Yeni hesap açıldıysa sistem giriş bilgilerini e-posta ile gönderir. Mevcut hesap bulunduysa üyeyi elle bilgilendirin.'}
+            </Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeSuccess}>Sonra / Kapat</Button>
+          <Button variant="contained" onClick={() => {
+            const memberId = createdMember.id;
+            closeSuccess();
+            navigate(`/nartbusiness/members/${memberId}?edit=business`);
+          }}>Profili Zenginleştir →</Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
 
   return (
     <ThemeProvider theme={eliteTheme}>

@@ -263,6 +263,26 @@ async function grantTrial(memberId: string, days?: number): Promise<NbMember | n
   return unwrap<NbMember>(res.data);
 }
 
+/**
+ * Süresi dolmuş onayı canlandırır: yeni ödeme penceresi açar, üyeye bildirim +
+ * "ödeme süreniz yeniden açıldı" e-postası gönderir.
+ *
+ * Komite onayı kalıcı bir karar; süresi dolan yalnız ödeme penceresi. Bu uç
+ * olmadan APPROVED_EXPIRED çıkmaz sokaktı.
+ */
+async function reopenApproval(
+  memberId: string,
+  days?: number,
+  note?: string,
+): Promise<NbMember | null> {
+  const qs = new URLSearchParams();
+  if (days && days > 0) qs.set('days', String(days));
+  if (note && note.trim()) qs.set('note', note.trim());
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  const res = await api.patch<any>(`/nb/admin/members/${memberId}/reopen-approval${suffix}`);
+  return unwrap<NbMember>(res.data);
+}
+
 async function extendTrial(memberId: string, days = 7): Promise<NbMember | null> {
   const res = await api.patch<any>(`/nb/admin/members/${memberId}/extend-trial?days=${days}`);
   return unwrap<NbMember>(res.data);
@@ -1372,6 +1392,7 @@ export const nbAdminService = {
   // Deneme
   grantTrial,
   extendTrial,
+  reopenApproval,
   revokeTrial,
   // Verification
   listVerificationQueue,

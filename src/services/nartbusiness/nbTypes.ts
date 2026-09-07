@@ -65,6 +65,12 @@ export interface AdminCreateMemberRequest {
   /** GSM numarası — sadece rakam, ülke kodu hariç (10-15 hane). */
   gsmNo?: string;
   createIfMissing?: boolean;
+  /**
+   * APPROVED_PENDING_PAYMENT ile oluştururken ödeme penceresi (gün, 1-365).
+   * Boş → 7. Uzun tanıtım dönemlerinde mutlaka doldur; aksi hâlde üye 7 gün
+   * sonra sessizce "onay süresi doldu"ya düşer.
+   */
+  paymentWindowDays?: number;
   requestedTier: MembershipTier;
   /** Üye tipi: BUSINESS (varsayılan) | PROFESSIONAL (kurumda karar verici). */
   memberType?: 'BUSINESS' | 'PROFESSIONAL';
@@ -79,14 +85,15 @@ export interface AdminCreateMemberRequest {
   companyAddress?: CompanyAddressRequest;
   /** Opsiyonel işletme tanıtım metni (max 300 karakter). */
   businessDescription?: string;
-  race: NbRace;
-  clanName: string;
+  race?: NbRace;
+  clanName?: string;
   hometownDetail?: string;
   linkedinUrl?: string;
   websiteUrl?: string;
   instagramUrl?: string;
-  /** Sadece ACTIVE veya APPROVED_PENDING_PAYMENT desteklenir. */
-  targetStatus: 'ACTIVE' | 'APPROVED_PENDING_PAYMENT';
+  /** TRIAL için trialDurationDays zorunludur. */
+  targetStatus: 'ACTIVE' | 'APPROVED_PENDING_PAYMENT' | 'TRIAL';
+  trialDurationDays?: number;
   grantFreeMembership?: boolean;
   verifiedBusiness?: boolean;
   adminNote: string;
@@ -105,8 +112,8 @@ export interface AdminUpdateBusinessRequest {
   city: string;
   companyAddress?: CompanyAddressRequest;
   businessDescription?: string;
-  race: NbRace;
-  clanName: string;
+  race?: NbRace;
+  clanName?: string;
   hometownDetail?: string;
   linkedinUrl?: string;
   websiteUrl?: string;

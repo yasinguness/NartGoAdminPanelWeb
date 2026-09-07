@@ -66,7 +66,18 @@ import NbCreateMemberDialog from './NbCreateMemberDialog';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbMemberHardDeleteDialog from './NbMemberHardDeleteDialog';
 
-type QuickFilter = 'all' | 'pending' | 'recent7d' | 'incomplete' | 'kurucu' | 'professional';
+type QuickFilter =
+  | 'all'
+  | 'pending'
+  | 'recent7d'
+  | 'incomplete'
+  | 'kurucu'
+  | 'professional'
+  | 'trialEnding'
+  | 'approvalExpired';
+
+/** "Denemesi bitiyor" eşiği — bu kadar gün kalanlar takip listesine düşer. */
+const TRIAL_ENDING_DAYS = 7;
 
 /**
  * TRIAL üyenin kalan deneme süresi — status badge altına gösterilir.
@@ -90,7 +101,18 @@ const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
   { value: 'incomplete', label: 'Eksik profil' },
   { value: 'kurucu', label: 'Kurucu' },
   { value: 'professional', label: 'Profesyonel' },
+  // Takip filtreleri: ikisi de "bugün dokunulması gereken" üyeleri ayırır.
+  { value: 'trialEnding', label: 'Denemesi bitiyor' },
+  { value: 'approvalExpired', label: 'Onay süresi doldu' },
 ];
+
+/** Deneme bitişine kalan tam gün; deneme yoksa null. */
+function trialDaysLeft(trialEndsAt?: string): number | null {
+  if (!trialEndsAt) return null;
+  const ms = new Date(trialEndsAt).getTime() - Date.now();
+  if (Number.isNaN(ms)) return null;
+  return Math.max(0, Math.floor(ms / 86400000));
+}
 
 /** Listede gösterilecek küçük üye-aksiyon menüsü (kebab). */
 function RowMenu({
@@ -504,6 +526,13 @@ export default function NbMembers() {
       setTier('');
     } else if (quickFilter === 'kurucu') {
       setTier('KURUCU');
+    } else if (quickFilter === 'trialEnding') {
+      // Sunucudan yalnız denemeleri çek; kalan gün eşiği istemcide süzülür.
+      setStatus('TRIAL');
+      setTier('');
+    } else if (quickFilter === 'approvalExpired') {
+      setStatus('APPROVED_EXPIRED');
+      setTier('');
     }
     setPage(0);
   }, [quickFilter]);
@@ -554,6 +583,15 @@ export default function NbMembers() {
     if (quickFilter === 'professional') {
       result = result.filter((m) => m.memberType === 'PROFESSIONAL');
     }
+    if (quickFilter === 'trialEnding') {
+      result = result
+        .filter((m) => {
+          const d = trialDaysLeft(m.trialEndsAt);
+          return d != null && d <= TRIAL_ENDING_DAYS;
+        })
+        // En acili üstte: aksiyon listesi olarak kullanılacak.
+        .sort((a, b) => (trialDaysLeft(a.trialEndsAt) ?? 0) - (trialDaysLeft(b.trialEndsAt) ?? 0));
+    }
     return result;
   }, [data?.content, debouncedSearch, quickFilter]);
 
@@ -571,6 +609,12 @@ export default function NbMembers() {
           m.status === 'APPROVED_PENDING_PAYMENT',
       ).length,
       suspended: all.filter((m) => m.status === 'SUSPENDED').length,
+      trialEnding: all.filter((m) => {
+        if (m.status !== 'TRIAL') return false;
+        const d = trialDaysLeft(m.trialEndsAt);
+        return d != null && d <= TRIAL_ENDING_DAYS;
+      }).length,
+      approvalExpired: all.filter((m) => m.status === 'APPROVED_EXPIRED').length,
       cancelled: all.filter((m) => m.status === 'CANCELLED').length,
       incomplete: all.filter(
         (m) => !m.companyName || (!(m.sectorCodes?.length) && !m.sectorCode) || !m.race || !m.clanName,
@@ -636,6 +680,10 @@ export default function NbMembers() {
               ? stats.pending
               : f.value === 'incomplete'
               ? stats.incomplete
+              : f.value === 'trialEnding'
+              ? stats.trialEnding
+              : f.value === 'approvalExpired'
+              ? stats.approvalExpired
               : undefined;
           return (
             <Chip
@@ -796,7 +844,7 @@ export default function NbMembers() {
               severity: 'success',
               text:
                 result?.message ||
-                'Üye oluşturuldu. Hesabı yoksa NartGo hesabı açıldı ve şifre belirleme e-postası gönderildi.',
+                'Üye oluşturuldu. Yeni hesap açıldıysa giriş bilgileri e-postayla gönderilir; mevcut kullanıcıyı elle bilgilendirin.',
             });
           }
         }}
