@@ -27,6 +27,9 @@ import {
   TextField,
   Tooltip,
   Typography,
+  Menu,
+  ListItemIcon,
+  Divider,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -34,6 +37,7 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
@@ -195,6 +199,7 @@ export default function NbMemberDetail() {
       setTrialBusy(false);
     }
   };
+  const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [editOpen, setEditOpen] = useState(searchParams.get('edit') === 'business');
   // Manuel ödeme onayı (havale/EFT veya elle tahsilat) — status =
@@ -492,60 +497,89 @@ export default function NbMemberDetail() {
                 </Button>
               </>
             )}
+            {/* İkincil aksiyonlar tek menüde.
+                Önceden sekiz düz buton yan yana duruyordu; hepsi aynı görsel
+                ağırlıkta olduğu için "şimdi ne yapmalıyım" sorusu okunmuyordu.
+                Duruma göre değişen birincil aksiyon yukarıda kalır, geri
+                kalanı buraya iner. */}
             <Button
               variant="outlined"
-              startIcon={<EditOutlinedIcon />}
-              onClick={() => setEditOpen(true)}
+              endIcon={<MoreHorizIcon />}
+              onClick={(e) => setMoreAnchor(e.currentTarget)}
+              aria-haspopup="menu"
+              aria-expanded={Boolean(moreAnchor)}
             >
-              İşletmeyi Düzenle
+              İşlemler
             </Button>
-            <Button
-              variant="outlined"
-              startIcon={<EmailOutlinedIcon />}
-              onClick={() => {
-                setResendEmailOverride('');
-                setResendError(null);
-                setResendOk(null);
-                setResendTemplate(
-                  member.status === 'NEEDS_INFO'
-                    ? 'NEEDS_INFO'
-                    : member.status === 'SUBMITTED'
-                    ? 'RECEIVED'
-                    : 'APPROVED',
-                );
-                setResendOpen(true);
-              }}
+            <Menu
+              anchorEl={moreAnchor}
+              open={Boolean(moreAnchor)}
+              onClose={() => setMoreAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              slotProps={{ paper: { sx: { minWidth: 248, borderRadius: 2 } } }}
             >
-              Mail Gönder
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<NotificationsActiveOutlinedIcon />}
-              onClick={() => {
-                setPushTitle('');
-                setPushMessage('');
-                setPushError(null);
-                setPushOpen(true);
-              }}
-            >
-              Push Gönder
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<HandshakeOutlinedIcon />}
-              onClick={openIntroDialog}
-            >
-              Tanıştır
-            </Button>
-            <Button
-              variant="outlined"
-              color="secondary"
-              startIcon={<LockResetIcon />}
-              disabled={pwBusy}
-              onClick={handleSendSetPassword}
-            >
-              {pwBusy ? 'Gönderiliyor…' : 'Şifre Belirleme E-postası'}
-            </Button>
+              <MenuItem
+                onClick={() => {
+                  setMoreAnchor(null);
+                  setEditOpen(true);
+                }}
+              >
+                <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
+                İşletmeyi Düzenle
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMoreAnchor(null);
+                  setResendEmailOverride('');
+                  setResendError(null);
+                  setResendOk(null);
+                  setResendTemplate(
+                    member.status === 'NEEDS_INFO'
+                      ? 'NEEDS_INFO'
+                      : member.status === 'SUBMITTED'
+                      ? 'RECEIVED'
+                      : 'APPROVED',
+                  );
+                  setResendOpen(true);
+                }}
+              >
+                <ListItemIcon><EmailOutlinedIcon fontSize="small" /></ListItemIcon>
+                Mail Gönder
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMoreAnchor(null);
+                  setPushTitle('');
+                  setPushMessage('');
+                  setPushError(null);
+                  setPushOpen(true);
+                }}
+              >
+                <ListItemIcon><NotificationsActiveOutlinedIcon fontSize="small" /></ListItemIcon>
+                Push Gönder
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMoreAnchor(null);
+                  openIntroDialog();
+                }}
+              >
+                <ListItemIcon><HandshakeOutlinedIcon fontSize="small" /></ListItemIcon>
+                Tanıştır
+              </MenuItem>
+              <Divider />
+              <MenuItem
+                disabled={pwBusy}
+                onClick={() => {
+                  setMoreAnchor(null);
+                  handleSendSetPassword();
+                }}
+              >
+                <ListItemIcon><LockResetIcon fontSize="small" /></ListItemIcon>
+                {pwBusy ? 'Gönderiliyor…' : 'Şifre Belirleme E-postası'}
+              </MenuItem>
+            </Menu>
             <Button variant="contained" onClick={() => setActionOpen(true)}>
               Yönet
             </Button>
@@ -554,14 +588,11 @@ export default function NbMemberDetail() {
       </Paper>
 
       <Stack spacing={2.5}>
-        {/* Başvuru & Komite İncelemesi */}
-        {verificationCase && (
-          <VerificationCaseSection
-            caseData={verificationCase}
-            timeline={caseTimeline}
-            memberStatus={member.status}
-          />
-        )}
+        {/* "Şimdi ne yapmalıyım" — sayfanın ilk cevapladığı soru bu olmalı.
+            Önceden en aksiyon gerektiren gerçek (ödeme süresi dolmuş) başlıkta
+            küçük gri bir çipti; rutin komite zaman çizelgesi ise en üstte
+            kocaman yer kaplıyordu. Sıra tersine çevrildi. */}
+        <NextActionBanner member={member} />
 
         {/* Üyelik & Aktivasyon */}
         <NbSectionPaper
@@ -718,6 +749,15 @@ export default function NbMemberDetail() {
         </NbSectionPaper>
 
         {/* Sosyal Bağlantılar */}
+        {/* Başvuru & Komite İncelemesi — karar verilmişse arşiv, aşağıda durur */}
+        {verificationCase && (
+          <VerificationCaseSection
+            caseData={verificationCase}
+            timeline={caseTimeline}
+            memberStatus={member.status}
+          />
+        )}
+
         <NbSectionPaper title="Sosyal Bağlantılar">
           <SocialRow label="LinkedIn" url={member.linkedinUrl} />
           <SocialRow label="Web sitesi" url={member.websiteUrl} />
@@ -1304,6 +1344,102 @@ function humanizeDescription(desc: string | null | undefined): string {
 }
 
 // ============================================================
+// NextActionBanner
+// ============================================================
+
+/**
+ * "Şimdi ne yapmalıyım" — sayfanın ilk cevapladığı soru.
+ *
+ * Üye durumu ekranın her yerine dağılmıştı: başlıkta küçük gri bir çip,
+ * aşağıda "aktif dönem yok" kutusu, bir başka yerde kalan gün. Hiçbiri
+ * "bu üyeye bugün ne yapmam gerekiyor" sorusunu cevaplamıyordu.
+ *
+ * Aksiyon gerektirmeyen durumlarda (aktif üye) banner HİÇ görünmez —
+ * "her şey yolunda" demek için yer kaplamak gürültüdür.
+ */
+function NextActionBanner({ member }: { member: NbMember }) {
+  const daysLeft = (iso?: string): number | null => {
+    if (!iso) return null;
+    const ms = new Date(iso).getTime() - Date.now();
+    if (Number.isNaN(ms)) return null;
+    return Math.ceil(ms / 86_400_000);
+  };
+
+  let tone: 'info' | 'warning' | 'error' = 'info';
+  let title = '';
+  let body = '';
+
+  switch (member.status) {
+    case 'APPROVED_EXPIRED':
+      tone = 'error';
+      title = 'Ödeme süresi doldu';
+      body =
+        'Komite onayı hâlâ geçerli, süresi dolan yalnız ödeme penceresi. ' +
+        '"Ödeme Süresini Yeniden Aç" ile yeni bir süre tanımlayabilirsin; ' +
+        'üyeye bildirim ve e-posta gider.';
+      break;
+    case 'APPROVED_PENDING_PAYMENT': {
+      const d = daysLeft(member.approvalExpiresAt);
+      tone = d != null && d <= 3 ? 'error' : 'warning';
+      title =
+        d == null
+          ? 'Ödeme bekleniyor'
+          : d <= 0
+          ? 'Ödeme süresi bugün doluyor'
+          : `Ödeme için ${d} gün kaldı`;
+      body =
+        'Ödeme geldiyse "Ödemeyi Onayla" ile üyeliği aktifleştir. ' +
+        'Daha uzun süre gerekiyorsa pencereyi uzatabilirsin.';
+      break;
+    }
+    case 'TRIAL': {
+      const d = daysLeft(member.trialEndsAt);
+      if (d == null || d > 10) return null; // sakin dönemde uyarma
+      tone = d <= 3 ? 'error' : 'warning';
+      title = d <= 0 ? 'Deneme bugün bitiyor' : `Denemenin bitmesine ${d} gün kaldı`;
+      body =
+        'Deneme bitince üye ödeme bekleyene düşer ve otomatik bilgilendirme ' +
+        'e-postası gider. Concierge dokunuşu için iyi bir an.';
+      break;
+    }
+    case 'SUBMITTED':
+      tone = 'warning';
+      title = 'Komite kararı bekleniyor';
+      body = 'Başvuru incelemede. Karar için doğrulama kuyruğuna geç.';
+      break;
+    case 'NEEDS_INFO':
+      tone = 'warning';
+      title = 'Üyeden ek bilgi bekleniyor';
+      body = 'Talep iletildi. Yanıt geldiyse aşağıdaki komite bölümünden incele.';
+      break;
+    case 'EXPIRED':
+      tone = 'warning';
+      title = 'Üyelik süresi doldu';
+      body = 'Yenileme yapılmadı. Üyeyle iletişime geçip dönemi yenileyebilirsin.';
+      break;
+    case 'SUSPENDED':
+      tone = 'error';
+      title = 'Üyelik askıya alınmış';
+      body = '"Yönet" menüsünden yeniden aktifleştirebilir ya da iptal edebilirsin.';
+      break;
+    default:
+      // ACTIVE / REJECTED / CANCELLED → bekleyen bir aksiyon yok.
+      return null;
+  }
+
+  return (
+    <Alert severity={tone} variant="outlined" sx={{ borderRadius: 2, alignItems: 'flex-start' }}>
+      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.25 }}>
+        {title}
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        {body}
+      </Typography>
+    </Alert>
+  );
+}
+
+// ============================================================
 // VerificationCaseSection
 // ============================================================
 
@@ -1325,6 +1461,20 @@ function VerificationCaseSection({
     <NbSectionPaper
       title="Başvuru & Komite İncelemesi"
       hint="Doğrulama vakası ve komite kararı özeti."
+      // Karar verilmiş bir başvuruda bu bölüm arşiv niteliğinde: sayfanın
+      // üstünü işgal edip asıl aksiyonu aşağı itiyordu. Aksiyon gerektiren
+      // durumlarda (komite bekliyor / ek bilgi) açık kalır.
+      collapsible
+      defaultCollapsed={!isActionable}
+      trailing={
+        !isActionable ? (
+          <Chip
+            size="small"
+            variant="outlined"
+            label={CASE_STATUS_LABEL[caseData.status] ?? caseData.status}
+          />
+        ) : undefined
+      }
     >
       {/* Özet satırı */}
       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap mb={1.5}>

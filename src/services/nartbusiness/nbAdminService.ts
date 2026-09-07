@@ -263,6 +263,37 @@ async function grantTrial(memberId: string, days?: number): Promise<NbMember | n
   return unwrap<NbMember>(res.data);
 }
 
+export interface NbBulkOutcome {
+  memberId: string;
+  ok: boolean;
+  detail?: string | null;
+}
+
+export interface NbBulkResult {
+  total: number;
+  succeeded: number;
+  failed: number;
+  outcomes: NbBulkOutcome[];
+}
+
+/**
+ * Aynı işlemi birden çok üyeye uygular (tek istek).
+ *
+ * Panelden N ayrı istek atmak yarıda kalabilir ve hangisinin işlendiği
+ * bilinmez. Backend her üyeyi tek tek deniyor ve sonucu üye üye döndürüyor;
+ * kısmi başarı gizlenmiyor.
+ */
+async function bulkMemberAction(body: {
+  memberIds: string[];
+  action: 'REOPEN_APPROVAL' | 'RESEND_EMAIL';
+  days?: number;
+  template?: 'RECEIVED' | 'APPROVED' | 'NEEDS_INFO';
+  note?: string;
+}): Promise<NbBulkResult | null> {
+  const res = await api.post<any>('/nb/admin/members/bulk', body);
+  return unwrap<NbBulkResult>(res.data);
+}
+
 /**
  * Süresi dolmuş onayı canlandırır: yeni ödeme penceresi açar, üyeye bildirim +
  * "ödeme süreniz yeniden açıldı" e-postası gönderir.
@@ -1393,6 +1424,7 @@ export const nbAdminService = {
   grantTrial,
   extendTrial,
   reopenApproval,
+  bulkMemberAction,
   revokeTrial,
   // Verification
   listVerificationQueue,

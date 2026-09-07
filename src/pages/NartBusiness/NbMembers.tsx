@@ -62,6 +62,8 @@ import {
   TIER_LABEL,
 } from '../../utils/nbDisplay';
 import { NbStatusBadge } from '../../components/nartbusiness';
+import { URGENCY_STYLE, urgencyOf } from '../../theme/nbBrand';
+import type { NbBulkResult } from '../../services/nartbusiness/nbAdminService';
 import NbCreateMemberDialog from './NbCreateMemberDialog';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbMemberHardDeleteDialog from './NbMemberHardDeleteDialog';
@@ -83,15 +85,26 @@ const TRIAL_ENDING_DAYS = 7;
  * TRIAL üyenin kalan deneme süresi — status badge altına gösterilir.
  * Renk: ≤2 gün/bitmiş → error, ≤7 gün → warning, aksi → text.secondary.
  */
-function trialRemaining(trialEndsAt?: string): { text: string; color: string } | null {
+/**
+ * Kalan süre metni + görsel ağırlık.
+ *
+ * Önceden "3 gün kaldı" ile "26 gün kaldı" aynı puntoda, aynı renkteydi —
+ * aciliyet hiç kodlanmamıştı. Artık renk VE kalınlık birlikte değişiyor;
+ * eşikler tek yerde (`urgencyOf`), listede ve detayda aynı.
+ */
+function trialRemaining(
+  trialEndsAt?: string,
+): { text: string; color: string; weight: number } | null {
   if (!trialEndsAt) return null;
   const ends = new Date(trialEndsAt).getTime();
   if (Number.isNaN(ends)) return null;
   const diffDays = Math.ceil((ends - Date.now()) / 86_400_000);
-  if (diffDays <= 0) return { text: 'Süresi doldu', color: 'error.main' };
-  const text = diffDays === 1 ? 'Son gün' : `${diffDays} gün kaldı`;
-  const color = diffDays <= 2 ? 'error.main' : diffDays <= 7 ? 'warning.main' : 'text.secondary';
-  return { text, color };
+  if (diffDays <= 0) {
+    return { text: 'Süresi doldu', color: URGENCY_STYLE.critical.color, weight: 700 };
+  }
+  const text = diffDays === 1 ? 'Son gün' : `${diffDays} gün`;
+  const u = URGENCY_STYLE[urgencyOf(diffDays)];
+  return { text, color: u.color, weight: u.weight };
 }
 
 const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
@@ -208,11 +221,15 @@ function MemberRow({
   onClick,
   onActionRequest,
   onDeleteRequest,
+  selected,
+  onToggleSelect,
 }: {
   member: NbMember;
   onClick: () => void;
   onActionRequest: () => void;
   onDeleteRequest: () => void;
+  selected: boolean;
+  onToggleSelect: () => void;
 }) {
   const navigate = useNavigate();
   const initial = (member.companyName ?? '?').trim().charAt(0).toUpperCase();
@@ -230,6 +247,15 @@ function MemberRow({
       onClick={onClick}
     >
       {/* Üye (compound cell): avatar + şirket + lokasyon/kimlik */}
+      <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+        <Checkbox
+          size="small"
+          checked={selected}
+          onChange={onToggleSelect}
+          inputProps={{ 'aria-label': `${member.companyName ?? 'Üye'} seç` }}
+        />
+      </TableCell>
+
       <TableCell>
         <Stack direction="row" spacing={1.5} alignItems="center">
           <Avatar
@@ -268,6 +294,15 @@ function MemberRow({
               {member.memberType === 'PROFESSIONAL' && (
                 <Chip size="small" color="info" label="Profesyonel" sx={{ height: 20 }} />
               )}
+              {/* Doğrulanmış rozeti kendi kolonunu hak etmiyordu: neredeyse
+                  her satırda boştu ve tablonun en geniş alanı "—" ile
+                  doluyordu. İsmin yanında sessiz bir işaret olarak daha
+                  doğru — taşıdığı bilgi zaten "bu isme güvenilir". */}
+              {member.verifiedBusiness && (
+                <Tooltip title="Doğrulanmış İşletme" arrow>
+                  <VerifiedIcon sx={{ fontSize: 15, color: 'info.main', flexShrink: 0 }} />
+                </Tooltip>
+              )}
             </Stack>
             <Typography variant="caption" color="text.secondary">
               {[
@@ -288,42 +323,28 @@ function MemberRow({
 
       {/* Durum */}
       <TableCell>
-        <NbStatusBadge status={member.status} label={STATUS_LABEL[member.status]} />
-        {member.status === 'TRIAL' &&
-          (() => {
-            const r = trialRemaining(member.trialEndsAt);
-            return r ? (
-              <Tooltip
-                title={member.trialEndsAt ? `Deneme bitişi: ${fullDate(member.trialEndsAt)}` : ''}
-                arrow
-              >
-                <Typography
-                  variant="caption"
-                  display="block"
-                  sx={{ mt: 0.25, color: r.color, fontWeight: 500 }}
+        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ flexWrap: 'nowrap' }}>
+          <NbStatusBadge status={member.status} label={STATUS_LABEL[member.status]} />
+          {member.status === 'TRIAL' &&
+            (() => {
+              const r = trialRemaining(member.trialEndsAt);
+              return r ? (
+                <Tooltip
+                  title={member.trialEndsAt ? `Deneme bitişi: ${fullDate(member.trialEndsAt)}` : ''}
+                  arrow
                 >
-                  {r.text}
-                </Typography>
-              </Tooltip>
-            ) : null;
-          })()}
-      </TableCell>
-
-      {/* Rozet */}
-      <TableCell>
-        {member.verifiedBusiness ? (
-          <Chip
-            size="small"
-            icon={<VerifiedIcon />}
-            label="Doğrulanmış"
-            color="info"
-            variant="outlined"
-          />
-        ) : (
-          <Typography variant="caption" color="text.disabled">
-            —
-          </Typography>
-        )}
+                  {/* Alt satır yerine yan yana: iki satırlık hücre satır
+                      yüksekliğini şişiriyor ve tarama hızını düşürüyordu. */}
+                  <Typography
+                    variant="caption"
+                    sx={{ color: r.color, fontWeight: r.weight, whiteSpace: 'nowrap' }}
+                  >
+                    {r.text}
+                  </Typography>
+                </Tooltip>
+              ) : null;
+            })()}
+        </Stack>
       </TableCell>
 
       {/* Katılım — relative + hover full */}
@@ -507,6 +528,27 @@ export default function NbMembers() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
+
+  // ── Toplu işlem ────────────────────────────────────────────────────────
+  // KAFSİAD gibi toplu kayıtlarda aynı işlemi 39 üyeye tek tek uygulamak
+  // pratikte yapılmıyor. Seçim yalnız GÖRÜNEN satırlar üzerinden çalışır:
+  // filtre değişince seçim temizlenir, yoksa "neyi seçmiştim" belirsizleşir.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'REOPEN_APPROVAL' | 'RESEND_EMAIL'>('REOPEN_APPROVAL');
+  const [bulkDays, setBulkDays] = useState(14);
+  const [bulkTemplate, setBulkTemplate] = useState<'RECEIVED' | 'APPROVED' | 'NEEDS_INFO'>('APPROVED');
+  const [bulkNote, setBulkNote] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResult, setBulkResult] = useState<NbBulkResult | null>(null);
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [createOpen, setCreateOpen] = useState(false);
   const [createMsg, setCreateMsg] = useState<{ severity: 'success' | 'info'; text: string } | null>(null);
   const [invitesRefresh, setInvitesRefresh] = useState(0);
@@ -558,6 +600,11 @@ export default function NbMembers() {
 
   useEffect(load, [page, status, tier]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Filtre/sayfa değişince seçim düşer — görünmeyen üyeye işlem uygulanmasın.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, status, tier, quickFilter, debouncedSearch]);
+
   // İstemci taraflı arama + quick filter (recent7d, incomplete)
   const filtered = useMemo(() => {
     const all = data?.content ?? [];
@@ -594,6 +641,32 @@ export default function NbMembers() {
     }
     return result;
   }, [data?.content, debouncedSearch, quickFilter]);
+
+  const toggleSelectAll = () =>
+    setSelectedIds((prev) =>
+      prev.size === filtered.length ? new Set() : new Set(filtered.map((m) => m.memberId)),
+    );
+
+  const runBulk = async () => {
+    setBulkBusy(true);
+    setBulkResult(null);
+    try {
+      const res = await nbAdminService.bulkMemberAction({
+        memberIds: [...selectedIds],
+        action: bulkAction,
+        days: bulkAction === 'REOPEN_APPROVAL' ? bulkDays : undefined,
+        template: bulkAction === 'RESEND_EMAIL' ? bulkTemplate : undefined,
+        note: bulkNote.trim() || undefined,
+      });
+      setBulkResult(res);
+      load();
+    } catch (e: any) {
+      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Toplu işlem başarısız');
+      setBulkOpen(false);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   // Stats — şu anki sayfa üzerinden hesaplanır (backend toplam stats için /dashboard/stats var ama burada yeterli)
   const stats = useMemo(() => {
@@ -759,14 +832,55 @@ export default function NbMembers() {
           <Box sx={{ height: 4, mb: 0.5 }}>
             {loading && <LinearProgress />}
           </Box>
+          {/* Seçim çubuğu — yalnız seçim varken görünür.
+              Boşken yer kaplamak, hiç kullanılmayan bir araç çubuğunu kalıcı
+              gürültüye çevirirdi. */}
+          {selectedIds.size > 0 && (
+            <Paper
+              variant="outlined"
+              sx={{
+                mb: 1.5, px: 2, py: 1.25, borderRadius: 2,
+                display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap',
+                borderColor: 'primary.main',
+                bgcolor: 'action.hover',
+              }}
+            >
+              <Typography variant="body2" fontWeight={600}>
+                {selectedIds.size} üye seçildi
+              </Typography>
+              <Box sx={{ flex: 1 }} />
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => {
+                  setBulkResult(null);
+                  setBulkOpen(true);
+                }}
+              >
+                Toplu İşlem…
+              </Button>
+              <Button size="small" onClick={() => setSelectedIds(new Set())}>
+                Seçimi Temizle
+              </Button>
+            </Paper>
+          )}
+
           <TableContainer component={Paper} variant="outlined">
             <Table size="small" sx={{ minWidth: 720 }}>
               <TableHead>
                 <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      indeterminate={selectedIds.size > 0 && selectedIds.size < filtered.length}
+                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      onChange={toggleSelectAll}
+                      inputProps={{ 'aria-label': 'Tümünü seç' }}
+                    />
+                  </TableCell>
                   <TableCell sx={cellHeadSx}>Üye</TableCell>
                   <TableCell sx={cellHeadSx}>Kademe</TableCell>
                   <TableCell sx={cellHeadSx}>Durum</TableCell>
-                  <TableCell sx={cellHeadSx}>Rozet</TableCell>
                   <TableCell sx={cellHeadSx}>Katılım</TableCell>
                   <TableCell sx={cellHeadSx} align="right">
                     {' '}
@@ -783,6 +897,8 @@ export default function NbMembers() {
                     }
                     onActionRequest={() => setActionMember(m)}
                     onDeleteRequest={() => setDeleteMember(m)}
+                    selected={selectedIds.has(m.memberId)}
+                    onToggleSelect={() => toggleSelect(m.memberId)}
                   />
                 ))}
                 {filtered.length === 0 && (
@@ -825,6 +941,102 @@ export default function NbMembers() {
           )}
         </>
       )}
+
+      {/* Toplu işlem */}
+      <Dialog open={bulkOpen} onClose={() => !bulkBusy && setBulkOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Toplu İşlem — {selectedIds.size} üye</DialogTitle>
+        <DialogContent>
+          {!bulkResult ? (
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <TextField
+                select
+                size="small"
+                label="İşlem"
+                value={bulkAction}
+                onChange={(e) => setBulkAction(e.target.value as typeof bulkAction)}
+              >
+                <MenuItem value="REOPEN_APPROVAL">Ödeme süresini yeniden aç / uzat</MenuItem>
+                <MenuItem value="RESEND_EMAIL">Hazır e-posta gönder</MenuItem>
+              </TextField>
+
+              {bulkAction === 'REOPEN_APPROVAL' && (
+                <TextField
+                  size="small"
+                  type="number"
+                  label="Ödeme penceresi (gün)"
+                  value={bulkDays}
+                  onChange={(e) => setBulkDays(Number(e.target.value))}
+                  inputProps={{ min: 1, max: 365 }}
+                  helperText="Her üyeye bildirim ve e-posta gider. Yalnız onayı bekleyen veya süresi dolmuş üyelerde çalışır; diğerleri atlanır."
+                />
+              )}
+
+              {bulkAction === 'RESEND_EMAIL' && (
+                <TextField
+                  select
+                  size="small"
+                  label="Şablon"
+                  value={bulkTemplate}
+                  onChange={(e) => setBulkTemplate(e.target.value as typeof bulkTemplate)}
+                >
+                  <MenuItem value="RECEIVED">Başvurunuz alındı</MenuItem>
+                  <MenuItem value="APPROVED">Onaylandı — ödeme bekleniyor</MenuItem>
+                  <MenuItem value="NEEDS_INFO">Ek bilgi talebi</MenuItem>
+                </TextField>
+              )}
+
+              <TextField
+                size="small"
+                label="Not (opsiyonel)"
+                value={bulkNote}
+                onChange={(e) => setBulkNote(e.target.value)}
+                helperText="İşlem kaydına yazılır."
+              />
+            </Stack>
+          ) : (
+            <Stack spacing={1.5} sx={{ pt: 1 }}>
+              <Alert severity={bulkResult.failed === 0 ? 'success' : 'warning'}>
+                {bulkResult.succeeded}/{bulkResult.total} üyede işlem tamamlandı.
+              </Alert>
+              {/* Kısmi başarı gizlenmiyor: hangi üyede neden olmadığı yazılı. */}
+              {bulkResult.failed > 0 && (
+                <Box sx={{ maxHeight: 240, overflowY: 'auto' }}>
+                  {bulkResult.outcomes
+                    .filter((o) => !o.ok)
+                    .map((o) => (
+                      <Typography key={o.memberId} variant="caption" display="block" color="text.secondary">
+                        {(data?.content ?? []).find((m) => m.memberId === o.memberId)?.companyName
+                          ?? o.memberId.slice(0, 8)}
+                        {' — '}
+                        {o.detail ?? 'bilinmeyen hata'}
+                      </Typography>
+                    ))}
+                </Box>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {!bulkResult ? (
+            <>
+              <Button onClick={() => setBulkOpen(false)} disabled={bulkBusy}>Vazgeç</Button>
+              <Button variant="contained" onClick={() => void runBulk()} disabled={bulkBusy}>
+                {bulkBusy ? 'Uygulanıyor…' : `${selectedIds.size} üyeye uygula`}
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={() => {
+                setBulkOpen(false);
+                setSelectedIds(new Set());
+              }}
+            >
+              Kapat
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
 
       <NbCreateMemberDialog
         open={createOpen}

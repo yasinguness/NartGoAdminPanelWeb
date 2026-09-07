@@ -57,6 +57,7 @@ import { usePageTracking } from '../hooks/analytics/useAnalytics';
 import { useRole } from '../hooks/useRole';
 import { useDefaultEvent } from '../hooks/useDefaultEvent';
 import { useState } from 'react';
+import { nb } from '../theme/nbBrand';
 
 const DRAWER_W = 260;
 
@@ -238,6 +239,34 @@ const navSections: NavSection[] = [
 
 export default function Layout() {
     const [mobileOpen, setMobileOpen] = useState(false);
+
+    // ── Navigasyon: arama + katlanabilir gruplar ──────────────────────────
+    //
+    // 79 menü öğesi tek düz listede duruyordu; hepsi aynı görsel ağırlıkta,
+    // hepsi her zaman açık. Sorun uzunluk değil hiyerarşi yokluğuydu.
+    // Çözüm iki katmanlı: yazarak filtrele (bilen kullanıcı) + yalnız içinde
+    // bulunduğun grup açık (gezinen kullanıcı).
+    const [navQuery, setNavQuery] = useState('');
+    const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+        try {
+            const raw = localStorage.getItem('nav.collapsed');
+            return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+        } catch {
+            return {};
+        }
+    });
+
+    const toggleSection = (title: string) => {
+        setCollapsed((prev) => {
+            const next = { ...prev, [title]: !prev[title] };
+            try {
+                localStorage.setItem('nav.collapsed', JSON.stringify(next));
+            } catch {
+                /* storage kapalı olabilir — davranış bozulmasın */
+            }
+            return next;
+        });
+    };
     const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
@@ -317,7 +346,7 @@ export default function Layout() {
             }}>
                 <Box sx={{
                     width: 32, height: 32, borderRadius: '50%',
-                    bgcolor: '#C9A227',
+                    bgcolor: nb.goldSoft,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: '#0F1A14', fontWeight: 800, fontSize: 14,
                 }}>
@@ -355,118 +384,191 @@ export default function Layout() {
                     <Typography sx={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, fontWeight: 600 }}>
                         {events.length === 1 ? 'AKTİF ETKİNLİK' : `${events.length} ETKİNLİK`}
                     </Typography>
-                    <Typography sx={{ fontSize: 12, color: '#C9A227', fontWeight: 600, mt: 0.3 }} noWrap>
+                    <Typography sx={{ fontSize: 12, color: nb.goldSoft, fontWeight: 600, mt: 0.3 }} noWrap>
                         {events.length === 1 ? events[0].name : 'Etkinlikleri Yönet →'}
                     </Typography>
                 </Box>
             )}
+
+            {/* Arama — bilen kullanıcı için en kısa yol */}
+            <Box sx={{ px: 1.5, pt: 1.5, pb: 0.5 }}>
+                <Box
+                    component="input"
+                    value={navQuery}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNavQuery(e.target.value)}
+                    placeholder="Menüde ara"
+                    aria-label="Menüde ara"
+                    sx={{
+                        width: '100%',
+                        px: 1.5, py: 0.9,
+                        borderRadius: 1.5,
+                        border: `1px solid ${nb.onDarkLine}`,
+                        bgcolor: 'rgba(255,255,255,0.04)',
+                        color: nb.onDark,
+                        fontSize: 13,
+                        font: 'inherit',
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        '&::placeholder': { color: nb.onDarkFaint },
+                        '&:focus': {
+                            borderColor: nb.goldSoft,
+                            bgcolor: 'rgba(255,255,255,0.06)',
+                        },
+                    }}
+                />
+            </Box>
 
             {/* Navigation */}
             <Box
                 component="nav"
                 role="navigation"
                 aria-label="Ana navigasyon"
-                sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', py: 2 }}
+                sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', pb: 2 }}
             >
-                {visibleSections.map((section) => (
-                    <Box key={section.title} sx={{ mb: 2 }} role="group" aria-labelledby={`sec-${section.title}`}>
-                        {/* Section label */}
-                        <Typography
-                            id={`sec-${section.title}`}
-                            sx={{
-                                px: 2.5, mb: 1, display: 'block',
-                                color: 'rgba(255,255,255,0.4)',
-                                fontSize: 10, letterSpacing: 1.5, fontWeight: 600,
-                                textTransform: 'uppercase',
-                                userSelect: 'none',
-                            }}
-                        >
-                            {section.title}
-                        </Typography>
+                {visibleSections.map((section) => {
+                    const q = navQuery.trim().toLocaleLowerCase('tr');
+                    const items = q
+                        ? section.items.filter((i) => i.text.toLocaleLowerCase('tr').includes(q))
+                        : section.items;
+                    if (items.length === 0) return null;
 
-                        {section.items.map((item) => {
-                            const isActive = location.pathname === item.path
-                                || (item.path !== '/dashboard' && location.pathname.startsWith(item.path + '/'));
+                    const hasActive = items.some(
+                        (i) => location.pathname === i.path
+                            || (i.path !== '/dashboard' && location.pathname.startsWith(i.path + '/')),
+                    );
+                    // Arama sırasında her şey açık; aksi hâlde yalnız içinde
+                    // bulunduğun grup ve elle açtıkların.
+                    const open = !!q || hasActive || collapsed[section.title] === false;
+                    // Kapalıyken rozet sayısı kaybolmamalı — aciliyet gizlenmez.
+                    const pending = items.reduce((acc, i) => acc + (badgeCounts[i.path] ?? 0), 0);
 
-                            return (
+                    return (
+                        <Box key={section.title} sx={{ mb: 0.5 }} role="group">
+                            <Box
+                                component="button"
+                                type="button"
+                                onClick={() => toggleSection(section.title)}
+                                aria-expanded={open}
+                                sx={{
+                                    width: 'calc(100% - 24px)',
+                                    mx: 1.5, px: 1, py: 0.75,
+                                    display: 'flex', alignItems: 'center', gap: 0.75,
+                                    background: 'none', border: 'none', cursor: 'pointer',
+                                    borderRadius: 1.5,
+                                    color: nb.onDarkFaint,
+                                    fontSize: 10, letterSpacing: 1.4, fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    fontFamily: 'inherit',
+                                    '&:hover': { color: nb.onDarkMuted, bgcolor: 'rgba(255,255,255,0.03)' },
+                                    '&:focus-visible': { outline: `2px solid ${nb.goldSoft}`, outlineOffset: 2 },
+                                }}
+                            >
                                 <Box
-                                    key={item.path}
-                                    component="button"
-                                    onClick={() => handleNav(item.path)}
-                                    aria-current={isActive ? 'page' : undefined}
+                                    component="span"
                                     sx={{
-                                        background: 'none',
-                                        border: 'none',
-                                        font: 'inherit',
-                                        textAlign: 'left',
-                                        width: 'calc(100% - 24px)',
-                                        mx: 1.5, mb: 0.3, px: 1.5, py: 1,
-                                        borderRadius: 1.5,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1.25,
-                                        bgcolor: isActive ? 'rgba(201,162,39,0.12)' : 'transparent',
-                                        color: isActive ? '#C9A227' : 'rgba(255,255,255,0.75)',
-                                        transition: 'all 0.15s',
-                                        '&:hover': {
-                                            bgcolor: isActive ? 'rgba(201,162,39,0.16)' : 'rgba(255,255,255,0.04)',
-                                            color: isActive ? '#C9A227' : 'white',
-                                        },
-                                        '&:focus-visible': {
-                                            outline: '2px solid #C9A227',
-                                            outlineOffset: 2,
-                                        },
+                                        display: 'inline-flex', width: 10,
+                                        transition: 'transform 0.15s',
+                                        transform: open ? 'rotate(90deg)' : 'none',
                                     }}
                                 >
-                                    <Box sx={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        width: 6, flexShrink: 0,
-                                        '& svg': {
-                                            fontSize: 6,
-                                            fill: 'currentColor',
-                                            opacity: isActive ? 1 : 0.4,
-                                        },
-                                    }}>
-                                        {/* Dot indicator (EventConsole stiliyle) */}
-                                        <svg viewBox="0 0 10 10" width={6} height={6}>
-                                            <circle cx={5} cy={5} r={5} />
-                                        </svg>
-                                    </Box>
-                                    <Typography sx={{
-                                        fontSize: 13,
-                                        fontWeight: isActive ? 600 : 400,
-                                        lineHeight: 1.3,
-                                    }}>
-                                        {item.text}
-                                    </Typography>
-                                    {badgeCounts[item.path] > 0 && (
-                                        <Box
-                                            component="span"
-                                            aria-label={`${badgeCounts[item.path]} bekleyen`}
-                                            sx={{
-                                                ml: 'auto',
-                                                flexShrink: 0,
-                                                minWidth: 18,
-                                                height: 18,
-                                                px: 0.75,
-                                                borderRadius: 9,
-                                                bgcolor: '#C0392B',
-                                                color: 'white',
-                                                fontSize: 11,
-                                                fontWeight: 700,
-                                                lineHeight: '18px',
-                                                textAlign: 'center',
-                                            }}
-                                        >
-                                            {badgeCounts[item.path] > 99 ? '99+' : badgeCounts[item.path]}
-                                        </Box>
-                                    )}
+                                    <svg viewBox="0 0 8 12" width={7} height={9} aria-hidden>
+                                        <path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+                                    </svg>
                                 </Box>
-                            );
-                        })}
-                    </Box>
-                ))}
+                                <Box component="span" sx={{ flex: 1, textAlign: 'left' }}>
+                                    {section.title}
+                                </Box>
+                                {!open && pending > 0 && (
+                                    <Box
+                                        component="span"
+                                        aria-label={`${pending} bekleyen`}
+                                        sx={{
+                                            minWidth: 16, height: 16, px: 0.5, borderRadius: 8,
+                                            bgcolor: '#C0392B', color: 'white',
+                                            fontSize: 10, fontWeight: 700, lineHeight: '16px',
+                                            letterSpacing: 0,
+                                        }}
+                                    >
+                                        {pending > 99 ? '99+' : pending}
+                                    </Box>
+                                )}
+                            </Box>
+
+                            {open && items.map((item) => {
+                                const isActive = location.pathname === item.path
+                                    || (item.path !== '/dashboard' && location.pathname.startsWith(item.path + '/'));
+
+                                return (
+                                    <Box
+                                        key={item.path}
+                                        component="button"
+                                        onClick={() => handleNav(item.path)}
+                                        aria-current={isActive ? 'page' : undefined}
+                                        sx={{
+                                            position: 'relative',
+                                            background: 'none', border: 'none', font: 'inherit',
+                                            fontFamily: 'inherit',
+                                            textAlign: 'left',
+                                            width: 'calc(100% - 24px)',
+                                            mx: 1.5, mb: 0.2, pl: 2.5, pr: 1.5, py: 0.85,
+                                            borderRadius: 1.5,
+                                            cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: 1,
+                                            bgcolor: isActive ? nb.goldTint : 'transparent',
+                                            color: isActive ? nb.goldSoft : nb.onDarkMuted,
+                                            transition: 'background-color 0.15s, color 0.15s',
+                                            '&:hover': {
+                                                bgcolor: isActive ? nb.goldTintStrong : 'rgba(255,255,255,0.04)',
+                                                color: isActive ? nb.goldSoft : nb.onDark,
+                                            },
+                                            '&:focus-visible': { outline: `2px solid ${nb.goldSoft}`, outlineOffset: 2 },
+                                            // Aktif işareti: 79 satırda tekrarlanan nokta dekorasyondu.
+                                            // Yalnız aktif satırda görünen kenar çubuğu daha sessiz ve net.
+                                            '&::before': isActive ? {
+                                                content: '""',
+                                                position: 'absolute',
+                                                left: 6, top: '50%', transform: 'translateY(-50%)',
+                                                width: 3, height: 16, borderRadius: 2,
+                                                bgcolor: nb.goldSoft,
+                                            } : undefined,
+                                        }}
+                                    >
+                                        <Typography sx={{
+                                            fontSize: 13,
+                                            fontWeight: isActive ? 600 : 400,
+                                            lineHeight: 1.3,
+                                            flex: 1,
+                                        }}>
+                                            {item.text}
+                                        </Typography>
+                                        {badgeCounts[item.path] > 0 && (
+                                            <Box
+                                                component="span"
+                                                aria-label={`${badgeCounts[item.path]} bekleyen`}
+                                                sx={{
+                                                    flexShrink: 0, minWidth: 18, height: 18, px: 0.75,
+                                                    borderRadius: 9, bgcolor: '#C0392B', color: 'white',
+                                                    fontSize: 11, fontWeight: 700, lineHeight: '18px',
+                                                    textAlign: 'center',
+                                                }}
+                                            >
+                                                {badgeCounts[item.path] > 99 ? '99+' : badgeCounts[item.path]}
+                                            </Box>
+                                        )}
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                    );
+                })}
+
+                {navQuery.trim() && visibleSections.every((sec) =>
+                    sec.items.every((i) => !i.text.toLocaleLowerCase('tr')
+                        .includes(navQuery.trim().toLocaleLowerCase('tr')))) && (
+                    <Typography sx={{ px: 3, py: 2, fontSize: 12, color: nb.onDarkFaint }}>
+                        Eşleşen menü yok.
+                    </Typography>
+                )}
             </Box>
 
             {/* User footer */}
@@ -479,7 +581,7 @@ export default function Layout() {
                     <Avatar sx={{
                         width: 34, height: 34, fontSize: 13, fontWeight: 700,
                         bgcolor: 'rgba(201,162,39,0.15)',
-                        color: '#C9A227',
+                        color: nb.goldSoft,
                     }}>
                         {initials}
                     </Avatar>

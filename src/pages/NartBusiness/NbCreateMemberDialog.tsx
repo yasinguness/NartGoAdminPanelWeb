@@ -28,6 +28,7 @@ import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { theme as adminTheme } from '../../theme';
+import { nb } from '../../theme/nbBrand';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type {
   AdminCreateMemberRequest,
@@ -179,12 +180,18 @@ const STEPS = [
   'Onay',
 ];
 
-/** Elite Diaspora Network — premium palet (lacivert + altın + krem). */
+/**
+ * Premium palet artık burada TANIMLANMIYOR — `theme/nbBrand` tek kaynak.
+ *
+ * Bu sabitler daha önce yalnız bu modalın içinde yaşıyordu: dışarıda panel
+ * NartGo yeşiline dönüyordu, yani NartBusiness kimliği tek bir diyaloğa
+ * hapsolmuştu. Artık sidebar, liste ve bu modal aynı token'ları okuyor.
+ */
 const ELITE = {
-  navy: '#1B2A4A',
-  navyDeep: '#142036',
-  gold: '#B8860B',
-  goldSoft: '#C9A227',
+  navy: nb.navy,
+  navyDeep: nb.navyDeep,
+  gold: nb.gold,
+  goldSoft: nb.goldSoft,
   cream: '#FAF6E8',
   line: 'rgba(184,134,11,0.28)',
 } as const;

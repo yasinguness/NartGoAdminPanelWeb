@@ -31,6 +31,7 @@ import { useNbMobile } from '../../components/nartbusiness';
 import { Edit as EditIcon } from '@mui/icons-material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbEntitlements, TierConfig, TierConfigUpdate } from '../../services/nartbusiness/nbTypes';
+import { nb } from '../../theme/nbBrand';
 
 const DEFAULT_ENT: NbEntitlements = {
   directoryBoost: false,
@@ -407,7 +408,7 @@ export default function NbTierManagement() {
                   sx={{ p: 2, borderColor: 'rgba(201,168,76,0.5)', bgcolor: 'rgba(27,42,74,0.03)' }}
                 >
                   <Stack direction="row" alignItems="baseline" justifyContent="space-between">
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#1B2A4A' }}>
+                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: nb.navy }}>
                       {form.displayName || 'Kademe adı'}
                     </Typography>
                     <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#C9A84C' }}>
