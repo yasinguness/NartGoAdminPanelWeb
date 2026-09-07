@@ -63,10 +63,11 @@ import {
 } from '../../utils/nbDisplay';
 import { NbStatusBadge } from '../../components/nartbusiness';
 import { URGENCY_STYLE, urgencyOf } from '../../theme/nbBrand';
-import type { NbBulkResult } from '../../services/nartbusiness/nbAdminService';
+import type { NbBulkAction, NbBulkResult } from '../../services/nartbusiness/nbAdminService';
 import NbCreateMemberDialog from './NbCreateMemberDialog';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbMemberHardDeleteDialog from './NbMemberHardDeleteDialog';
+import NbBulkHistoryDialog from './NbBulkHistoryDialog';
 
 type QuickFilter =
   | 'all'
@@ -535,12 +536,15 @@ export default function NbMembers() {
   // filtre değişince seçim temizlenir, yoksa "neyi seçmiştim" belirsizleşir.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkAction, setBulkAction] = useState<'REOPEN_APPROVAL' | 'RESEND_EMAIL'>('REOPEN_APPROVAL');
+  const [bulkAction, setBulkAction] = useState<NbBulkAction>('REOPEN_APPROVAL');
   const [bulkDays, setBulkDays] = useState(14);
   const [bulkTemplate, setBulkTemplate] = useState<'RECEIVED' | 'APPROVED' | 'NEEDS_INFO'>('APPROVED');
+  const [bulkPushTitle, setBulkPushTitle] = useState('');
+  const [bulkPushMessage, setBulkPushMessage] = useState('');
   const [bulkNote, setBulkNote] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResult, setBulkResult] = useState<NbBulkResult | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const toggleSelect = (id: string) =>
     setSelectedIds((prev) => {
@@ -654,8 +658,13 @@ export default function NbMembers() {
       const res = await nbAdminService.bulkMemberAction({
         memberIds: [...selectedIds],
         action: bulkAction,
-        days: bulkAction === 'REOPEN_APPROVAL' ? bulkDays : undefined,
+        days:
+          bulkAction === 'REOPEN_APPROVAL' || bulkAction === 'GRANT_TRIAL'
+            ? bulkDays
+            : undefined,
         template: bulkAction === 'RESEND_EMAIL' ? bulkTemplate : undefined,
+        pushTitle: bulkAction === 'SEND_PUSH' ? bulkPushTitle.trim() : undefined,
+        pushMessage: bulkAction === 'SEND_PUSH' ? bulkPushMessage.trim() : undefined,
         note: bulkNote.trim() || undefined,
       });
       setBulkResult(res);
@@ -701,13 +710,21 @@ export default function NbMembers() {
         <Typography variant="h4" fontWeight={600}>
           NartBusiness — Üyeler
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setCreateOpen(true)}
-        >
-          Manuel Üye Oluştur
-        </Button>
+        <Stack direction="row" spacing={1}>
+          {/* Geçmiş sidebar'a yeni menü öğesi olarak eklenmedi: menü zaten
+              79 öğeydi ve seyrek kullanılan bir rapor oraya girseydi az önce
+              düzeltilen kalabalık geri gelirdi. Ait olduğu yer burası. */}
+          <Button variant="outlined" onClick={() => setHistoryOpen(true)}>
+            Toplu İşlem Geçmişi
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setCreateOpen(true)}
+          >
+            Manuel Üye Oluştur
+          </Button>
+        </Stack>
       </Stack>
 
       {/* Stats summary */}
@@ -956,7 +973,9 @@ export default function NbMembers() {
                 onChange={(e) => setBulkAction(e.target.value as typeof bulkAction)}
               >
                 <MenuItem value="REOPEN_APPROVAL">Ödeme süresini yeniden aç / uzat</MenuItem>
+                <MenuItem value="GRANT_TRIAL">Ücretsiz deneme ver</MenuItem>
                 <MenuItem value="RESEND_EMAIL">Hazır e-posta gönder</MenuItem>
+                <MenuItem value="SEND_PUSH">Bildirim gönder</MenuItem>
               </TextField>
 
               {bulkAction === 'REOPEN_APPROVAL' && (
@@ -969,6 +988,40 @@ export default function NbMembers() {
                   inputProps={{ min: 1, max: 365 }}
                   helperText="Her üyeye bildirim ve e-posta gider. Yalnız onayı bekleyen veya süresi dolmuş üyelerde çalışır; diğerleri atlanır."
                 />
+              )}
+
+              {bulkAction === 'GRANT_TRIAL' && (
+                <TextField
+                  size="small"
+                  type="number"
+                  label="Deneme süresi (gün)"
+                  value={bulkDays}
+                  onChange={(e) => setBulkDays(Number(e.target.value))}
+                  inputProps={{ min: 1, max: 365 }}
+                  helperText="Yalnız ödeme bekleyen ve daha önce deneme kullanmamış üyelerde çalışır; diğerleri sebebiyle birlikte atlanır."
+                />
+              )}
+
+              {bulkAction === 'SEND_PUSH' && (
+                <>
+                  <TextField
+                    size="small"
+                    label="Bildirim başlığı"
+                    value={bulkPushTitle}
+                    onChange={(e) => setBulkPushTitle(e.target.value)}
+                    inputProps={{ maxLength: 80 }}
+                  />
+                  <TextField
+                    size="small"
+                    multiline
+                    minRows={3}
+                    label="Bildirim metni"
+                    value={bulkPushMessage}
+                    onChange={(e) => setBulkPushMessage(e.target.value)}
+                    inputProps={{ maxLength: 300 }}
+                    helperText="Aynı metin seçili tüm üyelere gider. Kişiselleştirme yok — kişisel bir mesaj gerekiyorsa üye detayından tek tek gönder."
+                  />
+                </>
               )}
 
               {bulkAction === 'RESEND_EMAIL' && (
@@ -1020,7 +1073,15 @@ export default function NbMembers() {
           {!bulkResult ? (
             <>
               <Button onClick={() => setBulkOpen(false)} disabled={bulkBusy}>Vazgeç</Button>
-              <Button variant="contained" onClick={() => void runBulk()} disabled={bulkBusy}>
+              <Button
+                variant="contained"
+                onClick={() => void runBulk()}
+                disabled={
+                  bulkBusy ||
+                  (bulkAction === 'SEND_PUSH' &&
+                    (!bulkPushTitle.trim() || !bulkPushMessage.trim()))
+                }
+              >
                 {bulkBusy ? 'Uygulanıyor…' : `${selectedIds.size} üyeye uygula`}
               </Button>
             </>
@@ -1037,6 +1098,8 @@ export default function NbMembers() {
           )}
         </DialogActions>
       </Dialog>
+
+      <NbBulkHistoryDialog open={historyOpen} onClose={() => setHistoryOpen(false)} />
 
       <NbCreateMemberDialog
         open={createOpen}

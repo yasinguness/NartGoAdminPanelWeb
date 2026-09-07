@@ -283,15 +283,67 @@ export interface NbBulkResult {
  * bilinmez. Backend her üyeyi tek tek deniyor ve sonucu üye üye döndürüyor;
  * kısmi başarı gizlenmiyor.
  */
+export type NbBulkAction =
+  | 'REOPEN_APPROVAL'
+  | 'RESEND_EMAIL'
+  | 'SEND_PUSH'
+  | 'GRANT_TRIAL';
+
 async function bulkMemberAction(body: {
   memberIds: string[];
-  action: 'REOPEN_APPROVAL' | 'RESEND_EMAIL';
+  action: NbBulkAction;
+  /** REOPEN_APPROVAL ve GRANT_TRIAL için süre (gün). */
   days?: number;
   template?: 'RECEIVED' | 'APPROVED' | 'NEEDS_INFO';
+  pushTitle?: string;
+  pushMessage?: string;
   note?: string;
 }): Promise<NbBulkResult | null> {
   const res = await api.post<any>('/nb/admin/members/bulk', body);
   return unwrap<NbBulkResult>(res.data);
+}
+
+export interface NbBulkHistoryRow {
+  id: string;
+  action: NbBulkAction;
+  params?: string | null;
+  note?: string | null;
+  total: number;
+  succeeded: number;
+  failed: number;
+  createdAt: string;
+}
+
+export interface NbBulkHistoryItem {
+  memberId: string;
+  memberName?: string | null;
+  ok: boolean;
+  detail?: string | null;
+}
+
+export interface NbBulkHistoryDetail {
+  operation: NbBulkHistoryRow;
+  items: NbBulkHistoryItem[];
+}
+
+/** Toplu işlem geçmişi — en yeni üstte. */
+async function listBulkOperations(params: { page?: number; size?: number } = {}) {
+  const res = await api.get<any>('/nb/admin/members/bulk/operations', { params });
+  return (
+    unwrap<PagedResult<NbBulkHistoryRow>>(res.data) ?? {
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      number: 0,
+      size: params.size ?? 20,
+    }
+  );
+}
+
+/** Tek bir toplu işlemin üye üye sonucu — başarısızlar üstte. */
+async function getBulkOperation(operationId: string): Promise<NbBulkHistoryDetail | null> {
+  const res = await api.get<any>(`/nb/admin/members/bulk/operations/${operationId}`);
+  return unwrap<NbBulkHistoryDetail>(res.data);
 }
 
 /**
@@ -1425,6 +1477,8 @@ export const nbAdminService = {
   extendTrial,
   reopenApproval,
   bulkMemberAction,
+  listBulkOperations,
+  getBulkOperation,
   revokeTrial,
   // Verification
   listVerificationQueue,
