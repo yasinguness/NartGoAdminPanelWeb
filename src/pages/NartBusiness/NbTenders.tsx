@@ -43,6 +43,7 @@ import {
   type NbTenderStatus,
 } from '../../services/nartbusiness/nbAdminService';
 import { relativeDate } from '../../utils/nbDisplay';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 
 /**
  * İhaleler — EKAP'tan çekilen ihaleler ve her birinin altında eşleşen üyeler.
@@ -281,9 +282,7 @@ export default function NbTenders() {
     <Box sx={{ p: 3 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Box>
-          <Typography variant="h5" fontWeight={700}>
-            İhaleler
-          </Typography>
+          <NbTitleBlock title="İhaleler" />
           <Typography variant="body2" color="text.secondary">
             Sistem eşleşme önerir; yönlendirme kararını sen verirsin. Otomatik bildirim gitmez.
           </Typography>

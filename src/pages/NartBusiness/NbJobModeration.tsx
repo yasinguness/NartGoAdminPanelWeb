@@ -26,6 +26,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import PublishIcon from '@mui/icons-material/Publish';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbJobPostingRow } from '../../services/nartbusiness/nbAdminService';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 
 type StatusFilter = '' | 'PUBLISHED' | 'CLOSED' | 'HIDDEN';
 
@@ -94,11 +95,9 @@ export default function NbJobModeration() {
   };
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h4" fontWeight={600}>
-          Pozisyon İlanları — Moderasyon
-        </Typography>
+        <NbTitleBlock title="Pozisyon İlanları — Moderasyon" />
         <FormControl size="small" sx={{ minWidth: 180 }}>
           <InputLabel>Durum</InputLabel>
           <Select

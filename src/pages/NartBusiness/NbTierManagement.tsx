@@ -32,6 +32,7 @@ import { Edit as EditIcon } from '@mui/icons-material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbEntitlements, TierConfig, TierConfigUpdate } from '../../services/nartbusiness/nbTypes';
 import { nb } from '../../theme/nbBrand';
+import { NbTitleBlock, NbEmptyState } from '../../components/nartbusiness/ui';
 
 const DEFAULT_ENT: NbEntitlements = {
   directoryBoost: false,
@@ -164,12 +165,10 @@ export default function NbTierManagement() {
   };
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Box>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
-            NartBusiness — Üyelik Tipleri
-          </Typography>
+          <NbTitleBlock title="Üyelik Tipleri" />
           <Typography variant="body2" color="text.secondary">
             Mobil uygulamada görünen üyelik tiplerini buradan yönetin.
             Pasif tipler başvuru formunda gösterilmez; mevcut üyelikleri etkilemez.
@@ -202,6 +201,16 @@ export default function NbTierManagement() {
               </TableRow>
             </TableHead>
             <TableBody>
+              {/* Boş tablo yalnız başlık satırı gösteriyordu; sayfanın
+                  yüklenmediği mi yoksa gerçekten kayıt olmadığı mı
+                  belli değildi. */}
+              {items.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} sx={{ border: 0, py: 0 }}>
+                    <NbEmptyState title="Henüz üyelik tipi tanımlı değil" description="Tanımlanan tipler mobil uygulamadaki başvuru formunda seçenek olarak çıkar." dense />
+                  </TableCell>
+                </TableRow>
+              )}
               {items.map((t) => (
                 <TableRow key={t.id} hover>
                   <TableCell>

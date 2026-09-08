@@ -169,6 +169,19 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   { path: '/nartbusiness/share-analytics', roles: NB, description: 'Paylaşım analitikleri' },
   { path: '/nartbusiness/testimonials', roles: NB, description: 'Referanslar' },
   { path: '/nartbusiness/market-opinions', roles: NB, description: 'Üye görüşleri moderasyonu' },
+  // Bu sekiz sayfa sidebar'da vardı ama haritada yoktu; default-deny gereği
+  // ADMIN dışındaki NB rolleri hepsinde 403 alıyordu.
+  { path: '/nartbusiness/audit', roles: NB, description: 'NB işlem kayıtları' },
+  { path: '/nartbusiness/introductions', roles: NB, description: 'Tanıştırmalar' },
+  { path: '/nartbusiness/tenders', roles: NB, description: 'İhaleler' },
+  { path: '/nartbusiness/market-news', roles: NB, description: 'Piyasa haberleri' },
+  { path: '/nartbusiness/listings', roles: NB, description: 'İlanlar (talep/arz)' },
+  { path: '/nartbusiness/referrals', roles: NB, description: 'Yönlendirmeler' },
+  { path: '/nartbusiness/questions', roles: NB, description: 'Topluluk soruları' },
+  { path: '/nartbusiness/jobs', roles: NB, description: 'Pozisyon ilanları' },
+
+  // ── Panel seçimi ──
+  { path: '/workspace', roles: AUTHENTICATED, description: 'Panel seçim ekranı' },
 ];
 
 /**

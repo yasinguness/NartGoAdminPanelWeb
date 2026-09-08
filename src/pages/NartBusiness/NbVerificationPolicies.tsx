@@ -24,8 +24,8 @@ import SaveIcon from '@mui/icons-material/Save';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { MembershipTier, TierDocumentPolicy, VerificationDocumentType } from '../../services/nartbusiness/nbTypes';
 import { DOC_TYPE_LABELS } from './verificationShared';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 
-const ALL_TIERS: MembershipTier[] = ['KURUCU', 'PATRON', 'STANDART', 'GENC_GIRISIMCI'];
 const ALL_DOC_TYPES: VerificationDocumentType[] = [
   'VERGI_LEVHASI',
   'TICARET_SICIL',
@@ -37,13 +37,24 @@ const ALL_DOC_TYPES: VerificationDocumentType[] = [
 const TIER_LABELS: Record<MembershipTier, string> = {
   KURUCU: 'Kurucu',
   PATRON: 'Patron',
+  PROFESYONEL: 'Profesyonel',
   STANDART: 'Standart',
   GENC_GIRISIMCI: 'Genç Girişimci',
 };
 
+/**
+ * Satır sırası TIER_LABELS'tan türetilir; elle tutulan ikinci bir liste
+ * değil. Önceden sabit bir dizi vardı ve PROFESYONEL kademesi orada
+ * unutulmuştu — o kademenin belge politikası bu ekrandan hiç ayarlanamıyordu.
+ * Record<MembershipTier, …> tüm kademeleri zorunlu kıldığı için yeni bir
+ * kademe eklendiğinde derleme uyarır.
+ */
+const ALL_TIERS = Object.keys(TIER_LABELS) as MembershipTier[];
+
 const TIER_DESCRIPTIONS: Record<MembershipTier, string> = {
   KURUCU: 'Tam KYC — şirket belgesi zorunlu',
   PATRON: 'Tam KYC — şirket belgesi zorunlu',
+  PROFESYONEL: 'Tam KYC — şirket belgesi zorunlu',
   STANDART: 'Hafif KYC — belge opsiyonel',
   GENC_GIRISIMCI: 'Hafif KYC — belge opsiyonel',
 };
@@ -125,11 +136,9 @@ export default function NbVerificationPolicies() {
   }
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack spacing={0.5} mb={3}>
-        <Typography variant="h5" fontWeight={700}>
-          KYC Belge Politikaları
-        </Typography>
+        <NbTitleBlock title="KYC Belge Politikaları" />
         <Typography variant="body2" color="text.secondary">
           Her üyelik kademesi için zorunlu belgeler. Onay sırasında eksik belge varsa komite oyuna
           rağmen NEEDS_INFO'ya düşer.

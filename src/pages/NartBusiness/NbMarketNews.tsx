@@ -29,6 +29,7 @@ import { api } from '../../services/api';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { Sector } from '../../services/nartbusiness/nbTypes';
 import { BulkActionBar, useRowSelection } from '../../components/Actions';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 
 interface MarketNewsItem {
   id: string;
@@ -119,12 +120,10 @@ export default function NbMarketNews() {
   const someSelected = items.some((n) => sel.has(n.id));
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Box>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
-            NartBusiness — Piyasa Haberleri Moderasyonu
-          </Typography>
+          <NbTitleBlock title="Piyasa Haberleri Moderasyonu" />
           <Typography variant="body2" color="text.secondary">
             RSS + AI pipeline haberleri taslak (onay bekliyor) olarak çeker. Onaylanan
             haber üye portalında Piyasa akışının "Haberler" bölümünde görünür; reddedilen

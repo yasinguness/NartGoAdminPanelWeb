@@ -4,7 +4,8 @@ import { LoginResponseData } from '../types/auth';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { UserModel } from '../types/user';
-import { getDefaultPath, normalizeRole } from '../config/roles';
+import { normalizeRole } from '../config/roles';
+import { getLandingPath } from '../config/workspaces';
 
 const authService = new AuthService();
 
@@ -24,7 +25,7 @@ function resolveLandingPath(user: UserModel): string {
     } else if (typeof r === 'string') {
         roles.push(normalizeRole(r));
     }
-    return getDefaultPath(roles);
+    return getLandingPath(roles);
 }
 
 export const useAuth = () => {
@@ -54,7 +55,8 @@ export const useAuth = () => {
             });
             // Rol-bilinçli landing: NB-only kullanıcı /dashboard'a giremez,
             // hardcoded '/dashboard' onları admin endpoint'lerinde 401→login'e
-            // savuruyordu. getDefaultPath doğru sayfaya indirir.
+            // savuruyordu. İki panele de yetkisi olan önce hangisine gireceğini
+            // seçer; tek dünyası olan doğrudan iner.
             navigate(resolveLandingPath(user));
         },
         onError: (error) => {

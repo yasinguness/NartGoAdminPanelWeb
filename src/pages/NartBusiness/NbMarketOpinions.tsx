@@ -27,6 +27,7 @@ import { api } from '../../services/api';
 import { BulkActionBar, useRowSelection } from '../../components/Actions';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { Sector } from '../../services/nartbusiness/nbTypes';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 
 interface MarketOpinion {
   id: string;
@@ -117,12 +118,10 @@ export default function NbMarketOpinions() {
   const someSelected = items.some((o) => sel.has(o.id));
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Box>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
-            NartBusiness — Üye Görüşleri Moderasyonu
-          </Typography>
+          <NbTitleBlock title="Üye Görüşleri Moderasyonu" />
           <Typography variant="body2" color="text.secondary">
             Üyelerin paylaştığı sektörel görüşler. Onaylanan görüş üye portalında
             Piyasa akışında "Üye Görüşleri" bölümünde görünür; reddedilen yayımlanmaz.

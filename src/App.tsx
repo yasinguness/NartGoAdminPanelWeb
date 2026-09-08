@@ -13,7 +13,9 @@ import NbAuditLog from './pages/NartBusiness/NbAuditLog';
 import Login from './pages/Login';
 import PrivateRoute from './components/PrivateRoute';
 import { useAuthStore } from './store/authStore';
-import { getDefaultPath, normalizeRole } from './config/roles';
+import { normalizeRole } from './config/roles';
+import { getLandingPath } from './config/workspaces';
+import WorkspaceSelect from './pages/WorkspaceSelect';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Businesses from './pages/Businesses/Businesses';
@@ -132,6 +134,9 @@ function App() {
           <BrowserRouter basename={routerBasename}>
             <Routes>
               <Route path="/login" element={<Login />} />
+
+              {/* Panel seçimi — Layout dışında, kendi tam ekran kabuğu var */}
+              <Route path="/workspace" element={<PrivateRoute><WorkspaceSelect /></PrivateRoute>} />
 
               {/* EventConsole — tam ekran, kendi sidebar'ı var */}
               <Route path="/event-console/:eventId" element={<PrivateRoute><EventConsole /></PrivateRoute>} />
@@ -272,7 +277,8 @@ function EventDetailRedirect() {
 /**
  * Rol-bilinçli landing — index ("/") ve catch-all ("*") için. Kullanıcının
  * rolüne göre erişebileceği varsayılan sayfaya yönlendirir (NB-only kullanıcı
- * /dashboard yerine /nartbusiness/dashboard'a iner). Oturum yoksa /login'e.
+ * /dashboard yerine /nartbusiness/dashboard'a iner). İki panele de yetkisi
+ * olan önce /workspace'te seçim yapar. Oturum yoksa /login'e.
  */
 function RoleLanding() {
   const user = useAuthStore((s) => s.user);
@@ -283,7 +289,7 @@ function RoleLanding() {
   else if (typeof r === 'string') roles.push(normalizeRole(r));
 
   if (roles.length === 0) return <Navigate to="/login" replace />;
-  return <Navigate to={getDefaultPath(roles)} replace />;
+  return <Navigate to={getLandingPath(roles)} replace />;
 }
 
 export default App;

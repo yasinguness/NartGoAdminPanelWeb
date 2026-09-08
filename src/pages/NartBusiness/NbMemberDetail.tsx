@@ -42,7 +42,6 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
 import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
-import Settings from '@mui/icons-material/Settings';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
@@ -105,7 +104,6 @@ export default function NbMemberDetail() {
   const [actionOpen, setActionOpen] = useState(false);
   const [trialBusy, setTrialBusy] = useState(false);
   const [pwBusy, setPwBusy] = useState(false);
-  const [actionMenuAnchor, setActionMenuAnchor] = useState<null | HTMLElement>(null);
 
   // "Şifrenizi belirleyin" — Keycloak UPDATE_PASSWORD + VERIFY_EMAIL action maili.
   // manual-email Thymeleaf akışından ayrıdır: link Keycloak token'ı taşır, 72 saat geçerli.
@@ -351,7 +349,7 @@ export default function NbMemberDetail() {
 
   if (error || !member) {
     return (
-      <Box p={3}>
+      <Box sx={{ maxWidth: 1400 }}>
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/nartbusiness/members')}
@@ -366,7 +364,7 @@ export default function NbMemberDetail() {
   }
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       {/* Geri ve breadcrumb */}
       <Stack direction="row" alignItems="center" spacing={1} mb={2}>
         <Button

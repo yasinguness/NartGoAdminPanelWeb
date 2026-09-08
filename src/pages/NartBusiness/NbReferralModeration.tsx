@@ -34,6 +34,7 @@ import {
   IconButton,
 } from '@mui/material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import { NbPageHeader } from '../../components/nartbusiness/ui';
 import type {
   NbReferralRow,
   NbReferralStatus,
@@ -132,11 +133,11 @@ export default function NbReferralModeration() {
   };
 
   return (
-    <Box p={3}>
-      <Typography variant="h4" fontWeight={600} mb={2}>
-        Yönlendirmeler — Yönetim
-      </Typography>
-
+    <Box sx={{ maxWidth: 1400 }}>
+      <NbPageHeader
+        eyebrow="NartBusiness"
+        title="Yönlendirmeler — Yönetim"
+      />
       {stats && (
         <Grid container spacing={1.5} mb={2}>
           <Grid item xs={6} sm={3} md={1.5}><StatCard label="Toplam" value={stats.total} /></Grid>

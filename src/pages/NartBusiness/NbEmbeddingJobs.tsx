@@ -31,6 +31,7 @@ import type {
   MatchBatchSummary,
 } from '../../services/nartbusiness/nbTypes';
 import { relativeDate, fullDate } from '../../utils/nbDisplay';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 
 const STATUS_TR: Record<EmbeddingJobStatus, string> = {
   FAILED: 'Başarısız',
@@ -109,7 +110,7 @@ export default function NbEmbeddingJobs() {
   };
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         justifyContent="space-between"
@@ -118,9 +119,7 @@ export default function NbEmbeddingJobs() {
         mb={2}
       >
         <Box>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
-            NartBusiness — Embedding & Matching Operasyon
-          </Typography>
+          <NbTitleBlock title="Embedding & Matching Operasyon" />
           <Typography variant="body2" color="text.secondary">
             Profil embedding kuyruğu ve haftalık eşleştirme batch'i. FAILED durumdaki job'ları
             "Retry" ile yeniden PENDING'e alabilirsiniz; batch çalıştığında threshold üstü

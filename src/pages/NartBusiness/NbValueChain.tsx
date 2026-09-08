@@ -34,6 +34,7 @@ import {
   Upload as UploadIcon,
 } from '@mui/icons-material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 import type {
   ChainDirection,
   Sector,
@@ -214,7 +215,7 @@ export default function NbValueChain() {
   const sectorList = sectors.filter((s) => s.active);
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack
         direction="row"
         justifyContent="space-between"
@@ -222,9 +223,7 @@ export default function NbValueChain() {
         mb={2}
       >
         <Box>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
-            NartBusiness — Sektör Değer Zinciri
-          </Typography>
+          <NbTitleBlock title="Sektör Değer Zinciri" />
           <Typography variant="body2" color="text.secondary">
             Matching algoritmasının kural-tabanlı tarafı. Her kenar bir
             (source → target) tedarik/işbirliği ilişkisi tanımlar; weight 0.0-1.0

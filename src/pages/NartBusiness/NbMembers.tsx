@@ -9,6 +9,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Grid,
   Chip,
   CircularProgress,
   Dialog,
@@ -67,6 +68,7 @@ import {
   TIER_LABEL,
 } from '../../utils/nbDisplay';
 import { NbStatusBadge } from '../../components/nartbusiness';
+import { NbPageHeader, NbStatCard, nbNumber } from '../../components/nartbusiness/ui';
 import { URGENCY_STYLE, urgencyOf } from '../../theme/nbBrand';
 import type { NbBulkAction, NbBulkResult } from '../../services/nartbusiness/nbAdminService';
 import NbCreateMemberDialog from './NbCreateMemberDialog';
@@ -710,46 +712,86 @@ export default function NbMembers() {
   }, [data]);
 
   return (
-    <Box p={3}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h4" fontWeight={600}>
-          NartBusiness — Üyeler
-        </Typography>
-        <Stack direction="row" spacing={1}>
+    <Box sx={{ maxWidth: 1400 }}>
+      <NbPageHeader
+        eyebrow="NartBusiness"
+        title="Üyeler"
+        subtitle="Üyelik başvuruları, kademeler ve hesap durumları."
+        actions={
+          <>
           {/* Geçmiş sidebar'a yeni menü öğesi olarak eklenmedi: menü zaten
               79 öğeydi ve seyrek kullanılan bir rapor oraya girseydi az önce
               düzeltilen kalabalık geri gelirdi. Ait olduğu yer burası. */}
           <Button variant="outlined" onClick={() => setHistoryOpen(true)}>
             Toplu İşlem Geçmişi
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setCreateOpen(true)}
-          >
-            Manuel Üye Oluştur
-          </Button>
-        </Stack>
-      </Stack>
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<AddIcon />}
+              onClick={() => setCreateOpen(true)}
+            >
+              Manuel Üye Oluştur
+            </Button>
+          </>
+        }
+      />
 
-      {/* Stats summary */}
-      <Paper variant="outlined" sx={{ px: 2, py: 1.5, mb: 2 }}>
-        <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
-          <StatChip label="Toplam" value={stats.total} />
-          <StatChip label="Aktif" value={stats.active} color="success" />
-          {stats.trial > 0 && <StatChip label="Deneme" value={stats.trial} color="info" />}
-          <StatChip label="Bekleyen" value={stats.pending} color="warning" />
-          <StatChip label="Askıda" value={stats.suspended} color="error" />
-          <StatChip label="İptal" value={stats.cancelled} color="default" />
-          {stats.incomplete > 0 && (
-            <StatChip label="Eksik profil" value={stats.incomplete} color="warning" />
-          )}
-        </Stack>
-      </Paper>
+      {/* Özet — dekoratif değil, filtre. Her kutucuk kendi alt kümesini açar,
+          böylece "12 askıda üye var" bilgisinden "onları göster"e tek tıkla
+          geçilir. Deneme/iptal/eksik profil aşağıdaki çiplerde kalır. */}
+      <Grid container spacing={2} sx={{ mb: 2.5 }}>
+        <Grid item xs={6} sm={3}>
+          <NbStatCard
+            label="Toplam üye"
+            value={nbNumber(stats.total)}
+            tone="neutral"
+            linkText={quickFilter === 'all' && !status ? undefined : 'Filtreyi temizle'}
+            onClick={() => { setQuickFilter('all'); setStatus(''); setTier(''); setPage(0); }}
+          />
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <NbStatCard
+            label="Aktif"
+            value={nbNumber(stats.active)}
+            tone="good"
+            linkText={status === 'ACTIVE' ? 'Seçili' : 'Sadece aktifler'}
+            onClick={() => { setQuickFilter('all'); setStatus('ACTIVE'); setPage(0); }}
+          />
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <NbStatCard
+            label="Bekleyen"
+            value={nbNumber(stats.pending)}
+            tone={stats.pending > 0 ? 'warning' : 'neutral'}
+            emphasize={stats.pending > 0}
+            linkText={quickFilter === 'pending' ? 'Seçili' : 'Kuyruğu göster'}
+            onClick={() => { setStatus(''); setQuickFilter('pending'); setPage(0); }}
+          />
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <NbStatCard
+            label="Askıda"
+            value={nbNumber(stats.suspended)}
+            tone={stats.suspended > 0 ? 'serious' : 'neutral'}
+            linkText={status === 'SUSPENDED' ? 'Seçili' : 'Askıdakiler'}
+            onClick={() => { setQuickFilter('all'); setStatus('SUSPENDED'); setPage(0); }}
+          />
+        </Grid>
+      </Grid>
 
       {/* Email-davet modeli — bekleyen davetler (üye listesinde görünmezler) */}
       <PendingInvitesPanel refreshKey={invitesRefresh} />
 
+      {/* Arama ve filtreler tek yüzeyde: üçü ayrı ayrı yüzerken sayfanın
+          neresinin "kontrol" neresinin "sonuç" olduğu belirsizdi. */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2, mb: 2.5, borderRadius: 2.5,
+          border: '1px solid', borderColor: 'rgba(27,42,74,0.09)',
+        }}
+      >
       {/* Arama */}
       <TextField
         fullWidth
@@ -803,7 +845,7 @@ export default function NbMembers() {
       </Stack>
 
       {/* Detaylı filtreler */}
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+      <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
         <FormControl size="small" sx={{ minWidth: 220 }}>
           <InputLabel>Durum</InputLabel>
           <Select
@@ -840,7 +882,8 @@ export default function NbMembers() {
             ))}
           </Select>
         </FormControl>
-      </Stack>
+        </Stack>
+      </Paper>
 
       {error && <Alert severity="error">{error}</Alert>}
 
@@ -1227,37 +1270,3 @@ const cellHeadSx = {
   letterSpacing: 0.2,
 };
 
-function StatChip({
-  label,
-  value,
-  color = 'default',
-}: {
-  label: string;
-  value: number;
-  color?: 'default' | 'success' | 'warning' | 'error' | 'info';
-}) {
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography
-        variant="body2"
-        fontWeight={600}
-        color={
-          color === 'success'
-            ? 'success.main'
-            : color === 'warning'
-            ? 'warning.main'
-            : color === 'error'
-            ? 'error.main'
-            : color === 'info'
-            ? 'info.main'
-            : 'text.primary'
-        }
-      >
-        {value}
-      </Typography>
-    </Box>
-  );
-}

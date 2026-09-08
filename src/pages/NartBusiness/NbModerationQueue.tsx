@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { api } from '../../services/api';
 import { BulkActionBar, useRowSelection } from '../../components/Actions';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 
 type ReportStatus =
   | 'OPEN'
@@ -128,12 +129,10 @@ export default function NbModerationQueue() {
   const someSelected = items.some((r) => sel.has(r.id));
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Box>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
-            NartBusiness — Moderasyon Kuyruğu
-          </Typography>
+          <NbTitleBlock title="Moderasyon Kuyruğu" />
           <Typography variant="body2" color="text.secondary">
             Üyelerin bildirdiği soru, cevap ve üye profilleri. Hide ile içerik
             gizlenir (üye profillerinde suspension için nb-membership admin

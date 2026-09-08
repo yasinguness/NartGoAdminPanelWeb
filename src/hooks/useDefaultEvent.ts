@@ -22,9 +22,12 @@ export interface UseDefaultEventResult {
  * - Birden fazla aktif etkinlik varsa → null döndür (kullanıcı seçmeli)
  * - Hiç etkinlik yoksa → null
  */
-export function useDefaultEvent(): UseDefaultEventResult {
+export function useDefaultEvent(options?: { enabled?: boolean }): UseDefaultEventResult {
   const { isAdmin, isOrganizer } = useRole();
-  const enabled = isAdmin || isOrganizer;
+  // Rol yetiyor olsa bile çağıran bağlam kapatabilir: NartBusiness
+  // workspace'inde etkinlik verisi hiç kullanılmıyor, boşuna admin
+  // etkinlik endpoint'ine gidilmesin.
+  const enabled = (isAdmin || isOrganizer) && options?.enabled !== false;
 
   const { data, isLoading, error, refetch } = useQuery<EventResponseDTO[]>({
     queryKey: ['my-events'],

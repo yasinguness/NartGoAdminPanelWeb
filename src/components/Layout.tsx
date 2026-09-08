@@ -6,50 +6,19 @@ import {
     Drawer,
     Typography,
     useTheme,
+    ThemeProvider,
     Avatar,
     alpha,
     Tooltip,
     IconButton,
 } from '@mui/material';
 import {
-    Dashboard as DashboardIcon,
-    Devices as DevicesIcon,
     Notifications as NotificationsIcon,
-    EmailOutlined as EmailIcon,
-    People as PeopleIcon,
-    Gavel as GavelIcon,
     ExitToApp as LogoutIcon,
-    Business as BusinessIcon,
-    Category as CategoryIcon,
     Settings as SettingsIcon,
-    Event as EventIcon,
-    EventNote as EventCategoryIcon,
-    HomeWork,
-    Feed as FeedIcon,
-    EmojiEvents as EmojiEventsIcon,
-    Casino as CasinoIcon,
-    LiveTv as LiveTvIcon,
-    FactCheck as FactCheckIcon,
-    Policy as PolicyIcon,
-    AccountBalance as AccountBalanceIcon,
-    TrendingUp as TrendingUpIcon,
-    SupportAgent as SupportIcon,
-    LocalActivity as LocalActivityIcon,
-    ConfirmationNumber as TicketIcon,
-    Campaign as CampaignIcon,
-    Star as StarIcon,
-    ToggleOn as ToggleOnIcon,
-    Share as ShareIcon,
-    Badge as BadgeIcon,
-    EventSeat as EventSeatIcon,
-    Article as ArticleIcon,
-    CloudSync as CloudSyncIcon,
     Menu as MenuIcon,
     Search as SearchIcon,
-    ManageSearch as AuditIcon,
-    Insights as ExecutiveIcon,
-    PersonOff as PersonOffIcon,
-    BarChart as BarChartIcon,
+    SwapHoriz as SwapIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { useAdminBadgeCounts } from '../hooks/useAdminBadgeCounts';
@@ -58,186 +27,46 @@ import { useRole } from '../hooks/useRole';
 import { useDefaultEvent } from '../hooks/useDefaultEvent';
 import { useState } from 'react';
 import { nb } from '../theme/nbBrand';
+import { theme as baseTheme } from '../theme/index';
+import { nbTheme } from '../theme/nbTheme';
+import { workspaceForPath, workspacesForRoles, WORKSPACES, type Workspace } from '../config/workspaces';
+import { useWorkspaceStore } from '../store/workspaceStore';
 
 const DRAWER_W = 260;
 
-interface NavItem {
-    text: string;
-    icon: React.ReactNode;
-    path: string;
-    allowedRoles?: string[];
+interface LayoutShellProps {
+    workspace: Workspace;
+    /** Kullanıcı birden fazla panele girebiliyorsa üstte değiştirici çıkar. */
+    canSwitch: boolean;
 }
 
-interface NavSection {
-    title: string;
-    items: NavItem[];
-    allowedRoles?: string[];
-}
-
-// Role path'lerden otomatik türetilir — Layout item.allowedRoles'u kullanmaz,
-// onun yerine canAccess(path) ROLE_ROUTE_MAP'e bakar.
-// Ama yine de organizasyon/group başlığı için allowedRoles set edilir,
-// böylece section tamamen gizlenir (tüm öğeleri filtrelense bile).
-const navSections: NavSection[] = [
-    {
-        title: 'Genel',
-        items: [
-            { text: 'Kontrol Paneli', icon: <DashboardIcon />, path: '/dashboard' },
-            { text: 'Stratejik Panel', icon: <ExecutiveIcon />, path: '/executive', allowedRoles: ['ADMIN'] },
-        ],
-    },
-    {
-        title: 'Etkinlik Yönetimi',
-        allowedRoles: ['ADMIN', 'EVENT_ORGANIZATOR'],
-        items: [
-            { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
-            { text: 'Etkinlik Oluştur', icon: <TicketIcon />, path: '/event-creation' },
-            { text: 'Bilet Yönetimi', icon: <TicketIcon />, path: '/tickets' },
-            { text: 'Salon Planları', icon: <EventSeatIcon />, path: '/seat-templates' },
-            { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories', allowedRoles: ['ADMIN'] },
-        ],
-    },
-    {
-        title: 'İçerik',
-        allowedRoles: ['ADMIN', 'EDITOR'],
-        items: [
-            { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
-            { text: 'İçerik Toplama', icon: <CloudSyncIcon />, path: '/content/ingest' },
-        ],
-    },
-    {
-        title: 'Satış & Finans',
-        allowedRoles: ['ADMIN', 'EVENT_ORGANIZATOR'],
-        items: [
-            { text: 'Satış Özeti', icon: <TrendingUpIcon />, path: '/sales-command' },
-            { text: 'Gelir & Gider Raporu', icon: <AccountBalanceIcon />, path: '/finance/overview', allowedRoles: ['ADMIN'] },
-            { text: 'Mutabakat', icon: <AccountBalanceIcon />, path: '/finance/reconciliation', allowedRoles: ['ADMIN'] },
-            { text: 'Organizatör Ödemeleri', icon: <AccountBalanceIcon />, path: '/finance/payouts', allowedRoles: ['ADMIN'] },
-            { text: 'İadeler', icon: <AccountBalanceIcon />, path: '/finance/refunds', allowedRoles: ['ADMIN'] },
-            { text: 'Ödeme & Mutabakat Detayı', icon: <AccountBalanceIcon />, path: '/settlement-finance', allowedRoles: ['ADMIN'] },
-            { text: 'Alt Bayiler', icon: <AccountBalanceIcon />, path: '/sub-merchants', allowedRoles: ['ADMIN'] },
-        ],
-    },
-    {
-        title: 'İşletme Yönetimi',
-        allowedRoles: ['ADMIN'],
-        items: [
-            { text: 'İşletmeler', icon: <BusinessIcon />, path: '/businesses' },
-            { text: 'İşletme Talepleri', icon: <FactCheckIcon />, path: '/business-claims' },
-            { text: 'İşletme Kategorileri', icon: <CategoryIcon />, path: '/business-categories' },
-            { text: 'Öne Çıkan Hikayeler', icon: <StarIcon />, path: '/featured-stories' },
-            { text: 'Üye Kartları', icon: <BadgeIcon />, path: '/user-cards' },
-            { text: 'Özellik Görünürlüğü', icon: <ToggleOnIcon />, path: '/feature-flags' },
-        ],
-    },
-    {
-        title: 'NartBusiness',
-        allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'],
-        items: [
-            { text: 'NB Dashboard', icon: <BusinessIcon />, path: '/nartbusiness/dashboard' },
-            { text: 'NB Üyeler', icon: <PeopleIcon />, path: '/nartbusiness/members' },
-            { text: 'Tanıştırmalar', icon: <PeopleIcon />, path: '/nartbusiness/introductions', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'İhaleler', icon: <GavelIcon />, path: '/nartbusiness/tenders', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'İşlem Kayıtları', icon: <FactCheckIcon />, path: '/nartbusiness/audit', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'Doğrulama Kuyruğu', icon: <FactCheckIcon />, path: '/nartbusiness/verification' },
-            { text: 'Belge Politikaları', icon: <PolicyIcon />, path: '/nartbusiness/verification-policies', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'Üyelik Tipleri', icon: <CategoryIcon />, path: '/nartbusiness/tiers', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'Sektör Katalogu', icon: <CategoryIcon />, path: '/nartbusiness/sectors', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'Ünvan Katalogu', icon: <CategoryIcon />, path: '/nartbusiness/job-titles', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'Sektör Değer Zinciri', icon: <CategoryIcon />, path: '/nartbusiness/value-chain', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'Embedding & Matching', icon: <ToggleOnIcon />, path: '/nartbusiness/embedding-jobs', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'Moderasyon Kuyruğu', icon: <FactCheckIcon />, path: '/nartbusiness/moderation', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
-            { text: 'Üye Görüşleri', icon: <FactCheckIcon />, path: '/nartbusiness/market-opinions', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
-            { text: 'Piyasa Haberleri', icon: <FactCheckIcon />, path: '/nartbusiness/market-news', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
-            { text: 'İlanlar (Talep/Arz)', icon: <FactCheckIcon />, path: '/nartbusiness/listings', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
-            { text: 'Yönlendirmeler', icon: <FactCheckIcon />, path: '/nartbusiness/referrals', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
-            { text: 'Topluluk Soruları', icon: <FactCheckIcon />, path: '/nartbusiness/questions', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
-            { text: 'Pozisyon İlanları', icon: <FactCheckIcon />, path: '/nartbusiness/jobs', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN', 'NB_COMMITTEE'] },
-            { text: 'NB DLQ', icon: <ToggleOnIcon />, path: '/nartbusiness/dlq', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'Paylaşım Analitikleri', icon: <ShareIcon />, path: '/nartbusiness/share-analytics', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-            { text: 'Referanslar', icon: <StarIcon />, path: '/nartbusiness/testimonials', allowedRoles: ['ADMIN', 'NB_ADMIN', 'NB_CO_ADMIN'] },
-        ],
-    },
-    {
-        title: 'Kullanıcılar',
-        allowedRoles: ['ADMIN', 'ASSOCIATION'],
-        items: [
-            { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users', allowedRoles: ['ADMIN'] },
-            { text: 'Kullanıcı Aktivitesi', icon: <PeopleIcon />, path: '/user-activity', allowedRoles: ['ADMIN'] },
-            { text: 'NartLive Haritası', icon: <PeopleIcon />, path: '/nartlive/users', allowedRoles: ['ADMIN'] },
-            { text: 'Dernekler', icon: <HomeWork />, path: '/associations' },
-        ],
-    },
-    {
-        title: 'Bildirim & İçerik Moderasyonu',
-        allowedRoles: ['ADMIN'],
-        items: [
-            { text: 'Bildirimler', icon: <NotificationsIcon />, path: '/notifications' },
-            { text: 'Hazır Mail Gönder', icon: <EmailIcon />, path: '/manual-email' },
-            { text: 'E-posta Şablonları', icon: <EmailIcon />, path: '/email-templates' },
-            { text: 'E-posta Logları', icon: <EmailIcon />, path: '/email-logs' },
-            { text: 'Bildirim Takvimi', icon: <NotificationsIcon />, path: '/notification-calendar' },
-            { text: 'Video Akışı', icon: <FeedIcon />, path: '/feeds' },
-            { text: 'Bültenler', icon: <CampaignIcon />, path: '/bulletins' },
-            { text: 'Kampanya Motoru', icon: <LocalActivityIcon />, path: '/campaign-engine' },
-        ],
-    },
-    {
-        title: 'Büyüme & Pazarlama',
-        allowedRoles: ['ADMIN'],
-        items: [
-            { text: 'Kullanıcı Grupları', icon: <PeopleIcon />, path: '/growth/segments' },
-            { text: 'Kullanıcı Tutunma', icon: <TrendingUpIcon />, path: '/growth/cohorts' },
-            { text: 'Dönüşüm Hunisi', icon: <TrendingUpIcon />, path: '/growth/funnel' },
-            { text: 'Kuponlar', icon: <LocalActivityIcon />, path: '/growth/coupons' },
-            { text: 'Davet Programı', icon: <PeopleIcon />, path: '/growth/referrals' },
-            { text: 'Kayıp Riski', icon: <TrendingUpIcon />, path: '/growth/churn' },
-        ],
-    },
-    {
-        title: 'Güvenlik',
-        allowedRoles: ['ADMIN'],
-        items: [
-            { text: 'Yetki Matrisi', icon: <AuditIcon />, path: '/security/rbac' },
-            { text: 'Aktif Oturumlar', icon: <DevicesIcon />, path: '/security/sessions' },
-            { text: 'Şüpheli Davranış', icon: <AuditIcon />, path: '/security/anomalies' },
-            { text: 'Dolandırıcılık Tespiti', icon: <AuditIcon />, path: '/security/fraud' },
-        ],
-    },
-    {
-        title: 'Kullanıcı Etkileşimi',
-        allowedRoles: ['ADMIN'],
-        items: [
-            { text: 'İnaktif Kullanıcılar', icon: <PersonOffIcon />, path: '/engagement/inactive-users' },
-            { text: 'Login Sıklığı', icon: <TrendingUpIcon />, path: '/engagement/login-frequency' },
-            { text: 'Ürün Kullanım Analitiği', icon: <BarChartIcon />, path: '/engagement/product-analytics' },
-        ],
-    },
-    {
-        title: 'Operasyonlar',
-        allowedRoles: ['ADMIN'],
-        items: [
-            { text: 'Müşteri Destek', icon: <SupportIcon />, path: '/customer-support' },
-            { text: 'Başarısız Mesajlar', icon: <AuditIcon />, path: '/ops/dlq' },
-            { text: 'Zamanlanmış Görevler', icon: <AuditIcon />, path: '/ops/jobs' },
-        ],
-    },
-    {
-        title: 'Sistem',
-        allowedRoles: ['ADMIN'],
-        items: [
-            { text: 'Cihazlar', icon: <DevicesIcon />, path: '/devices' },
-            { text: 'Oyunlaştırma', icon: <EmojiEventsIcon />, path: '/gamification' },
-            { text: 'Çekiliş', icon: <CasinoIcon />, path: '/raffle' },
-            { text: 'Audit Log', icon: <AuditIcon />, path: '/audit-log' },
-            { text: 'Panel Analitik', icon: <TrendingUpIcon />, path: '/analytics' },
-            { text: 'Ayarlar', icon: <SettingsIcon />, path: '/settings' },
-            { text: 'Çekiliş Ekranı', icon: <LiveTvIcon />, path: '/event/raffle-live' },
-        ],
-    },
-];
-
+/**
+ * Kabuk, hangi panelde olduğunu adresten öğrenir ve navigasyonunu
+ * workspace'ten alır. Eskiden 160 satırlık nav dizisi bu dosyanın içindeydi
+ * ve iki dünyanın menüsü tek listede iç içeydi.
+ */
 export default function Layout() {
+    const location = useLocation();
+    const { roles } = useRole();
+
+    const workspace = useMemo(
+        () => workspaceForPath(location.pathname),
+        [location.pathname],
+    );
+    const canSwitch = useMemo(
+        () => workspacesForRoles(roles).length > 1,
+        [roles],
+    );
+
+    return (
+        <ThemeProvider theme={workspace.id === 'nartbusiness' ? nbTheme : baseTheme}>
+            <LayoutShell workspace={workspace} canSwitch={canSwitch} />
+        </ThemeProvider>
+    );
+}
+
+function LayoutShell({ workspace, canSwitch }: LayoutShellProps) {
+
     const [mobileOpen, setMobileOpen] = useState(false);
 
     // ── Navigasyon: arama + katlanabilir gruplar ──────────────────────────
@@ -256,9 +85,14 @@ export default function Layout() {
         }
     });
 
+    // Anahtar workspace ile birlikte: "Genel" iki panelde de var, ortak
+    // anahtarla birini katlamak diğerini de katlıyordu.
+    const sectionKey = (title: string) => `${workspace.id}:${title}`;
+
     const toggleSection = (title: string) => {
+        const key = sectionKey(title);
         setCollapsed((prev) => {
-            const next = { ...prev, [title]: !prev[title] };
+            const next = { ...prev, [key]: !prev[key] };
             try {
                 localStorage.setItem('nav.collapsed', JSON.stringify(next));
             } catch {
@@ -274,16 +108,18 @@ export default function Layout() {
     const { logout } = useAuth();
     // Sidebar "müdahale bekleyen" kuyruk sayıları (60sn polling).
     const badgeCounts = useAdminBadgeCounts();
+    const setLastWorkspace = useWorkspaceStore((st) => st.setLastWorkspace);
 
     // Organizator için aktif etkinlik sayısı (sidebar context indicator)
-    const { events, defaultEventId } = useDefaultEvent();
-    const showEventContext = (isOrganizer || isAdmin) && !isEditorOnly;
+    // Etkinlik bağlamı yalnız NartGo'da anlamlı; NB'de istek bile atılmaz.
+    const { events, defaultEventId } = useDefaultEvent({ enabled: workspace.id === 'nartgo' });
+    const showEventContext = workspace.id === 'nartgo' && (isOrganizer || isAdmin) && !isEditorOnly;
 
     // Analytics: track every page navigation
     usePageTracking();
 
     const visibleSections = useMemo(() => {
-        return navSections
+        return workspace.nav
             .filter((s) => {
                 // Section-level rol kontrolü — tüm allowedRoles listesinden en az biri eşleşmeli
                 if (s.allowedRoles && s.allowedRoles.length > 0) {
@@ -306,17 +142,17 @@ export default function Layout() {
                     }),
             }))
             .filter((s) => s.items.length > 0);
-    }, [canAccess, isAdmin, roles]);
+    }, [canAccess, isAdmin, roles, workspace.nav]);
 
     const isZenMode = location.pathname.includes('seat-map') && new URLSearchParams(location.search).get('zen') === 'true';
 
     const currentPageTitle = useMemo(() => {
-        for (const s of navSections) {
+        for (const s of workspace.nav) {
             const found = s.items.find((i) => location.pathname === i.path);
             if (found) return found.text;
         }
         return 'Kontrol Paneli';
-    }, [location.pathname]);
+    }, [location.pathname, workspace.nav]);
 
     const initials = userName
         ? userName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -324,6 +160,16 @@ export default function Layout() {
 
     const handleNav = (path: string) => {
         navigate(path);
+        setMobileOpen(false);
+    };
+
+    // Değiştirici iki panel varsayar; ikiden fazlası olursa burası
+    // bir menüye dönüşmeli.
+    const otherWorkspace = WORKSPACES.find((w) => w.id !== workspace.id) ?? workspace;
+
+    const handleWorkspaceSwitch = () => {
+        setLastWorkspace(otherWorkspace.id);
+        navigate(otherWorkspace.defaultPath);
         setMobileOpen(false);
     };
 
@@ -335,7 +181,7 @@ export default function Layout() {
     const sidebar = (
         <Box sx={{
             height: '100%', display: 'flex', flexDirection: 'column',
-            bgcolor: '#0F1A14', // dark green-black (EventConsole ile tutarlı)
+            bgcolor: workspace.sidebarBg,
             color: 'white',
             overflow: 'hidden',
         }}>
@@ -348,16 +194,17 @@ export default function Layout() {
                     width: 32, height: 32, borderRadius: '50%',
                     bgcolor: nb.goldSoft,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#0F1A14', fontWeight: 800, fontSize: 14,
+                    color: workspace.sidebarBg, fontWeight: 800,
+                    fontSize: workspace.monogram.length > 1 ? 12 : 14,
                 }}>
-                    N
+                    {workspace.monogram}
                 </Box>
-                <Box>
-                    <Typography sx={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2, color: 'white', letterSpacing: 0.3 }}>
-                        NartGo Admin
+                <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2, color: 'white', letterSpacing: 0.3 }} noWrap>
+                        {workspace.name}
                     </Typography>
-                    <Typography sx={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
-                        Yönetim Paneli
+                    <Typography sx={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }} noWrap>
+                        {workspace.tagline}
                     </Typography>
                 </Box>
             </Box>
@@ -400,8 +247,8 @@ export default function Layout() {
                     aria-label="Menüde ara"
                     sx={{
                         width: '100%',
-                        px: 1.5, py: 0.9,
-                        borderRadius: 1.5,
+                        px: 1.5, py: 1,
+                        borderRadius: 2,
                         border: `1px solid ${nb.onDarkLine}`,
                         bgcolor: 'rgba(255,255,255,0.04)',
                         color: nb.onDark,
@@ -438,12 +285,12 @@ export default function Layout() {
                     );
                     // Arama sırasında her şey açık; aksi hâlde yalnız içinde
                     // bulunduğun grup ve elle açtıkların.
-                    const open = !!q || hasActive || collapsed[section.title] === false;
+                    const open = !!q || hasActive || collapsed[sectionKey(section.title)] === false;
                     // Kapalıyken rozet sayısı kaybolmamalı — aciliyet gizlenmez.
                     const pending = items.reduce((acc, i) => acc + (badgeCounts[i.path] ?? 0), 0);
 
                     return (
-                        <Box key={section.title} sx={{ mb: 0.5 }} role="group">
+                        <Box key={section.title} sx={{ mb: 1.25 }} role="group">
                             <Box
                                 component="button"
                                 type="button"
@@ -451,12 +298,12 @@ export default function Layout() {
                                 aria-expanded={open}
                                 sx={{
                                     width: 'calc(100% - 24px)',
-                                    mx: 1.5, px: 1, py: 0.75,
+                                    mx: 1.5, px: 1, py: 0.85,
                                     display: 'flex', alignItems: 'center', gap: 0.75,
                                     background: 'none', border: 'none', cursor: 'pointer',
                                     borderRadius: 1.5,
                                     color: nb.onDarkFaint,
-                                    fontSize: 10, letterSpacing: 1.4, fontWeight: 700,
+                                    fontSize: 10, letterSpacing: 1.3, fontWeight: 700,
                                     textTransform: 'uppercase',
                                     fontFamily: 'inherit',
                                     '&:hover': { color: nb.onDarkMuted, bgcolor: 'rgba(255,255,255,0.03)' },
@@ -510,10 +357,10 @@ export default function Layout() {
                                             fontFamily: 'inherit',
                                             textAlign: 'left',
                                             width: 'calc(100% - 24px)',
-                                            mx: 1.5, mb: 0.2, pl: 2.5, pr: 1.5, py: 0.85,
+                                            mx: 1.5, mb: 0.25, pl: 1.75, pr: 1.5, py: 0.8,
                                             borderRadius: 1.5,
                                             cursor: 'pointer',
-                                            display: 'flex', alignItems: 'center', gap: 1,
+                                            display: 'flex', alignItems: 'center', gap: 1.25,
                                             bgcolor: isActive ? nb.goldTint : 'transparent',
                                             color: isActive ? nb.goldSoft : nb.onDarkMuted,
                                             transition: 'background-color 0.15s, color 0.15s',
@@ -527,12 +374,23 @@ export default function Layout() {
                                             '&::before': isActive ? {
                                                 content: '""',
                                                 position: 'absolute',
-                                                left: 6, top: '50%', transform: 'translateY(-50%)',
+                                                left: 2, top: '50%', transform: 'translateY(-50%)',
                                                 width: 3, height: 16, borderRadius: 2,
                                                 bgcolor: nb.goldSoft,
                                             } : undefined,
                                         }}
                                     >
+                                        <Box
+                                            aria-hidden
+                                            sx={{
+                                                display: 'flex', flexShrink: 0,
+                                                color: isActive ? nb.goldSoft : 'rgba(255,255,255,0.45)',
+                                                transition: 'color 0.15s',
+                                                '& svg': { fontSize: 17 },
+                                            }}
+                                        >
+                                            {item.icon}
+                                        </Box>
                                         <Typography sx={{
                                             fontSize: 13,
                                             fontWeight: isActive ? 600 : 400,
@@ -650,7 +508,7 @@ export default function Layout() {
                         lineHeight: 1,
                         mb: 0.3,
                     }}>
-                        NARTGO · {currentPageTitle.toUpperCase()}
+                        {workspace.breadcrumbLabel} · {currentPageTitle.toUpperCase()}
                     </Typography>
                     <Typography sx={{
                         fontWeight: 700, lineHeight: 1.2,
@@ -664,6 +522,45 @@ export default function Layout() {
                 </Box>
 
                 <Box sx={{ flex: 1 }} />
+
+                {/* Workspace değiştirici — yalnız iki panele de yetkisi olanda.
+                    Tek yetkisi olan için anlamsız bir kontrol olurdu. */}
+                {canSwitch && (
+                    <Tooltip title={`${otherWorkspace.name} paneline geç`}>
+                        <Box
+                            component="button"
+                            type="button"
+                            onClick={handleWorkspaceSwitch}
+                            aria-label={`${otherWorkspace.name} paneline geç`}
+                            sx={{
+                                display: { xs: 'none', sm: 'flex' },
+                                alignItems: 'center', gap: 0.75,
+                                px: 1.25, py: 0.625,
+                                borderRadius: 2,
+                                cursor: 'pointer',
+                                font: 'inherit', fontFamily: 'inherit',
+                                bgcolor: 'transparent',
+                                border: `1px solid ${theme.palette.divider}`,
+                                color: theme.palette.text.secondary,
+                                transition: 'all 0.15s',
+                                '&:hover': {
+                                    borderColor: theme.palette.primary.main,
+                                    color: theme.palette.primary.main,
+                                    bgcolor: alpha(theme.palette.primary.main, 0.04),
+                                },
+                                '&:focus-visible': {
+                                    outline: `2px solid ${theme.palette.primary.main}`,
+                                    outlineOffset: 2,
+                                },
+                            }}
+                        >
+                            <SwapIcon sx={{ fontSize: 15 }} />
+                            <Typography sx={{ fontSize: 12, fontWeight: 600 }}>
+                                {otherWorkspace.name}
+                            </Typography>
+                        </Box>
+                    </Tooltip>
+                )}
 
                 {/* Search hint */}
                 <Box sx={{

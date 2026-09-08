@@ -20,6 +20,7 @@ import { relativeDate, fullDate } from '../../utils/nbDisplay';
 import { Replay as ReplayIcon } from '@mui/icons-material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbDlqEntry } from '../../services/nartbusiness/nbTypes';
+import { NbPageHeader } from '../../components/nartbusiness/ui';
 
 const SERVICES = [
   { id: 'membership', label: 'Membership' },
@@ -68,15 +69,12 @@ export default function NbDlqPanel() {
   };
 
   return (
-    <Box p={3}>
-      <Typography variant="h4" fontWeight={600} gutterBottom>
-        NartBusiness — Dead Letter Queue
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Outbox event'leri 10 deneme sonrası publish edilemezse DLQ topic'ine
-        taşınır ve burada listelenir. Replay = retry sayacı sıfırlanır, event
-        bir sonraki publisher tick'inde tekrar Kafka'ya gönderilir.
-      </Typography>
+    <Box sx={{ maxWidth: 1400 }}>
+      <NbPageHeader
+        eyebrow="NartBusiness"
+        title="Dead Letter Queue"
+        subtitle="Outbox event'leri 10 deneme sonrası publish edilemezse DLQ topic'ine taşınır ve burada listelenir. Replay = retry sayacı sıfırlanır, event bir sonraki publisher tick'inde tekrar Kafka'ya gönderilir."
+      />
 
       <Paper sx={{ mb: 2 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable">

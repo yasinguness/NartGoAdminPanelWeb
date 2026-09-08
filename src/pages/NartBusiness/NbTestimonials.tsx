@@ -31,6 +31,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import { NbPageHeader } from '../../components/nartbusiness/ui';
 import type {
   Testimonial,
   TestimonialUpsert,
@@ -138,25 +139,19 @@ export default function NbTestimonials() {
   const draftValid = !!draft && draft.authorName.trim() && draft.quote.trim();
 
   return (
-    <Box>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ mb: 1 }}
-      >
-        <Box>
-          <Typography variant="h5" fontWeight={700}>
-            Referanslar
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Küratörlü üye sözleri. Yalnızca “Onaylı” olanlar web vitrininde gösterilir.
-          </Typography>
-        </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-          Yeni Referans
-        </Button>
-      </Stack>
+    <Box sx={{ maxWidth: 1400 }}>
+      <NbPageHeader
+        eyebrow="NartBusiness"
+        title="Referanslar"
+        subtitle="Küratörlü üye sözleri. Yalnızca “Onaylı” olanlar web vitrininde gösterilir."
+        actions={
+          <>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+              Yeni Referans
+            </Button>
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>

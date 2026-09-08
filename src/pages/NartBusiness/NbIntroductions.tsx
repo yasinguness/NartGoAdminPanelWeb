@@ -32,6 +32,7 @@ import {
   type NbIntroductionStatus,
 } from '../../services/nartbusiness/nbAdminService';
 import { relativeDate } from '../../utils/nbDisplay';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 
 /**
  * Tanıştırmalar — admin'in iki üyeyi tanıştırdığı kayıtların takip defteri.
@@ -118,9 +119,7 @@ export default function NbIntroductions() {
     <Box>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Box>
-          <Typography variant="h5" fontWeight={700}>
-            Tanıştırmalar
-          </Typography>
+          <NbTitleBlock title="Tanıştırmalar" />
           <Typography variant="body2" color="text.secondary">
             İki üyeyi tanıştırmak için üye detayındaki "Tanıştır" butonunu kullanın — kayıt
             buraya düşer, durumu buradan takip edin.

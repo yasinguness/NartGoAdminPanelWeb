@@ -36,6 +36,7 @@ import {
   IconButton,
 } from '@mui/material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import { NbPageHeader } from '../../components/nartbusiness/ui';
 import type {
   NbQuestionRow,
   NbQuestionStatus,
@@ -127,11 +128,11 @@ export default function NbQuestionModeration() {
   };
 
   return (
-    <Box p={3}>
-      <Typography variant="h4" fontWeight={600} mb={2}>
-        Topluluk Soruları — Yönetim
-      </Typography>
-
+    <Box sx={{ maxWidth: 1400 }}>
+      <NbPageHeader
+        eyebrow="NartBusiness"
+        title="Topluluk Soruları — Yönetim"
+      />
       {stats && (
         <Grid container spacing={1.5} mb={2}>
           <Grid item xs={6} sm={4} md={2}><StatCard label="Toplam" value={stats.total} /></Grid>

@@ -29,6 +29,7 @@ import type {
 } from '../../services/nartbusiness/nbTypes';
 import { RACE_LABELS, STATUS_COLORS, STATUS_LABELS } from './verificationShared';
 import NbVerificationDecideDialog from './NbVerificationDecideDialog';
+import { NbPageHeader } from '../../components/nartbusiness/ui';
 
 const STATUS_FILTERS: Array<VerificationCaseStatus | 'ALL'> = [
   'ALL',
@@ -82,15 +83,12 @@ export default function NbVerificationQueue() {
   );
 
   return (
-    <Box p={3}>
-      <Typography variant="h4" fontWeight={600} gutterBottom>
-        NartBusiness — Doğrulama Kuyruğu
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Komite-onaylı-sonra-öde akışı. Üye ön başvuruda hafif KYC verir
-        (sosyal kanıt + Kafkas kimliği); komite onaylar; üye 7 gün içinde öder.
-        Ek Bilgi döngüsü 2 turla sınırlıdır (3.'de otomatik reddedilir).
-      </Typography>
+    <Box sx={{ maxWidth: 1400 }}>
+      <NbPageHeader
+        eyebrow="NartBusiness"
+        title="Doğrulama Kuyruğu"
+        subtitle="Komite-onaylı-sonra-öde akışı. Üye ön başvuruda hafif KYC verir (sosyal kanıt + Kafkas kimliği); komite onaylar; üye 7 gün içinde öder. Ek Bilgi döngüsü 2 turla sınırlıdır (3.'de otomatik reddedilir)."
+      />
 
       <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
         <FormControl size="small" sx={{ minWidth: 200 }}>

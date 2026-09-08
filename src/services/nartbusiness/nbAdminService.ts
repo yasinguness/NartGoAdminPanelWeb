@@ -832,7 +832,13 @@ async function getPresignedProfileUpload(
   const res = await api.post<any>('/media/nb/presign/profile', body);
   // publicUrl = dosyanın okunacağı CDN adresi. uploadUrl yalnız PUT içindir;
   // query'si kırpılıp saklanamaz (R2'nin özel S3 adresi kalır, herkese açık değil).
-  return unwrap(res.data);
+  const presigned = unwrap<{ uploadUrl: string; publicUrl: string }>(res.data);
+  if (!presigned) {
+    // Sessizce null dönmek, çağıranın undefined bir adrese PUT atmasına yol
+    // açıyordu; hata burada, kaynağında görünsün.
+    throw new Error('Yükleme adresi alınamadı (presign boş döndü).');
+  }
+  return presigned;
 }
 
 /**
@@ -1371,10 +1377,12 @@ async function listTenders(params: {
   return (
     unwrap<PagedResult<NbTenderListItem>>(res.data) ?? {
       content: [],
+      page: 0,
+      size: 0,
       totalElements: 0,
       totalPages: 0,
-      number: 0,
-      size: 0,
+      first: true,
+      last: true,
     }
   );
 }
@@ -1437,10 +1445,12 @@ async function listTenderReferrals(params: {
   return (
     unwrap<PagedResult<NbTenderReferral>>(res.data) ?? {
       content: [],
+      page: 0,
+      size: 0,
       totalElements: 0,
       totalPages: 0,
-      number: 0,
-      size: 0,
+      first: true,
+      last: true,
     }
   );
 }

@@ -44,8 +44,8 @@ import {
 } from '@mui/material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbMember, Sector } from '../../services/nartbusiness/nbTypes';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 import type {
-  NbListingCreateBody,
   NbRequestType,
   NbListingRow,
   NbListingStatus,
@@ -188,11 +188,9 @@ export default function NbListingModeration() {
   };
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-        <Typography variant="h4" fontWeight={600}>
-          İlanlar (Talep / Arz) — Yönetim
-        </Typography>
+        <NbTitleBlock title="İlanlar (Talep / Arz) — Yönetim" />
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
           Yeni İlan
         </Button>

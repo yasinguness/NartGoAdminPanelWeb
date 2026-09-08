@@ -27,6 +27,7 @@ import { Edit as EditIcon, Add as AddIcon } from '@mui/icons-material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { Sector } from '../../services/nartbusiness/nbTypes';
 import { CatalogAutocomplete, useNbMobile } from '../../components/nartbusiness';
+import { NbPageHeader, NbEmptyState } from '../../components/nartbusiness/ui';
 
 const EMPTY: Sector = {
   code: '',
@@ -109,25 +110,23 @@ export default function NbSectors() {
   };
 
   return (
-    <Box p={3}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Box>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
-            NartBusiness — Sektör Katalogu
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Üyelerin profil + ilan oluştururken seçtiği sektör listesini buradan yönetin.
-            Pasif sektörler seçim listelerinden düşer, mevcut üyelerin verisi etkilenmez.
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setEditing({ ...EMPTY })}
-        >
-          Yeni Sektör
-        </Button>
-      </Stack>
+    <Box sx={{ maxWidth: 1400 }}>
+      <NbPageHeader
+        eyebrow="NartBusiness"
+        title="Sektör Katalogu"
+        subtitle="Üyelerin profil + ilan oluştururken seçtiği sektör listesini buradan yönetin. Pasif sektörler seçim listelerinden düşer, mevcut üyelerin verisi etkilenmez."
+        actions={
+          <>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setEditing({ ...EMPTY })}
+            >
+              Yeni Sektör
+            </Button>
+          </>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -154,6 +153,16 @@ export default function NbSectors() {
               </TableRow>
             </TableHead>
             <TableBody>
+              {/* Boş tablo yalnız başlık satırı gösteriyordu; sayfanın
+                  yüklenmediği mi yoksa gerçekten kayıt olmadığı mı
+                  belli değildi. */}
+              {items.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} sx={{ border: 0, py: 0 }}>
+                    <NbEmptyState title="Henüz sektör tanımlı değil" description="Yeni Sektör ile başlayın; buradaki liste üyelerin profil ve ilan formlarında görünür." dense />
+                  </TableCell>
+                </TableRow>
+              )}
               {items.map((s) => (
                 <TableRow key={s.code} hover>
                   <TableCell>

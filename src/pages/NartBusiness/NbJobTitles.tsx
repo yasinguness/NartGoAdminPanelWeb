@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
@@ -27,6 +27,7 @@ import { Edit as EditIcon, Add as AddIcon, Delete as DeleteIcon } from '@mui/ico
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { JobTitle } from '../../services/nartbusiness/nbTypes';
 import { useNbMobile } from '../../components/nartbusiness';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 
 const EMPTY: JobTitle = {
   label: '',
@@ -107,12 +108,10 @@ export default function NbJobTitles() {
   };
 
   return (
-    <Box p={3}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Box>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
-            NartBusiness — Ünvan / Pozisyon Katalogu
-          </Typography>
+          <NbTitleBlock title="Ünvan / Pozisyon Katalogu" />
           <Typography variant="body2" color="text.secondary">
             Profesyonel üyelerin başvuru/profilinde seçtiği ünvan listesini buradan yönetin.
             Pasif ünvanlar yeni başvuru seçim listelerinden düşer; "Diğer" ile girilen serbest

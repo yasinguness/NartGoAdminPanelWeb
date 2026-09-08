@@ -19,6 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import { nbAuditService, type NbAuditRow } from '../../services/nartbusiness/nbAuditService';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 import {
   actionLabel,
   outcomeLabel,
@@ -92,9 +93,7 @@ export default function NbAuditLog() {
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h5" fontWeight={700} gutterBottom>
-        NartBusiness İşlem Kayıtları
-      </Typography>
+      <NbTitleBlock title="NartBusiness İşlem Kayıtları" />
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Kritik kullanıcı ve admin işlemlerinin denetim kaydı (başvuru/kayıt, içerik oluşturma,
         üyelik/ödeme, admin aksiyonları). Aksiyona, aktöre ve tarihe göre filtrelenir.
