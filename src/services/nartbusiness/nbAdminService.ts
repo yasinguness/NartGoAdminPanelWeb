@@ -294,7 +294,7 @@ async function bulkMemberAction(body: {
   action: NbBulkAction;
   /** REOPEN_APPROVAL ve GRANT_TRIAL için süre (gün). */
   days?: number;
-  template?: 'RECEIVED' | 'APPROVED' | 'NEEDS_INFO';
+  template?: 'RECEIVED' | 'APPROVED' | 'NEEDS_INFO' | 'PARTNER_WELCOME';
   pushTitle?: string;
   pushMessage?: string;
   note?: string;
@@ -378,7 +378,7 @@ async function revokeTrial(memberId: string): Promise<NbMember | null> {
 
 // ── Hazır e-posta template'ini elle yeniden gönderme ──
 
-export type NbResendTemplate = 'RECEIVED' | 'APPROVED' | 'NEEDS_INFO';
+export type NbResendTemplate = 'RECEIVED' | 'APPROVED' | 'NEEDS_INFO' | 'PARTNER_WELCOME';
 
 /**
  * Hazır NB başvuru e-postasını üyenin güncel (auth'ta düzeltilmiş) adresine —
@@ -811,6 +811,49 @@ async function updateMemberBusiness(
  * Admin panel — directory profilini ve logoyu güncelle.
  * Backend DirectoryProfile'ı günceller.
  */
+/**
+ * Üyenin dizin profilini okur.
+ *
+ * Düzenleme diyaloğu bunu çağırmadan açıldığında dizine ait alanlar (logo,
+ * telefon, şirket türü, büyüklük, kuruluş yılı, sosyal hesaplar) boş
+ * geliyordu: üyelik servisinin MemberView'ü onları taşımıyor, çünkü onlar
+ * dizin profilinin alanları. Admin dolu bir alanı boş görüp yeniden yazıyor,
+ * kaydediyor ve tekrar açtığında yine boş buluyordu.
+ */
+async function getDirectoryProfile(memberId: string): Promise<any | null> {
+  try {
+    const res = await api.get<any>(`/nb/admin/directory/${memberId}/profile`);
+    return unwrap<any>(res.data);
+  } catch (err: any) {
+    // Profil henüz oluşmamış olabilir (üye dizine denormalize edilmeden önce).
+    if (err?.response?.status === 404) return null;
+    throw err;
+  }
+}
+
+/**
+ * Tanıtım metni TASLAĞI üretir. Kaydetmez.
+ *
+ * Metin yalnız profilde GERÇEKTEN dolu olan alanlardan (sektör, şehir,
+ * hizmetler, markalar…) üretilir. "Ad + sektör" ile üretilen bir metin
+ * kaçınılmaz olarak ya boş övgü ya da uydurma iddia olurdu; doğrulanmış
+ * işletme ağında bu, boş bir alandan daha zararlı.
+ *
+ * Yeterli bilgi yoksa sunucu 422 ve sebebini döner.
+ */
+async function generateDescriptionDraft(memberId: string): Promise<
+  { draft: string } | { message: string }
+> {
+  try {
+    const res = await api.post<any>(`/nb/admin/directory/${memberId}/description-draft`);
+    return unwrap<{ draft: string }>(res.data) ?? { message: 'Taslak üretilemedi.' };
+  } catch (err: any) {
+    const data = err?.response?.data;
+    const msg = data?.data?.message ?? data?.message;
+    return { message: msg ?? 'Taslak üretilemedi.' };
+  }
+}
+
 async function updateDirectoryProfile(
   memberId: string,
   body: import('./nbTypes').AdminUpdateDirectoryProfileRequest,
@@ -1578,6 +1621,8 @@ export const nbAdminService = {
   setQuestionStatus,
   questionStats,
   updateMemberBusiness,
+  generateDescriptionDraft,
+  getDirectoryProfile,
   updateDirectoryProfile,
   getPresignedProfileUpload,
   uploadFileToPresigned,

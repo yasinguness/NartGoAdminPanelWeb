@@ -119,6 +119,16 @@ export const emailTemplateService = {
     const res = await api.get<EmailLogPage>('/notifications/admin/email-templates/logs', { params });
     return res.data;
   },
+
+  /**
+   * Tek kaydın detayı: gönderimde kullanılan değişkenler + o değişkenlerle
+   * yeniden render edilmiş gövde. Gövde saklanmadığı için (şifre içeren
+   * şablonlar var) istendiğinde üretilir; `renderNote` bunu açıkça yazar.
+   */
+  async logDetail(id: string): Promise<EmailLogDetail> {
+    const res = await api.get<EmailLogDetail>(`/notifications/admin/email-templates/logs/${id}`);
+    return res.data;
+  },
 };
 
 export interface EmailLogEntry {
@@ -131,6 +141,18 @@ export interface EmailLogEntry {
   status: string; // SENT | FAILED
   errorMessage?: string;
   createdAt: string;
+}
+
+export interface EmailLogDetail extends EmailLogEntry {
+  templateTitle?: string;
+  /** Gönderim anındaki şablon değişkenleri (şifre/token maskeli). */
+  variables: Record<string, unknown>;
+  /** false → kayıt bu özellik açılmadan önce oluşmuş, gövde örnek değerlerle. */
+  variablesStored: boolean;
+  /** Kayıtta olmadığı için örnek değerle doldurulan değişkenler. */
+  placeholderVariables?: string[];
+  html?: string | null;
+  renderNote?: string;
 }
 
 /** Spring Page yanıtının kullandığımız alt kümesi. */

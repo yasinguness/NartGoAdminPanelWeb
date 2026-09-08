@@ -1145,7 +1145,22 @@ export default function NbMemberDetail() {
             <MenuItem value="RECEIVED">Başvuru Alındı</MenuItem>
             <MenuItem value="APPROVED">Başvuru Onaylandı (ödeme/aktivasyon)</MenuItem>
             <MenuItem value="NEEDS_INFO">Ek Bilgi Gerekli</MenuItem>
+            <MenuItem value="PARTNER_WELCOME" disabled={!member.partnerOrgId}>
+              Kurum Karşılaması{currentOrg ? ` (${currentOrg.shortName || currentOrg.name})` : ''}
+            </MenuItem>
           </TextField>
+          {resendTemplate === 'PARTNER_WELCOME' && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Bu davet metni, üye giriş bilgilerini almadan önce gönderilmek üzere yazıldı.
+              Hesap zaten açıldıysa üye ikinci bir mail almış olacak.
+            </Alert>
+          )}
+          {!member.partnerOrgId && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Bu üyenin kurumu tanımlı olmadığı için kurum karşılaması gönderilemez.
+              Önce üyeye bir kurum atayın.
+            </Alert>
+          )}
           <TextField
             fullWidth
             type="email"

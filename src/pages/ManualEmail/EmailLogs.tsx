@@ -25,12 +25,25 @@ import {
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import { emailTemplateService, type EmailLogEntry } from '../../services/emailTemplateService';
+import EmailLogDetailDialog from './EmailLogDetailDialog';
 
 /**
- * Gönderilen e-postaların logu — admin görünürlüğü. notification-service her
- * gönderimi (SENT/FAILED) kaydeder; bu ekran sayfalı + filtreli listeler.
+ * Gönderilen e-postaların kaydı — admin görünürlüğü. notification-service her
+ * gönderimi (SENT/FAILED) yazar; bu ekran sayfalı + filtreli listeler, satıra
+ * tıklanınca gövdesini ve gönderimde kullanılan bilgileri gösterir.
+ *
+ * `lockedProduct` verildiğinde ürün süzgeci gizlenir ve sabitlenir: NartBusiness
+ * paneli aynı ekranı yalnız kendi e-postalarıyla kullanır.
  */
-export default function EmailLogs() {
+export default function EmailLogs({
+  lockedProduct,
+  heading = 'E-posta Kayıtları',
+  subheading = 'Sistemden giden tüm e-postalar (otomatik + elle). Durum, alıcı ve ürüne göre süzülebilir.',
+}: {
+  lockedProduct?: string;
+  heading?: string;
+  subheading?: string;
+} = {}) {
   const [items, setItems] = useState<EmailLogEntry[]>([]);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
@@ -38,7 +51,8 @@ export default function EmailLogs() {
   const [recipient, setRecipient] = useState('');
   const [debouncedRecipient, setDebouncedRecipient] = useState('');
   const [status, setStatus] = useState('');
-  const [product, setProduct] = useState('');
+  const [product, setProduct] = useState(lockedProduct ?? '');
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +68,7 @@ export default function EmailLogs() {
       .logs({
         recipient: debouncedRecipient || undefined,
         status: status || undefined,
-        product: product || undefined,
+        product: lockedProduct ?? (product || undefined),
         page,
         size: 25,
       })
@@ -80,18 +94,18 @@ export default function EmailLogs() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedRecipient, status, product, page]);
+  }, [debouncedRecipient, status, product, page, lockedProduct]);
 
   return (
     <Box p={3} maxWidth={1000} mx="auto">
       <Stack direction="row" spacing={1.5} alignItems="center" mb={0.5}>
         <HistoryOutlinedIcon color="primary" />
         <Typography variant="h5" fontWeight={700}>
-          E-posta Logları
+          {heading}
         </Typography>
       </Stack>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Sistemden giden tüm e-postalar (otomatik + elle). Durum, alıcı ve ürüne göre süzülebilir.
+        {subheading}
       </Typography>
 
       {error && (
@@ -126,14 +140,16 @@ export default function EmailLogs() {
             <MenuItem value="FAILED">Başarısız</MenuItem>
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel>Ürün</InputLabel>
-          <Select label="Ürün" value={product} onChange={(e) => { setProduct(e.target.value); setPage(0); }}>
-            <MenuItem value="">Hepsi</MenuItem>
-            <MenuItem value="NartGo">NartGo</MenuItem>
-            <MenuItem value="NartBusiness">NartBusiness</MenuItem>
-          </Select>
-        </FormControl>
+        {!lockedProduct && (
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Ürün</InputLabel>
+            <Select label="Ürün" value={product} onChange={(e) => { setProduct(e.target.value); setPage(0); }}>
+              <MenuItem value="">Hepsi</MenuItem>
+              <MenuItem value="NartGo">NartGo</MenuItem>
+              <MenuItem value="NartBusiness">NartBusiness</MenuItem>
+            </Select>
+          </FormControl>
+        )}
       </Stack>
 
       {loading ? (
@@ -155,7 +171,12 @@ export default function EmailLogs() {
               </TableHead>
               <TableBody>
                 {items.map((e) => (
-                  <TableRow key={e.id} hover>
+                  <TableRow
+                    key={e.id}
+                    hover
+                    onClick={() => setDetailId(e.id)}
+                    sx={{ cursor: 'pointer' }}
+                  >
                     <TableCell sx={{ whiteSpace: 'nowrap', fontSize: 12 }}>
                       {new Date(e.createdAt).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}
                     </TableCell>
@@ -209,10 +230,12 @@ export default function EmailLogs() {
             </Stack>
           )}
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'right' }}>
-            Toplam {total} kayıt
+            Toplam {total} kayıt · Gövdesini görmek için bir satıra tıklayın
           </Typography>
         </>
       )}
+
+      <EmailLogDetailDialog id={detailId} onClose={() => setDetailId(null)} />
     </Box>
   );
 }

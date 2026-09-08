@@ -1356,9 +1356,21 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   // ------------------------------------------------------------------
   // Step 4 — Paket & Aktivasyon (apply step 4 + admin-only options)
   // ------------------------------------------------------------------
-  const renderPackageStep = () => (
+  const renderPackageStep = () => {
+    // Kurum adı sayfaya sabit yazılmaz: bugün KAFSİAD, yarın başka bir kurum.
+    // Kurum seçilmediyse nötr metin gösterilir.
+    const selectedOrg = partnerOrgs.find((o) => o.id === form.partnerOrgId) ?? null;
+    const orgLabel = selectedOrg ? (selectedOrg.shortName || selectedOrg.name) : null;
+    return (
     <Stack spacing={2}>
-      <Alert severity="info">KAFSİAD karşılamasını hesabı oluşturmadan önce WhatsApp veya e-posta ile gönderin. Yeni hesap açılırsa sistem giriş bilgilerini gönderir; mevcut kullanıcıyı elle bilgilendirin.</Alert>
+      <Alert severity="info">
+        {orgLabel
+          ? `${orgLabel} karşılama mailini hesabı oluşturmadan önce gönderin.`
+          : 'Kurum karşılamasını hesabı oluşturmadan önce gönderin.'}
+        {' '}
+        Sıra önemli: önce davet, sonra hesap. Yeni hesap açılırsa sistem giriş bilgilerini
+        otomatik gönderir; mevcut kullanıcıyı elle bilgilendirin.
+      </Alert>
       <SectionPaper
         title="Kademe"
         hint={
@@ -1477,6 +1489,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       </SectionPaper>
     </Stack>
   );
+  };
 
   // ------------------------------------------------------------------
   // Step 5 — Onay + Audit

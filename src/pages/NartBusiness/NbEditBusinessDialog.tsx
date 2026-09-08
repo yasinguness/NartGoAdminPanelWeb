@@ -36,6 +36,19 @@ import { ImageUploader } from '../../components/ImageUploader';
 import type { RaceFamily } from '../../services/nartbusiness/nbAdminService';
 import { TR_CITIES } from '../../constants/trCities';
 import {
+  COMPANY_SIZE_OPTIONS,
+  COMPANY_TYPE_OPTIONS,
+  PHONE_VISIBILITY_OPTIONS,
+  companySizeLabel,
+  companyTypeLabel,
+  phoneVisibilityLabel,
+  formatTrPhone,
+  normalizeTrPhone,
+  isTrPhoneComplete,
+  FOUNDED_YEAR_MIN,
+  foundedYearMax,
+} from './nbEnumLabels';
+import {
   AuditNoteBlock,
   buildAuditNote,
   CatalogAutocomplete,
@@ -140,6 +153,29 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
   const [auditNoteBody, setAuditNoteBody] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
+  /// Dizin profili yükleniyor; form alanları henüz güncel değil.
+  const [dirLoading, setDirLoading] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
+
+  /// Taslak üret ve alana yaz. Mevcut metnin üzerine yazmadan önce sorar:
+  /// admin'in yazdığı bir metni sessizce silmek kabul edilemez.
+  const handleGenerateDraft = async () => {
+    if (!member) return;
+    const existing = (form.businessDescription ?? '').trim();
+    if (existing && !window.confirm('Mevcut tanıtım metni taslakla değiştirilsin mi?')) {
+      return;
+    }
+    setDrafting(true);
+    setDraftError(null);
+    const res = await nbAdminService.generateDescriptionDraft(member.memberId);
+    setDrafting(false);
+    if ('draft' in res) {
+      set('businessDescription', res.draft.slice(0, 300));
+    } else {
+      setDraftError(res.message);
+    }
+  };
   const [error, setError] = useState<string | null>(null);
 
   const set = <K extends keyof (AdminUpdateBusinessRequest & AdminUpdateDirectoryProfileRequest)>(
@@ -187,6 +223,56 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
     setAuditCategory('CORRECTION');
     setAuditNoteBody('');
     setError(null);
+  }, [open, member]);
+
+  // Dizin profilini oku ve dizine AİT alanları üzerine yaz.
+  //
+  // Üyelik servisinin MemberView'ü bu alanları taşımıyor (yalnız logo
+  // geliyor); telefon, şirket türü, büyüklük, kuruluş yılı ve sosyal
+  // hesaplar dizin profilinin alanları. Bunlar okunmadığında form boş
+  // açılıyor, admin yazıp kaydediyor ve tekrar açtığında yine boş görüyor;
+  // dışarıdan "kaydetmiyor" gibi görünen şey aslında hiç okunmamasıydı.
+  useEffect(() => {
+    if (!open || !member) return;
+    let cancelled = false;
+    setDirLoading(true);
+    nbAdminService
+      .getDirectoryProfile(member.memberId)
+      .then((p) => {
+        if (cancelled || !p) return;
+        setForm((prev) => ({
+          ...prev,
+          // Boş string değil undefined kontrolü: sunucuda bilerek
+          // boşaltılmış bir alanı eski değerle geri doldurmayalım.
+          logoUrl: p.logoUrl ?? prev.logoUrl,
+          displayName: p.displayName ?? prev.displayName,
+          personRole: p.personRole ?? prev.personRole,
+          expertise: p.expertise ?? prev.expertise,
+          phoneNumber: p.phoneNumber ?? prev.phoneNumber,
+          whatsappEnabled: p.whatsappEnabled ?? prev.whatsappEnabled,
+          phoneVisibility: p.phoneVisibility ?? prev.phoneVisibility,
+          companyType: p.companyType ?? prev.companyType,
+          companySize: p.companySize ?? prev.companySize,
+          foundedYear: p.foundedYear ?? prev.foundedYear,
+          facebookUrl: p.facebookUrl ?? prev.facebookUrl,
+          twitterUrl: p.twitterUrl ?? prev.twitterUrl,
+          tiktokUrl: p.tiktokUrl ?? prev.tiktokUrl,
+          youtubeUrl: p.youtubeUrl ?? prev.youtubeUrl,
+          websiteUrl: p.websiteUrl ?? prev.websiteUrl,
+          linkedinUrl: p.linkedinUrl ?? prev.linkedinUrl,
+        }));
+        if (p.instagramUrl) setInstaHandle(instagramHandle(p.instagramUrl));
+      })
+      .catch(() => {
+        // Okuma başarısızsa form üyelik verisiyle açılmaya devam eder;
+        // düzenlemeyi tamamen engellemek daha kötü olurdu.
+      })
+      .finally(() => {
+        if (!cancelled) setDirLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, member]);
 
   // Sektör katalogu
@@ -396,6 +482,16 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
         <Typography variant="body2" color="text.secondary">
           {member?.companyName ?? 'Şirket bilgisi eksik'}
         </Typography>
+        {/* Dizin alanları bir istek sonrası doluyor. Bunu söylemezsek admin
+            boş bir alan görüp yazmaya başlıyor, sonra üzerine gelen değer
+            yazdığını siliyormuş gibi görünüyor. */}
+        {dirLoading && (
+          <Typography variant="caption" color="text.secondary"
+                      sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.5 }}>
+            <CircularProgress size={12} thickness={5} />
+            Mevcut bilgiler yükleniyor…
+          </Typography>
+        )}
         <IconButton
           onClick={handleClose}
           disabled={submitting}
@@ -472,17 +568,21 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
               <Grid item xs={12} md={4}>
                 <CatalogAutocomplete<string>
                   label="Şirket Türü"
-                  options={['SOLE_PROPRIETOR', 'LLC', 'JSC', 'COOPERATIVE', 'OTHER']}
+                  options={[...COMPANY_TYPE_OPTIONS]}
+                  getOptionLabel={companyTypeLabel}
                   value={form.companyType ?? null}
                   onChange={(v) => set('companyType', v as import('../../services/nartbusiness/nbTypes').AdminUpdateDirectoryProfileRequest['companyType'])}
-                  placeholder="LTD, AŞ vb."
+                  placeholder="Örn. Limited Şirket"
+                  helperText="Tüzel kişilik biçimi."
                 />
               </Grid>
 
               <Grid item xs={12} md={4}>
                 <CatalogAutocomplete<string>
                   label="Şirket Büyüklüğü"
-                  options={['MICRO', 'SMALL', 'MEDIUM', 'LARGE', 'ENTERPRISE']}
+                  options={[...COMPANY_SIZE_OPTIONS]}
+                  getOptionLabel={companySizeLabel}
+                  helperText="Çalışan sayısına göre."
                   value={form.companySize ?? null}
                   onChange={(v) => set('companySize', v as import('../../services/nartbusiness/nbTypes').AdminUpdateDirectoryProfileRequest['companySize'])}
                 />
@@ -499,6 +599,19 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                     const val = parseInt(e.target.value, 10);
                     set('foundedYear', isNaN(val) ? undefined : val);
                   }}
+                  inputProps={{ min: FOUNDED_YEAR_MIN, max: foundedYearMax() }}
+                  error={
+                    form.foundedYear != null &&
+                    (form.foundedYear < FOUNDED_YEAR_MIN ||
+                      form.foundedYear > foundedYearMax())
+                  }
+                  helperText={
+                    form.foundedYear != null &&
+                    (form.foundedYear < FOUNDED_YEAR_MIN ||
+                      form.foundedYear > foundedYearMax())
+                      ? `${FOUNDED_YEAR_MIN} ile ${foundedYearMax()} arasında olmalı.`
+                      : 'Örn. 1998'
+                  }
                 />
               </Grid>
 
@@ -580,8 +693,32 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                   value={form.businessDescription ?? ''}
                   onChange={(e) => set('businessDescription', e.target.value)}
                   inputProps={{ maxLength: 300 }}
-                  helperText={`${form.businessDescription?.length ?? 0} / 300`}
+                  helperText={
+                    draftError ??
+                    `${form.businessDescription?.length ?? 0} / 300`
+                  }
+                  error={!!draftError}
                 />
+                {/* Taslak üretimi. Metin KAYDEDİLMEZ, alana yazılır; admin
+                    okuyup düzenledikten sonra kaydeder. Otomatik yayınlamak,
+                    kimsenin okumadığı bir metnin üyenin ağzından çıkmış gibi
+                    görünmesi olurdu. */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={drafting || !member}
+                    onClick={handleGenerateDraft}
+                    startIcon={
+                      drafting ? <CircularProgress size={14} thickness={5} /> : undefined
+                    }
+                  >
+                    {drafting ? 'Taslak hazırlanıyor…' : 'Taslak metin öner'}
+                  </Button>
+                  <Typography variant="caption" color="text.secondary">
+                    Profildeki bilgilerden üretilir; kaydetmeden önce gözden geçirin.
+                  </Typography>
+                </Box>
               </Grid>
 
               <Grid item xs={12} md={6}>
@@ -611,8 +748,23 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                   label="Telefon Numarası"
                   fullWidth
                   size="small"
-                  value={form.phoneNumber ?? ''}
-                  onChange={(e) => set('phoneNumber', e.target.value)}
+                  // Yazarken boşluklu gösteriliyor, saklanırken yalnız
+                  // rakamlar gidiyor. Boşluklu biçimde eksik hane gözle
+                  // hemen fark ediliyor.
+                  value={formatTrPhone(form.phoneNumber ?? '')}
+                  onChange={(e) =>
+                    set('phoneNumber', normalizeTrPhone(e.target.value))
+                  }
+                  placeholder="0532 123 45 67"
+                  error={
+                    !!form.phoneNumber &&
+                    !isTrPhoneComplete(form.phoneNumber)
+                  }
+                  helperText={
+                    form.phoneNumber && !isTrPhoneComplete(form.phoneNumber)
+                      ? 'Numara 11 haneli olmalı ve 0 ile başlamalı.'
+                      : 'Görünürlüğünü yandaki ayardan belirleyin.'
+                  }
                 />
               </Grid>
 
@@ -632,7 +784,9 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
               <Grid item xs={12} md={6}>
                 <CatalogAutocomplete<string>
                   label="Telefon Görünürlüğü"
-                  options={['NOBODY', 'VERIFIED_MEMBERS', 'MESSAGE_SENDERS', 'EVERYONE']}
+                  options={[...PHONE_VISIBILITY_OPTIONS]}
+                  getOptionLabel={phoneVisibilityLabel}
+                  helperText="Telefonu dizinde kim görebilir."
                   value={form.phoneVisibility ?? null}
                   onChange={(v) => set('phoneVisibility', v as import('../../services/nartbusiness/nbTypes').AdminUpdateDirectoryProfileRequest['phoneVisibility'])}
                 />
