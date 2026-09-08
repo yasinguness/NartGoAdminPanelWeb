@@ -13,11 +13,13 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   Link,
   MenuItem,
   Paper,
   Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -71,6 +73,7 @@ import {
   formatMoney,
 } from '../../utils/nbDisplay';
 import { NbSectionPaper, NbStatusBadge, useNbMobile } from '../../components/nartbusiness';
+import type { NbPartnerOrg } from '../../services/nartbusiness/nbAdminService';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbEditBusinessDialog from './NbEditBusinessDialog';
 
@@ -92,6 +95,10 @@ export default function NbMemberDetail() {
   const fullScreen = useNbMobile();
 
   const [member, setMember] = useState<NbMember | null>(null);
+  // Kurum kataloğu. Etiketler buradan çözülüyor; hiçbir kurum adı sayfaya
+  // yazılı değil.
+  const [partnerOrgs, setPartnerOrgs] = useState<NbPartnerOrg[]>([]);
+  const [savingOrg, setSavingOrg] = useState(false);
   const [viewStats, setViewStats] = useState<NbMemberViewStats | null>(null);
   const [user, setUser] = useState<NbUserSearchResult | null>(null);
   const [userLoadError, setUserLoadError] = useState<string | null>(null);
@@ -316,6 +323,27 @@ export default function NbMemberDetail() {
   useEffect(() => {
     nbAdminService.listSectors().then(setSectors).catch(() => setSectors([]));
   }, []);
+
+  // Kurum kataloğu. Pasifler de geliyor: bir üye pasifleşmiş kuruma bağlıysa
+  // adı yine de görünmeli, yoksa detayda boş bir kutu kalır.
+  useEffect(() => {
+    nbAdminService.listPartnerOrgs().then(setPartnerOrgs).catch(() => setPartnerOrgs([]));
+  }, []);
+
+  const currentOrg = partnerOrgs.find((o) => o.id === member?.partnerOrgId) ?? null;
+
+  const changePartnerOrg = async (orgId: string | null, badgeVisible?: boolean) => {
+    if (!member) return;
+    setSavingOrg(true);
+    try {
+      await nbAdminService.assignPartnerOrg(member.memberId, orgId, badgeVisible);
+      load();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? err?.message ?? 'Kurum ataması kaydedilemedi');
+    } finally {
+      setSavingOrg(false);
+    }
+  };
 
   const sectorLabel = useMemo(() => {
     const codes = member?.sectorCodes?.length ? member.sectorCodes : member?.sectorCode ? [member.sectorCode] : [];
@@ -706,6 +734,62 @@ export default function NbMemberDetail() {
           />
           <DetailRow label="Şehir" value={member.city} emptyLabel="Şehir girilmedi" />
           <DetailRow label="Telefon" value={member.phoneNumber} emptyLabel="Telefon girilmedi" />
+        </NbSectionPaper>
+
+        {/* Kurum — üyenin ağa hangi kuruluş aracılığıyla geldiği.
+            Kaynak alanından (web formu / uygulama / admin paneli) ayrıdır:
+            o hangi kapıdan girdiğini, bu hangi kurumun üyesi olduğunu söyler. */}
+        <NbSectionPaper title="Kurum">
+          {partnerOrgs.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              Katalogda kurum yok. Kurumlar sayfasından ekleyin.
+            </Typography>
+          ) : (
+            <Stack spacing={2}>
+              <TextField
+                select
+                size="small"
+                label="Geldiği kurum"
+                value={member.partnerOrgId ?? ''}
+                onChange={(e) => changePartnerOrg(e.target.value || null)}
+                disabled={savingOrg}
+                helperText="Boş bırakılabilir. Kurumsuz üyede profilde rozet çıkmaz."
+                sx={{ maxWidth: 360 }}
+              >
+                <MenuItem value="">Kurum yok</MenuItem>
+                {partnerOrgs
+                  .filter((o) => o.active || o.id === member.partnerOrgId)
+                  .map((o) => (
+                    <MenuItem key={o.id} value={o.id}>
+                      {o.shortName}
+                      {!o.active && ' (pasif)'}
+                    </MenuItem>
+                  ))}
+              </TextField>
+
+              {currentOrg && (
+                <>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={member.partnerOrgBadgeVisible !== false}
+                        onChange={(e) =>
+                          changePartnerOrg(member.partnerOrgId ?? null, e.target.checked)
+                        }
+                        disabled={savingOrg}
+                      />
+                    }
+                    label={`Profilde "${currentOrg.badgeLabel}" rozeti görünsün`}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    Rozet kapatıldığında kurum bağı silinmez, yalnızca gizlenir.
+                    Üye kurum filtresinde de çıkmaz. Bağ, üyenin nereden geldiğinin
+                    kaydı olarak durur.
+                  </Typography>
+                </>
+              )}
+            </Stack>
+          )}
         </NbSectionPaper>
 
         {/* Görüntülenme — bu işletme profiline mobil/web'den kaç kez girildi */}

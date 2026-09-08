@@ -1462,6 +1462,84 @@ async function suggestConsortium(id: string): Promise<NbConsortiumCandidate[]> {
 }
 
 
+// ============================================================
+// Kurum kataloğu (partner organizasyonlar)
+// ============================================================
+//
+// Kurum, üyenin ağa hangi kuruluş aracılığıyla geldiğini söyler. Üyenin hangi
+// KAPIDAN girdiğini söyleyen "source" alanından ayrıdır: source kapalı bir küme
+// (web formu / uygulama / admin paneli), kurum ise açık uçlu ve panelden
+// yönetilebilir. Yeni bir iş birliği başladığında sürüm çıkmadan eklenir.
+
+export interface NbPartnerOrg {
+  id: string;
+  code: string;
+  name: string;
+  shortName: string;
+  /** "KAFSİAD üyesi" — sunucuda kurulur ki mobil, web ve panel aynı ifadeyi göstersin. */
+  badgeLabel: string;
+  city?: string | null;
+  logoUrl?: string | null;
+  description?: string | null;
+  active: boolean;
+  sortOrder: number;
+  memberCount: number;
+}
+
+export interface NbPartnerOrgPayload {
+  code?: string;
+  name?: string;
+  shortName?: string;
+  city?: string | null;
+  logoUrl?: string | null;
+  description?: string | null;
+  active?: boolean;
+  sortOrder?: number;
+}
+
+/** Pasifler dahil tüm katalog, her satırda bağlı üye sayısıyla. */
+async function listPartnerOrgs(): Promise<NbPartnerOrg[]> {
+  const res = await api.get<any>('/nb/admin/partner-orgs');
+  return unwrap<NbPartnerOrg[]>(res.data) ?? [];
+}
+
+async function createPartnerOrg(payload: NbPartnerOrgPayload): Promise<NbPartnerOrg | null> {
+  const res = await api.post<any>('/nb/admin/partner-orgs', payload);
+  return unwrap<NbPartnerOrg>(res.data);
+}
+
+async function updatePartnerOrg(
+  id: string,
+  payload: NbPartnerOrgPayload,
+): Promise<NbPartnerOrg | null> {
+  const res = await api.put<any>(`/nb/admin/partner-orgs/${id}`, payload);
+  return unwrap<NbPartnerOrg>(res.data);
+}
+
+/**
+ * Kurumu pasifleştirir. Kalıcı silme bilerek yok: kayıt silinirse o kurumdan
+ * gelen üyelerin geçmişi de silinmiş olur.
+ */
+async function deactivatePartnerOrg(id: string): Promise<NbPartnerOrg | null> {
+  const res = await api.delete<any>(`/nb/admin/partner-orgs/${id}`);
+  return unwrap<NbPartnerOrg>(res.data);
+}
+
+/**
+ * Üyeyi bir kuruma bağlar. partnerOrgId null gönderilirse bağ kaldırılır.
+ * badgeVisible null bırakılırsa mevcut rozet ayarı korunur.
+ */
+async function assignPartnerOrg(
+  memberId: string,
+  partnerOrgId: string | null,
+  badgeVisible?: boolean,
+): Promise<void> {
+  await api.put(`/nb/admin/partner-orgs/members/${memberId}`, {
+    partnerOrgId,
+    badgeVisible: badgeVisible ?? null,
+  });
+}
+
 export const nbAdminService = {
   // Dashboard
   getDashboardStats,
@@ -1574,4 +1652,10 @@ export const nbAdminService = {
   updateTenderReferral,
   listTenderReferrals,
   suggestConsortium,
+  // Kurum kataloğu
+  listPartnerOrgs,
+  createPartnerOrg,
+  updatePartnerOrg,
+  deactivatePartnerOrg,
+  assignPartnerOrg,
 };

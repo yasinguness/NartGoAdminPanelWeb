@@ -96,6 +96,8 @@ export interface AdminCreateMemberRequest {
   trialDurationDays?: number;
   grantFreeMembership?: boolean;
   verifiedBusiness?: boolean;
+  /** Üyenin geldiği kurum. Boş bırakılabilir; kurumsuz üye normal durumdur. */
+  partnerOrgId?: string | null;
   adminNote: string;
 }
 
@@ -217,6 +219,19 @@ export interface NbMember {
   youtubeUrl?: string;
   companyType?: 'SOLE_PROPRIETOR' | 'LLC' | 'JSC' | 'COOPERATIVE' | 'OTHER';
   nartgoTenureMonths?: number | null;
+
+  // Kurum — üyenin ağa hangi kuruluş aracılığıyla geldiği.
+  //
+  // Etiket değil id taşınıyor: kurum kataloğu az sayıda ve yavaş değişen bir
+  // liste, panel onu tek seferde çekip eşliyor. Sayfalı üye listesinde satır
+  // başına kurum sorgusu açmak gereksiz maliyet olurdu.
+  partnerOrgId?: string | null;
+  /**
+   * Rozet profilde gösterilsin mi. Kurum bağından AYRI anahtar: bağ üyenin
+   * nereden geldiğini kaydeder ve değişmez, rozet ise kurum üyeliği düştüğünde
+   * kapatılır.
+   */
+  partnerOrgBadgeVisible?: boolean;
 
   // Sprint 23 — Komite döngüsü
   needsInfoCount?: number;

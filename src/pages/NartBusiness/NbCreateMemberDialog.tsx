@@ -30,6 +30,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { theme as adminTheme } from '../../theme';
 import { nb } from '../../theme/nbBrand';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import type { NbPartnerOrg } from '../../services/nartbusiness/nbAdminService';
 import type {
   AdminCreateMemberRequest,
   CompanyAddressRequest,
@@ -378,6 +379,8 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
 
   // Katalog state'leri
   const [sectors, setSectors] = useState<Sector[]>([]);
+  // Kurum kataloğu — üyenin ağa hangi kuruluş aracılığıyla geldiği.
+  const [partnerOrgs, setPartnerOrgs] = useState<NbPartnerOrg[]>([]);
   const [sectorsLoading, setSectorsLoading] = useState(false);
   // Ünvan katalogu (DB-config; fetch boşsa hardcoded fallback)
   const [jobTitles, setJobTitles] = useState<string[]>([]);
@@ -449,6 +452,15 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       .then((rows) => setSectors(rows.filter((s) => s.active)))
       .catch(() => setSectors([]))
       .finally(() => setSectorsLoading(false));
+  }, [open]);
+
+  // Kurum kataloğu — yalnız aktif kurumlar. Katalog boşsa alan hiç çizilmez.
+  useEffect(() => {
+    if (!open) return;
+    nbAdminService
+      .listPartnerOrgs()
+      .then((rows) => setPartnerOrgs(rows.filter((o) => o.active)))
+      .catch(() => setPartnerOrgs([]));
   }, [open]);
 
   // ------------------------------------------------------------------
@@ -1413,6 +1425,30 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
             value={form.grantFreeMembership ? 'FREE' : 'OFFLINE_PAID'}
             onChange={(v) => set('grantFreeMembership', v === 'FREE')}
           />
+        </SectionPaper>
+      )}
+
+      {partnerOrgs.length > 0 && (
+        <SectionPaper
+          title="Kurum"
+          hint="Üye ağa hangi kuruluş aracılığıyla geliyor. Boş bırakılabilir."
+        >
+          <TextField
+            select
+            label="Geldiği kurum"
+            value={form.partnerOrgId ?? ''}
+            onChange={(e) => set('partnerOrgId', e.target.value || null)}
+            fullWidth
+            size="small"
+            helperText="Seçilirse profilde kurum rozeti görünür ve üye dizinde kuruma göre süzülebilir."
+          >
+            <MenuItem value="">Kurum yok</MenuItem>
+            {partnerOrgs.map((o) => (
+              <MenuItem key={o.id} value={o.id}>
+                {o.shortName}
+              </MenuItem>
+            ))}
+          </TextField>
         </SectionPaper>
       )}
 
