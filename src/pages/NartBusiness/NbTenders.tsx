@@ -44,6 +44,7 @@ import {
 } from '../../services/nartbusiness/nbAdminService';
 import { relativeDate } from '../../utils/nbDisplay';
 import { NbTitleBlock } from '../../components/nartbusiness/ui';
+import { URGENCY_STYLE, urgencyOf } from '../../theme/nbBrand';
 
 /**
  * İhaleler — EKAP'tan çekilen ihaleler ve her birinin altında eşleşen üyeler.
@@ -63,9 +64,27 @@ import { NbTitleBlock } from '../../components/nartbusiness/ui';
  * görmek için üyeliğini aktifleştirmek zorunda kalır.
  */
 
-/** Skor renk kodu — spec A.5: yeşil >75, sarı 40-75. */
-function scoreColor(score: number): 'success' | 'warning' {
-  return score > 75 ? 'success' : 'warning';
+/**
+ * Son teklife kalan tam gün. Tarih yoksa/bozuksa null.
+ *
+ * Aciliyet eşikleri panelin geri kalanıyla ortak (`urgencyOf`): deneme
+ * süresi bitişinde kullanılan kademelerin aynısı. İhale son teklifi de
+ * birebir aynı problem, ikinci bir eşik seti tanımlamaya gerek yok.
+ */
+function daysUntil(iso?: string | null): number | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime();
+  if (Number.isNaN(ms)) return null;
+  return Math.ceil((ms - Date.now()) / 86_400_000);
+}
+
+/** Kalan gün etiketi — listede ve önizlemede aynı ifade. */
+function deadlineLabel(days: number | null): string {
+  if (days == null) return 'tarih yok';
+  if (days < 0) return 'süresi doldu';
+  if (days === 0) return 'bugün son';
+  if (days === 1) return 'yarın son';
+  return `${days} gün`;
 }
 
 function formatDeadline(iso?: string | null): string {
@@ -105,6 +124,15 @@ export default function NbTenders() {
   // detayı yanlışlıkla sızabilir.
   const [draftChannel, setDraftChannel] = useState<NbTenderChannel>('IN_APP');
   const [draftPaywalled, setDraftPaywalled] = useState(false);
+
+  // Liste düzeni — 253 kayıtlık bir kuyruk sırasız gezilemez.
+  const [sortBy, setSortBy] = useState<'match' | 'deadline'>('match');
+  const [hideZeroMatch, setHideZeroMatch] = useState(true);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  // WhatsApp taslağı: ödemesi bekleyen üyede varsayılan kapalı sürüm.
+  const [draftGated, setDraftGated] = useState(false);
+  const [draftFullText, setDraftFullText] = useState('');
 
   // Konsorsiyum diyaloğu
   const [consortiumOpen, setConsortiumOpen] = useState(false);
@@ -157,10 +185,69 @@ export default function NbTenders() {
     else setDetail(null);
   }, [selectedId, loadDetail]);
 
+  /**
+   * Görünen liste: önce elenir, sonra sıralanır.
+   *
+   * Backend'in döndürdüğü sıra keyfiydi; 9 eşleşmeli ihaleyle 0 eşleşmeli
+   * ihale iç içe geliyordu. Eşleşmesi olmayan kayıt admin için iş değil,
+   * gürültü — varsayılan olarak gizli.
+   */
+  const visibleTenders = useMemo(() => {
+    const base = hideZeroMatch ? tenders.filter((t) => t.matchCount > 0) : tenders;
+    const byDeadline = (t: NbTenderListItem) => {
+      const d = daysUntil(t.deadline);
+      // Tarihi olmayan kayıt sona: sıralamada öne geçip yer kapmasın.
+      return d == null ? Number.MAX_SAFE_INTEGER : d;
+    };
+    return [...base].sort((a, b) =>
+      sortBy === 'match'
+        ? b.matchCount - a.matchCount || byDeadline(a) - byDeadline(b)
+        : byDeadline(a) - byDeadline(b) || b.matchCount - a.matchCount,
+    );
+  }, [tenders, hideZeroMatch, sortBy]);
+
+  const zeroMatchCount = useMemo(
+    () => tenders.filter((t) => t.matchCount === 0).length,
+    [tenders],
+  );
+
   const referredIds = useMemo(
     () => new Set((detail?.referrals ?? []).map((r) => r.memberId)),
     [detail],
   );
+
+  /**
+   * Bu üyeye bu ihale daha önce yönlendirildi mi?
+   *
+   * İki kaynak var ve ikisi de tek başına eksik: `detail.referrals` yalnız
+   * bu oturumda yüklenen kayıtları taşır, `m.alreadyReferred` ise backend'in
+   * kendi bayrağı. Biri "hayır" derken diğeri "evet" diyebilir; mükerrer
+   * bildirim riskinde temkinli taraf "evet"tir.
+   */
+  /**
+   * Ödemesi bekleyen üyeye gidecek WhatsApp taslağı — ihaleyi tarif eder,
+   * tanımlamaz. İl, iş türü ve kalan gün var; başlık, idare ve EKAP linki yok.
+   */
+  function gatedDraft(memberName: string): string {
+    if (!detail) return '';
+    const days = daysUntil(detail.deadline);
+    return [
+      `Merhaba ${memberName},`,
+      '',
+      `Ağımıza düşen bir ihale senin iş alanına uyuyor — ${[detail.province, detail.tenderType]
+        .filter(Boolean)
+        .join(' · ')}, son teklife ${deadlineLabel(days)}.`,
+      '',
+      'İhalenin detaylarını paylaşabilmem için üyeliğinin aktif olması gerekiyor.',
+      'İlgilenirsen üyeliğini tamamlayalım, süreci birlikte değerlendirelim.',
+      '',
+      'Selamlar',
+    ].join('\n');
+  }
+
+  function alreadySent(m: NbTenderMatch): boolean {
+    return m.alreadyReferred || referredIds.has(m.memberId);
+  }
 
   // ── Eylemler ────────────────────────────────────────────────
 
@@ -170,13 +257,18 @@ export default function NbTenders() {
     setDraftPartnerIds(partnerIds);
     setDraftNote('');
     setDraftPaywalled(match.paywalled);
+    // Ödemesi bekleyen üyede taslak KAPALI başlar. Önceden sistem, uyardığı
+    // sızıntıyı kendisi hazırlıyordu: WhatsApp taslağı ihale başlığını ve
+    // EKAP bağlantısını içeriyordu, yani üye ihaleyi bedava bulabiliyordu.
+    setDraftGated(match.paywalled);
     try {
       const text = await nbAdminService.getTenderDraft(
         detail.id,
         match.memberId,
         partnerIds.length > 0 ? partnerIds : undefined,
       );
-      setDraftText(text);
+      setDraftFullText(text);
+      setDraftText(match.paywalled ? gatedDraft(match.memberName) : text);
       setDraftOpen(true);
     } catch (e: any) {
       setError(e?.response?.data?.message ?? 'Taslak üretilemedi.');
@@ -230,6 +322,46 @@ export default function NbTenders() {
     }
   }
 
+  /**
+   * Eşleşmesi olmayan kayıtları topluca arşivle.
+   *
+   * Günde 250+ ihale geliyor ve bunların önemli kısmı hiçbir üyeye
+   * uymuyor. Tek tek arşivlemek kuyruğu işlenemez kılıyordu.
+   */
+  async function archiveZeroMatches() {
+    const targets = tenders.filter((t) => t.matchCount === 0);
+    if (targets.length === 0) return;
+    if (
+      !window.confirm(
+        `${targets.length} ihale arşivlenecek (hiç eşleşen üyesi olmayanlar).\n\n` +
+          'Arşiv sekmesinden geri alınabilir. Devam edilsin mi?',
+      )
+    ) {
+      return;
+    }
+    setBulkBusy(true);
+    let ok = 0;
+    try {
+      // Sırayla: toplu uç yok, backend'i paralel isteklerle boğmayalım.
+      for (const t of targets) {
+        try {
+          await nbAdminService.updateTenderStatus(t.id, 'ARCHIVED');
+          ok += 1;
+        } catch {
+          /* tek tek atla — biri düşerse kalanı yine de arşivlensin */
+        }
+      }
+      setToast(
+        ok === targets.length
+          ? `${ok} ihale arşivlendi.`
+          : `${ok}/${targets.length} ihale arşivlendi, kalanı başarısız.`,
+      );
+      await loadList(statusFilter);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   async function rematch() {
     if (!detail) return;
     try {
@@ -279,7 +411,7 @@ export default function NbTenders() {
   // ── Render ──────────────────────────────────────────────────
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ maxWidth: 1400 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Box>
           <NbTitleBlock title="İhaleler" />
@@ -324,38 +456,110 @@ export default function NbTenders() {
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="flex-start">
         {/* Sol: ihale listesi */}
         <Paper sx={{ width: { xs: '100%', md: 340 }, flexShrink: 0, maxHeight: '75vh', overflow: 'auto' }}>
+          {/* Liste düzeni — sıralama, eleme ve toplu temizlik.
+              Bu üçü olmadan 250+ kayıtlık günlük kuyruk gezilemiyordu. */}
+          <Box
+            sx={{
+              px: 1.5, py: 1.25, position: 'sticky', top: 0, zIndex: 1,
+              bgcolor: 'background.paper',
+              borderBottom: '1px solid', borderColor: 'divider',
+            }}
+          >
+            <TextField
+              select
+              size="small"
+              fullWidth
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'match' | 'deadline')}
+            >
+              <MenuItem value="match">Çok eşleşen önce</MenuItem>
+              <MenuItem value="deadline">Süresi yakın önce</MenuItem>
+            </TextField>
+            <Stack direction="row" alignItems="center" sx={{ mt: 0.25 }}>
+              <FormControlLabel
+                sx={{ ml: 0, flex: 1 }}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={!hideZeroMatch}
+                    onChange={(e) => setHideZeroMatch(!e.target.checked)}
+                  />
+                }
+                label={
+                  <Typography variant="caption" color="text.secondary">
+                    Eşleşmesizleri de göster
+                  </Typography>
+                }
+              />
+              <Tooltip title={`${zeroMatchCount} ihalenin hiç eşleşen üyesi yok — arşive taşı`}>
+                <span>
+                  <Button
+                    size="small"
+                    color="inherit"
+                    sx={{ fontSize: 11, whiteSpace: 'nowrap' }}
+                    disabled={zeroMatchCount === 0 || bulkBusy || statusFilter === 'ARCHIVED'}
+                    onClick={() => void archiveZeroMatches()}
+                  >
+                    {bulkBusy ? 'Arşivleniyor…' : `Arşivle (${zeroMatchCount})`}
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
+          </Box>
+
           {listLoading ? (
             <Box sx={{ p: 4, textAlign: 'center' }}>
               <CircularProgress size={24} />
             </Box>
-          ) : tenders.length === 0 ? (
+          ) : visibleTenders.length === 0 ? (
             <Box sx={{ p: 3 }}>
               <Typography variant="body2" color="text.secondary">
-                Bu filtrede ihale yok.
+                {tenders.length > 0 && hideZeroMatch
+                  ? 'Eşleşen üyesi olan ihale yok. "Eşleşmesizleri de göster" ile tümünü görebilirsin.'
+                  : 'Bu filtrede ihale yok.'}
               </Typography>
             </Box>
           ) : (
             <List disablePadding>
-              {tenders.map((t) => (
-                <ListItemButton
-                  key={t.id}
-                  selected={t.id === selectedId}
-                  onClick={() => setSelectedId(t.id)}
-                  sx={{ display: 'block', py: 1.5 }}
-                >
-                  <Typography variant="body2" fontWeight={600} noWrap>
-                    {t.title}
-                  </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      {[t.province, relativeDate(t.createdAt)].filter(Boolean).join(' · ')}
+              {visibleTenders.map((t) => {
+                // Karar veren alan son teklif tarihi. Eskiden listede
+                // `createdAt` vardı ve besleme günlük olduğu için her satırda
+                // "Bugün" yazıyordu — hiçbir şey ayırt etmiyordu.
+                const days = daysUntil(t.deadline);
+                const u = URGENCY_STYLE[urgencyOf(days)];
+                return (
+                  <ListItemButton
+                    key={t.id}
+                    selected={t.id === selectedId}
+                    onClick={() => setSelectedId(t.id)}
+                    sx={{ display: 'block', py: 1.5 }}
+                  >
+                    <Typography variant="body2" fontWeight={600} noWrap>
+                      {t.title}
                     </Typography>
-                    {t.matchCount > 0 && (
-                      <Chip size="small" label={`${t.matchCount} eşleşme`} color="primary" variant="outlined" />
-                    )}
-                  </Stack>
-                </ListItemButton>
-              ))}
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {t.province ?? '—'}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: days != null && days < 0 ? 'text.disabled' : u.color, fontWeight: u.weight }}
+                      >
+                        {deadlineLabel(days)}
+                      </Typography>
+                      <Box sx={{ flex: 1 }} />
+                      {t.matchCount > 0 && (
+                        <Chip
+                          size="small"
+                          label={`${t.matchCount} eşleşme`}
+                          color="primary"
+                          variant="outlined"
+                        />
+                      )}
+                    </Stack>
+                  </ListItemButton>
+                );
+              })}
             </List>
           )}
         </Paper>
@@ -447,11 +651,6 @@ export default function NbTenders() {
                   {detail.matches.map((m) => (
                     <Paper key={m.memberId} variant="outlined" sx={{ p: 1.5 }}>
                       <Stack direction="row" alignItems="center" spacing={1}>
-                        <Chip
-                          size="small"
-                          color={scoreColor(m.score)}
-                          label={`%${Math.round(m.score)}`}
-                        />
                         <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
                           {m.memberName}
                         </Typography>
@@ -466,16 +665,40 @@ export default function NbTenders() {
                             />
                           </Tooltip>
                         )}
-                        {referredIds.has(m.memberId) && (
-                          <Chip size="small" variant="outlined" label="yönlendirildi" />
+                        {alreadySent(m) && (
+                          <Chip size="small" variant="outlined" color="success" label="yönlendirildi" />
                         )}
-                        <Button size="small" variant="contained" onClick={() => void openDraft(m)}>
-                          Yönlendir
+                        <Button
+                          size="small"
+                          variant={alreadySent(m) ? 'outlined' : 'contained'}
+                          onClick={() => void openDraft(m)}
+                        >
+                          {alreadySent(m) ? 'Tekrar yönlendir' : 'Yönlendir'}
                         </Button>
                       </Stack>
-                      <Typography variant="caption" color="text.secondary">
-                        {[m.city, ...(m.matchedOn ?? [])].filter(Boolean).join(' · ')}
-                      </Typography>
+
+                      {/* Eşleşmenin GEREKÇESİ. Önceden burada yüzde rozeti
+                          vardı ama eşleştirme tek sinyalli (yalnız sektör)
+                          olduğu için her üye aynı skoru alıyordu — en görünür
+                          öğe hiçbir şeyi ayırt etmiyordu. Sahte hassasiyet
+                          yerine neden eşleştiğini yazmak dürüst olan. */}
+                      <Stack direction="row" spacing={0.5} sx={{ mt: 0.75, flexWrap: 'wrap' }} useFlexGap>
+                        {m.city && (
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={
+                              detail.province && m.city === detail.province
+                                ? `${m.city} · aynı il`
+                                : m.city
+                            }
+                            color={detail.province && m.city === detail.province ? 'success' : 'default'}
+                          />
+                        )}
+                        {(m.matchedOn ?? []).map((r) => (
+                          <Chip key={r} size="small" variant="outlined" label={r} />
+                        ))}
+                      </Stack>
                     </Paper>
                   ))}
                 </Stack>
@@ -581,43 +804,107 @@ export default function NbTenders() {
           </ToggleButtonGroup>
 
           {draftChannel === 'IN_APP' ? (
-            <Alert severity={draftPaywalled ? 'warning' : 'info'} sx={{ mb: 2 }}>
-              {draftPaywalled ? (
-                <>
-                  Bu üyenin ödemesi bekliyor. Bildirim <b>ulaşacak</b> ama ihalenin başlığı,
-                  idaresi ve EKAP bağlantısı <b>gösterilmeyecek</b> — yalnızca il, iş türü ve
-                  kalan gün görünür. İhaleyi görmek için üyeliğini aktifleştirmesi gerekir.
-                  Aşağıdaki taslak yalnız senin notun; üyeye gitmez.
-                </>
-              ) : (
-                <>
-                  Bildirim üyeye anında gider ve ihale detayı açık görünür. Aşağıdaki taslak
-                  yalnız senin notun; üyeye gitmez.
-                </>
-              )}
-            </Alert>
+            <>
+              <Alert severity={draftPaywalled ? 'warning' : 'info'} sx={{ mb: 2 }}>
+                {draftPaywalled ? (
+                  <>
+                    Bu üyenin ödemesi bekliyor. Bildirim <b>ulaşacak</b>, ihalenin başlığı,
+                    idaresi ve EKAP bağlantısı <b>gösterilmeyecek</b>. Üyenin göreceği tam
+                    içerik aşağıda.
+                  </>
+                ) : (
+                  <>Bildirim üyeye anında gider ve ihale detayı açık görünür. Göreceği içerik aşağıda.</>
+                )}
+              </Alert>
+
+              {/* Üyenin GERÇEKTEN göreceği bildirim.
+                  Burada eskiden düzenlenebilir bir mesaj kutusu vardı ama
+                  `referTender` yalnız {memberId, channel, note} gönderiyor —
+                  o metin hiçbir zaman iletilmiyordu. Kutuda yapılan düzenleme
+                  hiçbir şeyi değiştirmiyor, üstelik hemen altında "Bildirimi
+                  gönder" yazıyordu. Düzenlenebilir taslak artık yalnız
+                  WhatsApp sekmesinde; burada önizleme var. */}
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                ÜYENİN GÖRECEĞİ BİLDİRİM
+              </Typography>
+              <Paper variant="outlined" sx={{ p: 2, mt: 0.75, bgcolor: 'action.hover' }}>
+                {detail && (
+                  <Stack spacing={0.75}>
+                    <Typography variant="body2" fontWeight={700}>
+                      {draftPaywalled ? 'Sana uygun yeni bir ihale var' : detail.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {[detail.province, detail.tenderType, deadlineLabel(daysUntil(detail.deadline))]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Typography>
+                    {draftPaywalled ? (
+                      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ pt: 0.5 }}>
+                        <LockOutlinedIcon sx={{ fontSize: 15, color: 'warning.main' }} />
+                        <Typography variant="caption" color="warning.main">
+                          Detayları görmek için üyeliğini aktifleştir
+                        </Typography>
+                      </Stack>
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        {detail.authority}
+                      </Typography>
+                    )}
+                  </Stack>
+                )}
+              </Paper>
+            </>
           ) : (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Taslağı gözden geçir, kişiselleştir, kopyala ve WhatsApp'tan kendin gönder. "Kaydet"
-              yalnızca izi tutar — bu kanalda sistem mesaj göndermez.
+            <>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Taslağı gözden geçir, kişiselleştir, kopyala ve WhatsApp'tan kendin gönder.
+                "Kaydet" yalnızca izi tutar — bu kanalda sistem mesaj göndermez.
+              </Alert>
+
               {draftPaywalled && (
-                <>
-                  {' '}
-                  <b>Dikkat:</b> bu üyenin ödemesi bekliyor. WhatsApp'tan ihale başlığını
-                  yazarsan üye ihaleyi EKAP'ta bedava bulur; ödeme duvarı yalnız uygulama
-                  bildiriminde korunur.
-                </>
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  Bu üyenin ödemesi bekliyor, taslak <b>kapalı sürümde</b>: il, iş türü ve kalan
+                  gün var; başlık, idare ve EKAP bağlantısı yok. Detayları eklersen üye ihaleyi
+                  EKAP'ta kendi bulur ve ödeme duvarı bu kanalda işlemez.
+                  <FormControlLabel
+                    sx={{ display: 'block', mt: 1, ml: 0 }}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={!draftGated}
+                        onChange={(e) => {
+                          const showAll = e.target.checked;
+                          setDraftGated(!showAll);
+                          setDraftText(
+                            showAll
+                              ? draftFullText
+                              : gatedDraft(
+                                  detail?.matches.find((m) => m.memberId === draftMemberId)
+                                    ?.memberName ?? '',
+                                ),
+                          );
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography variant="caption">
+                        Yine de ihale detaylarını ekle (ödeme duvarını bilerek deliyorum)
+                      </Typography>
+                    }
+                  />
+                </Alert>
               )}
-            </Alert>
+
+              <TextField
+                multiline
+                minRows={10}
+                fullWidth
+                value={draftText}
+                onChange={(e) => setDraftText(e.target.value)}
+              />
+            </>
           )}
 
-          <TextField
-            multiline
-            minRows={10}
-            fullWidth
-            value={draftText}
-            onChange={(e) => setDraftText(e.target.value)}
-          />
           <TextField
             fullWidth
             size="small"
@@ -629,11 +916,13 @@ export default function NbTenders() {
           />
         </DialogContent>
         <DialogActions>
-          <Tooltip title="Panoya kopyala">
-            <IconButton onClick={() => void copyDraft()}>
-              <ContentCopyIcon />
-            </IconButton>
-          </Tooltip>
+          {draftChannel === 'WHATSAPP' && (
+            <Tooltip title="Panoya kopyala">
+              <IconButton onClick={() => void copyDraft()}>
+                <ContentCopyIcon />
+              </IconButton>
+            </Tooltip>
+          )}
           <Box sx={{ flex: 1 }} />
           <Button onClick={() => setDraftOpen(false)}>Vazgeç</Button>
           <Button variant="contained" onClick={() => void saveReferral()} disabled={draftSaving}>
@@ -677,7 +966,9 @@ export default function NbTenders() {
                     <Typography variant="caption" color="text.secondary">
                       {c.sector}
                     </Typography>
-                    <Chip size="small" color={scoreColor(c.score)} label={`%${Math.round(c.score)}`} />
+                    {(c.matchedOn ?? []).slice(0, 3).map((r) => (
+                      <Chip key={r} size="small" variant="outlined" label={r} />
+                    ))}
                   </Stack>
                 }
               />
