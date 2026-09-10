@@ -112,7 +112,9 @@ export default function NbLoginLogs() {
           >
             <MenuItem value="">Hepsi</MenuItem>
             <MenuItem value="SUCCESS">Başarılı</MenuItem>
-            <MenuItem value="FAILED">Başarısız</MenuItem>
+            {/* Enum değeri FAILURE; "FAILED" gönderildiğinde sunucu filtreyi
+                sessizce yok sayıyor ve hepsi listeleniyordu. */}
+            <MenuItem value="FAILURE">Başarısız</MenuItem>
           </Select>
         </FormControl>
         <TextField
