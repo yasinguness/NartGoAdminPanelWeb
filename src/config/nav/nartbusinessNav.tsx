@@ -17,6 +17,7 @@ import {
     VerifiedUser as VerificationIcon,
     Policy as PolicyIcon,
     WorkspacePremium as TierIcon,
+    CorporateFare as PartnerOrgIcon,
     FactCheck as ModerationIcon,
     Forum as OpinionsIcon,
     QuestionAnswer as QuestionsIcon,
@@ -58,6 +59,7 @@ export const nartbusinessNavSections: NavSection[] = [
             { text: 'Doğrulama Kuyruğu', icon: <VerificationIcon />, path: '/nartbusiness/verification' },
             { text: 'Belge Politikaları', icon: <PolicyIcon />, path: '/nartbusiness/verification-policies', allowedRoles: NB_MANAGE },
             { text: 'Üyelik Tipleri', icon: <TierIcon />, path: '/nartbusiness/tiers', allowedRoles: NB_MANAGE },
+            { text: 'Kurumlar', icon: <PartnerOrgIcon />, path: '/nartbusiness/partner-orgs', allowedRoles: NB_MANAGE },
         ],
     },
     {

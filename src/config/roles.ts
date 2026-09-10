@@ -179,6 +179,8 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   { path: '/nartbusiness/referrals', roles: NB, description: 'Yönlendirmeler' },
   { path: '/nartbusiness/questions', roles: NB, description: 'Topluluk soruları' },
   { path: '/nartbusiness/jobs', roles: NB, description: 'Pozisyon ilanları' },
+  { path: '/nartbusiness/email-logs', roles: NB, description: 'NB e-posta kayıtları' },
+  { path: '/nartbusiness/partner-orgs', roles: NB, description: 'Kurum kataloğu' },
 
   // ── Panel seçimi ──
   { path: '/workspace', roles: AUTHENTICATED, description: 'Panel seçim ekranı' },

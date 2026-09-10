@@ -30,6 +30,7 @@ import {
   type NbPartnerOrgPayload,
 } from '../../services/nartbusiness/nbAdminService';
 import { useNbMobile } from '../../components/nartbusiness';
+import { NbTitleBlock } from '../../components/nartbusiness/ui';
 
 /**
  * Kurum kataloğu yönetimi.
@@ -164,9 +165,7 @@ export default function NbPartnerOrgs() {
         sx={{ mb: 2 }}
       >
         <Box>
-          <Typography variant="h6" fontWeight={700}>
-            Kurumlar
-          </Typography>
+          <NbTitleBlock title="Kurumlar" />
           <Typography variant="body2" color="text.secondary">
             Üyenin ağa hangi kuruluş aracılığıyla geldiği. Dizin filtresi ve
             profil rozeti bu listeden beslenir.
