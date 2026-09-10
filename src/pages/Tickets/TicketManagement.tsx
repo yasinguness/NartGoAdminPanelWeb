@@ -8,7 +8,7 @@ import { useRole } from '../../hooks/useRole';
 import { useAuthStore } from '../../store/authStore';
 import {
   Box, Typography, Stack, Paper, Button, FormControl, InputLabel,
-  Select, MenuItem, useTheme,
+  Select, MenuItem,
 } from '@mui/material';
 import { Download as DownloadIcon } from '@mui/icons-material';
 import { TicketStatus } from '../../types/tickets/ticketTypes';
@@ -26,7 +26,6 @@ import TicketDistribution from './components/TicketDistribution';
 const cardSx = { bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 3, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' };
 
 export default function TicketManagement() {
-  const theme = useTheme();
   const { enqueueSnackbar } = useSnackbar();
   const { isAdmin } = useRole();
   const currentUser = useAuthStore((state) => state.user);
@@ -37,11 +36,11 @@ export default function TicketManagement() {
   const [tickets, setTickets] = useState<TicketListItem[]>([]);
   const [orders, setOrders] = useState<OrderDetailResponse[]>([]);
   const [loading, setLoading] = useState(false);
-  const [eventsLoading, setEventsLoading] = useState(true);
+  const [, setEventsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TicketStatus | ''>('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [rowsPerPage] = useState(25);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketListItem | null>(null);
@@ -83,7 +82,7 @@ export default function TicketManagement() {
           for (const t of order.tickets) {
             flat.push({
               id: t.id, orderId: order.id,
-              ticketTypeName: t.ticketTypeName || order.items?.find(i => i.ticketTypeId === t.ticketTypeId)?.ticketTypeName || 'Bilet',
+              ticketTypeName: t.ticketTypeName || (order.items?.find(i => i.ticketTypeId === t.ticketTypeId) as any)?.ticketTypeName || 'Bilet',
               status: (t.status as TicketStatus) || TicketStatus.ACTIVE,
               serialNo: t.serialNo, issuedAt: t.issuedAt,
               canBeCheckedIn: t.status === 'ACTIVE', canBeRefunded: t.status === 'ACTIVE' || t.status === 'RESERVED',
@@ -212,7 +211,7 @@ export default function TicketManagement() {
             onRefresh={fetchTickets} loading={loading} selectedCount={selected.size}
             onBulkCancel={handleBulkCancel} cancelLoading={cancelLoading} totalCount={filteredTickets.length} />
           <TicketTable tickets={filteredTickets} loading={loading} page={page} rowsPerPage={rowsPerPage}
-            onPageChange={setPage} onRowsPerPageChange={v => { setPage(0); }} selected={selected}
+            onPageChange={setPage} onRowsPerPageChange={_v => { setPage(0); }} selected={selected}
             onSelect={handleSelect} onSelectAll={handleSelectAll} onTicketClick={handleTicketClick} />
         </Box>
       )}

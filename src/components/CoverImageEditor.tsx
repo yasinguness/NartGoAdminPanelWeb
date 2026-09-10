@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import {
-  Box, Button, IconButton, LinearProgress, Stack, TextField,
+  Box, IconButton, LinearProgress, Stack, TextField,
   Tooltip, Typography, alpha, Chip,
 } from '@mui/material';
 import {

@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import {
-    Box, Typography, TextField, Stack, Select, MenuItem,
-    FormControl, InputLabel, Card, CardContent, IconButton, Tooltip, Chip,
+import { useState } from 'react';
+import { Typography, TextField, Stack, Select, MenuItem,
+    FormControl, InputLabel, Card, IconButton, Tooltip, Chip,
 } from '@mui/material';
 import { ContentCopy as CopyIcon } from '@mui/icons-material';
 import { DeepLinkTarget, DEEP_LINK_ROUTES, buildDeepLink } from '../../../types/notifications/deepLink';

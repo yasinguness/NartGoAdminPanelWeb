@@ -1,0 +1,166 @@
+import { api } from './api';
+
+/**
+ * Hazır e-posta template'lerini admin panelden elle gönderme.
+ * Backend: notification-service AdminEmailTemplateController
+ *   GET  /notifications/admin/email-templates        → katalog
+ *   POST /notifications/admin/email-templates/send    → gönder (kuyruğa al)
+ */
+
+export interface EmailTemplateVar {
+  name: string;
+  label: string;
+  required: boolean;
+  placeholder: string;
+}
+
+export interface EmailTemplateDef {
+  key: string;
+  title: string;
+  defaultSubject: string;
+  /** Hangi ürün: "NartGo" / "NartBusiness" — admin karışıklığını önler. */
+  product?: string;
+  /** Karşılama / Üyelik / Abonelik / Ödeme — mailin ne ile ilgili olduğu. */
+  category?: string;
+  /** Mail içeriğinin tek cümlelik özeti. */
+  description?: string;
+  variables: EmailTemplateVar[];
+}
+
+export interface EmailPreviewResult {
+  subject: string;
+  product?: string;
+  category?: string;
+  description?: string;
+  /** Render edilmiş HTML — iframe içinde gösterilir. */
+  html: string;
+}
+
+export interface SendTemplateBody {
+  to: string;
+  templateName: string;
+  subject?: string;
+  variables?: Record<string, string>;
+  /** Editörden gelen kaydedilmemiş taslak HTML — yalnız preview için. */
+  htmlContent?: string;
+}
+
+/** Tek şablonun düzenleme görünümü (GET /{key}). */
+export interface EmailTemplateDetail {
+  key: string;
+  title: string;
+  product?: string;
+  category?: string;
+  description?: string;
+  variables: EmailTemplateVar[];
+  originalSubject: string;
+  originalHtml: string;
+  overrideSubject?: string | null;
+  overrideHtml?: string | null;
+  hasOverride: boolean;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+  effectiveSubject: string;
+  effectiveHtml: string;
+}
+
+export interface SaveOverrideBody {
+  subject?: string;
+  htmlContent?: string;
+}
+
+export interface SendTemplateResult {
+  to: string;
+  template: string;
+  subject: string;
+}
+
+export const emailTemplateService = {
+  async catalog(): Promise<EmailTemplateDef[]> {
+    const res = await api.get<EmailTemplateDef[]>('/notifications/admin/email-templates');
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  async send(body: SendTemplateBody): Promise<SendTemplateResult> {
+    const res = await api.post<SendTemplateResult>('/notifications/admin/email-templates/send', body);
+    return res.data;
+  },
+
+  /** Template'i değişkenlerle render edip HTML önizleme döner (GÖNDERMEZ). */
+  async preview(body: SendTemplateBody): Promise<EmailPreviewResult> {
+    const res = await api.post<EmailPreviewResult>('/notifications/admin/email-templates/preview', body);
+    return res.data;
+  },
+
+  /** Tek şablonun düzenleme görünümü (orijinal + override + efektif). */
+  async getTemplate(key: string): Promise<EmailTemplateDetail> {
+    const res = await api.get<EmailTemplateDetail>(`/notifications/admin/email-templates/${key}`);
+    return res.data;
+  },
+
+  /** Şablonun konu/HTML override'ını kaydeder. Tüm gönderimleri etkiler. */
+  async saveOverride(key: string, body: SaveOverrideBody): Promise<void> {
+    await api.put(`/notifications/admin/email-templates/${key}`, body);
+  },
+
+  /** Override'ı siler → şablon orijinal (dosya/katalog) içeriğine döner. */
+  async revertOverride(key: string): Promise<void> {
+    await api.delete(`/notifications/admin/email-templates/${key}`);
+  },
+
+  /** Gönderilen e-posta logları (sayfalı, filtreli). */
+  async logs(params: {
+    recipient?: string;
+    status?: string;
+    product?: string;
+    page?: number;
+    size?: number;
+  } = {}): Promise<EmailLogPage> {
+    const res = await api.get<EmailLogPage>('/notifications/admin/email-templates/logs', { params });
+    return res.data;
+  },
+
+  /**
+   * Tek kaydın detayı: gönderimde kullanılan değişkenler + o değişkenlerle
+   * yeniden render edilmiş gövde. Gövde saklanmadığı için (şifre içeren
+   * şablonlar var) istendiğinde üretilir; `renderNote` bunu açıkça yazar.
+   */
+  async logDetail(id: string): Promise<EmailLogDetail> {
+    const res = await api.get<EmailLogDetail>(`/notifications/admin/email-templates/logs/${id}`);
+    return res.data;
+  },
+};
+
+export interface EmailLogEntry {
+  id: string;
+  recipient: string;
+  templateName?: string;
+  subject?: string;
+  product?: string;
+  category?: string;
+  status: string; // SENT | FAILED
+  errorMessage?: string;
+  createdAt: string;
+}
+
+export interface EmailLogDetail extends EmailLogEntry {
+  templateTitle?: string;
+  /** Gönderim anındaki şablon değişkenleri (şifre/token maskeli). */
+  variables: Record<string, unknown>;
+  /** false → kayıt bu özellik açılmadan önce oluşmuş, gövde örnek değerlerle. */
+  variablesStored: boolean;
+  /** Kayıtta olmadığı için örnek değerle doldurulan değişkenler. */
+  placeholderVariables?: string[];
+  html?: string | null;
+  renderNote?: string;
+}
+
+/** Spring Page yanıtının kullandığımız alt kümesi. */
+export interface EmailLogPage {
+  content: EmailLogEntry[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+}
+
+export default emailTemplateService;

@@ -1,12 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, TextField, InputAdornment, Chip, Stack,
-  IconButton, Tooltip, Menu, MenuItem, Paper, Skeleton, Snackbar, Alert,
-  Fade, Pagination, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
+  IconButton, Tooltip, Menu, MenuItem, Paper, Skeleton, Snackbar, Alert, Pagination, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
 } from '@mui/material';
 import {
   Search, LayoutGrid, List, ChevronDown,
-  Bookmark, CheckCircle2, XCircle, Archive, Trash2, X, Keyboard,
+  Bookmark, CheckCircle2, XCircle, Trash2, X, Keyboard,
   Video, Filter, Instagram,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -48,7 +47,7 @@ export default function FeedVideos() {
 
   // View state
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize] = useState(12);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -591,7 +590,7 @@ export default function FeedVideos() {
             style={{ position: 'fixed', bottom: 24, left: '50%', translateX: '-50%', zIndex: 1100 }}>
             <Paper elevation={3} sx={{ px: 3, py: 1.5, borderRadius: 3, bgcolor: '#1a1a1a', color: '#fff', display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedIds.size} selected</Typography>
-              <Box sx={{ width: 1, height: 24, bgcolor: 'rgba(255,255,255,0.15)' }} />
+              <Box sx={{ width: 1, height: 24, bgcolor: 'rgba(0,0,0,0.10)' }} />
               
                <Button size="small" startIcon={<CheckCircle2 size={14} />} onClick={() => handleBulkAction('approve')} sx={{ color: '#4ade80' }}>Approve</Button>
                <Button size="small" startIcon={<XCircle size={14} />} onClick={() => handleBulkAction('reject')} sx={{ color: '#f87171' }}>Reject</Button>

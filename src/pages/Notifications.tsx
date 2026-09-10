@@ -68,7 +68,7 @@ export default function Notifications() {
 
     // UI State
     const [tabValue, setTabValue] = useState(0);
-    const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
+    const [viewMode] = useState<'table' | 'cards'>('cards');
     const [filterPriority, setFilterPriority] = useState<NotificationPriority | 'all'>('all');
     const [searchTerm, setSearchTerm] = useState('');
 

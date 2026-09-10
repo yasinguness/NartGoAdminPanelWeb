@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Card, Grid, Typography, useTheme, Skeleton } from '@mui/material';
+import { Box, Card, Grid, Typography, useTheme } from '@mui/material';
 import {
   LineChart,
   Line,
@@ -23,7 +23,7 @@ interface AssociationChartsProps {
 
 export const AssociationCharts: React.FC<AssociationChartsProps> = ({ associationId }) => {
   const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
 
   useEffect(() => {
     if (!associationId) { setLoading(false); return; }
@@ -92,7 +92,7 @@ export const AssociationCharts: React.FC<AssociationChartsProps> = ({ associatio
                   dataKey="value"
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 >
-                  {membershipDistributionData.map((entry, index) => (
+                  {membershipDistributionData.map((_entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

@@ -41,7 +41,7 @@ const STATUS_COLORS: Record<string, string> = {
   BLOCKED: '#d1d5db',
 };
 
-export default function SeatMapOverview({ eventId, eventName }: Props) {
+export default function SeatMapOverview({ eventId }: Props) {
   const theme = useTheme();
   const [seats, setSeats] = useState<SeatData[]>([]);
   const [categories, setCategories] = useState<CategoryData[]>([]);
@@ -118,7 +118,6 @@ export default function SeatMapOverview({ eventId, eventName }: Props) {
   }), [seats]);
 
   const rows = useMemo(() => [...new Set(seats.map(s => s.row))].sort(), [seats]);
-  const maxCol = useMemo(() => Math.max(...seats.map(s => s.col), 0), [seats]);
 
   if (loading) {
     return (

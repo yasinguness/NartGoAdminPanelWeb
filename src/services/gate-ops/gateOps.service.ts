@@ -98,7 +98,7 @@ class GateOpsService {
     async validateAndCheckIn(
         qrCodeData: string,
         eventId: string,
-        staffEmail?: string,
+        _staffEmail?: string,
     ): Promise<TicketValidationResponse> {
         const response = await api.post<ApiResponse<TicketValidationResponse>>('/tickets/checkin/validate', {
             qrCodeData,

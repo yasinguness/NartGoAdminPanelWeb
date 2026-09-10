@@ -4,14 +4,13 @@
  */
 import { useState, useEffect } from 'react';
 import {
-  Box, Typography, Stack, Button, IconButton, TextField, Paper, Chip,
-  Dialog, DialogTitle, DialogContent, DialogActions, Tooltip, Divider,
+  Box, Typography, Stack, Button, IconButton, TextField, Paper,
+  Dialog, DialogTitle, DialogContent, DialogActions, Tooltip,
   alpha, useTheme, CircularProgress,
 } from '@mui/material';
 import {
   Save as SaveIcon, Delete as DeleteIcon, Upload as LoadIcon,
-  Add as AddIcon, Close as CloseIcon, FolderOpen as FolderIcon,
-  Star as StarIcon, StarBorder as StarBorderIcon,
+  Add as AddIcon, FolderOpen as FolderIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { ticketService } from '../../../services/ticket/ticketService';

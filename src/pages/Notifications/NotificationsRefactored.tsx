@@ -11,8 +11,8 @@ import {
 import { alpha } from '@mui/material/styles';
 import {
   Campaign as CampaignIcon, Add, Search, Send, Schedule, Cancel,
-  ContentCopy, Delete, Edit, MoreVert, Notifications, TrendingUp,
-  Visibility, TouchApp, Close, ArrowBack, ArrowForward, CheckCircle,
+  ContentCopy, Delete, Notifications, TrendingUp,
+  Visibility, Close, ArrowBack, ArrowForward, CheckCircle,
   Warning, PhoneAndroid, Mail, Sms, Inbox, Person as PersonIcon,
 } from '@mui/icons-material';
 import { userService } from '../../services/user/userService';
@@ -31,7 +31,6 @@ import {
 } from '../../hooks/useNotificationCampaigns';
 import type {
   Campaign, CampaignStatus, Priority, Channel, CreateCampaignRequest,
-  TargetingConfig, ContentBlock,
 } from '../../types/notification.types';
 import { EMPTY_TARGETING, STATUS_COLORS, PRIORITY_COLORS, CHANNEL_LABELS } from '../../types/notification.types';
 import RichContentEditor, { RichContentRenderer } from '../../components/RichContentEditor';

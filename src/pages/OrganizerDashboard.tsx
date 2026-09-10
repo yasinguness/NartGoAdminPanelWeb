@@ -28,12 +28,9 @@ import {
   ArrowForward as ArrowIcon,
   CheckCircle as CheckCircleIcon,
   People as PeopleIcon,
-  EventSeat as SeatIcon,
 } from '@mui/icons-material';
-import { format } from 'date-fns';
-import { tr } from 'date-fns/locale';
 import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import { formatDate, formatDateTime } from '../utils/dateUtils';
+import { formatDate, formatEventDateTime, eventZoneLabel } from '../utils/dateUtils';
 import { PageContainer } from '../components/Page';
 import { useRole } from '../hooks/useRole';
 import { adminOperationsService } from '../services/admin/adminOperationsService';
@@ -43,6 +40,7 @@ interface EventSummary {
   id: string;
   name: string;
   eventTime: string;
+  eventTimeZone?: string;
   status: string;
   currentParticipants: number;
   maxParticipants: number;
@@ -92,6 +90,24 @@ export default function OrganizerDashboard() {
         .slice(0, 10);
 
       setEvents(relevantEvents);
+
+      // Tek aktif etkinlik varsa → direkt EventConsole'a yönlendir (sadece ilk yüklemede)
+      const now = Date.now();
+      const activeEvents = relevantEvents.filter(e => {
+        if ((e as any).status === 'CANCELLED' || (e as any).status === 'COMPLETED') return false;
+        if (e.eventTime) {
+          const endTime = (e as any).endTime ? new Date((e as any).endTime).getTime() : new Date(e.eventTime).getTime() + 86400000;
+          return endTime >= now;
+        }
+        return true;
+      });
+
+      const redirectKey = 'organizer_auto_redirect_done';
+      if (activeEvents.length === 1 && !sessionStorage.getItem(redirectKey)) {
+        sessionStorage.setItem(redirectKey, '1');
+        navigate(`/event-console/${activeEvents[0].id}`, { replace: true });
+        return;
+      }
 
       // 2) Sadece en aktif 1 etkinlik icin detayli satis verisi cek (TEK cagri)
       //    Diger etkinliklerin bilet/katilimci sayisi zaten my-events response'unda var
@@ -159,6 +175,74 @@ export default function OrganizerDashboard() {
     boxShadow: 'none',
     overflow: 'hidden',
   };
+
+  // ── Empty state — organizatörün hiç etkinliği yoksa tam ekran onboarding ──
+  if (!loading && events.length === 0) {
+    return (
+      <PageContainer title="Hoş Geldiniz">
+        <Box sx={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          minHeight: 'calc(100vh - 200px)', textAlign: 'center', px: 3,
+        }}>
+          <Box sx={{
+            fontSize: 64, mb: 3,
+            width: 120, height: 120, borderRadius: '50%',
+            bgcolor: alpha(theme.palette.primary.main, 0.08),
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            🎪
+          </Box>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
+            Merhaba {userName?.split(' ')[0] || 'Organizatör'}!
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480, mb: 4 }}>
+            Henüz bir etkinliğiniz yok. İlk etkinliğinizi oluşturarak başlayın — adım adım sihirbazla birlikte ilerleyeceksiniz.
+          </Typography>
+
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/event-creation')}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 4 }}
+            >
+              İlk Etkinliğimi Oluştur
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => navigate('/seat-templates')}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+            >
+              Salon Planı Ekle
+            </Button>
+          </Stack>
+
+          <Box sx={{ mt: 5, maxWidth: 600 }}>
+            <Typography variant="caption" color="text.disabled" sx={{ letterSpacing: 1, fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>
+              Başlangıç Rehberi
+            </Typography>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              {[
+                { icon: '📝', title: 'Etkinlik Oluştur', desc: 'Temel bilgileri, tarihi ve mekanı belirle' },
+                { icon: '🎫', title: 'Bilet Türleri', desc: 'Fiyat ve kontenjan tanımla' },
+                { icon: '🚀', title: 'Yayınla', desc: 'Satışa çık ve katılımcı topla' },
+              ].map((step, i) => (
+                <Grid item xs={12} sm={4} key={i}>
+                  <Box sx={{ p: 2, textAlign: 'left' }}>
+                    <Typography sx={{ fontSize: 24, mb: 1 }}>{step.icon}</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>{step.title}</Typography>
+                    <Typography variant="caption" color="text.secondary">{step.desc}</Typography>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        </Box>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer title="Organizatör Paneli">
@@ -279,9 +363,8 @@ export default function OrganizerDashboard() {
         {[
           { label: 'Etkinlik Oluştur', icon: <AddIcon />, path: '/event-creation', color: 'primary' as const },
           { label: 'Bilet Yönetimi', icon: <TicketIcon />, path: '/tickets', color: 'success' as const },
-          { label: 'Gişe', icon: <SeatIcon />, path: '/box-office', color: 'info' as const },
         ].map((action, i) => (
-          <Grid item xs={4} key={i}>
+          <Grid item xs={6} key={i}>
             <Button
               fullWidth
               variant="outlined"
@@ -383,7 +466,7 @@ export default function OrganizerDashboard() {
                     key={event.id}
                     hover
                     sx={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/events/${event.id}`)}
+                    onClick={() => navigate(`/event-console/${event.id}`)}
                   >
                     <TableCell>
                       <Typography variant="body2" fontWeight={600} sx={{ maxWidth: 250 }} noWrap>
@@ -392,7 +475,8 @@ export default function OrganizerDashboard() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="caption" color="text.secondary">
-                        {formatDateTime(event.eventTime)}
+                        {formatEventDateTime(event.eventTime, event.eventTimeZone, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {event.eventTimeZone && ` (${eventZoneLabel(event.eventTimeZone)})`}
                       </Typography>
                     </TableCell>
                     <TableCell>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useEventStore } from '../store/events/eventStore';
 import { useSnackbar } from 'notistack';
 import { EventResponseDTO, EventStatus, EventSearchDTO } from '../types/events/eventModel';

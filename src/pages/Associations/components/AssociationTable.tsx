@@ -27,9 +27,6 @@ import {
   Delete as DeleteIcon,
   Search as SearchIcon,
   Business as BusinessIcon,
-  LocationOn as LocationIcon,
-  Email as EmailIcon,
-  Phone as PhoneIcon,
 } from '@mui/icons-material';
 import { AssociationSummaryResponse } from '../../../types/association/associationSummaryResponse';
 
@@ -54,7 +51,7 @@ export const AssociationTable: React.FC<AssociationTableProps> = ({
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 

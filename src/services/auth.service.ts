@@ -1,87 +1,73 @@
-import { ApiService } from './api.service';
-import { LoginResponse, LoginResponseData } from '../types/auth';
-import { User, UserModel } from '../types/user';
+import { api } from './api';
+import { LoginResponseData } from '../types/auth';
+import { UserModel } from '../types/user';
 import { UserRole } from '../types/enums';
 import { ApiResponse } from '../types/api';
+import {
+    saveToken,
+    clearTokens,
+    getValidToken,
+    isTokenExpired as tokenExpired,
+} from './tokenStorage';
 
-export class AuthService extends ApiService {
-    constructor() {
-        super(import.meta.env.VITE_API_BASE_URL || 'https://api.nartgo.net/api/v1');
-    }
+/** Axios hatasından kullanıcıya gösterilebilir mesajı çıkar (backend `message`'ı öncelikli). */
+function errMessage(e: unknown, fallback: string): string {
+    const m = (e as any)?.response?.data?.message;
+    if (typeof m === 'string' && m.trim()) return m;
+    return e instanceof Error && e.message ? e.message : fallback;
+}
 
+/**
+ * Tek HTTP client (axios `api`) üzerinden auth işlemleri. Token kalıcılığı
+ * `tokenStorage`'da merkezî. (Eskiden fetch-tabanlı ayrı bir client'tı.)
+ */
+export class AuthService {
     async login(email: string, password: string): Promise<LoginResponseData> {
         try {
-            const response = await this.post<LoginResponseData>('/auth/login', {
-                email,
-                password,
-            });
-            if (response.success && response.data) {
-                await this.saveToken(response.data.bearerToken);
-                return response.data;
+            // 401 = hatalı şifre → global redirect tetikleme, formu hata göstersin.
+            const res = await api.post<ApiResponse<LoginResponseData>>(
+                '/auth/login',
+                { email, password },
+                { skipAuthRedirect: true } as any
+            );
+            const body = res.data;
+            if (body.success && body.data) {
+                saveToken(body.data.bearerToken);
+                return body.data;
             }
-            throw new AuthException(response.message || 'Giriş başarısız');
+            throw new AuthException(body.message || 'Giriş başarısız');
         } catch (e) {
-            throw new AuthException(e instanceof Error ? e.message : 'Login failed');
+            if (e instanceof AuthException) throw e;
+            throw new AuthException(errMessage(e, 'Giriş başarısız'));
         }
     }
 
     async getCurrentUser(): Promise<UserModel> {
         try {
-            const response = await this.get<UserModel>('/auth/me');
-            if (response.success && response.data) {
-                return response.data;
+            const res = await api.get<ApiResponse<UserModel>>('/auth/me', {
+                skipAuthRedirect: true,
+            } as any);
+            const body = res.data;
+            if (body.success && body.data) {
+                return body.data;
             }
-            throw new AuthException('Failed to get current user');
+            throw new AuthException('Kullanıcı bilgisi alınamadı');
         } catch (e) {
-            throw new AuthException('Failed to get current user');
-        }
-    }
-
-    private async saveToken(token: string): Promise<void> {
-        localStorage.setItem('token', token);
-        const expirationTime = this.getTokenExpirationTime(token);
-        if (expirationTime) {
-            localStorage.setItem('tokenExpiration', expirationTime.toString());
-        }
-    }
-
-    private getTokenExpirationTime(token: string): number | null {
-        try {
-            const [, payload] = token.split('.');
-            if (!payload) return null;
-
-            const decodedPayload = JSON.parse(atob(payload));
-            return decodedPayload.exp * 1000;
-        } catch (e) {
-            // token parse error
-            return null;
+            if (e instanceof AuthException) throw e;
+            throw new AuthException(errMessage(e, 'Kullanıcı bilgisi alınamadı'));
         }
     }
 
     isTokenExpired(): boolean {
-        const expirationTime = localStorage.getItem('tokenExpiration');
-        if (!expirationTime) return true;
-
-        const currentTime = new Date().getTime();
-        return currentTime >= parseInt(expirationTime);
+        return tokenExpired();
     }
 
     logout(): void {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('tokenExpiration');
+        clearTokens();
     }
 
     getAccessToken(): string | null {
-        const token = localStorage.getItem('token');
-        if (!token) return null;
-
-        if (this.isTokenExpired()) {
-            this.logout();
-            return null;
-        }
-
-        return token;
+        return getValidToken();
     }
 
     getCachedUser(): UserModel | null {
@@ -89,8 +75,7 @@ export class AuthService extends ApiService {
         if (userData) {
             try {
                 return JSON.parse(userData);
-            } catch (e) {
-                // cached user data parse error
+            } catch {
                 return null;
             }
         }
@@ -98,8 +83,7 @@ export class AuthService extends ApiService {
     }
 
     isAuthenticated(): boolean {
-        const token = this.getAccessToken();
-        return !!token;
+        return !!getValidToken();
     }
 
     hasRole(role: UserRole): boolean {
@@ -109,20 +93,21 @@ export class AuthService extends ApiService {
 
     async updateProfileImage(userId: string, imageUrl: string): Promise<UserModel> {
         try {
-            const response = await this.put<UserModel>(`/${userId}/profile-image`, {
-                imageUrl
-            });
-            return response.data!;
+            const res = await api.put<ApiResponse<UserModel>>(
+                `/${userId}/profile-image`,
+                { imageUrl }
+            );
+            return res.data.data;
         } catch (e) {
-            throw new AuthException('Failed to update profile image');
+            throw new AuthException(errMessage(e, 'Profil resmi güncellenemedi'));
         }
     }
 
     async resetPassword(email: string): Promise<void> {
         try {
-            await this.post('/reset-password', { email });
+            await api.post('/reset-password', { email }, { skipAuthRedirect: true } as any);
         } catch (e) {
-            throw new AuthException('Failed to reset password');
+            throw new AuthException(errMessage(e, 'Şifre sıfırlanamadı'));
         }
     }
 }
@@ -132,4 +117,4 @@ export class AuthException extends Error {
         super(message);
         this.name = 'AuthException';
     }
-} 
+}

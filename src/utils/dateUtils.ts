@@ -92,6 +92,39 @@ export function formatDateTimeFull(date: Date | string | null | undefined): stri
 }
 
 /**
+ * Etkinlik saatini, etkinliğin kendi saat diliminde (IANA, ör. "Europe/Istanbul")
+ * göster. Tarayıcının değil etkinliğin yerel saatini kullanır.
+ * Saat dilimi yoksa tarayıcının yerel saatine düşer (native Intl).
+ *
+ * formatEventDateTime("2026-04-28T17:00:00Z", "Europe/Istanbul", { hour: '2-digit', minute: '2-digit' })
+ *   → "20:00"
+ */
+export function formatEventDateTime(
+  iso: string | null | undefined,
+  ianaZone?: string | null,
+  opts?: Intl.DateTimeFormatOptions
+): string {
+  if (!iso) return '';
+  const d = parseDate(iso);
+  if (!d) return '';
+  const tz = ianaZone && ianaZone.length > 0 ? ianaZone : undefined; // undefined => tarayıcı yereli
+  return new Intl.DateTimeFormat('tr-TR', {
+    ...(opts ?? { day: 'numeric', month: 'long', year: 'numeric' }),
+    timeZone: tz,
+  }).format(d);
+}
+
+/**
+ * Etkinliğin saat dilimi etiketi: "İstanbul saati"
+ */
+export function eventZoneLabel(ianaZone?: string | null): string {
+  if (!ianaZone) return '';
+  const city = ianaZone.split('/').pop()?.replace(/_/g, ' ') ?? '';
+  const tr: Record<string, string> = { Istanbul: 'İstanbul' };
+  return city ? `${tr[city] ?? city} saati` : '';
+}
+
+/**
  * Göreli zaman: "2 saat önce", "5 dakika önce"
  */
 export function formatRelative(date: Date | string | null | undefined): string {

@@ -31,10 +31,7 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  FormControlLabel,
-  Checkbox,
   InputAdornment,
-  Alert,
   Stack,
 } from '@mui/material';
 import {
@@ -76,9 +73,6 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ associationId }) => {
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [filter, setFilter] = useState<SubscriptionPaymentFilterDto>({});
   const [selectedTransaction, setSelectedTransaction] = useState<AdminSubscriptionPaymentDto | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
@@ -110,7 +104,7 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
     memberRowsPerPage
   );
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
@@ -911,7 +905,7 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
           businessPage,
           businessRowsPerPage,
           businessTotalElements,
-          (event, newPage) => setBusinessPage(newPage),
+          (_event, newPage) => setBusinessPage(newPage),
           (event) => {
             setBusinessRowsPerPage(parseInt(event.target.value, 10));
             setBusinessPage(0);
@@ -931,7 +925,7 @@ const AssociationTransactions: React.FC<AssociationTransactionsProps> = ({ assoc
           memberPage,
           memberRowsPerPage,
           memberTotalElements,
-          (event, newPage) => setMemberPage(newPage),
+          (_event, newPage) => setMemberPage(newPage),
           (event) => {
             setMemberRowsPerPage(parseInt(event.target.value, 10));
             setMemberPage(0);

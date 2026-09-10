@@ -12,8 +12,6 @@ import { SubscriptionPaymentDto } from '../../types/subscriptionPayment/subscrip
 import { AssociationMemberCreateAdminRequestDto } from '../../types/associationMember/associationMemberCreateAdminRequestDto';
 import { AssociationMemberUpdateAdminRequestDto } from '../../types/associationMember/associationMemberUpdateAdminRequestDto';
 import { MembershipStatus } from '../../types/enums/membershipStatus';
-import { CardStatus } from '../../types/enums/cardStatus';
-import { AssociationBenefit, AssociationStats, AssociationTimeline, AssociationLocation, AssociationEvent } from './types';
 import { AssociationStatsDto } from '../../types/association/associationStatsDto';
 import { ApiResponse } from '../../types/api';
 import { AssociationSummaryResponse } from '../../types/association/associationSummaryResponse';
@@ -39,7 +37,7 @@ export const associationService = {
     if (logoImage) formData.append('logoImage', logoImage);
     if (coverImage) formData.append('coverImage', coverImage);
     if (galleryImages) {
-      galleryImages.forEach((image, index) => {
+      galleryImages.forEach((image) => {
         formData.append(`galleryImages`, image);
       });
     }
@@ -62,7 +60,7 @@ export const associationService = {
     if (logoImage) formData.append('logoImage', logoImage);
     if (coverImage) formData.append('coverImage', coverImage);
     if (galleryImages) {
-      galleryImages.forEach((image, index) => {
+      galleryImages.forEach((image) => {
         formData.append(`galleryImages`, image);
       });
     }
@@ -242,7 +240,7 @@ export const associationService = {
 
 
 
-export const getAssociationBenefits = async (associationId: string): Promise<AssociationBenefit[]> => {
+export const getAssociationBenefits = async (associationId: string): Promise<MemberBenefitDto[]> => {
   const response = await api.get<ApiResponse<MemberBenefitDto[]>>(`/businesses/associations/${associationId}/member-benefits`);
   return response.data.data || [];
 };

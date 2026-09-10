@@ -1,6 +1,5 @@
-import React from 'react';
-import { Box, Typography, Button, IconButton, Chip, Stack, useTheme, alpha, useMediaQuery, CircularProgress } from '@mui/material';
-import { ArrowBack as BackIcon, Menu as MenuIcon } from '@mui/icons-material';
+import { Box, Typography, Button, Chip, Stack, alpha, CircularProgress } from '@mui/material';
+import { ArrowBack as BackIcon } from '@mui/icons-material';
 import type { EventSummary } from './EventPicker';
 
 interface Props {
@@ -16,9 +15,7 @@ interface Props {
   onPublish: () => void;
 }
 
-export default function DesignerTopBar({ event, mode, totalSeats, saving, publishing, onBack, onOpenDrawer, onSwitchMode, onSave, onPublish }: Props) {
-  const theme = useTheme();
-
+export default function DesignerTopBar({ event, totalSeats, saving, publishing, onBack, onSave, onPublish }: Props) {
   return (
     <Box sx={{
       height: 52,

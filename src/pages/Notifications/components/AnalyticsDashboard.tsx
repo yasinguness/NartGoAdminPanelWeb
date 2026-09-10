@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
     Box, Typography, Card, CardContent, Grid, Stack, Select, MenuItem,
-    FormControl, InputLabel, alpha, Chip, Paper, LinearProgress,
+    FormControl, alpha, Paper, LinearProgress,
 } from '@mui/material';
 import {
     Send as SendIcon, DoneAll as DeliveredIcon, Visibility as OpenedIcon,
@@ -9,8 +9,7 @@ import {
     Unsubscribe as UnsubIcon, PhoneAndroid as AndroidIcon,
     PhoneIphone as IosIcon, Computer as WebIcon,
 } from '@mui/icons-material';
-import {
-    BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+import { PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart,
 } from 'recharts';
 import { AnalyticsTimeframe } from '../../../types/notifications/analytics';

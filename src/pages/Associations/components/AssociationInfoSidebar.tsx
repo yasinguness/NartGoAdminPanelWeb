@@ -1,5 +1,5 @@
 import React from 'react';
-import { Paper, Typography, Box, Button, Card, CardContent, CardHeader, Link, useTheme } from '@mui/material';
+import { Typography, Box, Button, Card, CardContent, CardHeader, Link, useTheme } from '@mui/material';
 import { 
   LocationOn as LocationIcon, 
   Map as MapIcon, 
@@ -15,7 +15,7 @@ interface AssociationInfoSidebarProps {
   timeline: AssociationTimeline[];
 }
 
-const AssociationInfoSidebar: React.FC<AssociationInfoSidebarProps> = ({ association, timeline }) => {
+const AssociationInfoSidebar: React.FC<AssociationInfoSidebarProps> = ({ association }) => {
   const theme = useTheme();
 
   return (

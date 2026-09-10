@@ -95,8 +95,21 @@ const getGreeting = (): string => {
   return 'İyi akşamlar';
 };
 
+/**
+ * Sunucu tarihini güvenli parse eder. Backend UTC saklar ama bazı endpoint'ler
+ * timezone'suz (naive) LocalDateTime döner ("2026-07-22T06:38:00"); tarayıcı bunu
+ * YEREL sanıp Türkiye'de (+3) 3 saat eksik gösterir. Timezone yoksa 'Z' ekleyip
+ * UTC olarak yorumlarız; zaten Z/offset varsa dokunmayız.
+ */
+const parseServerDate = (dateStr: string): Date => {
+  const s = (dateStr || '').trim();
+  if (!s) return new Date(NaN);
+  const hasTz = /[Zz]$|[+-]\d{2}:?\d{2}$/.test(s);
+  return new Date(hasTz ? s : s.replace(' ', 'T') + 'Z');
+};
+
 const relativeTime = (dateStr: string): string => {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const diff = Date.now() - parseServerDate(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'az önce';
   if (mins < 60) return `${mins} dk önce`;
@@ -107,7 +120,7 @@ const relativeTime = (dateStr: string): string => {
 };
 
 const formatSessionTime = (dateStr: string): string => {
-  const d = new Date(dateStr);
+  const d = parseServerDate(dateStr);
   return d.toLocaleString('tr-TR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -135,6 +148,32 @@ const getUserDisplayName = (name?: string | null, email?: string | null): string
   if (name?.trim()) return name;
   if (email?.trim()) return email.split('@')[0];
   return 'Bilinmiyor';
+};
+
+/**
+ * Ham user-agent'ı ("Dart/3.10 (dart:io)", "okhttp/…", tarayıcı UA'ları) insan-okur
+ * cihaz etiketine çevirir. Amaç: panelde "Dart/3.10 (dart:io)" yerine "NartGo Mobil"
+ * gibi anlamlı bir şey göstermek.
+ */
+const humanizeDevice = (raw?: string | null): { label: string; kind: 'mobile' | 'web' | 'desktop' | 'unknown' } => {
+  const ua = (raw || '').toLowerCase();
+  if (!ua) return { label: 'Bilinmiyor', kind: 'unknown' };
+  // Flutter/Dart HTTP istemcisi = NartGo mobil uygulaması
+  if (ua.includes('dart') || ua.includes('flutter') || ua.includes('okhttp'))
+    return { label: 'NartGo Mobil', kind: 'mobile' };
+  if (ua.includes('ipad')) return { label: 'iPad', kind: 'mobile' };
+  if (ua.includes('iphone') || ua.includes('cfnetwork') || ua.includes('darwin'))
+    return { label: 'iPhone', kind: 'mobile' };
+  if (ua.includes('android')) return { label: 'Android', kind: 'mobile' };
+  if (ua.includes('mobile')) return { label: 'Mobil cihaz', kind: 'mobile' };
+  if (ua.includes('edg')) return { label: 'Edge', kind: 'web' };
+  if (ua.includes('chrome')) return { label: 'Chrome', kind: 'web' };
+  if (ua.includes('firefox')) return { label: 'Firefox', kind: 'web' };
+  if (ua.includes('safari')) return { label: 'Safari', kind: 'web' };
+  if (ua.includes('windows')) return { label: 'Windows', kind: 'desktop' };
+  if (ua.includes('macintosh') || ua.includes('mac os')) return { label: 'Mac', kind: 'desktop' };
+  if (ua.includes('linux')) return { label: 'Linux', kind: 'desktop' };
+  return { label: (raw as string).length > 22 ? (raw as string).slice(0, 22) + '…' : (raw as string), kind: 'unknown' };
 };
 
 interface UpcomingNotification {
@@ -210,20 +249,21 @@ function QuickAction({ icon, label, desc, color, onClick }: {
   );
 }
 
-// ─── Main Component ───
+// ─── Main Component (role-aware router) ───
 export default function Dashboard() {
+  const { isAdmin, isOrganizer } = useRole();
+  if (isOrganizer && !isAdmin) return <OrganizerDashboard />;
+  return <AdminDashboard />;
+}
+
+function AdminDashboard() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  const { userName, isAdmin, isOrganizer } = useRole();
-
-  // Organizatör → kendi dashboard'unu göster
-  if (isOrganizer && !isAdmin) {
-    return <OrganizerDashboard />;
-  }
+  const { userName, isAdmin } = useRole();
 
   const [loading, setLoading] = useState(true);
-  const [overview, setOverview] = useState<LoginStatsOverviewDto | null>(null);
+  const [, setOverview] = useState<LoginStatsOverviewDto | null>(null);
   const [engagement, setEngagement] = useState<EngagementOverviewDto | null>(null);
   const [recentUsersData, setRecentUsersData] = useState<PageResponseDto<RecentLoggedInUserDto> | null>(null);
   const [topUsers, setTopUsers] = useState<TopLoginUserDto[]>([]);
@@ -251,14 +291,14 @@ export default function Dashboard() {
     setLoading(true);
     const results = await Promise.allSettled([
       adminLoginStatsService.getOverview(query),
-      adminLoginStatsService.getRecentUsers({ ...query, page, size: 10 }),
+      adminLoginStatsService.getRecentUsers({ ...query, page, size: 10, source: 'MOBILE' }),
       adminLoginStatsService.getEngagementOverview(),
-      adminLoginStatsService.getTopWeeklyUsers({ ...query, limit: 10 }),
+      adminLoginStatsService.getTopWeeklyUsers({ ...query, limit: 10, source: 'MOBILE' }),
       adminLoginStatsService.getActiveAlerts(query),
-      adminLoginStatsService.getRecentLogs({ ...query, limit: 10 }),
+      adminLoginStatsService.getRecentLogs({ ...query, limit: 10, source: 'MOBILE' }),
       campaignService.getCampaigns(undefined, 0, 5),
       api.get('/businesses', { params: { page: 0, size: 1 } }).catch(() => null),
-      api.get('/auth/all-users', { params: { page: 0, size: 1 } }).catch(() => null),
+      api.get('/auth/admin/users/count').catch(() => null),
       api.get('/events/popular/all', { params: { page: 0, size: 1 } }).catch(() => null),
     ]);
 
@@ -288,8 +328,10 @@ export default function Dashboard() {
       counts.businesses = d?.totalElements ?? d?.total ?? 0;
     }
     if (results[8]?.status === 'fulfilled') {
-      const d = (results[8] as any).value?.data?.data;
-      counts.users = d?.totalElements ?? d?.total ?? 0;
+      // /auth/admin/users/count → ApiResponse<Long> ; payload.data = number
+      const payload = (results[8] as any).value?.data;
+      const countVal = typeof payload?.data === 'number' ? payload.data : 0;
+      counts.users = countVal;
     }
     if (results[9]?.status === 'fulfilled') {
       const d = (results[9] as any).value?.data?.data;
@@ -587,7 +629,7 @@ export default function Dashboard() {
         <Box sx={{ px: 3, pt: 2.5, pb: 1 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="h6" fontWeight={700}>
-              Aktif Kullanıcılar
+              Mobil Kullanıcı Aktivitesi
             </Typography>
             <Chip
               label="Canlı"
@@ -690,7 +732,7 @@ export default function Dashboard() {
               <Stack direction="row" justifyContent="space-between" alignItems="center" px={3} pt={2.5} pb={1.5}>
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                   <Typography variant="h6" fontWeight={700}>
-                    Son Giriş Yapanlar
+                    Son Mobil Girişler
                   </Typography>
                   <Chip
                     label={`${recentUsersData?.totalElements ?? 0}`}
@@ -721,10 +763,7 @@ export default function Dashboard() {
                         Kullanıcı
                       </TableCell>
                       <TableCell sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary' }}>
-                        E-posta
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary' }}>
-                        Son Giriş
+                        Oturum / Giriş
                       </TableCell>
                       <TableCell sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary' }}>
                         Cihaz
@@ -737,9 +776,11 @@ export default function Dashboard() {
                   <TableBody>
                     {recentUsers.map((user) => {
                       const userLog = recentLogs.find((l) => l.userEmail === user.userEmail);
+                      // Online = son OTURUM (aktiflik) 1 saat içinde. Son giriş değil —
+                      // kullanıcı 20 gün önce giriş yapıp bugün hâlâ aktif olabilir.
                       const isRecent =
-                        user.lastLoginAt &&
-                        Date.now() - new Date(user.lastLoginAt).getTime() < 3600000;
+                        user.lastSessionAt &&
+                        Date.now() - new Date(user.lastSessionAt).getTime() < 3600000;
                       return (
                         <TableRow
                           key={user.userId}
@@ -756,8 +797,8 @@ export default function Dashboard() {
                             <Stack direction="row" alignItems="center" spacing={1.5}>
                               <Avatar
                                 sx={{
-                                  width: 34,
-                                  height: 34,
+                                  width: 36,
+                                  height: 36,
                                   fontSize: 13,
                                   fontWeight: 600,
                                   bgcolor: alpha(theme.palette.primary.main, 0.12),
@@ -766,72 +807,113 @@ export default function Dashboard() {
                               >
                                 {getInitials(user.displayName, user.userEmail)}
                               </Avatar>
-                              <Typography variant="body2" fontWeight={500}>
-                                {getUserDisplayName(user.displayName, user.userEmail)}
-                              </Typography>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" fontWeight={600} noWrap>
+                                  {getUserDisplayName(user.displayName, user.userEmail)}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  noWrap
+                                  sx={{ display: 'block', fontSize: 11.5 }}
+                                >
+                                  {user.userEmail || '-'}
+                                </Typography>
+                              </Box>
                             </Stack>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" color="text.secondary">
-                              {user.userEmail || '-'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-                              {user.lastLoginAt ? formatSessionTime(user.lastLoginAt) : '-'}
-                            </Typography>
-                            {user.lastLoginAt && (
-                              <Typography variant="caption" color="text.disabled" sx={{ fontSize: 11 }}>
-                                {relativeTime(user.lastLoginAt)}
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {userLog?.device ? (
-                              <Stack direction="row" alignItems="center" spacing={0.5}>
-                                {userLog.device.toLowerCase().includes('mobile') ? (
-                                  <PhoneIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
-                                ) : (
-                                  <LaptopIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
-                                )}
-                                <Typography variant="caption" color="text.secondary">
-                                  {userLog.device}
+                            <Stack spacing={0.75}>
+                              {/* Son Oturum — en son aktiflik (refresh/kullanım) */}
+                              <Box>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ fontSize: 9.5, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', lineHeight: 1.4 }}
+                                >
+                                  Son Oturum
                                 </Typography>
-                              </Stack>
-                            ) : (
-                              <Typography variant="caption" color="text.disabled">-</Typography>
-                            )}
+                                <Typography variant="body2" fontWeight={600} sx={{ fontSize: 12.5, whiteSpace: 'nowrap', lineHeight: 1.3 }}>
+                                  {user.lastSessionAt ? relativeTime(user.lastSessionAt) : '—'}
+                                </Typography>
+                                {user.lastSessionAt && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>
+                                    {formatSessionTime(user.lastSessionAt)}
+                                  </Typography>
+                                )}
+                              </Box>
+                              {/* Son Giriş — token yenilenmesi (yeniden login) */}
+                              <Box>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ fontSize: 9.5, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', lineHeight: 1.4 }}
+                                >
+                                  Son Giriş
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                                  {user.lastLoginAt ? formatSessionTime(user.lastLoginAt) : '—'}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const dev = humanizeDevice(userLog?.device);
+                              return (
+                                <Chip
+                                  size="small"
+                                  variant="outlined"
+                                  title={userLog?.device || undefined}
+                                  icon={
+                                    dev.kind === 'mobile' ? (
+                                      <PhoneIcon sx={{ fontSize: '15px !important' }} />
+                                    ) : (
+                                      <LaptopIcon sx={{ fontSize: '15px !important' }} />
+                                    )
+                                  }
+                                  label={dev.label}
+                                  sx={{
+                                    height: 26,
+                                    fontSize: 11.5,
+                                    fontWeight: 600,
+                                    borderRadius: 1.5,
+                                    color: 'text.secondary',
+                                    '& .MuiChip-icon': { color: 'text.secondary', ml: 0.75 },
+                                  }}
+                                />
+                              );
+                            })()}
                           </TableCell>
                           <TableCell align="center" sx={{ pr: 3 }}>
-                            <Chip
-                              size="small"
-                              label={isRecent ? 'Aktif' : 'Çevrimdışı'}
-                              sx={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                height: 24,
-                                borderRadius: 1.5,
-                                ...(isRecent
-                                  ? {
-                                      bgcolor: alpha(theme.palette.success.main, 0.1),
-                                      color: 'success.dark',
-                                    }
-                                  : {
-                                      bgcolor: alpha(theme.palette.grey[500], 0.08),
-                                      color: 'text.secondary',
-                                    }),
-                              }}
-                            />
+                            <Stack direction="row" alignItems="center" spacing={0.75} justifyContent="center">
+                              <Box
+                                sx={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: '50%',
+                                  bgcolor: isRecent ? 'success.main' : 'grey.400',
+                                  boxShadow: isRecent
+                                    ? `0 0 0 3px ${alpha(theme.palette.success.main, 0.18)}`
+                                    : 'none',
+                                }}
+                              />
+                              <Typography
+                                variant="caption"
+                                fontWeight={600}
+                                color={isRecent ? 'success.dark' : 'text.secondary'}
+                              >
+                                {isRecent ? 'Çevrimiçi' : 'Çevrimdışı'}
+                              </Typography>
+                            </Stack>
                           </TableCell>
                         </TableRow>
                       );
                     })}
                     {recentUsers.length === 0 && !loading && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                        <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
                           <PeopleIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
                           <Typography variant="body2" color="text.secondary">
-                            Henüz giriş kaydı bulunamadı
+                            Henüz mobil giriş kaydı bulunamadı
                           </Typography>
                         </TableCell>
                       </TableRow>
@@ -878,7 +960,7 @@ export default function Dashboard() {
                     <TrophyIcon sx={{ fontSize: 16 }} />
                   </Avatar>
                   <Typography variant="subtitle1" fontWeight={700}>
-                    Haftalık Sıralama
+                    Aktif Mobil Kullanıcılar
                   </Typography>
                 </Stack>
                 <Stack spacing={1.5}>

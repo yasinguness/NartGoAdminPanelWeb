@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Avatar,
     Box,
@@ -22,7 +22,6 @@ import {
     TextField,
     Typography,
     Alert,
-    FormControlLabel,
 } from '@mui/material';
 import {
     Close as CloseIcon,
@@ -44,6 +43,15 @@ interface SelectedUser {
     id: string;
     email: string;
     displayName: string;
+}
+
+interface UserRow {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    userStatus?: string;
+    accountType?: string;
 }
 
 interface Props {
@@ -111,14 +119,14 @@ export default function UserSelectionDialog({ open, onClose, onSuccess, onSelect
 
     const togglePage = () => {
         if (!usersData?.content) return;
-        const pageIds = usersData.content.map(u => u.id);
-        const allSelected = pageIds.every(id => selected.has(id));
+        const pageIds = usersData.content.map((u: UserRow) => u.id);
+        const allSelected = pageIds.every((id: string) => selected.has(id));
         setSelected(prev => {
             const next = new Map(prev);
             if (allSelected) {
-                pageIds.forEach(id => next.delete(id));
+                pageIds.forEach((id: string) => next.delete(id));
             } else {
-                usersData.content.forEach(u => {
+                usersData.content.forEach((u: UserRow) => {
                     const displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
                     next.set(u.id, { id: u.id, email: u.email, displayName });
                 });
@@ -169,7 +177,7 @@ export default function UserSelectionDialog({ open, onClose, onSuccess, onSelect
     };
 
     const selectedCount = selected.size;
-    const pageAllSelected = usersData?.content?.every(u => selected.has(u.id)) ?? false;
+    const pageAllSelected = usersData?.content?.every((u: UserRow) => selected.has(u.id)) ?? false;
 
     return (
         <>
@@ -233,7 +241,7 @@ export default function UserSelectionDialog({ open, onClose, onSuccess, onSelect
                         </Box>
                     ) : (
                         <List dense sx={{ maxHeight: 380, overflow: 'auto' }}>
-                            {usersData?.content?.map(user => {
+                            {usersData?.content?.map((user: UserRow) => {
                                 const name = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
                                 return (
                                     <ListItem

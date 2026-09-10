@@ -4,12 +4,28 @@ import { LoginResponseData } from '../types/auth';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { UserModel } from '../types/user';
+import { normalizeRole } from '../config/roles';
+import { getLandingPath } from '../config/workspaces';
 
 const authService = new AuthService();
 
 interface LoginCredentials {
     email: string;
     password: string;
+}
+
+/** user.role (Set | Array | string) → normalize → rol-bilinçli landing path. */
+function resolveLandingPath(user: UserModel): string {
+    const roles: string[] = [];
+    const r = user?.role as unknown;
+    if (r instanceof Set) {
+        r.forEach((x) => roles.push(normalizeRole(String(x))));
+    } else if (Array.isArray(r)) {
+        r.forEach((x) => roles.push(normalizeRole(String(x))));
+    } else if (typeof r === 'string') {
+        roles.push(normalizeRole(r));
+    }
+    return getLandingPath(roles);
 }
 
 export const useAuth = () => {
@@ -37,7 +53,11 @@ export const useAuth = () => {
                 user: user,
                 token: data.bearerToken,
             });
-            navigate('/dashboard');
+            // Rol-bilinçli landing: NB-only kullanıcı /dashboard'a giremez,
+            // hardcoded '/dashboard' onları admin endpoint'lerinde 401→login'e
+            // savuruyordu. İki panele de yetkisi olan önce hangisine gireceğini
+            // seçer; tek dünyası olan doğrudan iner.
+            navigate(resolveLandingPath(user));
         },
         onError: (error) => {
             // removed debug log
@@ -57,6 +77,8 @@ export const useAuth = () => {
     const logout = () => {
         authService.logout();
         logoutStore();
+        // Session flag'lerini temizle — yeni login'de auto-redirect tekrar çalışsın
+        sessionStorage.removeItem('organizer_auto_redirect_done');
         navigate('/login');
     };
 

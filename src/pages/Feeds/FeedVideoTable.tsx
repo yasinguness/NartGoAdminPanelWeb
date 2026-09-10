@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Box, Typography, Checkbox, Chip, Menu, MenuItem,
   Stack, Table, TableHead, TableBody,

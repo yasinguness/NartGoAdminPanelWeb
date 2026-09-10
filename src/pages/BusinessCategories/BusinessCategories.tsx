@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   Box,
   Button,
-  IconButton,
   Switch,
   Dialog,
   DialogTitle,
@@ -11,7 +10,6 @@ import {
   TextField,
   FormControlLabel,
   Stack,
-  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -25,7 +23,7 @@ import { BusinessCategory } from '../../store/businessCategoryStore';
 import { PageContainer, PageHeader, PageSection } from '../../components/Page';
 import { DataTable, StatusChip } from '../../components/Data';
 import { LoadingState, ErrorState, ConfirmDialog } from '../../components/Feedback';
-import { ActionButton, ActionMenu } from '../../components/Actions';
+import { ActionMenu } from '../../components/Actions';
 import { MenuItem, ListItemIcon, ListItemText } from '@mui/material';
 import { FormGrid } from '../../components/Form';
 
@@ -138,10 +136,10 @@ const BusinessCategories = () => {
       label: 'İşletmeler',
       align: 'center' as const,
       render: (row: BusinessCategory) => (
-        <StatusChip 
-          status={row.businessCount > 0 ? 'active' : 'inactive'} 
+        <StatusChip
+          status={(row.businessCount ?? 0) > 0 ? 'active' : 'inactive'}
           label={String(row.businessCount || 0)}
-          color={row.businessCount > 0 ? 'primary' : 'default'}
+          color={(row.businessCount ?? 0) > 0 ? 'primary' : 'default'}
         />
       )
     },
@@ -277,7 +275,7 @@ const BusinessCategories = () => {
         title="Kategoriyi Sil"
         message="Bu kategoriyi silmek istediğinize emin misiniz? Bu işlem geri alınamaz ve ilişkili işletmeleri etkileyebilir."
         severity="error"
-        confirmLabel="Sil"
+        confirmText="Sil"
         onConfirm={handleDeleteConfirm}
         onClose={() => setDeleteId(null)}
       />

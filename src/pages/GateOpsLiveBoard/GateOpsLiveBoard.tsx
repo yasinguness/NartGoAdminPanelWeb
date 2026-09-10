@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { useDefaultEvent } from '../../hooks/useDefaultEvent';
 import {
   Box,
   Typography,
@@ -32,7 +33,6 @@ import {
   Stop,
   Close,
   Settings,
-  Download,
   MeetingRoom,
   Refresh,
   Wifi,
@@ -43,7 +43,6 @@ import { useSnackbar } from 'notistack';
 import {
   gateOpsService,
   CheckInStats,
-  TicketValidationResponse,
   CheckInAuditEntry,
   FraudAlarm,
 } from '../../services/gate-ops/gateOps.service';
@@ -150,7 +149,7 @@ function timeNow(): string {
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
-function randomSeat(cat: string): { row: string; seat: number } {
+function randomSeat(_cat: string): { row: string; seat: number } {
   const rows = 'ABCDEFGHIJKLMNOP';
   return { row: rows[Math.floor(Math.random() * 8)], seat: Math.floor(Math.random() * 30) + 1 };
 }
@@ -166,17 +165,29 @@ export default function GateOpsLiveBoard() {
   // URL params
   const { eventId: paramEventId } = useParams<{ eventId?: string }>();
   const [searchParams] = useSearchParams();
-  const eventId = paramEventId || searchParams.get('eventId') || '';
+  const urlEventId = paramEventId || searchParams.get('eventId') || '';
+
+  // Kullanıcının aktif tek etkinliği varsa auto-select
+  const { defaultEventId } = useDefaultEvent();
+  const [manualEventId, _setManualEventId] = useState('');
+  const eventId = urlEventId || manualEventId || defaultEventId || '';
 
   // Mode
   const [mode, setMode] = useState<'demo' | 'live'>(eventId ? 'live' : 'demo');
+
+  // defaultEventId yüklendiğinde live moda geç
+  useEffect(() => {
+    if (!urlEventId && defaultEventId && mode === 'demo') {
+      setMode('live');
+    }
+  }, [defaultEventId, urlEventId, mode]);
 
   // Core state (used in demo mode, partially updated in live mode)
   const [counts, setCounts] = useState({ checkin: 0, errors: 0, dups: 0, vip: 0 });
   const [catCounts, setCatCounts] = useState<Record<string, number>>({ sahne: 0, vip: 0, standart: 0, balkon: 0 });
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [alerts, setAlerts] = useState<AlertEntry[]>([]);
-  const [vipLog, setVipLog] = useState<LogEntry[]>([]);
+  const [_vipLog, setVipLog] = useState<LogEntry[]>([]);
   const [paceData, setPaceData] = useState<number[]>(Array(12).fill(0));
   const [checkedIn, setCheckedIn] = useState<Set<string>>(new Set());
 
@@ -199,9 +210,9 @@ export default function GateOpsLiveBoard() {
 
   // Live data state
   const [liveStats, setLiveStats] = useState<CheckInStats | null>(null);
-  const [liveAudits, setLiveAudits] = useState<CheckInAuditEntry[]>([]);
-  const [liveFraudAlarms, setLiveFraudAlarms] = useState<FraudAlarm[]>([]);
-  const [liveHourlyCounts, setLiveHourlyCounts] = useState<number[]>(Array(12).fill(0));
+  const [_liveAudits, setLiveAudits] = useState<CheckInAuditEntry[]>([]);
+  const [_liveFraudAlarms, setLiveFraudAlarms] = useState<FraudAlarm[]>([]);
+  const [_liveHourlyCounts, setLiveHourlyCounts] = useState<number[]>(Array(12).fill(0));
   const [liveLoading, setLiveLoading] = useState(false);
 
   // Pace tracker — every 30s push counter to paceData (demo mode only)
@@ -392,7 +403,7 @@ export default function GateOpsLiveBoard() {
         setCheckedIn(p => { const s = new Set(p); s.add(key); return s; });
         paceCounterRef.current += 1;
         if (category === 'vip') {
-          setVipLog(p => [{ type: 'success', name, detail, time: timeNow() }, ...p].slice(0, 20));
+          setVipLog(p => [{ type: 'success' as ScanState, name, detail, time: timeNow() }, ...p].slice(0, 20));
         }
       } else if (resultState === 'error') {
         setCounts(p => {

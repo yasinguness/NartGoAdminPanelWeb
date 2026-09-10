@@ -4,8 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import {
-  Box, Typography, Paper, Grid, Chip, Stack, alpha, useTheme, styled, Fade, Tooltip,
-  TextField, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton,
+  Box, Typography, Paper, Grid, Chip, Stack, alpha, useTheme, styled, Fade, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton,
 } from '@mui/material';
 import {
   EventSeat as SeatIcon,
@@ -17,7 +16,6 @@ import {
   Place as PlaceIcon,
   Close as CloseIcon,
   Edit as EditIcon,
-  Visibility as PreviewIcon,
   Bookmark as BookmarkIcon,
 } from '@mui/icons-material';
 import {
@@ -35,13 +33,6 @@ import { seatTemplateService, type SeatTemplate } from '../../../services/ticket
 
 // ─── Types ────────────────────────────────────────────────
 // LocationDetails replaced by AddressValue from GooglePlacesInput
-interface _Deprecated_LocationDetails {
-  city?: string;
-  district?: string;
-  lat?: number;
-  lng?: number;
-  fullAddress?: string;
-}
 
 interface SeatPlanStepProps {
   isSeated: boolean | null;
@@ -267,7 +258,6 @@ export default function SeatPlanStep({
   isSeated, onSeatedChange, selectedTemplate, onTemplateSelect, capacity,
   addressValue, onAddressChange,
   customSections, onCustomSectionsChange,
-  capacityValue, onCapacityChange, capacityError,
   editorMode, onEditorModeChange,
 }: SeatPlanStepProps) {
   const theme = useTheme();
@@ -336,7 +326,7 @@ export default function SeatPlanStep({
       }];
     }
 
-    return Array.from(sectionMap.entries()).map(([key, sec], i) => ({
+    return Array.from(sectionMap.entries()).map(([_key, sec], i) => ({
       id: `sec-saved-${i}-${Date.now()}`,
       name: sec.name,
       offsetX: 0, offsetY: i * 100,

@@ -34,4 +34,15 @@ export const businessClaimService = {
     );
     return response.data.data;
   },
+
+  /** Toplu onay/reddet — seçilen claim'lere aynı kararı uygular (best-effort). */
+  reviewClaimsBulk: async (
+    claimIds: string[],
+    review: BusinessClaimReviewRequest,
+  ): Promise<{ requested: number; succeeded: number; failed: unknown[]; decision: string }> => {
+    const response = await api.patch<
+      ApiResponse<{ requested: number; succeeded: number; failed: unknown[]; decision: string }>
+    >('/businesses/admin/claims/bulk', { claimIds, review });
+    return response.data.data;
+  },
 };

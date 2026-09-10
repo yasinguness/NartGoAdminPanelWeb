@@ -13,28 +13,16 @@ import {
   Stack,
   Avatar,
   TextField,
-  InputAdornment,
   Chip,
   LinearProgress,
   IconButton,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControlLabel,
-  Switch,
-  Autocomplete,
-  CircularProgress,
   Skeleton,
   alpha,
   Grid,
-  Paper,
-  Tooltip,
-  Zoom,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -43,37 +31,24 @@ import {
   TrendingUp as TrendingUpIcon,
   People as PeopleIcon,
   ConfirmationNumber as TicketIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  MoreVert as MoreIcon,
-  PauseCircle as PauseIcon,
-  PlayCircle as PlayIcon,
   LocationOn as LocationIcon,
-  Category as CategoryIcon,
   Save as SaveIcon,
   Close as CloseIcon,
   Person as PersonIcon,
   CloudUpload as CloudUploadIcon,
-  InsertPhoto as PhotoIcon,
   ArrowForwardIos as ChevronIcon,
 } from '@mui/icons-material';
-import { format } from 'date-fns';
 import { formatDate, formatTime } from '../../utils/dateUtils';
 import { debounce } from 'lodash';
 import { useSnackbar } from 'notistack';
 
 import { useEvent } from '../../hooks/useEvent';
-import { EventResponseDTO, EventStatus, EventSearchDTO, EventCategoryDto } from '../../types/events/eventModel';
+import { EventResponseDTO, EventStatus, EventSearchDTO } from '../../types/events/eventModel';
 import { AddressDTO } from '../../types/businesses/addressModel';
-import { associationService } from '../../services/association/associationService';
-import { AssociationSummaryResponse } from '../../types/association/associationSummaryResponse';
-import { useEventCategories } from '../../hooks/useEventCategories';
-import { searchPlaces, getPlaceDetails, PlacePrediction, loadGoogleMapsScript } from '../../services/google/googlePlacesService';
 
 // Layout Components
 import { PageContainer, PageHeader } from '../../components/Page';
 import { ConfirmDialog } from '../../components/Feedback';
-import { FormSection, FormGrid } from '../../components/Form';
 import UserSearchAutocomplete from '../../components/UserSearchAutocomplete';
 import { UserDTO } from '../../types/users/userModel';
 
@@ -122,11 +97,8 @@ export default function Events() {
 
   // Dialog & Menu States
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<EventResponseDTO | undefined>();
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
-  const [eventToDelete, setEventToDelete] = useState<EventResponseDTO | null>(null);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [menuEvent, setMenuEvent] = useState<EventResponseDTO | null>(null);
+  const [eventToDelete] = useState<EventResponseDTO | null>(null);
 
   // Admin Create Dialog
   const [selectedOwner, setSelectedOwner] = useState<UserDTO | null>(null);
@@ -149,16 +121,15 @@ export default function Events() {
     events: allEvents,
     loading,
     getPopularEvents,
-    createEvent,
     createEventAsAdmin,
-    updateEvent,
     deleteEvent,
-    updateActiveStatus,
   } = useEvent();
 
   // Organizatör kendi etkinliklerini görür
   const [myEvents, setMyEvents] = useState<EventResponseDTO[]>([]);
+  const [myEventsLoading, setMyEventsLoading] = useState(false);
   const events = isAdmin ? allEvents : myEvents;
+  const effectiveLoading = isAdmin ? loading : myEventsLoading;
 
   // ─── DATA FETCHING ────────────────────────────────
   const fetchEventsData = useCallback(async () => {
@@ -169,11 +140,13 @@ export default function Events() {
       };
       await getPopularEvents(searchParams, page, rowsPerPage);
     } else {
+      setMyEventsLoading(true);
       try {
         const res = await adminOperationsService.getMyEvents();
         const list = Array.isArray(res) ? res : (res as any)?.data ?? [];
         setMyEvents(list);
       } catch { setMyEvents([]); }
+      finally { setMyEventsLoading(false); }
     }
   }, [isAdmin, getPopularEvents, page, rowsPerPage, searchQuery]);
 
@@ -202,14 +175,6 @@ export default function Events() {
     setSearchQuery(value);
     setPage(0);
   }, 500);
-
-  const handleOpenCreateDialog = () => {
-    setSelectedOwner(null);
-    setCreateFormData({ name: '', description: '', maxParticipants: 100, ticketPrice: 0, eventTime: '', endTime: '', city: '' });
-    setEventImage(null);
-    setImagePreview(null);
-    setOpenDialog(true);
-  };
 
   const handleCreateAsAdmin = async () => {
     if (!selectedOwner) {
@@ -283,6 +248,20 @@ export default function Events() {
           ]}
         />
 
+        {/* ═══ TOP-LEVEL LOADING INDICATOR ═══ */}
+        {effectiveLoading && (
+          <Box sx={{ mb: 2 }}>
+            <LinearProgress
+              sx={{
+                height: 3,
+                borderRadius: 2,
+                bgcolor: alpha('#1e6b3c', 0.08),
+                '& .MuiLinearProgress-bar': { bgcolor: '#1e6b3c' },
+              }}
+            />
+          </Box>
+        )}
+
         {/* ═══ STAT CARDS ═══ */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {[
@@ -298,9 +277,13 @@ export default function Events() {
                     <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing={1}>
                       {stat.label}
                     </Typography>
-                    <Typography variant="h4" fontWeight={800} sx={{ mt: 0.75, color: stat.color }}>
-                      {stat.value}
-                    </Typography>
+                    {effectiveLoading ? (
+                      <Skeleton variant="text" width="70%" height={44} sx={{ mt: 0.75 }} />
+                    ) : (
+                      <Typography variant="h4" fontWeight={800} sx={{ mt: 0.75, color: stat.color }}>
+                        {stat.value}
+                      </Typography>
+                    )}
                   </Box>
                   <Avatar sx={{ bgcolor: alpha(stat.color, 0.12), color: stat.color, width: 48, height: 48, borderRadius: 2.5 }}>
                     {stat.icon}
@@ -361,10 +344,10 @@ export default function Events() {
 
         {/* ═══ EVENTS LIST ═══ */}
         <Stack spacing={2}>
-          {loading ? (
+          {effectiveLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <Box key={i} sx={{ ...glassCardSx, p: 2.5 }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 48px' }, gap: 3, alignItems: 'center' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 130px' }, gap: 3, alignItems: 'center' }}>
                   <Skeleton variant="rounded" width={80} height={80} sx={{ borderRadius: 3 }} />
                   <Box>
                     <Skeleton variant="text" width="70%" height={24} />
@@ -399,11 +382,11 @@ export default function Events() {
                 <Box
                   key={event.id}
                   sx={glassCardSx}
-                  onClick={() => navigate(`/events/${event.id}`)}
+                  onClick={() => navigate(`/event-console/${event.id}`)}
                 >
                   <Box sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 48px' },
+                    gridTemplateColumns: { xs: '1fr', md: '80px 1.5fr 1fr 1.2fr 100px 130px' },
                     gap: 3,
                     alignItems: 'center',
                     p: 2.5,
@@ -427,6 +410,14 @@ export default function Events() {
                           <LocationIcon sx={{ fontSize: 14 }} /> {event.address?.city || 'İstanbul'}
                         </Typography>
                         <Chip label={event.category?.name || 'Genel'} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 700 }} />
+                        {(event as any).isShowNb === true && (
+                          <Chip
+                            label="NB"
+                            size="small"
+                            title="NartBusiness uygulamasında gösteriliyor"
+                            sx={{ height: 20, fontSize: 10, fontWeight: 800, bgcolor: '#1B2A4A', color: '#C9A227', letterSpacing: 0.5 }}
+                          />
+                        )}
                       </Stack>
                     </Box>
 
@@ -474,13 +465,30 @@ export default function Events() {
                       />
                     </Box>
 
-                    {/* Action */}
-                    <IconButton
-                      className="chevron-icon"
-                      sx={{ opacity: 0.4, transition: 'all 0.3s' }}
+                    {/* Action — tek doğruluk kaynağı: Operasyon Konsolu */}
+                    <Button
+                      size="small"
+                      variant="contained"
+                      endIcon={<ChevronIcon sx={{ fontSize: 16 }} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/event-console/${event.id}`);
+                      }}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        fontSize: 11,
+                        px: 1.5, py: 0.5,
+                        borderRadius: 1.5,
+                        bgcolor: '#F8FAFC',
+                        color: '#C9A227',
+                        '&:hover': { bgcolor: '#1a2b1f' },
+                        whiteSpace: 'nowrap',
+                        '& .MuiButton-endIcon': { ml: 0.25 },
+                      }}
                     >
-                      <ChevronIcon />
-                    </IconButton>
+                      Konsola Git
+                    </Button>
                   </Box>
                 </Box>
               );

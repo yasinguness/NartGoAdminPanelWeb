@@ -191,12 +191,6 @@ export default function UserGamificationRewardsPanel({
 
     const items = rewardsPage?.content ?? [];
 
-    // ── Category breakdown for summary ────────────────────────────
-    const byCategory = items.reduce<Record<string, number>>((acc, r) => {
-        const cat = r.category || 'DİĞER';
-        acc[cat] = (acc[cat] ?? 0) + (r.points > 0 ? r.points : 0);
-        return acc;
-    }, {});
     const totalEarned = items.filter(r => r.points > 0).reduce((s, r) => s + r.points, 0);
     const totalPenalty = items.filter(r => r.points < 0).reduce((s, r) => s + r.points, 0);
 

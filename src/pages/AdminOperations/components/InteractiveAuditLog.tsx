@@ -16,12 +16,8 @@ import {
   ListItemText,
   ListItemIcon,
   Avatar,
-  IconButton,
   Menu,
   LinearProgress,
-  Skeleton,
-  Alert,
-  CircularProgress,
 } from '@mui/material';
 import { adminOperationsService } from '../../../services/admin/adminOperationsService';
 import {
@@ -32,7 +28,6 @@ import {
   FactCheck as StaffIcon,
   QrCodeScanner as CheckInIcon,
   AdminPanelSettings as AdminIcon,
-  MoreVert as MoreVertIcon,
   BarChart as ChartIcon,
   ConfirmationNumber as TicketIcon,
 } from '@mui/icons-material';
@@ -64,7 +59,6 @@ export default function InteractiveAuditLog({
   eventName,
   onFetchAdminAudit,
   onBackfillAdminAudit,
-  onFetchCheckInAudit,
   onFetchMyHistory,
   onFetchStaffStats,
   onFetchRecentCheckIns,
@@ -74,7 +68,7 @@ export default function InteractiveAuditLog({
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [auditData, setAuditData] = useState<AuditEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
 
   // Ticket Audit Search
   const [ticketSearch, setTicketSearch] = useState('');

@@ -2,6 +2,8 @@ import { api } from '../api';
 import { ApiResponse } from '../../types/api';
 import {
   GamificationConfigDto,
+  GamificationConfigCreateRequest,
+  GamificationConfigRecordDto,
   GamificationMonthlyRewardsDto,
   MonthlyRewardItemDto,
 } from '../../types/gamification/gamificationAdmin';

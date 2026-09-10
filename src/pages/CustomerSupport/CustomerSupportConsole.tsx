@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { customerSupportService } from '../../services/customer-support/customerSupport.service';
 import {
   Box, Typography, Paper, Stack, Button, TextField, InputAdornment,
-  Avatar, Divider, Chip, CircularProgress, Table, TableBody, TableCell,
+  Avatar, CircularProgress, Table, TableBody, TableCell,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions,
   IconButton, alpha, useTheme,
 } from '@mui/material';
@@ -12,9 +12,6 @@ import {
   Phone as PhoneIcon,
   Send as SendIcon,
   MoneyOff as RefundIcon,
-  CheckCircle as CheckedIcon,
-  Cancel as CancelIcon,
-  Pending as PendingIcon,
   ConfirmationNumber as TicketIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';

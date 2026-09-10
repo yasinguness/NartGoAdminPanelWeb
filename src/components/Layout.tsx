@@ -6,164 +6,153 @@ import {
     Drawer,
     Typography,
     useTheme,
+    ThemeProvider,
     Avatar,
-    Divider,
     alpha,
     Tooltip,
     IconButton,
-    Stack,
 } from '@mui/material';
 import {
-    Dashboard as DashboardIcon,
-    Devices as DevicesIcon,
     Notifications as NotificationsIcon,
-    People as PeopleIcon,
     ExitToApp as LogoutIcon,
-    Business as BusinessIcon,
-    Category as CategoryIcon,
     Settings as SettingsIcon,
-    Event as EventIcon,
-    EventNote as EventCategoryIcon,
-    HomeWork,
-    Feed as FeedIcon,
-    EmojiEvents as EmojiEventsIcon,
-    FactCheck as FactCheckIcon,
-    AccountBalance as AccountBalanceIcon,
-    TrendingUp as TrendingUpIcon,
-    PointOfSale as PointOfSaleIcon,
-    Sensors as SensorsIcon,
-    SupportAgent as SupportIcon,
-    LocalActivity as LocalActivityIcon,
-    ConfirmationNumber as TicketIcon,
-    Campaign as CampaignIcon,
-    EventSeat as EventSeatIcon,
-    Article as ArticleIcon,
     Menu as MenuIcon,
     Search as SearchIcon,
-    ManageSearch as AuditIcon,
+    SwapHoriz as SwapIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import { useAdminBadgeCounts } from '../hooks/useAdminBadgeCounts';
 import { usePageTracking } from '../hooks/analytics/useAnalytics';
 import { useRole } from '../hooks/useRole';
+import { useDefaultEvent } from '../hooks/useDefaultEvent';
 import { useState } from 'react';
+import { nb } from '../theme/nbBrand';
+import { theme as baseTheme } from '../theme/index';
+import { nbTheme } from '../theme/nbTheme';
+import { workspaceForPath, workspacesForRoles, WORKSPACES, type Workspace } from '../config/workspaces';
+import { useWorkspaceStore } from '../store/workspaceStore';
 
 const DRAWER_W = 260;
 
-interface NavItem {
-    text: string;
-    icon: React.ReactNode;
-    path: string;
-    allowedRoles?: string[];
+interface LayoutShellProps {
+    workspace: Workspace;
+    /** Kullanıcı birden fazla panele girebiliyorsa üstte değiştirici çıkar. */
+    canSwitch: boolean;
 }
 
-interface NavSection {
-    title: string;
-    items: NavItem[];
-    allowedRoles?: string[];
-}
-
-const navSections: NavSection[] = [
-    {
-        title: 'Genel',
-        items: [
-            { text: 'Kontrol Paneli', icon: <DashboardIcon />, path: '/dashboard' },
-        ],
-    },
-    {
-        title: 'Etkinlik Yönetimi',
-        items: [
-            { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
-            { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories' },
-            { text: 'Etkinlik Oluştur', icon: <TicketIcon />, path: '/event-creation' },
-            { text: 'Bilet Yönetimi', icon: <TicketIcon />, path: '/tickets' },
-            { text: 'Salon Planları', icon: <EventSeatIcon />, path: '/seat-templates' },
-        ],
-    },
-    {
-        title: 'İşletme Yönetimi',
-        items: [
-            { text: 'İşletmeler', icon: <BusinessIcon />, path: '/businesses' },
-            { text: 'İşletme Talepleri', icon: <FactCheckIcon />, path: '/business-claims' },
-            { text: 'İşletme Kategorileri', icon: <CategoryIcon />, path: '/business-categories' },
-        ],
-    },
-    {
-        title: 'Satış & Finans',
-        items: [
-            { text: 'Satış Özeti', icon: <TrendingUpIcon />, path: '/sales-command' },
-            { text: 'Ödeme & Mutabakat', icon: <AccountBalanceIcon />, path: '/settlement-finance' },
-            { text: 'Alt Bayiler', icon: <AccountBalanceIcon />, path: '/sub-merchants' },
-        ],
-    },
-    {
-        title: 'Kullanıcılar',
-        items: [
-            { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users' },
-            { text: 'Dernekler', icon: <HomeWork />, path: '/associations' },
-        ],
-    },
-    {
-        title: 'İçerik',
-        items: [
-            { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
-        ],
-    },
-    {
-        title: 'İçerik Yönetimi',
-        items: [
-            { text: 'Bildirimler', icon: <NotificationsIcon />, path: '/notifications' },
-            { text: 'Video Akışı', icon: <FeedIcon />, path: '/feeds' },
-            { text: 'Bültenler', icon: <CampaignIcon />, path: '/bulletins' },
-            { text: 'Kampanya Motoru', icon: <LocalActivityIcon />, path: '/campaign-engine' },
-        ],
-    },
-    {
-        title: 'Operasyonlar',
-        items: [
-            { text: 'Müşteri Destek', icon: <SupportIcon />, path: '/customer-support' },
-        ],
-    },
-    {
-        title: 'Sistem',
-        items: [
-            { text: 'Cihazlar', icon: <DevicesIcon />, path: '/devices' },
-            { text: 'Oyunlaştırma', icon: <EmojiEventsIcon />, path: '/gamification' },
-            { text: 'Audit Log', icon: <AuditIcon />, path: '/audit-log' },
-            { text: 'Panel Analitik', icon: <TrendingUpIcon />, path: '/analytics' },
-            { text: 'Ayarlar', icon: <SettingsIcon />, path: '/settings' },
-        ],
-    },
-];
-
+/**
+ * Kabuk, hangi panelde olduğunu adresten öğrenir ve navigasyonunu
+ * workspace'ten alır. Eskiden 160 satırlık nav dizisi bu dosyanın içindeydi
+ * ve iki dünyanın menüsü tek listede iç içeydi.
+ */
 export default function Layout() {
+    const location = useLocation();
+    const { roles } = useRole();
+
+    const workspace = useMemo(
+        () => workspaceForPath(location.pathname),
+        [location.pathname],
+    );
+    const canSwitch = useMemo(
+        () => workspacesForRoles(roles).length > 1,
+        [roles],
+    );
+
+    return (
+        <ThemeProvider theme={workspace.id === 'nartbusiness' ? nbTheme : baseTheme}>
+            <LayoutShell workspace={workspace} canSwitch={canSwitch} />
+        </ThemeProvider>
+    );
+}
+
+function LayoutShell({ workspace, canSwitch }: LayoutShellProps) {
+
     const [mobileOpen, setMobileOpen] = useState(false);
+
+    // ── Navigasyon: arama + katlanabilir gruplar ──────────────────────────
+    //
+    // 79 menü öğesi tek düz listede duruyordu; hepsi aynı görsel ağırlıkta,
+    // hepsi her zaman açık. Sorun uzunluk değil hiyerarşi yokluğuydu.
+    // Çözüm iki katmanlı: yazarak filtrele (bilen kullanıcı) + yalnız içinde
+    // bulunduğun grup açık (gezinen kullanıcı).
+    const [navQuery, setNavQuery] = useState('');
+    const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+        try {
+            const raw = localStorage.getItem('nav.collapsed');
+            return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+        } catch {
+            return {};
+        }
+    });
+
+    // Anahtar workspace ile birlikte: "Genel" iki panelde de var, ortak
+    // anahtarla birini katlamak diğerini de katlıyordu.
+    const sectionKey = (title: string) => `${workspace.id}:${title}`;
+
+    const toggleSection = (title: string) => {
+        const key = sectionKey(title);
+        setCollapsed((prev) => {
+            const next = { ...prev, [key]: !prev[key] };
+            try {
+                localStorage.setItem('nav.collapsed', JSON.stringify(next));
+            } catch {
+                /* storage kapalı olabilir — davranış bozulmasın */
+            }
+            return next;
+        });
+    };
     const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
-    const { roles, userName, isEditorOnly, isAdmin, canAccess } = useRole();
+    const { roles, userName, isEditorOnly, isAdmin, isOrganizer, canAccess } = useRole();
     const { logout } = useAuth();
+    // Sidebar "müdahale bekleyen" kuyruk sayıları (60sn polling).
+    const badgeCounts = useAdminBadgeCounts();
+    const setLastWorkspace = useWorkspaceStore((st) => st.setLastWorkspace);
+
+    // Organizator için aktif etkinlik sayısı (sidebar context indicator)
+    // Etkinlik bağlamı yalnız NartGo'da anlamlı; NB'de istek bile atılmaz.
+    const { events, defaultEventId } = useDefaultEvent({ enabled: workspace.id === 'nartgo' });
+    const showEventContext = workspace.id === 'nartgo' && (isOrganizer || isAdmin) && !isEditorOnly;
 
     // Analytics: track every page navigation
     usePageTracking();
 
     const visibleSections = useMemo(() => {
-        return navSections
+        return workspace.nav
+            .filter((s) => {
+                // Section-level rol kontrolü — tüm allowedRoles listesinden en az biri eşleşmeli
+                if (s.allowedRoles && s.allowedRoles.length > 0) {
+                    return isAdmin || s.allowedRoles.some(r => roles.map(x => x.toUpperCase()).includes(r.toUpperCase()));
+                }
+                return true;
+            })
             .map((s) => ({
                 ...s,
-                items: s.items.filter((item) => canAccess(item.path)),
+                items: s.items
+                    .filter((item) => {
+                        // Item-level allowedRoles varsa önce onu kontrol et
+                        if (item.allowedRoles && item.allowedRoles.length > 0) {
+                            if (!isAdmin && !item.allowedRoles.some(r => roles.map(x => x.toUpperCase()).includes(r.toUpperCase()))) {
+                                return false;
+                            }
+                        }
+                        // Sonra ROLE_ROUTE_MAP kontrolü (default-deny)
+                        return canAccess(item.path);
+                    }),
             }))
             .filter((s) => s.items.length > 0);
-    }, [canAccess]);
+    }, [canAccess, isAdmin, roles, workspace.nav]);
 
     const isZenMode = location.pathname.includes('seat-map') && new URLSearchParams(location.search).get('zen') === 'true';
 
     const currentPageTitle = useMemo(() => {
-        for (const s of navSections) {
+        for (const s of workspace.nav) {
             const found = s.items.find((i) => location.pathname === i.path);
             if (found) return found.text;
         }
         return 'Kontrol Paneli';
-    }, [location.pathname]);
+    }, [location.pathname, workspace.nav]);
 
     const initials = userName
         ? userName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -174,138 +163,302 @@ export default function Layout() {
         setMobileOpen(false);
     };
 
+    // Değiştirici iki panel varsayar; ikiden fazlası olursa burası
+    // bir menüye dönüşmeli.
+    const otherWorkspace = WORKSPACES.find((w) => w.id !== workspace.id) ?? workspace;
+
+    const handleWorkspaceSwitch = () => {
+        setLastWorkspace(otherWorkspace.id);
+        navigate(otherWorkspace.defaultPath);
+        setMobileOpen(false);
+    };
+
     const handleLogout = async () => {
         try { await logout(); } catch { /* */ }
     };
 
-    // ─── Sidebar content ─────────────────────────────
+    // ─── Sidebar content (EventConsole premium stili) ─────
     const sidebar = (
         <Box sx={{
             height: '100%', display: 'flex', flexDirection: 'column',
-            background: '#fafbfc',
+            bgcolor: workspace.sidebarBg,
+            color: 'white',
+            overflow: 'hidden',
         }}>
             {/* Brand */}
             <Box sx={{
-                px: 2.5, py: 2, display: 'flex', alignItems: 'center', gap: 1.5,
-                borderBottom: `1px solid ${theme.palette.divider}`,
+                px: 2.5, py: 2.5, display: 'flex', alignItems: 'center', gap: 1.5,
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
             }}>
                 <Box sx={{
-                    width: 34, height: 34, borderRadius: 2,
-                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                    width: 32, height: 32, borderRadius: '50%',
+                    bgcolor: nb.goldSoft,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', fontWeight: 900, fontSize: 15,
+                    color: workspace.sidebarBg, fontWeight: 800,
+                    fontSize: workspace.monogram.length > 1 ? 12 : 14,
                 }}>
-                    N
+                    {workspace.monogram}
                 </Box>
-                <Box>
-                    <Typography sx={{ fontWeight: 800, fontSize: 15, lineHeight: 1.2, color: theme.palette.text.primary }}>
-                        NartGo
+                <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2, color: 'white', letterSpacing: 0.3 }} noWrap>
+                        {workspace.name}
                     </Typography>
-                    <Typography sx={{ fontSize: 10.5, color: theme.palette.text.secondary, fontWeight: 500 }}>
-                        Yönetim Paneli
+                    <Typography sx={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }} noWrap>
+                        {workspace.tagline}
                     </Typography>
                 </Box>
+            </Box>
+
+            {/* Context Indicator — aktif etkinlik sayısı */}
+            {showEventContext && events.length > 0 && (
+                <Box
+                    onClick={() => {
+                        if (defaultEventId) {
+                            handleNav(`/event-console/${defaultEventId}`);
+                        } else {
+                            handleNav('/events');
+                        }
+                    }}
+                    sx={{
+                        mx: 1.5, mt: 1.5, px: 1.5, py: 1,
+                        borderRadius: 1.5,
+                        cursor: 'pointer',
+                        bgcolor: 'rgba(201,162,39,0.08)',
+                        border: '1px solid rgba(201,162,39,0.2)',
+                        '&:hover': { bgcolor: 'rgba(201,162,39,0.14)' },
+                    }}
+                >
+                    <Typography sx={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, fontWeight: 600 }}>
+                        {events.length === 1 ? 'AKTİF ETKİNLİK' : `${events.length} ETKİNLİK`}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: nb.goldSoft, fontWeight: 600, mt: 0.3 }} noWrap>
+                        {events.length === 1 ? events[0].name : 'Etkinlikleri Yönet →'}
+                    </Typography>
+                </Box>
+            )}
+
+            {/* Arama — bilen kullanıcı için en kısa yol */}
+            <Box sx={{ px: 1.5, pt: 1.5, pb: 0.5 }}>
+                <Box
+                    component="input"
+                    value={navQuery}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNavQuery(e.target.value)}
+                    placeholder="Menüde ara"
+                    aria-label="Menüde ara"
+                    sx={{
+                        width: '100%',
+                        px: 1.5, py: 1,
+                        borderRadius: 2,
+                        border: `1px solid ${nb.onDarkLine}`,
+                        bgcolor: 'rgba(255,255,255,0.04)',
+                        color: nb.onDark,
+                        fontSize: 13,
+                        font: 'inherit',
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        '&::placeholder': { color: nb.onDarkFaint },
+                        '&:focus': {
+                            borderColor: nb.goldSoft,
+                            bgcolor: 'rgba(255,255,255,0.06)',
+                        },
+                    }}
+                />
             </Box>
 
             {/* Navigation */}
-            <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', py: 1 }}>
-                {visibleSections.map((section) => (
-                    <Box key={section.title} sx={{ mb: 0.5 }}>
-                        {/* Section label */}
-                        <Typography sx={{
-                            px: 2.5, pt: 1.5, pb: 0.5,
-                            fontSize: 10, fontWeight: 700, letterSpacing: 1,
-                            textTransform: 'uppercase',
-                            color: theme.palette.text.disabled,
-                            userSelect: 'none',
-                        }}>
-                            {section.title}
-                        </Typography>
+            <Box
+                component="nav"
+                role="navigation"
+                aria-label="Ana navigasyon"
+                sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', pb: 2 }}
+            >
+                {visibleSections.map((section) => {
+                    const q = navQuery.trim().toLocaleLowerCase('tr');
+                    const items = q
+                        ? section.items.filter((i) => i.text.toLocaleLowerCase('tr').includes(q))
+                        : section.items;
+                    if (items.length === 0) return null;
 
-                        {/* Items — always visible, no collapse */}
-                        {section.items.map((item) => {
-                            const isActive = location.pathname === item.path
-                                || (item.path !== '/dashboard' && location.pathname.startsWith(item.path + '/'));
+                    const hasActive = items.some(
+                        (i) => location.pathname === i.path
+                            || (i.path !== '/dashboard' && location.pathname.startsWith(i.path + '/')),
+                    );
+                    // Arama sırasında her şey açık; aksi hâlde yalnız içinde
+                    // bulunduğun grup ve elle açtıkların.
+                    const open = !!q || hasActive || collapsed[sectionKey(section.title)] === false;
+                    // Kapalıyken rozet sayısı kaybolmamalı — aciliyet gizlenmez.
+                    const pending = items.reduce((acc, i) => acc + (badgeCounts[i.path] ?? 0), 0);
 
-                            return (
+                    return (
+                        <Box key={section.title} sx={{ mb: 1.25 }} role="group">
+                            <Box
+                                component="button"
+                                type="button"
+                                onClick={() => toggleSection(section.title)}
+                                aria-expanded={open}
+                                sx={{
+                                    width: 'calc(100% - 24px)',
+                                    mx: 1.5, px: 1, py: 0.85,
+                                    display: 'flex', alignItems: 'center', gap: 0.75,
+                                    background: 'none', border: 'none', cursor: 'pointer',
+                                    borderRadius: 1.5,
+                                    color: nb.onDarkFaint,
+                                    fontSize: 10, letterSpacing: 1.3, fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    fontFamily: 'inherit',
+                                    '&:hover': { color: nb.onDarkMuted, bgcolor: 'rgba(255,255,255,0.03)' },
+                                    '&:focus-visible': { outline: `2px solid ${nb.goldSoft}`, outlineOffset: 2 },
+                                }}
+                            >
                                 <Box
-                                    key={item.path}
-                                    onClick={() => handleNav(item.path)}
+                                    component="span"
                                     sx={{
-                                        mx: 1, mb: '2px', px: 1.5, py: 0.75,
-                                        display: 'flex', alignItems: 'center', gap: 1.25,
-                                        borderRadius: 2,
-                                        cursor: 'pointer',
-                                        transition: 'all 0.15s ease',
-                                        position: 'relative',
-                                        ...(isActive ? {
-                                            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-                                            '&::before': {
-                                                content: '""',
-                                                position: 'absolute',
-                                                left: 0, top: '20%', bottom: '20%',
-                                                width: 3, borderRadius: 2,
-                                                background: theme.palette.primary.main,
-                                            },
-                                        } : {
-                                            '&:hover': {
-                                                background: alpha(theme.palette.action.hover, 0.5),
-                                            },
-                                        }),
+                                        display: 'inline-flex', width: 10,
+                                        transition: 'transform 0.15s',
+                                        transform: open ? 'rotate(90deg)' : 'none',
                                     }}
                                 >
-                                    <Box sx={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        width: 28, height: 28,
-                                        color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
-                                        '& svg': { fontSize: 18 },
-                                    }}>
-                                        {item.icon}
-                                    </Box>
-                                    <Typography sx={{
-                                        fontSize: 13,
-                                        fontWeight: isActive ? 650 : 450,
-                                        color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
-                                        lineHeight: 1.3,
-                                    }}>
-                                        {item.text}
-                                    </Typography>
+                                    <svg viewBox="0 0 8 12" width={7} height={9} aria-hidden>
+                                        <path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+                                    </svg>
                                 </Box>
-                            );
-                        })}
-                    </Box>
-                ))}
+                                <Box component="span" sx={{ flex: 1, textAlign: 'left' }}>
+                                    {section.title}
+                                </Box>
+                                {!open && pending > 0 && (
+                                    <Box
+                                        component="span"
+                                        aria-label={`${pending} bekleyen`}
+                                        sx={{
+                                            minWidth: 16, height: 16, px: 0.5, borderRadius: 8,
+                                            bgcolor: '#C0392B', color: 'white',
+                                            fontSize: 10, fontWeight: 700, lineHeight: '16px',
+                                            letterSpacing: 0,
+                                        }}
+                                    >
+                                        {pending > 99 ? '99+' : pending}
+                                    </Box>
+                                )}
+                            </Box>
+
+                            {open && items.map((item) => {
+                                const isActive = location.pathname === item.path
+                                    || (item.path !== '/dashboard' && location.pathname.startsWith(item.path + '/'));
+
+                                return (
+                                    <Box
+                                        key={item.path}
+                                        component="button"
+                                        onClick={() => handleNav(item.path)}
+                                        aria-current={isActive ? 'page' : undefined}
+                                        sx={{
+                                            position: 'relative',
+                                            background: 'none', border: 'none', font: 'inherit',
+                                            fontFamily: 'inherit',
+                                            textAlign: 'left',
+                                            width: 'calc(100% - 24px)',
+                                            mx: 1.5, mb: 0.25, pl: 1.75, pr: 1.5, py: 0.8,
+                                            borderRadius: 1.5,
+                                            cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: 1.25,
+                                            bgcolor: isActive ? nb.goldTint : 'transparent',
+                                            color: isActive ? nb.goldSoft : nb.onDarkMuted,
+                                            transition: 'background-color 0.15s, color 0.15s',
+                                            '&:hover': {
+                                                bgcolor: isActive ? nb.goldTintStrong : 'rgba(255,255,255,0.04)',
+                                                color: isActive ? nb.goldSoft : nb.onDark,
+                                            },
+                                            '&:focus-visible': { outline: `2px solid ${nb.goldSoft}`, outlineOffset: 2 },
+                                            // Aktif işareti: 79 satırda tekrarlanan nokta dekorasyondu.
+                                            // Yalnız aktif satırda görünen kenar çubuğu daha sessiz ve net.
+                                            '&::before': isActive ? {
+                                                content: '""',
+                                                position: 'absolute',
+                                                left: 2, top: '50%', transform: 'translateY(-50%)',
+                                                width: 3, height: 16, borderRadius: 2,
+                                                bgcolor: nb.goldSoft,
+                                            } : undefined,
+                                        }}
+                                    >
+                                        <Box
+                                            aria-hidden
+                                            sx={{
+                                                display: 'flex', flexShrink: 0,
+                                                color: isActive ? nb.goldSoft : 'rgba(255,255,255,0.45)',
+                                                transition: 'color 0.15s',
+                                                '& svg': { fontSize: 17 },
+                                            }}
+                                        >
+                                            {item.icon}
+                                        </Box>
+                                        <Typography sx={{
+                                            fontSize: 13,
+                                            fontWeight: isActive ? 600 : 400,
+                                            lineHeight: 1.3,
+                                            flex: 1,
+                                        }}>
+                                            {item.text}
+                                        </Typography>
+                                        {badgeCounts[item.path] > 0 && (
+                                            <Box
+                                                component="span"
+                                                aria-label={`${badgeCounts[item.path]} bekleyen`}
+                                                sx={{
+                                                    flexShrink: 0, minWidth: 18, height: 18, px: 0.75,
+                                                    borderRadius: 9, bgcolor: '#C0392B', color: 'white',
+                                                    fontSize: 11, fontWeight: 700, lineHeight: '18px',
+                                                    textAlign: 'center',
+                                                }}
+                                            >
+                                                {badgeCounts[item.path] > 99 ? '99+' : badgeCounts[item.path]}
+                                            </Box>
+                                        )}
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                    );
+                })}
+
+                {navQuery.trim() && visibleSections.every((sec) =>
+                    sec.items.every((i) => !i.text.toLocaleLowerCase('tr')
+                        .includes(navQuery.trim().toLocaleLowerCase('tr')))) && (
+                    <Typography sx={{ px: 3, py: 2, fontSize: 12, color: nb.onDarkFaint }}>
+                        Eşleşen menü yok.
+                    </Typography>
+                )}
             </Box>
 
             {/* User footer */}
-            <Box sx={{ borderTop: `1px solid ${theme.palette.divider}`, p: 1.5 }}>
+            <Box sx={{ borderTop: '1px solid rgba(255,255,255,0.08)', p: 1.5 }}>
                 <Box sx={{
                     display: 'flex', alignItems: 'center', gap: 1.5,
-                    p: 1, borderRadius: 2,
-                    '&:hover': { background: alpha(theme.palette.action.hover, 0.5) },
+                    p: 1, borderRadius: 1.5,
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
                 }}>
                     <Avatar sx={{
                         width: 34, height: 34, fontSize: 13, fontWeight: 700,
-                        bgcolor: alpha(theme.palette.primary.main, 0.12),
-                        color: theme.palette.primary.main,
+                        bgcolor: 'rgba(201,162,39,0.15)',
+                        color: nb.goldSoft,
                     }}>
                         {initials}
                     </Avatar>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }} noWrap>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2, color: 'white' }} noWrap>
                             {userName || 'Admin'}
                         </Typography>
-                        <Typography sx={{ fontSize: 10.5, color: theme.palette.text.secondary }} noWrap>
-                            {roles.join(', ') || 'ADMIN'}
+                        <Typography sx={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.3 }} noWrap>
+                            {roles.length > 0 ? roles[0].toUpperCase() : 'ADMIN'}
                         </Typography>
                     </Box>
                     <Tooltip title="Çıkış Yap">
                         <IconButton
                             size="small"
                             onClick={handleLogout}
+                            aria-label="Çıkış yap"
                             sx={{
-                                color: theme.palette.text.secondary,
-                                '&:hover': { color: theme.palette.error.main, bgcolor: alpha(theme.palette.error.main, 0.08) },
+                                color: 'rgba(255,255,255,0.6)',
+                                '&:hover': { color: theme.palette.error.light, bgcolor: 'rgba(239,68,68,0.1)' },
                             }}
                         >
                             <LogoutIcon sx={{ fontSize: 18 }} />
@@ -329,7 +482,7 @@ export default function Layout() {
                     top: 0,
                     left: isZenMode ? 0 : { xs: 0, sm: DRAWER_W },
                     right: 0,
-                    height: 56,
+                    height: 64,
                     zIndex: theme.zIndex.appBar,
                     display: isZenMode ? 'none' : 'flex',
                     alignItems: 'center',
@@ -347,16 +500,67 @@ export default function Layout() {
                     <MenuIcon />
                 </IconButton>
 
-                <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2, color: theme.palette.text.primary }}>
-                        {currentPageTitle}
+                <Box sx={{ minWidth: 0 }}>
+                    {/* Breadcrumb (EventConsole stili) */}
+                    <Typography sx={{
+                        color: theme.palette.text.secondary,
+                        letterSpacing: 1.5, fontSize: 9.5, fontWeight: 600,
+                        lineHeight: 1,
+                        mb: 0.3,
+                    }}>
+                        {workspace.breadcrumbLabel} · {currentPageTitle.toUpperCase()}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: theme.palette.text.disabled, fontSize: 11 }}>
-                        NartGo Yönetim Paneli
+                    <Typography sx={{
+                        fontWeight: 700, lineHeight: 1.2,
+                        color: theme.palette.text.primary,
+                        fontFamily: 'Georgia, "Times New Roman", serif',
+                        fontStyle: 'italic',
+                        fontSize: 18,
+                    }}>
+                        {currentPageTitle}
                     </Typography>
                 </Box>
 
                 <Box sx={{ flex: 1 }} />
+
+                {/* Workspace değiştirici — yalnız iki panele de yetkisi olanda.
+                    Tek yetkisi olan için anlamsız bir kontrol olurdu. */}
+                {canSwitch && (
+                    <Tooltip title={`${otherWorkspace.name} paneline geç`}>
+                        <Box
+                            component="button"
+                            type="button"
+                            onClick={handleWorkspaceSwitch}
+                            aria-label={`${otherWorkspace.name} paneline geç`}
+                            sx={{
+                                display: { xs: 'none', sm: 'flex' },
+                                alignItems: 'center', gap: 0.75,
+                                px: 1.25, py: 0.625,
+                                borderRadius: 2,
+                                cursor: 'pointer',
+                                font: 'inherit', fontFamily: 'inherit',
+                                bgcolor: 'transparent',
+                                border: `1px solid ${theme.palette.divider}`,
+                                color: theme.palette.text.secondary,
+                                transition: 'all 0.15s',
+                                '&:hover': {
+                                    borderColor: theme.palette.primary.main,
+                                    color: theme.palette.primary.main,
+                                    bgcolor: alpha(theme.palette.primary.main, 0.04),
+                                },
+                                '&:focus-visible': {
+                                    outline: `2px solid ${theme.palette.primary.main}`,
+                                    outlineOffset: 2,
+                                },
+                            }}
+                        >
+                            <SwapIcon sx={{ fontSize: 15 }} />
+                            <Typography sx={{ fontSize: 12, fontWeight: 600 }}>
+                                {otherWorkspace.name}
+                            </Typography>
+                        </Box>
+                    </Tooltip>
+                )}
 
                 {/* Search hint */}
                 <Box sx={{
@@ -445,7 +649,7 @@ export default function Layout() {
                     p: location.pathname.includes('seat-map') ? 0 : 3,
                     width: isZenMode ? '100vw' : { sm: `calc(100% - ${DRAWER_W}px)` },
                     minHeight: isZenMode ? '100vh' : 'calc(100vh - 56px)',
-                    mt: isZenMode ? 0 : '56px',
+                    mt: isZenMode ? 0 : '64px',
                     maxWidth: location.pathname.includes('seat-map') ? 'none' : '1600px',
                     overflowX: 'hidden',
                 }}

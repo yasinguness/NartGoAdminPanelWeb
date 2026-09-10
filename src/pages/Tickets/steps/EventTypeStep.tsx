@@ -2,7 +2,7 @@
  * EventTypeStep — Step 2: Etkinlik türü seçimi (Ücretli / Ücretsiz / Davetiye)
  */
 import {
-  Box, Typography, Stack, Paper, Chip, alpha, useTheme,
+  Box, Typography, Stack, Paper, Chip, alpha,
 } from '@mui/material';
 
 export type EventType = 'paid' | 'free' | 'invite';
@@ -22,8 +22,6 @@ const OPTIONS: { key: EventType; icon: string; name: string; desc: string; featu
 const COLORS: Record<EventType, string> = { paid: '#1976d2', free: '#2e7d32', invite: '#ed6c02' };
 
 export default function EventTypeStep({ eventType, onChange, error }: Props) {
-  const theme = useTheme();
-
   return (
     <Stack spacing={3}>
       <Box>

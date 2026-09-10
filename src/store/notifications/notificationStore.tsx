@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { notificationService } from '../../services/notification/notificationService';
-import { NotificationDto } from '../../types/notifications/notificationModel';
+import { NotificationDto, EmailMessage } from '../../types/notifications/notificationModel';
 
 interface NotificationStore {
     notifications: NotificationDto[];
@@ -11,12 +11,29 @@ interface NotificationStore {
     totalPages: number;
     pageSize: number;
 
+    createNotification: (notification: NotificationDto) => Promise<NotificationDto>;
+    createGroupedNotification: (notification: NotificationDto) => Promise<NotificationDto>;
+    addToGroup: (parentId: number, notification: NotificationDto) => Promise<NotificationDto>;
     getGroupNotifications: (groupId: string, page?: number) => Promise<void>;
     getUserNotifications: (userId: string) => Promise<void>;
     getUserNotificationsPageable: (userId: string, page?: number, size?: number) => Promise<void>;
     getHighPriorityNotifications: (userId: string) => Promise<void>;
     getUnreadCount: (userId: string) => Promise<number>;
     markAsRead: (notificationId: number) => Promise<void>;
+    sendEmail: (emailMessage: EmailMessage) => Promise<void>;
+    sendSimpleEmail: (to: string, subject: string, content: string) => Promise<void>;
+    sendBulkNotifications: (recipientIds: string[], baseNotification: NotificationDto) => Promise<NotificationDto[]>;
+    sendBulkNotificationsFromTemplate: (
+        recipientIds: string[],
+        templateCode: string,
+        senderId: string,
+        parameters: Record<string, any>
+    ) => Promise<NotificationDto[]>;
+    sendBulkPersonalizedNotifications: (
+        templateCode: string,
+        senderId: string,
+        recipientParameters: Record<string, Record<string, any>>
+    ) => Promise<NotificationDto[]>;
 }
 
 export const useNotificationStore = create<NotificationStore>((set) => ({
@@ -28,12 +45,24 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
     totalPages: 0,
     pageSize: 10,
 
-    getGroupNotifications: async (groupId: string, page: number = 0) => {
+    createNotification: async (notification: NotificationDto) => {
+        return await notificationService.createNotification(notification);
+    },
+
+    createGroupedNotification: async (notification: NotificationDto) => {
+        return await notificationService.createGroupedNotification(notification);
+    },
+
+    addToGroup: async (parentId: number, notification: NotificationDto) => {
+        return await notificationService.addToGroup(parentId, notification);
+    },
+
+    getGroupNotifications: async (groupId: string) => {
         set({ loading: true, error: null });
         try {
-            const response = await notificationService.getGroupNotifications(groupId, page);
+            const data = await notificationService.getGroupNotifications(groupId);
             set({
-                notifications: response.data || [],
+                notifications: data || [],
                 loading: false
             });
         } catch (error) {
@@ -45,9 +74,9 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
     getUserNotifications: async (userId: string) => {
         set({ loading: true, error: null });
         try {
-            const response = await notificationService.getUserNotifications(userId);
+            const data = await notificationService.getUserNotifications(userId);
             set({
-                notifications: response.data || [],
+                notifications: data || [],
                 loading: false
             });
         } catch (error) {
@@ -59,12 +88,12 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
     getUserNotificationsPageable: async (userId: string, page: number = 0, size: number = 10) => {
         set({ loading: true, error: null });
         try {
-            const response = await notificationService.getUserNotificationsPageable(userId, page, size);
+            const data = await notificationService.getUserNotificationsPageable(userId, page, size);
             set({
-                notifications: response.data?.content || [],
-                currentPage: response.data?.number || 0,
-                totalPages: response.data?.totalPages || 0,
-                pageSize: response.data?.size || size,
+                notifications: data?.content || [],
+                currentPage: data?.number || 0,
+                totalPages: data?.totalPages || 0,
+                pageSize: data?.size || size,
                 loading: false
             });
         } catch (error) {
@@ -76,9 +105,9 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
     getHighPriorityNotifications: async (userId: string) => {
         set({ loading: true, error: null });
         try {
-            const response = await notificationService.getHighPriorityNotifications(userId);
+            const data = await notificationService.getHighPriorityNotifications(userId);
             set({
-                notifications: response.data || [],
+                notifications: data || [],
                 loading: false
             });
         } catch (error) {
@@ -89,9 +118,9 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
 
     getUnreadCount: async (userId: string) => {
         try {
-            const response = await notificationService.getUnreadCount(userId);
-            set({ unreadCount: response.data || 0 });
-            return response.data || 0;
+            const count = await notificationService.getUnreadCount(userId);
+            set({ unreadCount: count || 0 });
+            return count || 0;
         } catch (error) {
             set({ error: 'Failed to fetch unread count' });
             return 0;
@@ -113,5 +142,34 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
             set({ error: 'Failed to mark notification as read', loading: false });
             throw error;
         }
+    },
+
+    sendEmail: async (emailMessage: EmailMessage) => {
+        await notificationService.sendEmail(emailMessage);
+    },
+
+    sendSimpleEmail: async (to: string, subject: string, content: string) => {
+        await notificationService.sendSimpleEmail(to, subject, content);
+    },
+
+    sendBulkNotifications: async (recipientIds: string[], baseNotification: NotificationDto) => {
+        return await notificationService.sendBulkNotifications({ recipientIds, baseNotification });
+    },
+
+    sendBulkNotificationsFromTemplate: async (
+        recipientIds: string[],
+        templateCode: string,
+        senderId: string,
+        parameters: Record<string, any>
+    ) => {
+        return await notificationService.sendBulkNotificationsFromTemplate(recipientIds, templateCode, senderId, parameters);
+    },
+
+    sendBulkPersonalizedNotifications: async (
+        templateCode: string,
+        senderId: string,
+        recipientParameters: Record<string, Record<string, any>>
+    ) => {
+        return await notificationService.sendBulkPersonalizedNotifications(templateCode, senderId, recipientParameters);
     },
 }));

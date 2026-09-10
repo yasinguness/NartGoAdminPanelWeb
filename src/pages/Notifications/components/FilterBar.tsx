@@ -1,4 +1,3 @@
-import React from 'react';
 import {
     Box,
     Paper,
@@ -76,7 +75,7 @@ export default function FilterBar({
                     InputProps={{
                         startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />,
                         sx: { 
-                            bgcolor: 'rgba(255,255,255,0.15)', 
+                            bgcolor: 'rgba(0,0,0,0.10)', 
                             borderRadius: 2,
                             '& .MuiOutlinedInput-notchedOutline': {
                                 borderColor: 'rgba(255,255,255,0.3)'
@@ -95,7 +94,7 @@ export default function FilterBar({
                         onChange={(e) => setFilterPriority(e.target.value as NotificationPriority | 'all')}
                         displayEmpty
                         sx={{ 
-                            bgcolor: 'rgba(255,255,255,0.15)', 
+                            bgcolor: 'rgba(0,0,0,0.10)', 
                             borderRadius: 2,
                             '& .MuiOutlinedInput-notchedOutline': {
                                 borderColor: 'rgba(255,255,255,0.3)'
@@ -127,7 +126,7 @@ export default function FilterBar({
                                 }
                             },
                             '&:hover': {
-                                bgcolor: 'rgba(255,255,255,0.1)'
+                                bgcolor: 'rgba(0,0,0,0.08)'
                             }
                         }
                     }}

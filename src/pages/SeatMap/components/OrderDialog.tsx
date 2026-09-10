@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, Stack } from '@mui/material';
 import { ConfirmationNumber as TicketIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';

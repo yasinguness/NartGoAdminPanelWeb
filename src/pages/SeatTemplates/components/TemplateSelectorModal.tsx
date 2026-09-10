@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, Typography,
-  Grid, Card, CardContent, CardActions, Chip, CircularProgress, IconButton,
-  alpha, useTheme, TextField, Select, MenuItem, FormControl, InputLabel,
+  Grid, Card, CardContent, Chip, CircularProgress, IconButton,
+  alpha, useTheme, Select, MenuItem, FormControl, InputLabel,
   Divider, Alert, AlertTitle,
 } from '@mui/material';
 import {
@@ -75,7 +75,6 @@ const MiniGrid: React.FC<{ rows: { name: string; seatCount: number }[]; categori
 export default function TemplateSelectorModal({
   open, onClose, eventId, ticketTypes, onApplied,
 }: TemplateSelectorModalProps) {
-  const theme = useTheme();
   const { enqueueSnackbar } = useSnackbar();
 
   const [templates, setTemplates] = useState<SeatTemplate[]>([]);

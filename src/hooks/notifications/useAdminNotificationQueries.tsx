@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { adminNotificationService } from '../../services/notification/adminNotificationService';
-import { AdminNotificationStats, createAdminNotificationStats } from '../../types/notifications/adminNotificationStats';
+import { createAdminNotificationStats } from '../../types/notifications/adminNotificationStats';
 
 export const useAdminNotificationStats = () => {
     return useQuery({

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
     Box, Button, Card, Chip, Dialog, DialogActions, DialogContent,
-    DialogTitle, Divider, FormControlLabel, Grid, MenuItem, Stack,
-    Switch, TextField, Tooltip, Typography, alpha, useTheme,
+    DialogTitle, Divider, Grid, MenuItem, Stack,
+    Switch, TextField, Typography, alpha, useTheme,
     InputAdornment, IconButton,
 } from '@mui/material';
 import {
@@ -22,7 +22,7 @@ import {
 import { useSnackbar } from 'notistack';
 
 import { PageContainer, PageHeader } from '../../components/Page';
-import { DataTable, StatusChip } from '../../components/Data';
+import { DataTable } from '../../components/Data';
 import { ActionMenu } from '../../components/Actions';
 import { ConfirmDialog, ErrorState, LoadingState } from '../../components/Feedback';
 import { ListItemIcon, ListItemText, MenuItem as ActionMenuItem } from '@mui/material';
@@ -38,12 +38,16 @@ const STATUS_LABELS: Record<BulletinStatus, string> = {
     [BulletinStatus.DRAFT]: 'Taslak',
     [BulletinStatus.PUBLISHED]: 'Yayında',
     [BulletinStatus.ARCHIVED]: 'Arşiv',
+    [BulletinStatus.ACTIVE]: 'Aktif',
+    [BulletinStatus.PASSIVE]: 'Pasif',
 };
 
 const STATUS_COLORS: Record<BulletinStatus, { bg: string; color: string }> = {
     [BulletinStatus.DRAFT]: { bg: '#F1F5F9', color: '#64748B' },
     [BulletinStatus.PUBLISHED]: { bg: '#ECFDF5', color: '#10B981' },
     [BulletinStatus.ARCHIVED]: { bg: '#FEF2F2', color: '#EF4444' },
+    [BulletinStatus.ACTIVE]: { bg: '#ECFDF5', color: '#10B981' },
+    [BulletinStatus.PASSIVE]: { bg: '#F1F5F9', color: '#64748B' },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -94,7 +98,7 @@ export default function Bulletins() {
     const [form, setForm] = useState<BulletinCreateRequest>(initialForm);
 
     const [statusDialogOpen, setStatusDialogOpen] = useState(false);
-    const [statusTarget, setStatusTarget] = useState<BulletinDto | null>(null);
+    const [statusTarget] = useState<BulletinDto | null>(null);
     const [statusValue, setStatusValue] = useState<BulletinStatus>(BulletinStatus.DRAFT);
 
     const [deleteId, setDeleteId] = useState<string | null>(null);

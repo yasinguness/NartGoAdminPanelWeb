@@ -25,7 +25,7 @@ import {
 import { ticketService } from '../../services/ticket/ticketService';
 import { api } from '../../services/api';
 import type {
-  SeatMapResponse, SeatCategoryResponse, SeatRowResponse,
+  SeatMapResponse,
   OccupiedSeatDetail, SeatMapStats,
 } from '../../types/tickets/ticketTypes';
 import { NUMBERING_MODES, type SeatNumberingMode } from '../../utils/seatNumbering';
@@ -41,7 +41,7 @@ interface SeatDetail {
   categoryColor: string;
   basePrice: number;
   ticketTypeId: string;
-  status: 'AVAILABLE' | 'SOLD' | 'LOCKED' | 'RESERVED' | 'DISABLED';
+  status: 'AVAILABLE' | 'SOLD' | 'LOCKED' | 'RESERVED' | 'DISABLED' | 'BLOCKED';
   isManual: boolean;
   manualNote?: string;
   ownerName?: string;
@@ -393,18 +393,6 @@ export default function SeatMapLive() {
 
   // ── Batch actions ───────────────────────────────────
   const selectedSeats = useMemo(() => allSeats.filter(s => selectedKeys.has(s.key)), [allSeats, selectedKeys]);
-
-  const doBatch = async (action: string, note = '') => {
-    if (selectedKeys.size === 0) return;
-    try {
-      await api.post(`/tickets/admin/events/${eventId}/seats/status`, {
-        seatIds: [...selectedKeys], status: action,
-      });
-      enqueueSnackbar(`${selectedKeys.size} koltuk güncellendi`, { variant: 'success' });
-      setSelectedKeys(new Set()); setContextMenu(null);
-      fetchData();
-    } catch { enqueueSnackbar('İşlem başarısız', { variant: 'error' }); }
-  };
 
   // ── Manual sell — optimistic update ─────────────────
   const handleManualSellSuccess = (seatKeys: string[], note: string) => {

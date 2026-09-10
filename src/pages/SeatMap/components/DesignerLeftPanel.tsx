@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { Box, Typography, Button, IconButton, TextField, Divider, alpha, Chip, Stack } from '@mui/material';
+import { Box, Typography, Button, TextField, Divider, Chip, Stack } from '@mui/material';
 import { SelectAll, EventSeat, TableRows, Stadium, LinearScale, Delete } from '@mui/icons-material';
 import type { VenueConfig, Seat, SeatCategory } from '../venueEngine';
 import { NUMBERING_MODES, type SeatNumberingMode } from '../../../utils/seatNumbering';
@@ -33,7 +32,7 @@ const tools = [
   { id: 'disabled', label: 'Sil',     icon: <Delete />, color: 'error' },
 ];
 
-export default function DesignerLeftPanel({ categories, currentTool, onToolChange, stats }: Props) {
+export default function DesignerLeftPanel({ venue, categories, currentTool, onToolChange, onVenueChange, stats }: Props) {
   const activeSection = categories.find(c => c.id === currentTool);
 
   return (

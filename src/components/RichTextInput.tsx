@@ -386,7 +386,7 @@ export default function RichTextInput({
             fontSize: '0.9em',
           },
           '& b, & strong': { fontWeight: 700 },
-          '& i, & em': { fontStyle: 'italic' },
+          '& i, & em': { fontStyle: 'normal' },
           '& u': { textDecoration: 'underline' },
           '& s, & strike': { textDecoration: 'line-through' },
           ...sxProp,

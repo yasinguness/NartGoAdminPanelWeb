@@ -5,7 +5,6 @@ import {
     Box,
     Chip,
     CircularProgress,
-    Divider,
     IconButton,
     InputAdornment,
     MenuItem,

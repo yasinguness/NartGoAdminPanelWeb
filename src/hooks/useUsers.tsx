@@ -2,8 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { userService } from '../services/user/userService';
 import { useUserStore } from '../store/users/userStore';
 import { UserDTO, UserStatusEnum, AccountType, Language } from '../types/users/userModel';
-import { useState, useCallback, useEffect } from 'react';
-import { PageResponseDto } from '../types/common/pageResponse';
+import { useCallback, useEffect } from 'react';
 
 interface UserQueryParams {
   page?: number;
@@ -78,12 +77,6 @@ export const useUsers = (params: UserQueryParams = {}) => {
     const getUserActivityLogs = useCallback(async (userId: string, page = 0, size = 10) => {
         return userStore.getUserActivityLogs(userId, page, size);
     }, [userStore]);
-
-    const getUserAdminQuery = useQuery({
-        queryKey: ['userAdmin'],
-        queryFn: () => userService.getUserAdmin,
-        enabled: false
-    });
 
     const updateUserAdminMutation = useMutation({
         mutationFn: ({ userId, userData }: { userId: string; userData: UserDTO }) =>

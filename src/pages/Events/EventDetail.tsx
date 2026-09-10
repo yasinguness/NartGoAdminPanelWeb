@@ -5,10 +5,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import {
-  Box, Typography, Avatar, Stack, Button, Tab, Tabs, Divider, Paper, Grid,
+  Box, Typography, Avatar, Stack, Button, Tab, Tabs, Paper, Grid,
   Table, TableHead, TableRow, TableCell, TableBody, Chip, LinearProgress,
   Switch, IconButton, alpha, Skeleton, CircularProgress, Tooltip,
-  TextField, InputAdornment, TablePagination, useTheme,
+  TextField, InputAdornment, TablePagination,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon, Event as EventIcon, Edit as EditIcon,
@@ -16,7 +16,7 @@ import {
   ContentCopy as CopyIcon, Email as EmailIcon, Lock as LockIcon,
   Download as DownloadIcon, TrendingUp as TrendingUpIcon,
   Search as SearchIcon, Refresh as RefreshIcon,
-  CheckCircle as CheckCircleIcon, HourglassEmpty as PendingIcon,
+  CheckCircle as CheckCircleIcon,
   QrCode as QrIcon,
   WarningAmber as WarningIcon,
   AccessTime as AccessTimeIcon,
@@ -37,7 +37,7 @@ import { ticketService } from '../../services/ticket/ticketService';
 import { CreateTicketTypeRequest } from '../../types/tickets/ticketTypes';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-import { parseDate, formatDateTime } from '../../utils/dateUtils';
+import { parseDate, formatDateTime, formatEventDateTime, eventZoneLabel } from '../../utils/dateUtils';
 
 // ─── TYPES ──────────────────────────────────────────────────
 type TabValue = 'genel' | 'biletler' | 'satin-alimlar' | 'katilimcilar' | 'denetim' | 'ayarlar';
@@ -96,7 +96,6 @@ export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  const theme = useTheme();
   const { deleteEvent } = useEvent();
 
   // ── Core state ────────────────────────────────────────────
@@ -120,8 +119,6 @@ export default function EventDetail() {
 
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [ordersSearch, setOrdersSearch] = useState('');
-  const [ordersPage, setOrdersPage] = useState(0);
 
   const [attendeesSearch, setAttendeesSearch] = useState('');
   const [attendeesPage, setAttendeesPage] = useState(0);
@@ -164,7 +161,7 @@ export default function EventDetail() {
         salesOpen: ev.isRegistrationOpen !== false,
       });
       // Koltuklu etkinlikse seating config backfill (rowLabelToCategoryId uyumsuzluğunu düzeltir)
-      if (ev.seatingConfig?.enabled) {
+      if ((ev as any).seatingConfig?.enabled) {
         adminOperationsService.backfillSeating(id).catch(() => {/* silent */});
       }
     } catch {
@@ -238,12 +235,11 @@ export default function EventDetail() {
   }, [id]);
 
   // ── Lazy tab loading ──────────────────────────────────────
+  // Not: Sipariş/Katılımcı/Check-in/Ayarlar tabları Konsola taşındı.
+  // Sadece "Biletler" tab'ı için ticket types lazy-load edilir.
   useEffect(() => {
     if (activeTab === 'biletler' && ticketTypes.length === 0) fetchTicketTypes();
-    if (activeTab === 'satin-alimlar' && orders.length === 0) fetchOrders();
-    if (activeTab === 'katilimcilar' && attendees.length === 0) fetchAttendees();
-    if (activeTab === 'denetim') { fetchCheckInStats(); fetchCheckInLogs(); }
-  }, [activeTab, fetchTicketTypes, fetchOrders, fetchCheckInStats, fetchAttendees, fetchCheckInLogs, ticketTypes.length, orders.length, attendees.length]);
+  }, [activeTab, fetchTicketTypes, ticketTypes.length]);
 
   // ── Derived values ────────────────────────────────────────
   const daysLeft = useMemo(() => {
@@ -257,16 +253,6 @@ export default function EventDetail() {
   }, [event]);
 
   const participants: ParticipationDTO[] = event?.participants ?? [];
-
-  const resolvedParticipants = useMemo(() =>
-    participants.map(p => ({
-      ...p,
-      userName: (p.userName && p.userName !== 'null null' && p.userName !== 'null')
-        ? p.userName
-        : (p.userId?.slice(0, 8) ? `Kullanici #${p.userId.slice(0, 8)}` : 'Anonim'),
-    })),
-    [participants],
-  );
 
   const filteredAttendees = useMemo(() => {
     if (!attendeesSearch.trim()) return attendees;
@@ -286,12 +272,6 @@ export default function EventDetail() {
       l.ticketNumber?.toLowerCase().includes(q)
     );
   }, [checkInLogs, checkInLogsSearch]);
-
-  const filteredOrders = useMemo(() => {
-    if (!ordersSearch.trim()) return orders;
-    const q = ordersSearch.toLowerCase();
-    return orders.filter(o => o.id?.toLowerCase().includes(q));
-  }, [orders, ordersSearch]);
 
   const totalRevenue = useMemo(() =>
     orders.filter(o => o.status === 'PAID').reduce((sum, o) => sum + (o.totalAmount || 0), 0),
@@ -383,7 +363,7 @@ export default function EventDetail() {
       // Bilet sahibi e-postalarını topla (attendees > participants fallback)
       const emails = attendees.length > 0
         ? [...new Set(attendees.map((a: any) => a.email).filter(Boolean))]
-        : participants.map(p => p.email || p.userEmail).filter(Boolean) as string[];
+        : participants.map(p => (p as any).email || (p as any).userEmail).filter(Boolean) as string[];
       if (emails.length === 0) {
         enqueueSnackbar('Katılımcı bulunamadı', { variant: 'warning' });
         return;
@@ -406,7 +386,7 @@ export default function EventDetail() {
     if (!event) return;
     setActionLoading(true);
     try {
-      await adminOperationsService.updateEventCapacity(event.id, { maxParticipants: newCapacity });
+      await adminOperationsService.updateEventCapacity(event.id, { maxParticipants: newCapacity } as any);
       enqueueSnackbar(`Kapasite ${newCapacity} olarak güncellendi`, { variant: 'success' });
       setCapacityOpen(false);
       // Refresh event
@@ -452,6 +432,7 @@ export default function EventDetail() {
         ticketPrice: data.ticketPrice,
         isRegistrationOpen: data.isRegistrationOpen,
         isPrivate: data.isPrivate,
+        isShowNb: data.isShowNb,
         thumbnailUrl: imageUrl,
         organizerId: event.organizerId,
         address: data.address ? {
@@ -529,11 +510,11 @@ export default function EventDetail() {
       // Bilet tiplerinin toplam kapasitesini hesapla ve event kapasitesini senkronize et
       try {
         const refreshed = await ticketService.getEventTicketTypes(id);
-        const types: TicketTypeResponse[] = refreshed?.data ?? [];
+        const types = refreshed?.data ?? [];
         if (types.length > 0) {
           const totalCapacity = types.reduce((sum, t) => sum + (t.capacityTotal || 0), 0);
           if (totalCapacity > 0 && totalCapacity !== event?.maxParticipants) {
-            await adminOperationsService.updateEventCapacity(id, { maxParticipants: totalCapacity });
+            await adminOperationsService.updateEventCapacity(id, { maxParticipants: totalCapacity } as any);
           }
         }
       } catch { /* best-effort sync */ }
@@ -569,10 +550,10 @@ export default function EventDetail() {
       // Event kapasitesini kalan bilet tiplerinin toplamıyla senkronize et
       try {
         const refreshed = await ticketService.getEventTicketTypes(id!);
-        const types: TicketTypeResponse[] = refreshed?.data ?? [];
+        const types = refreshed?.data ?? [];
         if (types.length > 0) {
           const totalCapacity = types.reduce((sum, t) => sum + (t.capacityTotal || 0), 0);
-          await adminOperationsService.updateEventCapacity(id!, { maxParticipants: Math.max(totalCapacity, 1) });
+          await adminOperationsService.updateEventCapacity(id!, { maxParticipants: Math.max(totalCapacity, 1) } as any);
         }
       } catch { /* best-effort sync */ }
     } catch {
@@ -665,8 +646,9 @@ export default function EventDetail() {
             </Stack>
             <Stack direction="row" spacing={2} sx={{ color: 'text.secondary', fontSize: 13 }} flexWrap="wrap">
               <Typography variant="body2">
-                📅 {formatDateTime(event.eventTime)}
-                {event.endTime && ` – ${formatDateTime(event.endTime).split(', ')[1] || ''}`}
+                📅 {formatEventDateTime(event.eventTime, event.eventTimeZone, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {event.endTime && ` – ${formatEventDateTime(event.endTime, event.eventTimeZone, { hour: '2-digit', minute: '2-digit' })}`}
+                {event.eventTimeZone && ` (${eventZoneLabel(event.eventTimeZone)})`}
               </Typography>
               <Typography variant="body2">📍 {event.address?.city || 'Sanal'}</Typography>
               <Typography variant="body2">🏷 {event.category?.name || 'Genel'}</Typography>
@@ -676,6 +658,16 @@ export default function EventDetail() {
             </Stack>
           </Box>
           <Stack direction="row" spacing={1}>
+            {/* Operasyon Konsolu — her zaman görünür, en belirgin */}
+            <Button variant="contained" size="small"
+              onClick={() => navigate(`/event-console/${event.id}`)}
+              sx={{
+                borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 2,
+                bgcolor: '#F8FAFC', '&:hover': { bgcolor: '#1a2b1f' },
+              }}>
+              Operasyon Konsolu
+            </Button>
+
             {/* ACTIVE → Duraklat, Düzenle, İptal, Tamamla */}
             {event.status === EventStatus.ACTIVE && (
               <>
@@ -764,6 +756,52 @@ export default function EventDetail() {
           ))}
         </Box>
 
+        {/* Operasyon Konsolu yönlendirme banner'ı */}
+        <Box
+          onClick={() => navigate(`/event-console/${event.id}`)}
+          sx={{
+            mx: -4, mt: 2, px: 4, py: 1.75,
+            display: 'flex', alignItems: 'center', gap: 1.5,
+            bgcolor: 'rgba(15,26,20,0.95)',
+            color: '#1E293B',
+            cursor: 'pointer',
+            borderTop: '1px solid rgba(201,162,39,0.3)',
+            borderBottom: '1px solid rgba(201,162,39,0.3)',
+            transition: 'background-color 200ms',
+            '&:hover': { bgcolor: 'rgba(15,26,20,1)' },
+          }}
+        >
+          <Box sx={{
+            width: 28, height: 28, borderRadius: 1,
+            bgcolor: 'rgba(201,162,39,0.2)', color: '#C9A227',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 14, fontWeight: 800,
+          }}>
+            ⚡
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1E293B', lineHeight: 1.3 }}>
+              Operasyon Konsolu — tüm yönetim araçları tek yerde
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.60)', mt: 0.25 }}>
+              Siparişler · Check-in · Kapı görevlileri · Bildirim · Export · Ayarlar için Konsol'u kullanın. Bu sayfa yakında temel bilgilere yönlendirilecek.
+            </Typography>
+          </Box>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={(e) => { e.stopPropagation(); navigate(`/event-console/${event.id}`); }}
+            sx={{
+              bgcolor: '#C9A227', color: '#F8FAFC', fontWeight: 800,
+              fontSize: 11, letterSpacing: 0.5, textTransform: 'none',
+              whiteSpace: 'nowrap',
+              '&:hover': { bgcolor: '#b58f1f' },
+            }}
+          >
+            Konsola Git →
+          </Button>
+        </Box>
+
         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}
           sx={{
             mt: 0.5, borderTop: '1px solid', borderColor: 'divider',
@@ -772,10 +810,6 @@ export default function EventDetail() {
           }}>
           <Tab value="genel" label="📋 Genel Bilgiler" />
           <Tab value="biletler" label="🎫 Biletler" />
-          <Tab value="satin-alimlar" label="💳 Satın Alımlar" />
-          <Tab value="katilimcilar" label="👥 Katılımcılar" />
-          <Tab value="denetim" label="🔍 Denetim & Giriş" />
-          <Tab value="ayarlar" label="⚙️ Ayarlar" />
         </Tabs>
       </Box>
 
@@ -815,8 +849,8 @@ export default function EventDetail() {
                   { label: 'Etkinlik Adı', value: event.name },
                   { label: 'Kategori', value: event.category?.name || 'Genel', badge: true },
                   { label: 'Konum', value: [event.address?.city, event.address?.district].filter(Boolean).join(', ') || 'Sanal' },
-                  { label: 'Başlangıç', value: formatDateTime(event.eventTime) },
-                  { label: 'Bitiş', value: event.endTime ? formatDateTime(event.endTime) : null, warn: !event.endTime },
+                  { label: 'Başlangıç', value: formatEventDateTime(event.eventTime, event.eventTimeZone, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + (event.eventTimeZone ? ` (${eventZoneLabel(event.eventTimeZone)})` : '') },
+                  { label: 'Bitiş', value: event.endTime ? formatEventDateTime(event.endTime, event.eventTimeZone, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + (event.eventTimeZone ? ` (${eventZoneLabel(event.eventTimeZone)})` : '') : null, warn: !event.endTime },
                   { label: 'Kapasite', value: `${event.maxParticipants || 0} kişi` },
                   { label: 'Bilet Fiyatı', value: priceDisplay },
                   ...(event.isPaid ? [
@@ -1194,7 +1228,7 @@ export default function EventDetail() {
                 {/* Özet kartlar */}
                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 3 }}>
                   {(() => {
-                    const paidOrders = orders.filter(o => o.status === 'PAID' || o.status === 'COMPLETED');
+                    const paidOrders = orders.filter(o => o.status === 'PAID' || (o.status as string) === 'COMPLETED');
                     const cancelledOrders = orders.filter(o => o.status === 'CANCELLED' || o.status === 'REFUNDED');
                     const paidTicketCount = paidOrders.reduce((s, o) => s + (o.tickets?.length || 0), 0);
                     return (<>
@@ -1499,7 +1533,7 @@ export default function EventDetail() {
                   )}
 
                   {/* Seat Map linki */}
-                  {event.seatingConfig?.enabled && (
+                  {(event as any).seatingConfig?.enabled && (
                     <Button variant="text" size="small" fullWidth href={`/admin/events/${event.id}/seat-map`}
                       sx={{ mb: 2, textTransform: 'none', borderRadius: 2, fontWeight: 600, color: 'text.secondary', justifyContent: 'flex-start' }}>
                       🪑 Koltuk Haritasını Görüntüle →
@@ -1885,6 +1919,7 @@ export default function EventDetail() {
             ticketPrice: event.ticketPrice || 0,
             isRegistrationOpen: event.isRegistrationOpen !== false,
             isPrivate: event.isPrivate === true,
+            isShowNb: (event as any).isShowNb === true,
             saleStartDate: parseDate((event as any).ticketTypes?.[0]?.saleStartAt || ticketTypes[0]?.saleStartAt),
             saleEndDate: parseDate((event as any).ticketTypes?.[0]?.saleEndAt || ticketTypes[0]?.saleEndAt),
             coverImage: null,

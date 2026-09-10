@@ -25,6 +25,7 @@ export interface TicketListItem {
   eventImageUrl?: string;
   eventStartDate?: string;
   eventEndDate?: string;
+  eventTimeZone?: string;
   eventLocation?: string;
   eventAddress?: string;
   eventPrice?: number;
@@ -59,6 +60,7 @@ export interface TicketDetailResponse {
   eventAddress?: { city?: string; district?: string; fullAddress?: string };
   eventStartDate?: string;
   eventEndDate?: string;
+  eventTimeZone?: string;
   eventImageUrl?: string;
   eventTicketPrice?: number;
   eventCurrency?: string;

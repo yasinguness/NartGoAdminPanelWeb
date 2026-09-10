@@ -1,13 +1,17 @@
+/**
+ * UserRole — config/roles.ts'deki ROLES ile uyumlu, UPPERCASE tutarlı.
+ * Backend farklı case gönderebilir; normalizeRole() ile hizalama hooks/useRole.ts'de yapılır.
+ */
 export enum UserRole {
-    ADMIN = 'admin',
-    ASSOCIATION = 'association',
+    ADMIN = 'ADMIN',
+    ASSOCIATION = 'ASSOCIATION',
     CHECK_IN_STAFF = 'CHECK_IN_STAFF',
     EDITOR = 'EDITOR',
     EVENT_ORGANIZATOR = 'EVENT_ORGANIZATOR',
     RAFFLE_MODERATOR = 'RAFFLE_MODERATOR',
-    ROLE_BUSINESS = 'role_business',
+    ROLE_BUSINESS = 'ROLE_BUSINESS',
     ROLE_RAFFLE_ADMIN = 'ROLE_RAFFLE_ADMIN',
-    STORE_ADMIN = 'store_admin',
+    STORE_ADMIN = 'STORE_ADMIN',
 }
 
 export enum UserStatus {

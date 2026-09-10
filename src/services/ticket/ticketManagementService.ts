@@ -6,7 +6,6 @@ import type {
   TicketListItem,
   TicketDetailResponse,
   OrderDetailResponse,
-  TicketFilters,
 } from '../../types/tickets/ticketManagementTypes';
 
 interface ApiResponse<T> {

@@ -3,12 +3,9 @@
  * Konum, boyut, şekil, etiket, renk düzenleme
  */
 import {
-  Box, Typography, Stack, TextField, Select, MenuItem, Slider, Divider,
-  FormControl, InputLabel, alpha, useTheme, IconButton, Tooltip, Paper,
+  Box, Typography, Stack, TextField, Slider, alpha, useTheme, IconButton, Tooltip, Paper,
 } from '@mui/material';
-import {
-  DragIndicator as DragIcon, AspectRatio as SizeIcon,
-  Label as LabelIcon, Close as CloseIcon,
+import { Close as CloseIcon,
 } from '@mui/icons-material';
 import type { StageConfig, StageShape } from '../venueEngine';
 

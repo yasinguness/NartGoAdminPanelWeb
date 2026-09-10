@@ -46,7 +46,7 @@ export const createAdminBulkNotificationRequest = (data: Partial<AdminBulkNotifi
         title: '',
         content: '',
         type: '',
-        priority: NotificationPriority.MEDIUM,
+        priority: NotificationPriority.NORMAL,
         sendPush: true,
         sendEmail: false,
         sendTelegram: false,

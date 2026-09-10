@@ -12,7 +12,7 @@
  */
 
 import { ReactNode } from 'react';
-import { FormControl, Box, Typography, FormHelperText } from '@mui/material';
+import { FormControl, Typography, FormHelperText } from '@mui/material';
 import { componentSpacing } from '../../theme/spacing';
 
 interface FormFieldProps {

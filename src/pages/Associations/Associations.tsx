@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -7,7 +7,7 @@ import {
   Box,
   Grid,
 } from '@mui/material';
-import { ActionButton, ActionMenu } from '../../components/Actions';
+import { ActionMenu } from '../../components/Actions';
 import { MenuItem, ListItemIcon, ListItemText } from '@mui/material';
 import {
   Add as AddIcon,
@@ -44,7 +44,7 @@ const Associations = () => {
   const [associationToDelete, setAssociationToDelete] = useState<AssociationSummaryResponse | null>(null);
 
   // CRUD hooks
-  const { data: associations, isLoading, error } = useAssociations({ searchTerm });
+  const { data: associations, isLoading } = useAssociations({ searchTerm });
   const createAssociation = useCreateAssociation();
   const updateAssociation = useUpdateAssociation();
   const deleteAssociation = useDeleteAssociation();

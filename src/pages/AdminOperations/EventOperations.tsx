@@ -10,7 +10,6 @@ import {
   CircularProgress,
   Divider,
   Grid,
-  MenuItem,
   Paper,
   Stack,
   Tab,
@@ -35,7 +34,6 @@ import { eventService } from '../../services/event/eventService';
 import { adminOperationsService } from '../../services/admin/adminOperationsService';
 import { EventResponseDTO } from '../../types/events/eventModel';
 import {
-  AdminTicketOverrideAction,
   SeatTargetState,
 } from '../../types/admin/adminOperations';
 import InteractiveSeatMap from './components/InteractiveSeatMap';
@@ -44,20 +42,6 @@ import InteractiveOrderManagement from './components/InteractiveOrderManagement'
 import InteractiveAuditLog from './components/InteractiveAuditLog';
 
 type TabValue = 'event' | 'seats' | 'orders' | 'audit' | 'checkin';
-
-const seatStateOptions: SeatTargetState[] = ['AVAILABLE', 'BLOCKED', 'RESERVED', 'SOLD', 'OCCUPIED'];
-const ticketOverrideActions: AdminTicketOverrideAction[] = ['REFUND', 'CANCEL', 'REISSUE', 'CHECK_IN_RESET'];
-
-const parseCsv = (value: string) =>
-  value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-const parseSeatNumbers = (value: string) =>
-  parseCsv(value)
-    .map((item) => Number(item))
-    .filter((item) => Number.isFinite(item));
 
 const prettyResponse = (value: unknown) => JSON.stringify(value, null, 2);
 
@@ -77,41 +61,7 @@ export default function EventOperations() {
   const [eventReason, setEventReason] = useState('Operasyonel admin aksiyonu');
   const [eventCapacity, setEventCapacity] = useState<number>(0);
 
-  const [seatReason, setSeatReason] = useState('Admin koltuk üstüne yazma');
-  const [seatTargetState, setSeatTargetState] = useState<SeatTargetState>('BLOCKED');
-  const [seatIdsInput, setSeatIdsInput] = useState('');
-  const [singleSeatId, setSingleSeatId] = useState('');
-  const [addCategoryId, setAddCategoryId] = useState('');
-  const [addRowLabel, setAddRowLabel] = useState('');
-  const [addSeatNumbers, setAddSeatNumbers] = useState('');
-  const [removeSeatIds, setRemoveSeatIds] = useState('');
-  const [moveSeatId, setMoveSeatId] = useState('');
-  const [moveTargetCategoryId, setMoveTargetCategoryId] = useState('');
-  const [moveTargetRowLabel, setMoveTargetRowLabel] = useState('');
-  const [moveTargetSeatNumber, setMoveTargetSeatNumber] = useState<number>(1);
-
-  const [orderReason, setOrderReason] = useState('Manuel admin düzeltmesi');
-  const [orderIdsInput, setOrderIdsInput] = useState('');
-  const [orderId, setOrderId] = useState('');
-  const [ticketId, setTicketId] = useState('');
-  const [ticketOverrideAction, setTicketOverrideAction] = useState<AdminTicketOverrideAction>('REFUND');
-  const [categoryId, setCategoryId] = useState('');
-  const [categoryCapacity, setCategoryCapacity] = useState<number>(0);
-
-  const [auditEventId, setAuditEventId] = useState(routeEventId ?? '');
-  const [auditActorId, setAuditActorId] = useState('');
-  const [auditAction, setAuditAction] = useState('');
-  const [auditPage, setAuditPage] = useState(0);
-  const [auditSize, setAuditSize] = useState(20);
-  const [auditTicketId, setAuditTicketId] = useState('');
-
-  const [staffUserId, setStaffUserId] = useState('');
-  const [ticketCode, setTicketCode] = useState('');
-  const [qrCodeData, setQrCodeData] = useState('');
-  const [deviceId, setDeviceId] = useState('gate-1');
-  const [platform, setPlatform] = useState('android');
-  const [gate, setGate] = useState('main');
-  const [offlineAttempts, setOfflineAttempts] = useState('[]');
+  const [, setAuditEventId] = useState(routeEventId ?? '');
 
   useEffect(() => {
     let mounted = true;
@@ -140,6 +90,21 @@ export default function EventOperations() {
             setEvents((current) => [eventResponse.data, ...current]);
             setSelectedEvent(eventResponse.data);
             setEventCapacity(eventResponse.data.maxParticipants ?? 0);
+          }
+        } else {
+          // Route'da ID yok — kullanıcının aktif tek etkinliği varsa auto-select
+          const now = Date.now();
+          const activeEvents = loadedEvents.filter((e: any) => {
+            if (e.status === 'CANCELLED' || e.status === 'COMPLETED') return false;
+            if (e.eventTime) {
+              const endTime = e.endTime ? new Date(e.endTime).getTime() : new Date(e.eventTime).getTime() + 24 * 60 * 60 * 1000;
+              return endTime >= now;
+            }
+            return true;
+          });
+          if (activeEvents.length === 1) {
+            setSelectedEvent(activeEvents[0]);
+            setEventCapacity(activeEvents[0].maxParticipants ?? 0);
           }
         }
       } catch (error) {
@@ -240,35 +205,65 @@ export default function EventOperations() {
       <PageSection title="Bağlam" subtitle="Admin isteklerinin hedeflemesi gereken etkinliği seçin.">
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
-            <Autocomplete
-              options={events}
-              loading={eventsLoading}
-              value={selectedEvent}
-              onChange={(_, value) => {
-                setSelectedEvent(value);
-                if (value) {
-                  navigate(`/event-operations/${value.id}`);
+            {/* Aktif etkinlik sayısını hesapla — tek aktif varsa sadece Chip göster */}
+            {(() => {
+              const now = Date.now();
+              const activeEvents = events.filter((e: any) => {
+                if (e.status === 'CANCELLED' || e.status === 'COMPLETED') return false;
+                if (e.eventTime) {
+                  const endTime = e.endTime ? new Date(e.endTime).getTime() : new Date(e.eventTime).getTime() + 86400000;
+                  return endTime >= now;
                 }
-              }}
-              getOptionLabel={(option) => `${option.name} (${option.id})`}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Hedef etkinlik"
-                  placeholder="Yüklenen etkinliklerde ara"
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {eventsLoading ? <CircularProgress size={18} color="inherit" /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
+                return true;
+              });
+              const showDropdown = activeEvents.length > 1 || events.length > 1;
+
+              if (!showDropdown && selectedEvent) {
+                return (
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Chip label="Tek Etkinlik" color="primary" size="small" sx={{ fontWeight: 700 }} />
+                      <Typography variant="body2" fontWeight={600}>{selectedEvent.name}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                        Otomatik seçildi
+                      </Typography>
+                    </Stack>
+                  </Paper>
+                );
+              }
+
+              return (
+                <Autocomplete
+                  options={events}
+                  loading={eventsLoading}
+                  value={selectedEvent}
+                  onChange={(_, value) => {
+                    setSelectedEvent(value);
+                    if (value) {
+                      navigate(`/event-operations/${value.id}`);
+                    }
                   }}
+                  getOptionLabel={(option) => `${option.name}`}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Hedef etkinlik"
+                      placeholder="Etkinliklerde ara"
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {eventsLoading ? <CircularProgress size={18} color="inherit" /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
                 />
-              )}
-            />
+              );
+            })()}
           </Grid>
           <Grid item xs={12} md={4}>
             <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
@@ -353,17 +348,27 @@ export default function EventOperations() {
               <InteractiveSeatMap 
                  eventData={selectedEvent}
                  onSeatAction={async (action, seatIds, actionReason) => {
-                    const mappedStates: Record<string, SeatTargetState> = {
-                      block: 'BLOCKED',
-                      release: 'AVAILABLE',
-                      override: 'SOLD'
-                    };
-                    await adminOperationsService.overrideSeats(requireEventId(), {
-                      targetState: mappedStates[action] || 'BLOCKED',
-                      reason: actionReason,
-                      seatIds: seatIds,
-                    });
-                    enqueueSnackbar(`Koltuklar interaktif harita üzerinden başarıyla güncellendi!`, { variant: 'success' });
+                    try {
+                      const mappedStates: Record<string, SeatTargetState> = {
+                        block: 'BLOCKED',
+                        release: 'AVAILABLE',
+                        override: 'SOLD'
+                      };
+                      const response = await adminOperationsService.overrideSeats(requireEventId(), {
+                        targetState: mappedStates[action] || 'BLOCKED',
+                        reason: actionReason,
+                        seatIds: seatIds,
+                      });
+                      setLastAction('Koltuklar güncellendi');
+                      setResponseBody(prettyResponse(response));
+                      enqueueSnackbar('Koltuklar güncellendi', { variant: 'success' });
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : 'İstek başarısız oldu';
+                      setLastAction('Koltuklar güncellenemedi');
+                      setResponseBody(prettyResponse({ error: message }));
+                      enqueueSnackbar(message, { variant: 'error' });
+                      throw error;
+                    }
                  }}
               />
             </Box>
@@ -407,39 +412,47 @@ export default function EventOperations() {
                 eventId={requireEventId()}
                 eventName={selectedEvent?.name || ''}
                 onFetchAdminAudit={async (filters) => {
-                  await adminOperationsService.getAdminAudit({
-                    eventId: requireEventId(),
-                    ...filters
-                  });
-                  enqueueSnackbar(`Admin denetim kayıtları başarıyla getirildi!`, { variant: 'success' });
+                  await runAction('audit-admin', 'Admin denetim kayıtları getirildi', () =>
+                    adminOperationsService.getAdminAudit({
+                      eventId: requireEventId(),
+                      ...filters
+                    })
+                  );
                 }}
                 onBackfillAdminAudit={async () => {
-                  await adminOperationsService.backfillAdminAudit(requireEventId());
-                  enqueueSnackbar(`Denetim doldurma talep edildi.`, { variant: 'info' });
+                  await runAction('audit-backfill', 'Denetim doldurma talep edildi', () =>
+                    adminOperationsService.backfillAdminAudit(requireEventId())
+                  );
                 }}
                 onFetchCheckInAudit={async () => {
-                  await adminOperationsService.getCheckInAuditByEvent(requireEventId());
-                  enqueueSnackbar(`Giriş denetim kayıtları getirildi!`, { variant: 'success' });
+                  await runAction('audit-checkin', 'Giriş denetim kayıtları getirildi', () =>
+                    adminOperationsService.getCheckInAuditByEvent(requireEventId())
+                  );
                 }}
                 onFetchMyHistory={async () => {
-                  await adminOperationsService.getMyCheckInHistory();
-                  enqueueSnackbar(`Giriş geçmişiniz getirildi!`, { variant: 'success' });
+                  await runAction('audit-my-history', 'Giriş geçmişiniz getirildi', () =>
+                    adminOperationsService.getMyCheckInHistory()
+                  );
                 }}
                 onFetchStaffStats={async () => {
-                  await adminOperationsService.getCheckInStaffStats(requireEventId());
-                  enqueueSnackbar(`Personel istatistikleri getirildi!`, { variant: 'success' });
+                  await runAction('audit-staff-stats', 'Personel istatistikleri getirildi', () =>
+                    adminOperationsService.getCheckInStaffStats(requireEventId())
+                  );
                 }}
                 onFetchRecentCheckIns={async () => {
-                  await adminOperationsService.getRecentCheckIns(requireEventId());
-                  enqueueSnackbar(`Son girişler getirildi!`, { variant: 'success' });
+                  await runAction('audit-recent-checkins', 'Son girişler getirildi', () =>
+                    adminOperationsService.getRecentCheckIns(requireEventId())
+                  );
                 }}
                 onFetchHourlyCounts={async () => {
-                  await adminOperationsService.getHourlyCheckInCounts(requireEventId());
-                  enqueueSnackbar(`Saatlik giriş sayıları getirildi!`, { variant: 'success' });
+                  await runAction('audit-hourly-counts', 'Saatlik giriş sayıları getirildi', () =>
+                    adminOperationsService.getHourlyCheckInCounts(requireEventId())
+                  );
                 }}
                 onFetchTicketAudit={async (ticketId) => {
-                  await adminOperationsService.getCheckInAuditByTicket(ticketId);
-                  enqueueSnackbar(`${ticketId} bilet denetim geçmişi getirildi!`, { variant: 'success' });
+                  await runAction('audit-ticket', `${ticketId} bilet denetim geçmişi getirildi`, () =>
+                    adminOperationsService.getCheckInAuditByTicket(ticketId)
+                  );
                 }}
               />
             </Box>

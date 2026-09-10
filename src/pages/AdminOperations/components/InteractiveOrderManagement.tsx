@@ -312,7 +312,7 @@ export default function InteractiveOrderManagement({
                               <Typography variant="body2" fontWeight={600}>{order.ticketCount}</Typography>
                             </Box>
                           </TableCell>
-                          <TableCell fontWeight={600}>{order.amount} ₺</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>{order.amount} ₺</TableCell>
                           <TableCell>
                             <Chip 
                               label={order.status} 

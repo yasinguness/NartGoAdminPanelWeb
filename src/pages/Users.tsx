@@ -34,6 +34,7 @@ import {
   VerifiedUser as VerifiedIcon,
   Close as CloseIcon,
   Sync as SyncIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import Tooltip from '@mui/material/Tooltip';
 import { useUsers } from '../hooks/useUsers';
@@ -51,6 +52,7 @@ import { tr } from 'date-fns/locale';
 
 import { PageContainer, PageHeader } from '../components/Page';
 import { DataTable, StatusChip, StatCard } from '../components/Data';
+import type { DataTableColumn } from '../components/Data';
 import { FilterSelect } from '../components/Filter';
 import { ConfirmDialog } from '../components/Feedback';
 import { ActionMenu } from '../components/Actions';
@@ -80,8 +82,6 @@ export default function Users() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteUser, setDeleteUser] = useState<UserDTO | null>(null);
   const [syncing, setSyncing] = useState(false);
-
-  const hasActiveFilters = !!(accountType || status || currentCity || currentDistrict || language);
 
   // Stats Fetch
   useEffect(() => {
@@ -175,7 +175,7 @@ export default function Users() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked && data?.content) {
-      setSelectedUsers(data.content.map((u) => u.id));
+      setSelectedUsers(data.content.map((u: UserDTO) => u.id));
     } else {
       setSelectedUsers([]);
     }
@@ -185,7 +185,7 @@ export default function Users() {
     return user.displayName || `${user.firstName} ${user.lastName}`.trim() || user.email || 'Bilinmeyen';
   };
 
-  const columns = [
+  const columns: DataTableColumn<UserDTO>[] = [
     {
       id: 'selection',
       label: (
@@ -195,7 +195,7 @@ export default function Users() {
           checked={selectedUsers.length > 0 && selectedUsers.length === data?.content.length}
           indeterminate={selectedUsers.length > 0 && selectedUsers.length < (data?.content?.length ?? 0)}
         />
-      ),
+      ) as unknown as string,
       render: (user: UserDTO) => (
         <Checkbox
           size="small"
@@ -590,6 +590,12 @@ export default function Users() {
               </ListItemIcon>
               <ListItemText>Düzenle / Görüntüle</ListItemText>
             </MenuItem>
+            <MenuItem onClick={() => navigate(`/users/${user.id}/360`)}>
+              <ListItemIcon>
+                <PersonIcon fontSize="small" sx={{ color: '#C9A227' }} />
+              </ListItemIcon>
+              <ListItemText>360° Destek Bakışı</ListItemText>
+            </MenuItem>
             <MenuItem
               onClick={() =>
                 handleUserAction(
@@ -636,7 +642,7 @@ export default function Users() {
         title="Hesabı Kalıcı Olarak Sil"
         message={`${deleteUser?.firstName} ${deleteUser?.lastName} kullanıcısının hesabı silinecektir. Bu işlem geri alınamaz.`}
         severity="error"
-        confirmLabel="Evet, Sil"
+        confirmText="Evet, Sil"
       />
     </PageContainer>
   );

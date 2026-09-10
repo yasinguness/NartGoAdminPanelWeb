@@ -18,7 +18,10 @@ export interface PlacePrediction {
 /**
  * Search for place predictions using Places Autocomplete REST API
  */
-export const searchPlaces = async (input: string): Promise<PlacePrediction[]> => {
+export const searchPlaces = async (
+    input: string,
+    options?: { types?: string[] },
+): Promise<PlacePrediction[]> => {
     if (!input || input.length < 3) return [];
     if (!GOOGLE_API_KEY) {
         console.warn('Google Places API key not set. Set VITE_GOOGLE_PLACES_API_KEY in .env.local');
@@ -26,17 +29,22 @@ export const searchPlaces = async (input: string): Promise<PlacePrediction[]> =>
     }
 
     try {
+        const body: Record<string, unknown> = {
+            input,
+            includedRegionCodes: ['tr'],
+            languageCode: 'tr',
+        };
+        if (options?.types?.length) {
+            body.includedPrimaryTypes = options.types;
+        }
+
         const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Goog-Api-Key': GOOGLE_API_KEY,
             },
-            body: JSON.stringify({
-                input,
-                includedRegionCodes: ['tr'],
-                languageCode: 'tr',
-            }),
+            body: JSON.stringify(body),
         });
 
         if (!res.ok) return [];
@@ -75,7 +83,7 @@ export const getPlaceDetails = async (placeId: string): Promise<Partial<AddressD
     if (!GOOGLE_API_KEY) return null;
 
     try {
-        const fields = 'formattedAddress,location,addressComponents';
+        const fields = 'displayName,formattedAddress,location,addressComponents';
         const res = await fetch(
             `https://places.googleapis.com/v1/places/${placeId}?languageCode=tr`,
             {
@@ -97,7 +105,7 @@ export const getPlaceDetails = async (placeId: string): Promise<Partial<AddressD
             return comp?.longText || comp?.shortText || '';
         };
 
-        const address: Partial<AddressDTO> = {
+        const address: Partial<AddressDTO> & { displayName?: string } = {
             city: getComponent('administrative_area_level_1') || getComponent('locality'),
             district: getComponent('administrative_area_level_2') || getComponent('sublocality_level_1') || getComponent('sublocality'),
             country: getComponent('country'),
@@ -106,6 +114,7 @@ export const getPlaceDetails = async (placeId: string): Promise<Partial<AddressD
             latitude: place.location?.latitude,
             longitude: place.location?.longitude,
             description: place.formattedAddress || '',
+            displayName: place.displayName?.text || '',
         };
 
         return address;

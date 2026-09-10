@@ -19,9 +19,23 @@ interface ImageUploaderProps {
     onImageSelect: (file: File | File[]) => void;
     currentImage?: string | string[];
     multiple?: boolean;
+    /**
+     * Dosya seçicinin kabul ettiği tipler.
+     *
+     * Varsayılan `image/*` tarayıcının WebP, HEIC, AVIF, GIF, SVG seçmesine
+     * izin veriyor. Sunucu bunların hepsini kabul etmiyor; seçtirip sonra
+     * reddetmek kullanıcıya anlamsız bir hata olarak dönüyor. Sunucunun
+     * kabul ettiği listeyi geçin.
+     */
+    accept?: string;
 }
 
-export const ImageUploader = ({ onImageSelect, currentImage, multiple = false }: ImageUploaderProps) => {
+export const ImageUploader = ({
+    onImageSelect,
+    currentImage,
+    multiple = false,
+    accept = 'image/*',
+}: ImageUploaderProps) => {
     const [preview, setPreview] = useState<string | string[]>(
         multiple 
             ? (Array.isArray(currentImage) ? currentImage : currentImage ? [currentImage] : [])
@@ -70,7 +84,7 @@ export const ImageUploader = ({ onImageSelect, currentImage, multiple = false }:
         <Box>
             <input
                 type="file"
-                accept="image/*"
+                accept={accept}
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
                 ref={fileInputRef}
@@ -119,11 +133,13 @@ export const ImageUploader = ({ onImageSelect, currentImage, multiple = false }:
                             border: '2px dashed',
                             borderColor: 'divider',
                             borderRadius: 1,
-                            p: 3,
+                            p: 4,
                             textAlign: 'center',
                             cursor: 'pointer',
+                            transition: 'all 0.2s ease',
                             '&:hover': {
                                 borderColor: 'primary.main',
+                                bgcolor: 'action.hover',
                             },
                         }}
                         onClick={handleClick}
@@ -155,9 +171,9 @@ export const ImageUploader = ({ onImageSelect, currentImage, multiple = false }:
                             </Box>
                         ) : (
                             <>
-                                <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-                                <Typography variant="body1" color="text.secondary">
-                                    Click to upload image
+                                <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1, opacity: 0.8 }} />
+                                <Typography variant="body1" color="text.secondary" fontWeight={500}>
+                                    Sürükle bırak veya seçmek için tıklayın
                                 </Typography>
                             </>
                         )}

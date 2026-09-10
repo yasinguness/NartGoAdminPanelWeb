@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Typography, useTheme } from '@mui/material';
 import { Seat, SeatCategory, getCategoryColor } from '../venueEngine';
 

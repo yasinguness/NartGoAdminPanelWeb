@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Card,
   Grid,
   Typography,
   TextField,
@@ -10,13 +9,11 @@ import {
   Button,
   useTheme,
   Paper,
-  Tooltip,
   InputAdornment
 } from '@mui/material';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
-  Circle as CircleIcon,
   AttachMoney as MoneyIcon,
   ConfirmationNumber as TicketIcon
 } from '@mui/icons-material';

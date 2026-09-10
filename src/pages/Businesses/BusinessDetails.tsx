@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -19,7 +19,6 @@ import {
     Card,
     CardContent,
     CardMedia,
-    IconButton,
     Alert,
     useTheme,
     alpha,
@@ -40,8 +39,7 @@ import {
     TrendingUp as TrendingUpIcon,
     Visibility as VisibilityIcon,
     Favorite as FavoriteIcon,
-    PhotoCamera as PhotoIcon,
-    Delete as DeleteIcon
+    PhotoCamera as PhotoIcon
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { useBusinessDetails } from '../../hooks/useBusinessDetails';
@@ -368,10 +366,8 @@ export default function BusinessDetails() {
                                     </Typography>
                                     <Tabs  
                                         value={featuredTab} 
-                                        onChange={(_e, v) => setFeaturedTab(v)} 
-                                        variant="fullWidth" 
-                                        size="small"
-                                        
+                                        onChange={(_e, v) => setFeaturedTab(v)}
+                                        variant="fullWidth"
                                         sx={{ minHeight: 40 }}
                                     >
                                         <Tab 
