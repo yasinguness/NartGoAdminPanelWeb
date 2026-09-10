@@ -19,9 +19,23 @@ interface ImageUploaderProps {
     onImageSelect: (file: File | File[]) => void;
     currentImage?: string | string[];
     multiple?: boolean;
+    /**
+     * Dosya seçicinin kabul ettiği tipler.
+     *
+     * Varsayılan `image/*` tarayıcının WebP, HEIC, AVIF, GIF, SVG seçmesine
+     * izin veriyor. Sunucu bunların hepsini kabul etmiyor; seçtirip sonra
+     * reddetmek kullanıcıya anlamsız bir hata olarak dönüyor. Sunucunun
+     * kabul ettiği listeyi geçin.
+     */
+    accept?: string;
 }
 
-export const ImageUploader = ({ onImageSelect, currentImage, multiple = false }: ImageUploaderProps) => {
+export const ImageUploader = ({
+    onImageSelect,
+    currentImage,
+    multiple = false,
+    accept = 'image/*',
+}: ImageUploaderProps) => {
     const [preview, setPreview] = useState<string | string[]>(
         multiple 
             ? (Array.isArray(currentImage) ? currentImage : currentImage ? [currentImage] : [])
@@ -70,7 +84,7 @@ export const ImageUploader = ({ onImageSelect, currentImage, multiple = false }:
         <Box>
             <input
                 type="file"
-                accept="image/*"
+                accept={accept}
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
                 ref={fileInputRef}

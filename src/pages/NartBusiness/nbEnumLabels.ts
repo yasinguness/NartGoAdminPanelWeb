@@ -71,29 +71,30 @@ export const phoneVisibilityLabel = label(PHONE_VISIBILITY_LABELS);
 // ── Giriş biçimlendirme ────────────────────────────────────────────────
 
 /**
- * Telefonu okunur hâle getirir: `05321234567` → `0532 123 45 67`.
+ * Telefonun SAKLANAN biçimi E.164'tür: `+905321234567`.
  *
- * Sunucuya rakamların kendisi gidiyor; buradaki boşluklar yalnız yazarken
- * doğrulamayı kolaylaştırmak için. Yanlış hane sayısı, boşluklu biçimde
- * gözle hemen fark ediliyor.
+ * Mobil taraf (`nbPhoneToE164`) böyle yazıyor. Panel bir süre `05321234567`
+ * (11 hane, başında 0) yazdı; aynı alan iki farklı biçimde saklandığı için
+ * mobildeki görüntüleme ve arama bozuluyordu. Panel artık E.164 üretir.
  */
-export function formatTrPhone(raw: string): string {
-  const d = raw.replace(/\D/g, '').slice(0, 11);
-  if (d.length <= 4) return d;
-  if (d.length <= 7) return `${d.slice(0, 4)} ${d.slice(4)}`;
-  if (d.length <= 9) return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`;
-  return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7, 9)} ${d.slice(9)}`;
+
+/** Herhangi bir biçimden 10 haneli ulusal numarayı çıkarır (ülke kodu hariç). */
+export function trPhoneNationalDigits(raw: string | undefined | null): string {
+  const d = (raw ?? '').replace(/\D/g, '');
+  if (!d) return '';
+  // +90XXXXXXXXXX (12), 0XXXXXXXXXX (11), XXXXXXXXXX (10) — hepsinde son 10.
+  return d.slice(-10);
 }
 
-/** Kaydetmeden önce boşlukları at; saklanan değer yalnız rakam olsun. */
-export function normalizeTrPhone(formatted: string): string {
-  return formatted.replace(/\D/g, '');
+/** 10 haneli ulusal numarayı saklanacak E.164 biçimine çevirir. */
+export function trPhoneToE164(nationalDigits: string): string {
+  const d = (nationalDigits ?? '').replace(/\D/g, '').slice(-10);
+  return d.length === 10 ? `+90${d}` : '';
 }
 
-/** 11 hane ve 0 ile başlıyor mu (05xx xxx xx xx). */
-export function isTrPhoneComplete(value: string): boolean {
-  const d = normalizeTrPhone(value);
-  return d.length === 11 && d.startsWith('0');
+/** Telefon girildiyse eksiksiz mi (10 ulusal hane). */
+export function isTrPhoneComplete(value: string | undefined | null): boolean {
+  return trPhoneNationalDigits(value).length === 10;
 }
 
 /** Kuruluş yılı için makul aralık. */

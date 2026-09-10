@@ -42,18 +42,18 @@ import {
   companySizeLabel,
   companyTypeLabel,
   phoneVisibilityLabel,
-  formatTrPhone,
-  normalizeTrPhone,
+  trPhoneNationalDigits,
+  trPhoneToE164,
   isTrPhoneComplete,
   FOUNDED_YEAR_MIN,
   foundedYearMax,
 } from './nbEnumLabels';
 import {
   AuditNoteBlock,
+  PhoneTrInput,
   buildAuditNote,
   CatalogAutocomplete,
   CompanyPlacesAutocomplete,
-  isAuditNoteValid,
   NbSectionPaper,
   SectorCheckboxGrid,
   SocialPrefixField,
@@ -321,8 +321,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
     !!form.city &&
     linkedinValid &&
     websiteValid &&
-    instaValid &&
-    isAuditNoteValid(auditNoteBody);
+    instaValid;
 
   const clanInCatalog = useMemo(() => {
     const name = form.clanName?.trim().toLowerCase();
@@ -533,6 +532,11 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                   Firma Logosu
                 </Typography>
                 <ImageUploader
+                  // Sunucu yalnız JPEG ve PNG kabul ediyor
+                  // (NbPresignedUploadController.PROFILE_TYPES). image/* ile
+                  // seçtirip reddetmek kullanıcıya anlamsız bir hata olarak
+                  // dönüyordu.
+                  accept="image/jpeg,image/png"
                   currentImage={form.logoUrl || undefined}
                   onImageSelect={(file) => {
                     if (Array.isArray(file)) {
@@ -744,25 +748,19 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
               </Grid>
               
               <Grid item xs={12} md={6}>
-                <TextField
+                {/* Manuel üye oluşturma akışıyla AYNI bileşen: +90 ön eki ve
+                    5XX XXX XX XX maskesi. İki ekran farklı biçim gösteriyor ve
+                    farklı biçimde saklıyordu (panel 05XX…, mobil +905XX…). */}
+                <PhoneTrInput
                   label="Telefon Numarası"
-                  fullWidth
-                  size="small"
-                  // Yazarken boşluklu gösteriliyor, saklanırken yalnız
-                  // rakamlar gidiyor. Boşluklu biçimde eksik hane gözle
-                  // hemen fark ediliyor.
-                  value={formatTrPhone(form.phoneNumber ?? '')}
-                  onChange={(e) =>
-                    set('phoneNumber', normalizeTrPhone(e.target.value))
-                  }
-                  placeholder="0532 123 45 67"
+                  value={trPhoneNationalDigits(form.phoneNumber)}
+                  onChange={(digits) => set('phoneNumber', trPhoneToE164(digits))}
                   error={
-                    !!form.phoneNumber &&
-                    !isTrPhoneComplete(form.phoneNumber)
+                    !!form.phoneNumber && !isTrPhoneComplete(form.phoneNumber)
                   }
                   helperText={
                     form.phoneNumber && !isTrPhoneComplete(form.phoneNumber)
-                      ? 'Numara 11 haneli olmalı ve 0 ile başlamalı.'
+                      ? 'Numara 10 haneli olmalı (5 ile başlar).'
                       : 'Görünürlüğünü yandaki ayardan belirleyin.'
                   }
                 />

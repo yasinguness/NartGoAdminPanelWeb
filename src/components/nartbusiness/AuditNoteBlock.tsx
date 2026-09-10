@@ -57,16 +57,20 @@ export default function AuditNoteBlock({
   disabled,
 }: Props) {
   const trimmed = note.trim();
-  const valid = trimmed.length >= minChars;
-  const showError = note.length > 0 && !valid;
+  // Not artık ZORUNLU DEĞİL. Boş bırakılabilir; yazılmaya başlandıysa anlamlı
+  // bir uzunluğa ulaşması beklenir, o yüzden sayaç ve ilerleme çubuğu yalnız
+  // yazmaya başlayınca görünür. Boş alan hata olarak gösterilmez.
+  const started = trimmed.length > 0;
+  const valid = !started || trimmed.length >= minChars;
+  const showError = started && trimmed.length < minChars;
 
   return (
     <Stack spacing={1.5}>
       {title}
       <FormControl size="small" fullWidth disabled={disabled}>
-        <InputLabel>Audit Kategorisi *</InputLabel>
+        <InputLabel>Audit Kategorisi</InputLabel>
         <Select
-          label="Audit Kategorisi *"
+          label="Audit Kategorisi"
           value={category}
           onChange={(e) => onCategoryChange(e.target.value)}
         >
@@ -79,7 +83,7 @@ export default function AuditNoteBlock({
       </FormControl>
 
       <TextField
-        label="Audit Notu *"
+        label="Audit Notu (opsiyonel)"
         fullWidth
         size="small"
         multiline
@@ -101,7 +105,7 @@ export default function AuditNoteBlock({
               sx={{ color: 'text.secondary', flex: 1 }}
             >
               {helperHint ??
-                "Audit log'a kalıcı yazılır — üye veya hukuk ekibi geriye dönük inceleyebilir."}
+                "Opsiyonel. Yazarsanız audit log'a kalıcı işlenir; üye veya hukuk ekibi geriye dönük inceleyebilir."}
             </Typography>
             <Typography
               component="span"
@@ -112,14 +116,16 @@ export default function AuditNoteBlock({
                 whiteSpace: 'nowrap',
               }}
             >
-              {valid
-                ? `${trimmed.length} / ${maxChars} ✓`
-                : `${trimmed.length} / ${minChars} min`}
+              {!started
+                ? ''
+                : valid
+                  ? `${trimmed.length} / ${maxChars}`
+                  : `${trimmed.length} / ${minChars} min`}
             </Typography>
           </Box>
         }
       />
-      {!valid && (
+      {started && !valid && (
         <LinearProgress
           variant="determinate"
           value={Math.min((trimmed.length / minChars) * 100, 100)}
@@ -142,8 +148,12 @@ export function buildAuditNote(category: string, body: string): string {
 }
 
 /**
- * Caller tarafında validation'da kullanmak için.
+ * Not yazılmışsa anlamlı uzunlukta mı?
+ *
+ * Boş not GEÇERLİDİR: audit notu zorunlu değil. Bu fonksiyon submit'i
+ * bloklamak için değil, yazmaya başlamış kullanıcıyı uyarmak içindir.
  */
 export function isAuditNoteValid(body: string, minChars: number = DEFAULT_MIN): boolean {
-  return body.trim().length >= minChars;
+  const t = body.trim();
+  return t.length === 0 || t.length >= minChars;
 }

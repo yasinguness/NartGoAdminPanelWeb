@@ -41,7 +41,6 @@ import {
   AuditNoteBlock,
   buildAuditNote,
   ConfirmationStep,
-  isAuditNoteValid,
   RadioCardGroup,
   useNbMobile,
   type AuditCategoryOption,
@@ -267,7 +266,10 @@ export default function NbVerificationDecideDialog({
     [vote, detail?.needsInfoCount],
   );
 
-  const noteValid = isAuditNoteValid(noteBody, 30);
+  // Audit notu artık ZORUNLU DEĞİL. Zorunlu olduğunda 30 karakterlik
+  // doldurma metinler yazılıyordu; opsiyonel olunca yazılan not gerçekten
+  // bir şey anlatıyor. Kayıt yine tutuluyor.
+  const noteValid = true;
   const decisionValid = !!vote && !!auditCategory && noteValid;
 
   const stepValid: Record<number, boolean> = {

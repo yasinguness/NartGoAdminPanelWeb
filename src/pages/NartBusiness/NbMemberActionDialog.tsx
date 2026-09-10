@@ -32,7 +32,6 @@ import {
   NbSectionPaper,
   NbStatusBadge,
   RadioCardGroup,
-  isAuditNoteValid,
   useNbMobile,
   type AuditCategoryOption,
   type RadioCardOption,
@@ -178,7 +177,10 @@ export default function NbMemberActionDialog({
     setCategory(CATEGORIES[action][0].value);
   }, [action]);
 
-  const noteValid = isAuditNoteValid(note, 30);
+  // Audit notu artık ZORUNLU DEĞİL. Zorunlu olduğunda 30 karakterlik
+  // doldurma metinler yazılıyordu; opsiyonel olunca yazılan not gerçekten
+  // bir şey anlatıyor. Kayıt yine tutuluyor.
+  const noteValid = true;
   const stepValid: Record<number, boolean> = {
     0: !!action && (impact?.allowedActions ?? []).includes(action),
     1: !!action && !!category && noteValid,

@@ -22,6 +22,7 @@ import {
   type NbUserSearchResult,
 } from '../../services/nartbusiness/nbAdminService';
 import NbStatusBadge, { nbStatusMeta } from './NbStatusBadge';
+import PhoneTrInput from './PhoneTrInput';
 
 /** Salt rakam telefonu okunabilir gruplara böler: +90 545 456 64 40. */
 function formatPhone(raw?: string | null): string | null {
@@ -390,16 +391,17 @@ export default function FindOrCreateUser({
               />
             </Grid>
             <Grid item xs={12}>
-              <TextField
-                label="Telefon"
-                fullWidth
-                size="small"
+              {/* Ortak bileşen: +90 ön eki ve 5XX XXX XX XX maskesi. Eskiden
+                  burada ham bir TextField vardı ve NbCreateMemberDialog aynı
+                  değeri ikinci kez PhoneTrInput ile soruyordu; kullanıcı aynı
+                  numarayı iki farklı biçimde iki kez giriyordu. */}
+              <PhoneTrInput
+                value={(value.phone || '').replace(/\D/g, '').slice(-10)}
+                onChange={(digits) =>
+                  update({ phone: digits ? `+90 ${digits}` : '' })
+                }
                 disabled={disabled}
-                value={value.phone}
-                onChange={(e) => update({ phone: e.target.value.trim() })}
-                placeholder="+90 5XX XXX XX XX"
-                helperText="Opsiyonel — üye ile iletişim için"
-                inputProps={{ inputMode: 'tel' }}
+                helperText="Opsiyonel — üyeyle iletişim için"
               />
             </Grid>
           </Grid>

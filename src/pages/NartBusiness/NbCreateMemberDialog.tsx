@@ -48,10 +48,8 @@ import {
   CompanyPlacesAutocomplete,
   ConfirmationStep,
   FindOrCreateUser,
-  isAuditNoteValid,
   isFindOrCreateValid,
   NbSectionPaper,
-  PhoneTrInput,
   RadioCardGroup,
   SectorCheckboxGrid,
   SocialPrefixField,
@@ -604,7 +602,10 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     (form.targetStatus !== 'APPROVED_PENDING_PAYMENT' ||
       (Number.isInteger(form.paymentWindowDays) &&
         form.paymentWindowDays! >= 1 && form.paymentWindowDays! <= 365));
-  const auditValid = isAuditNoteValid(auditNoteBody);
+  // Audit notu artık ZORUNLU DEĞİL. Zorunlu olduğunda 30 karakterlik
+  // doldurma metinler yazılıyordu; opsiyonel olunca yazılan not gerçekten
+  // bir şey anlatıyor. Kayıt yine tutuluyor.
+  const auditValid = true;
 
   const stepValid: Record<number, boolean> = {
     0: isFindOrCreateValid(user),
@@ -869,25 +870,14 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   // ------------------------------------------------------------------
   // Step 0 — Kullanıcı + Telefon
   // ------------------------------------------------------------------
-  const renderUserStep = () => {
-    const phoneDigits = (user.phone || '').replace(/\D/g, '').slice(-10);
-    return (
-      <Stack spacing={2}>
-        <FindOrCreateUser value={user} onChange={setUser} />
-        {user.mode === 'new' && (
-          <SectionPaper title="İletişim" hint="Üyeyle iletişim için telefon — opsiyonel.">
-            <PhoneTrInput
-              value={phoneDigits}
-              onChange={(digits) =>
-                setUser({ ...user, phone: digits ? `+90 ${digits}` : '' })
-              }
-              helperText="WhatsApp veya arama için kullanılabilir."
-            />
-          </SectionPaper>
-        )}
-      </Stack>
-    );
-  };
+  // Telefon TEK yerde soruluyor: FindOrCreateUser içinde. Burada ikinci bir
+  // PhoneTrInput daha vardı ve aynı `user.phone` alanına bağlıydı; aynı numara
+  // iki farklı kutuda iki kez isteniyordu.
+  const renderUserStep = () => (
+    <Stack spacing={2}>
+      <FindOrCreateUser value={user} onChange={setUser} />
+    </Stack>
+  );
 
   // ------------------------------------------------------------------
   // Step 1 — İşletme (apply step 1)
