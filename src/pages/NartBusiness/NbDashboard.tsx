@@ -17,6 +17,8 @@
  */
 
 import { useEffect, useState } from 'react';
+import NbAttentionPanel from './NbAttentionPanel';
+import NbRecentLoginsPanel from './NbRecentLoginsPanel';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Box, Grid, Skeleton, Stack, Typography, Button } from '@mui/material';
 import {
@@ -160,7 +162,19 @@ export default function NbDashboard() {
         </Box>
       )}
 
-      {/* ── 2. Müdahale bekleyen iş + üyelik hacmi ────────────────────── */}
+      {/* ── 2. Eyleme dönük iş listesi ─────────────────────────────────
+           Sayı kartlarından ÖNCE geliyor: pano açıldığında ilk görülmesi
+           gereken şey "bugün ne yapmam lazım", metrik değil. */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} lg={7}>
+          <NbAttentionPanel />
+        </Grid>
+        <Grid item xs={12} lg={5}>
+          <NbRecentLoginsPanel />
+        </Grid>
+      </Grid>
+
+      {/* ── 3. Müdahale bekleyen iş + üyelik hacmi ────────────────────── */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} lg={3}>
           <NbStatCard

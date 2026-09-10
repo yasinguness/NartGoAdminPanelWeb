@@ -59,6 +59,7 @@ import {
   type FindOrCreateUserValue,
   type RadioCardOption,
 } from '../../components/nartbusiness';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 interface Props {
   open: boolean;
@@ -741,7 +742,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
       onCreated(result);
       if (!result.member?.memberId) onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Oluşturulamadı');
+      setError(nbErrorMessage(e, 'Oluşturulamadı'));
     } finally {
       setSubmitting(false);
     }
@@ -810,7 +811,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
         setFamilies(refreshed);
       } else {
         setFamilyCreateError(
-          e?.response?.data?.error?.message ?? e?.message ?? 'Sülale eklenemedi',
+          nbErrorMessage(e, 'Sülale eklenemedi'),
         );
       }
     } finally {

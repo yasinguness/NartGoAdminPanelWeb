@@ -53,6 +53,7 @@ import type {
   NbListingAdminStats,
   NbListingViewStats,
 } from '../../services/nartbusiness/nbAdminService';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 const STATUS_LABEL: Record<NbListingStatus, string> = {
   ACTIVE: 'Aktif',
@@ -152,7 +153,7 @@ export default function NbListingModeration() {
           .then((list) => setViews(Object.fromEntries(list.map((v) => [v.listingId, v]))))
           .catch(() => {});
       })
-      .catch((e) => setError(e?.response?.data?.error?.message ?? 'Yüklenemedi'))
+      .catch((e) => setError(nbErrorMessage(e) ?? 'Yüklenemedi'))
       .finally(() => setLoading(false));
   }, [type, status, q, page]);
 
@@ -167,7 +168,7 @@ export default function NbListingModeration() {
       load();
       nbAdminService.listingStats().then(setStats).catch(() => {});
     } catch (e: any) {
-      setMsg(e?.response?.data?.error?.message ?? 'İşlem başarısız');
+      setMsg(nbErrorMessage(e) ?? 'İşlem başarısız');
     } finally {
       setBusyId(null);
     }
@@ -181,7 +182,7 @@ export default function NbListingModeration() {
       setMsg(value ? 'İlan herkese açıldı (public).' : 'İlan üyeye özel yapıldı.');
       load();
     } catch (e: any) {
-      setMsg(e?.response?.data?.error?.message ?? 'İşlem başarısız');
+      setMsg(nbErrorMessage(e) ?? 'İşlem başarısız');
     } finally {
       setBusyId(null);
     }
@@ -550,7 +551,7 @@ function _ListingFormDialog({
       }
       onSaved(useMember && owner ? `İlan ${ownerLabel(owner)} adına oluşturuldu.` : 'İlan oluşturuldu (Pazar Panosu).');
     } catch (e: any) {
-      setErr(e?.response?.data?.error?.message ?? (isEdit ? 'Kaydedilemedi' : 'Oluşturulamadı'));
+      setErr(nbErrorMessage(e) ?? (isEdit ? 'Kaydedilemedi' : 'Oluşturulamadı'));
     } finally {
       setSaving(false);
     }

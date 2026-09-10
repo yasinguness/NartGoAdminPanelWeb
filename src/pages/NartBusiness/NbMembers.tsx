@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Accordion,
   AccordionDetails,
@@ -75,6 +75,7 @@ import NbCreateMemberDialog from './NbCreateMemberDialog';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbMemberHardDeleteDialog from './NbMemberHardDeleteDialog';
 import NbBulkHistoryDialog from './NbBulkHistoryDialog';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 type QuickFilter =
   | 'all'
@@ -403,7 +404,7 @@ function PendingInvitesPanel({ refreshKey }: { refreshKey: number }) {
       .resendInvite(inv.id)
       .then(() => setMsg({ severity: 'success', text: `Davet tekrar gönderildi: ${inv.email}` }))
       .catch((e) =>
-        setMsg({ severity: 'error', text: e?.response?.data?.error?.message ?? 'Gönderilemedi' }),
+        setMsg({ severity: 'error', text: nbErrorMessage(e) ?? 'Gönderilemedi' }),
       )
       .finally(() => setBusyId(null));
   };
@@ -420,7 +421,7 @@ function PendingInvitesPanel({ refreshKey }: { refreshKey: number }) {
         setInvites((prev) => prev.filter((x) => x.id !== inv.id));
       })
       .catch((e) =>
-        setMsg({ severity: 'error', text: e?.response?.data?.error?.message ?? 'İptal edilemedi' }),
+        setMsg({ severity: 'error', text: nbErrorMessage(e) ?? 'İptal edilemedi' }),
       )
       .finally(() => setBusyId(null));
   };
@@ -531,7 +532,16 @@ export default function NbMembers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
-  const [status, setStatus] = useState<NbMemberStatus | ''>('');
+  // Durum süzgeci URL'den okunur ve URL'e yazılır.
+  //
+  // Panodaki "Üyelere git" butonları /members?status=NEEDS_INFO gibi
+  // adreslere yönlendiriyordu ama ekran parametreyi okumuyordu: buton
+  // süzülmemiş listeye düşürüyor, admin aradığını bulamıyordu. Aynı zamanda
+  // süzülmüş bir listeyi paylaşmayı/yer imine eklemeyi mümkün kılıyor.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [status, setStatus] = useState<NbMemberStatus | ''>(
+    () => (searchParams.get('status') as NbMemberStatus | null) ?? '',
+  );
   const [tier, setTier] = useState<MembershipTier | ''>('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -611,6 +621,16 @@ export default function NbMembers() {
 
   useEffect(load, [page, status, tier]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Süzgeç değişince adresi güncelle (geçmişi kirletmeden).
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (status) next.set('status', status);
+    else next.delete('status');
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Filtre/sayfa değişince seçim düşer — görünmeyen üyeye işlem uygulanmasın.
   useEffect(() => {
     setSelectedIds(new Set());
@@ -677,7 +697,7 @@ export default function NbMembers() {
       setBulkResult(res);
       load();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Toplu işlem başarısız');
+      setError(nbErrorMessage(e, 'Toplu işlem başarısız'));
       setBulkOpen(false);
     } finally {
       setBulkBusy(false);

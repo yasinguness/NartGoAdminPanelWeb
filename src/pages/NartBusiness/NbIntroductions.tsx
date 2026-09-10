@@ -33,6 +33,7 @@ import {
 } from '../../services/nartbusiness/nbAdminService';
 import { relativeDate } from '../../utils/nbDisplay';
 import { NbTitleBlock } from '../../components/nartbusiness/ui';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 /**
  * Tanıştırmalar — admin'in iki üyeyi tanıştırdığı kayıtların takip defteri.
@@ -63,7 +64,7 @@ export default function NbIntroductions() {
       setItems(r.items);
       setTotal(r.totalElements);
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Tanıştırmalar yüklenemedi.');
+      setError(nbErrorMessage(e, 'Tanıştırmalar yüklenemedi.'));
     } finally {
       setLoading(false);
     }
@@ -92,7 +93,7 @@ export default function NbIntroductions() {
       setEditTarget(null);
       await load();
     } catch (e: any) {
-      setEditError(e?.response?.data?.error?.message ?? e?.message ?? 'Güncellenemedi.');
+      setEditError(nbErrorMessage(e, 'Güncellenemedi.'));
     } finally {
       setEditBusy(false);
     }

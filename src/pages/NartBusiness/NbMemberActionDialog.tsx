@@ -44,6 +44,7 @@ import {
   STATUS_LABEL,
   TIER_LABEL,
 } from '../../utils/nbDisplay';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 interface Props {
   open: boolean;
@@ -224,7 +225,7 @@ export default function NbMemberActionDialog({
       onActionDone();
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'İşlem başarısız');
+      setError(nbErrorMessage(e, 'İşlem başarısız'));
     } finally {
       setSubmitting(false);
     }

@@ -33,6 +33,7 @@ import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbEntitlements, TierConfig, TierConfigUpdate } from '../../services/nartbusiness/nbTypes';
 import { nb } from '../../theme/nbBrand';
 import { NbTitleBlock, NbEmptyState } from '../../components/nartbusiness/ui';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 const DEFAULT_ENT: NbEntitlements = {
   directoryBoost: false,
@@ -158,7 +159,7 @@ export default function NbTierManagement() {
       closeEdit();
       load();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Kaydetme başarısız');
+      setError(nbErrorMessage(e, 'Kaydetme başarısız'));
     } finally {
       setSubmitting(false);
     }

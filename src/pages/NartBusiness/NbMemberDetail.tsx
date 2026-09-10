@@ -76,6 +76,7 @@ import { NbSectionPaper, NbStatusBadge, useNbMobile } from '../../components/nar
 import type { NbPartnerOrg } from '../../services/nartbusiness/nbAdminService';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbEditBusinessDialog from './NbEditBusinessDialog';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 /**
  * Sprint 24 — Üye detay sayfası. Liste tablosundan satıra tıklayınca açılır.
@@ -110,6 +111,20 @@ export default function NbMemberDetail() {
   const [error, setError] = useState<string | null>(null);
   const [actionOpen, setActionOpen] = useState(false);
   const [trialBusy, setTrialBusy] = useState(false);
+  // Ödeme süresi penceresi. Eskiden iki ardışık window.prompt kullanılıyordu;
+  // tarayıcı art arda gelen diyalogları bastırdığında prompt anında null
+  // dönüyor ve handler sessizce çıkıyordu — butona basılıyor, hiçbir şey
+  // olmuyordu. Ayrıca prompt, üyeye e-posta gideceğini anlatamıyor.
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopenDays, setReopenDays] = useState('14');
+  const [reopenNote, setReopenNote] = useState('');
+  const [reopenError, setReopenError] = useState<string | null>(null);
+
+  // Deneme işlemleri de aynı sebeple pencereye taşındı (bkz. yukarıdaki not):
+  // window.prompt bastırıldığında buton sessizce hiçbir şey yapmıyordu.
+  const [trialKind, setTrialKind] = useState<'grant' | 'extend' | 'revoke' | null>(null);
+  const [trialDays, setTrialDays] = useState('30');
+  const [trialError, setTrialError] = useState<string | null>(null);
   const [pwBusy, setPwBusy] = useState(false);
 
   // "Şifrenizi belirleyin" — Keycloak UPDATE_PASSWORD + VERIFY_EMAIL action maili.
@@ -132,7 +147,7 @@ export default function NbMemberDetail() {
       alert(`Şifre belirleme e-postası gönderildi${r.to ? `: ${r.to}` : '.'}`);
     } catch (e: any) {
       alert(
-        e?.response?.data?.error?.message ??
+        nbErrorMessage(e) ??
         e?.message ??
         'Şifre belirleme e-postası gönderilemedi.',
       );
@@ -146,66 +161,65 @@ export default function NbMemberDetail() {
    * öncesinde o durum çıkmaz sokaktı ve tek çare üyeyi silip yeniden
    * yaratmaktı (başvuru numarası ve iz kaybolurdu).
    */
+  const reopenDaysNum = parseInt(reopenDays, 10);
+  const reopenValid =
+    Number.isFinite(reopenDaysNum) && reopenDaysNum > 0 && reopenDaysNum <= 365;
+
   const handleReopenApproval = async () => {
-    if (!member) return;
-    const raw = window.prompt(
-      'Ödeme süresi kaç gün olsun? (üyeye bildirim ve e-posta gönderilecek)',
-      '14',
-    );
-    if (raw === null) return;
-    const days = parseInt(raw, 10);
-    if (!Number.isFinite(days) || days <= 0 || days > 365) {
-      alert('Geçerli bir gün sayısı gir (1-365).');
-      return;
-    }
-    const note = window.prompt('Üyeye iletilecek kısa not (opsiyonel):', '') ?? undefined;
-
+    if (!member || !reopenValid) return;
     setTrialBusy(true);
+    setReopenError(null);
     try {
-      await nbAdminService.reopenApproval(member.memberId, days, note);
+      await nbAdminService.reopenApproval(
+        member.memberId,
+        reopenDaysNum,
+        reopenNote.trim() || undefined,
+      );
       const m = await nbAdminService.getMember(member.memberId);
       setMember(m);
+      setReopenOpen(false);
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message ?? e?.message ?? 'Süre yeniden açılamadı');
+      setReopenError(nbErrorMessage(e, 'Süre yeniden açılamadı'));
     } finally {
       setTrialBusy(false);
     }
   };
 
-  const handleTrial = async (kind: 'grant' | 'extend' | 'revoke') => {
-    if (!member) return;
+  const trialDaysNum = parseInt(trialDays, 10);
+  const trialDaysValid =
+    Number.isFinite(trialDaysNum) && trialDaysNum > 0 && trialDaysNum <= 365;
+  const trialNeedsDays = trialKind === 'grant' || trialKind === 'extend';
 
-    // Süre üyeye göre belirlenebilir: verirken ve uzatırken gün sorulur.
-    let days: number | undefined;
-    if (kind === 'grant' || kind === 'extend') {
-      const label =
-        kind === 'grant'
-          ? 'Deneme süresi kaç gün olsun? (örn. 30, 60, 90)'
-          : 'Deneme kaç gün uzatılsın?';
-      const raw = window.prompt(label, kind === 'grant' ? '30' : '7');
-      if (raw === null) return; // vazgeçti
-      days = parseInt(raw, 10);
-      if (!Number.isFinite(days) || days <= 0 || days > 365) {
-        alert('Geçerli bir gün sayısı gir (1-365).');
-        return;
+  const openTrialDialog = (kind: 'grant' | 'extend' | 'revoke') => {
+    setTrialKind(kind);
+    setTrialDays(kind === 'grant' ? '30' : '7');
+    setTrialError(null);
+  };
+
+  const handleTrial = async () => {
+    if (!member || !trialKind) return;
+    if (trialNeedsDays && !trialDaysValid) return;
+
+    setTrialBusy(true);
+    setTrialError(null);
+    try {
+      if (trialKind === 'grant') {
+        await nbAdminService.grantTrial(member.memberId, trialDaysNum);
+      } else if (trialKind === 'extend') {
+        await nbAdminService.extendTrial(member.memberId, trialDaysNum);
+      } else {
+        await nbAdminService.revokeTrial(member.memberId);
       }
-    } else if (!window.confirm('Deneme şimdi sonlandırılsın mı? (üye ödeme bekleyene döner)')) {
-      return;
-    }
-
-    setTrialBusy(true);
-    try {
-      if (kind === 'grant') await nbAdminService.grantTrial(member.memberId, days);
-      else if (kind === 'extend') await nbAdminService.extendTrial(member.memberId, days ?? 7);
-      else await nbAdminService.revokeTrial(member.memberId);
       const m = await nbAdminService.getMember(member.memberId);
       setMember(m);
+      setTrialKind(null);
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message ?? e?.message ?? 'Deneme işlemi başarısız');
+      setTrialError(nbErrorMessage(e, 'Deneme işlemi başarısız'));
     } finally {
       setTrialBusy(false);
     }
   };
+
   const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [editOpen, setEditOpen] = useState(searchParams.get('edit') === 'business');
@@ -488,7 +502,14 @@ export default function NbMemberDetail() {
                   variant={member.status === 'APPROVED_EXPIRED' ? 'contained' : 'outlined'}
                   color="warning"
                   disabled={trialBusy}
-                  onClick={handleReopenApproval}
+                  onClick={() => {
+                    // MemberView mevcut pencere gününü döndürmüyor;
+                    // makul bir varsayılanla açılıyor.
+                    setReopenDays('14');
+                    setReopenNote('');
+                    setReopenError(null);
+                    setReopenOpen(true);
+                  }}
                 >
                   {member.status === 'APPROVED_EXPIRED'
                     ? 'Ödeme Süresini Yeniden Aç…'
@@ -500,7 +521,7 @@ export default function NbMemberDetail() {
                 variant="outlined"
                 color="info"
                 disabled={trialBusy}
-                onClick={() => handleTrial('grant')}
+                onClick={() => openTrialDialog('grant')}
               >
                 Deneme Ver…
               </Button>
@@ -511,7 +532,7 @@ export default function NbMemberDetail() {
                   variant="outlined"
                   color="info"
                   disabled={trialBusy}
-                  onClick={() => handleTrial('extend')}
+                  onClick={() => openTrialDialog('extend')}
                 >
                   Süre Uzat…
                 </Button>
@@ -519,7 +540,7 @@ export default function NbMemberDetail() {
                   variant="outlined"
                   color="warning"
                   disabled={trialBusy}
-                  onClick={() => handleTrial('revoke')}
+                  onClick={() => openTrialDialog('revoke')}
                 >
                   Denemeyi Sonlandır
                 </Button>
@@ -1103,7 +1124,7 @@ export default function NbMemberDetail() {
                 await load();
               } catch (e: any) {
                 setBankConfirmError(
-                  e?.response?.data?.error?.message ??
+                  nbErrorMessage(e) ??
                   e?.message ??
                   'Onaylama başarısız.',
                 );
@@ -1205,7 +1226,7 @@ export default function NbMemberDetail() {
                 setResendOk(`E-posta kuyruğa alındı: ${r.to}`);
               } catch (e: any) {
                 setResendError(
-                  e?.response?.data?.error?.message ??
+                  nbErrorMessage(e) ??
                   e?.message ??
                   'E-posta gönderilemedi.',
                 );
@@ -1269,7 +1290,7 @@ export default function NbMemberDetail() {
                 alert('Bildirim gönderildi.');
               } catch (e: any) {
                 setPushError(
-                  e?.response?.data?.error?.message ?? e?.message ?? 'Bildirim gönderilemedi.',
+                  nbErrorMessage(e, 'Bildirim gönderilemedi.'),
                 );
               } finally {
                 setPushBusy(false);
@@ -1277,6 +1298,154 @@ export default function NbMemberDetail() {
             }}
           >
             {pushBusy ? 'Gönderiliyor…' : 'Gönder'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Deneme ver / uzat / sonlandır — tek pencere, üç eylem. */}
+      <Dialog
+        open={trialKind !== null}
+        onClose={() => !trialBusy && setTrialKind(null)}
+        fullWidth
+        maxWidth="xs"
+        fullScreen={fullScreen}
+      >
+        <DialogTitle>
+          {trialKind === 'grant'
+            ? 'Ücretsiz Deneme Ver'
+            : trialKind === 'extend'
+              ? 'Deneme Süresini Uzat'
+              : 'Denemeyi Sonlandır'}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: trialNeedsDays ? 2 : 0 }}>
+            {trialKind === 'grant' &&
+              'Üye tam erişimli deneme üyeliğine geçer. Kart bilgisi istenmez, ' +
+                'ödeme penceresi başlamaz. Süre bitince kendiliğinden ödeme ' +
+                'bekleyen duruma döner.'}
+            {trialKind === 'extend' &&
+              'Mevcut denemenin bitiş tarihi girdiğiniz kadar ileri alınır. ' +
+                'Üyenin erişimi kesintisiz devam eder.'}
+            {trialKind === 'revoke' &&
+              'Deneme hemen sona erer ve üye ödeme bekleyen duruma döner. ' +
+                'Dizin görünürlüğü ve eşleştirme önerileri durur.'}
+          </DialogContentText>
+          {trialNeedsDays && (
+            <TextField
+              autoFocus
+              fullWidth
+              size="small"
+              type="number"
+              label="Süre (gün)"
+              value={trialDays}
+              onChange={(e) => setTrialDays(e.target.value)}
+              disabled={trialBusy}
+              inputProps={{ min: 1, max: 365 }}
+              error={!!trialDays && !trialDaysValid}
+              helperText={
+                trialDays && !trialDaysValid
+                  ? '1 ile 365 arasında bir gün sayısı girin.'
+                  : trialKind === 'grant'
+                    ? 'Yaygın seçimler: 30, 60, 90.'
+                    : 'Mevcut bitiş tarihine eklenir.'
+              }
+            />
+          )}
+          {trialError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {trialError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTrialKind(null)} disabled={trialBusy}>
+            Vazgeç
+          </Button>
+          <Button
+            variant="contained"
+            color={trialKind === 'revoke' ? 'warning' : 'primary'}
+            onClick={handleTrial}
+            disabled={trialBusy || (trialNeedsDays && !trialDaysValid)}
+          >
+            {trialBusy
+              ? 'Uygulanıyor…'
+              : trialKind === 'grant'
+                ? 'Denemeyi Başlat'
+                : trialKind === 'extend'
+                  ? 'Süreyi Uzat'
+                  : 'Denemeyi Sonlandır'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Ödeme süresini yeniden aç / uzat.
+          Gerçek bir pencere: kaç gün olduğu, ne olacağı ve hata mesajı
+          burada görünür. Eskiden iki window.prompt vardı; tarayıcı
+          diyalogları bastırdığında buton hiçbir şey yapmıyordu. */}
+      <Dialog
+        open={reopenOpen}
+        onClose={() => !trialBusy && setReopenOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        fullScreen={fullScreen}
+      >
+        <DialogTitle>
+          {member.status === 'APPROVED_EXPIRED'
+            ? 'Ödeme Süresini Yeniden Aç'
+            : 'Ödeme Süresini Uzat'}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Üye <strong>ödeme bekleyen</strong> duruma alınır ve süre bugünden
+            itibaren yeniden başlar. Komite onayı korunur, başvuru numarası
+            değişmez. Üyeye uygulama bildirimi ve e-posta gönderilir.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            type="number"
+            label="Süre (gün)"
+            value={reopenDays}
+            onChange={(e) => setReopenDays(e.target.value)}
+            disabled={trialBusy}
+            inputProps={{ min: 1, max: 365 }}
+            error={!!reopenDays && !reopenValid}
+            helperText={
+              reopenDays && !reopenValid
+                ? '1 ile 365 arasında bir gün sayısı girin.'
+                : 'Yeni bitiş tarihi bugünden itibaren hesaplanır.'
+            }
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            multiline
+            minRows={2}
+            label="Üyeye iletilecek not (opsiyonel)"
+            value={reopenNote}
+            onChange={(e) => setReopenNote(e.target.value)}
+            disabled={trialBusy}
+            helperText="Yazarsanız e-postada görünür."
+          />
+          {reopenError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {reopenError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReopenOpen(false)} disabled={trialBusy}>
+            Vazgeç
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={handleReopenApproval}
+            disabled={trialBusy || !reopenValid}
+          >
+            {trialBusy ? 'Uygulanıyor…' : 'Süreyi Aç'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1341,7 +1510,7 @@ export default function NbMemberDetail() {
                 );
               } catch (e: any) {
                 setIntroError(
-                  e?.response?.data?.error?.message ?? e?.message ?? 'Tanıştırma gönderilemedi.',
+                  nbErrorMessage(e, 'Tanıştırma gönderilemedi.'),
                 );
               } finally {
                 setIntroBusy(false);

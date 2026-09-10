@@ -16,6 +16,7 @@ import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbMember } from '../../services/nartbusiness/nbTypes';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 interface Props {
   open: boolean;
@@ -52,7 +53,7 @@ export default function NbMemberHardDeleteDialog({ open, member, onClose, onDele
       onDeleted();
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Silinemedi');
+      setError(nbErrorMessage(e, 'Silinemedi'));
     } finally {
       setSubmitting(false);
     }

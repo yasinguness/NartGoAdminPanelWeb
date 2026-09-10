@@ -20,6 +20,7 @@ import {
   type NbBulkHistoryRow,
 } from '../../services/nartbusiness/nbAdminService';
 import { relativeDate, fullDate } from '../../utils/nbDisplay';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 /**
  * Toplu işlem geçmişi.
@@ -62,7 +63,7 @@ export default function NbBulkHistoryDialog({
       .listBulkOperations({ page: 0, size: 30 })
       .then((res) => setRows(res.content))
       .catch((e: any) =>
-        setError(e?.response?.data?.error?.message ?? e?.message ?? 'Geçmiş yüklenemedi'),
+        setError(nbErrorMessage(e, 'Geçmiş yüklenemedi')),
       )
       .finally(() => setLoading(false));
   }, [open]);
@@ -73,7 +74,7 @@ export default function NbBulkHistoryDialog({
       .getBulkOperation(id)
       .then(setDetail)
       .catch((e: any) =>
-        setError(e?.response?.data?.error?.message ?? e?.message ?? 'Detay yüklenemedi'),
+        setError(nbErrorMessage(e, 'Detay yüklenemedi')),
       )
       .finally(() => setDetailLoading(false));
   };

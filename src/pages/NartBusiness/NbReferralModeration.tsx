@@ -40,6 +40,7 @@ import type {
   NbReferralStatus,
   NbReferralAdminStats,
 } from '../../services/nartbusiness/nbAdminService';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 const STATUS_LABEL: Record<NbReferralStatus, string> = {
   PROPOSED: 'Önerildi',
@@ -111,7 +112,7 @@ export default function NbReferralModeration() {
         setRows(p.content);
         setTotalPages(Math.max(1, p.totalPages));
       })
-      .catch((e) => setError(e?.response?.data?.error?.message ?? 'Yüklenemedi'))
+      .catch((e) => setError(nbErrorMessage(e) ?? 'Yüklenemedi'))
       .finally(() => setLoading(false));
   }, [status, q, page]);
 
@@ -126,7 +127,7 @@ export default function NbReferralModeration() {
       load();
       nbAdminService.referralStats().then(setStats).catch(() => {});
     } catch (e: any) {
-      setMsg(e?.response?.data?.error?.message ?? 'İşlem başarısız');
+      setMsg(nbErrorMessage(e) ?? 'İşlem başarısız');
     } finally {
       setBusyId(null);
     }
@@ -301,7 +302,7 @@ function _ReferralEditDialog({
       });
       onSaved('Yönlendirme güncellendi.');
     } catch (e: any) {
-      setErr(e?.response?.data?.error?.message ?? 'Kaydedilemedi');
+      setErr(nbErrorMessage(e) ?? 'Kaydedilemedi');
     } finally {
       setSaving(false);
     }

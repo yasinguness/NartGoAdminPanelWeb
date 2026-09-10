@@ -27,6 +27,7 @@ import PublishIcon from '@mui/icons-material/Publish';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbJobPostingRow } from '../../services/nartbusiness/nbAdminService';
 import { NbTitleBlock } from '../../components/nartbusiness/ui';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 type StatusFilter = '' | 'PUBLISHED' | 'CLOSED' | 'HIDDEN';
 
@@ -68,7 +69,7 @@ export default function NbJobModeration() {
         setRows(p.content);
         setTotalPages(Math.max(1, p.totalPages));
       })
-      .catch((e) => setError(e?.response?.data?.error?.message ?? 'Yüklenemedi'))
+      .catch((e) => setError(nbErrorMessage(e) ?? 'Yüklenemedi'))
       .finally(() => setLoading(false));
   }, [status, page]);
 
@@ -88,7 +89,7 @@ export default function NbJobModeration() {
       }
       load();
     } catch (e: any) {
-      setMsg(e?.response?.data?.error?.message ?? 'İşlem başarısız');
+      setMsg(nbErrorMessage(e) ?? 'İşlem başarısız');
     } finally {
       setBusyId(null);
     }

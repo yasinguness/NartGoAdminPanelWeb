@@ -28,6 +28,7 @@ import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { JobTitle } from '../../services/nartbusiness/nbTypes';
 import { useNbMobile } from '../../components/nartbusiness';
 import { NbTitleBlock } from '../../components/nartbusiness/ui';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 const EMPTY: JobTitle = {
   label: '',
@@ -87,7 +88,7 @@ export default function NbJobTitles() {
       setEditing(null);
       load();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Kaydetme başarısız');
+      setError(nbErrorMessage(e, 'Kaydetme başarısız'));
     } finally {
       setSubmitting(false);
     }
@@ -101,7 +102,7 @@ export default function NbJobTitles() {
       setDeleting(null);
       load();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Silme başarısız');
+      setError(nbErrorMessage(e, 'Silme başarısız'));
     } finally {
       setSubmitting(false);
     }

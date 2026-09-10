@@ -28,6 +28,7 @@ import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { Sector } from '../../services/nartbusiness/nbTypes';
 import { CatalogAutocomplete, useNbMobile } from '../../components/nartbusiness';
 import { NbPageHeader, NbEmptyState } from '../../components/nartbusiness/ui';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 const EMPTY: Sector = {
   code: '',
@@ -103,7 +104,7 @@ export default function NbSectors() {
       setEditing(null);
       load();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Kaydetme başarısız');
+      setError(nbErrorMessage(e, 'Kaydetme başarısız'));
     } finally {
       setSubmitting(false);
     }

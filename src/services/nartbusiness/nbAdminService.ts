@@ -887,6 +887,44 @@ export interface NbLoginLogPage {
   degraded?: boolean;
 }
 
+
+/** Pano "ilgilenmen gerekenler" satırı — süresi dolan/dolacak üyelik. */
+export interface NbDeadlineRow {
+  memberId: string;
+  companyName?: string | null;
+  applicationNumber?: string | null;
+  status?: string | null;
+  /** TRIAL = ücretsiz deneme, PAYMENT_WINDOW = onay sonrası ödeme süresi. */
+  kind: 'TRIAL' | 'PAYMENT_WINDOW';
+  deadlineAt?: string | null;
+  /** Sunucuda hesaplanır (saat dilimi kayması olmasın). Negatif = gecikmiş. */
+  daysLeft?: number | null;
+}
+
+export interface NbAttention {
+  deadlines: NbDeadlineRow[];
+  submitted: number;
+  needsInfo: number;
+  approvedExpired: number;
+  withinDays: number;
+}
+
+/**
+ * Panonun eyleme dönük verisi: süresi dolan/dolacak üyelikler ve bekleyen
+ * kuyruk sayıları. Sayı yerine SATIR döner; pano her satıra aksiyon koyabilsin.
+ */
+async function getDashboardAttention(withinDays = 7): Promise<NbAttention | null> {
+  try {
+    const res = await api.get<any>('/nb/admin/dashboard/attention', {
+      params: { withinDays },
+    });
+    return unwrap<NbAttention>(res.data);
+  } catch {
+    // Pano tek bir bölüm yüzünden komple boş kalmasın.
+    return null;
+  }
+}
+
 /**
  * NB üyelerinin giriş kayıtları. Kayıt auth-service'te tutuluyor;
  * nb-membership-service üyeleri süzüp oraya soruyor.
@@ -1666,6 +1704,7 @@ export const nbAdminService = {
   generateDescriptionDraft,
   getDirectoryProfile,
   updateDirectoryProfile,
+  getDashboardAttention,
   getLoginLogs,
   getPresignedProfileUpload,
   uploadFileToPresigned,

@@ -62,6 +62,7 @@ import {
   type AuditCategoryOption,
   type CompanyPlaceResult,
 } from '../../components/nartbusiness';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 interface Props {
   open: boolean;
@@ -372,7 +373,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
         setFamilies(await nbAdminService.listFamiliesByRace(form.race));
       } else {
         setFamilyCreateError(
-          e?.response?.data?.error?.message ?? e?.message ?? 'Sülale eklenemedi',
+          nbErrorMessage(e, 'Sülale eklenemedi'),
         );
       }
     } finally {
@@ -467,7 +468,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Güncellenemedi');
+      setError(nbErrorMessage(e, 'Güncellenemedi'));
     } finally {
       setSubmitting(false);
     }

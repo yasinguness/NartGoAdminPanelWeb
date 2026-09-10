@@ -57,6 +57,7 @@ import {
 } from './verificationShared';
 import { TIER_LABEL } from '../../utils/nbDisplay';
 import { formatDateTime } from '../../utils/dateUtils';
+import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 interface Props {
   open: boolean;
@@ -315,7 +316,7 @@ export default function NbVerificationDecideDialog({
         setVoteResult(detail);
       }
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message ?? e?.message ?? 'Oy gönderilemedi');
+      setError(nbErrorMessage(e, 'Oy gönderilemedi'));
     } finally {
       setSubmitting(false);
     }
