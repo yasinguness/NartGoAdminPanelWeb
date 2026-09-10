@@ -686,8 +686,13 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     setError(null);
     try {
       const adminNote = buildAuditNote(auditCategory, auditNoteBody);
+      // Telefon opsiyonel: yarım kalmış numara gönderilmez. `user.phone`
+      // yalnız ulusal haneleri tutar, ülke kodu burada ekleniyor.
+      const typedPhone = (user.phone || '').replace(/\D/g, '');
       const phoneParts = splitPhone(
-        user.mode === 'new' ? user.phone : user.selectedUser?.phone ?? undefined,
+        user.mode === 'new'
+          ? (typedPhone.length === 10 ? typedPhone : undefined)
+          : user.selectedUser?.phone ?? undefined,
       );
 
       const baseForm: Partial<AdminCreateMemberRequest> = {

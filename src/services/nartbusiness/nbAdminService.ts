@@ -862,6 +862,48 @@ async function updateDirectoryProfile(
   return unwrap(res.data);
 }
 
+/** Giriş kaydı satırı — auth_logs üzerinden, NB üyeleriyle sınırlı. */
+export interface NbLoginLogRow {
+  id: string;
+  occurredAt: string;
+  userId: string;
+  keycloakUserId?: string | null;
+  email?: string | null;
+  fullName?: string | null;
+  action?: string | null;
+  status?: string | null;
+  failureReason?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  deviceInfo?: string | null;
+}
+
+export interface NbLoginLogPage {
+  content: NbLoginLogRow[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  /** auth-service erişilemediğinde true — "kayıt yok" ile karıştırılmasın. */
+  degraded?: boolean;
+}
+
+/**
+ * NB üyelerinin giriş kayıtları. Kayıt auth-service'te tutuluyor;
+ * nb-membership-service üyeleri süzüp oraya soruyor.
+ */
+async function getLoginLogs(params: {
+  status?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+} = {}): Promise<NbLoginLogPage> {
+  const res = await api.get<any>('/nb/admin/login-logs', { params });
+  return (unwrap<NbLoginLogPage>(res.data) ?? {
+    content: [], totalElements: 0, totalPages: 0, number: 0,
+  }) as NbLoginLogPage;
+}
+
 /**
  * Profil fotoğrafı/logo upload için presigned URL al (admin yetkisiyle).
  */
@@ -1624,6 +1666,7 @@ export const nbAdminService = {
   generateDescriptionDraft,
   getDirectoryProfile,
   updateDirectoryProfile,
+  getLoginLogs,
   getPresignedProfileUpload,
   uploadFileToPresigned,
   searchUsers,

@@ -11,6 +11,7 @@ import UserActivity from './pages/Users/UserActivity';
 import NartLiveUsers from './pages/NartLive/NartLiveUsers';
 import NbAuditLog from './pages/NartBusiness/NbAuditLog';
 import NbEmailLogs from './pages/NartBusiness/NbEmailLogs';
+import NbLoginLogs from './pages/NartBusiness/NbLoginLogs';
 import Login from './pages/Login';
 import PrivateRoute from './components/PrivateRoute';
 import { useAuthStore } from './store/authStore';
@@ -232,6 +233,7 @@ function App() {
                 <Route path="nartbusiness/dashboard" element={<NbDashboard />} />
                 <Route path="nartbusiness/audit" element={<NbAuditLog />} />
                 <Route path="nartbusiness/email-logs" element={<NbEmailLogs />} />
+                <Route path="nartbusiness/login-logs" element={<NbLoginLogs />} />
                 <Route path="nartbusiness/members" element={<NbMembers />} />
                 <Route
                   path="nartbusiness/members/:memberId"

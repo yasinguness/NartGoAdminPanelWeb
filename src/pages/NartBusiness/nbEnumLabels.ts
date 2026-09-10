@@ -100,3 +100,16 @@ export function isTrPhoneComplete(value: string | undefined | null): boolean {
 /** Kuruluş yılı için makul aralık. */
 export const FOUNDED_YEAR_MIN = 1900;
 export const foundedYearMax = () => new Date().getFullYear();
+
+/**
+ * İşletme tanıtımının üst sınırı.
+ *
+ * Backend'de dört DTO'da {@code @Size(max = 1000)} olarak duruyor
+ * (AdminCreateMemberRequest, AdminUpdateBusinessRequest, AnonymousApplyRequest,
+ * ApplyMembershipRequest). Sayı üç yerde ayrı ayrı yazılıydı; biri
+ * güncellenmeyince kullanıcı yazmaya devam edip kaydederken 400 alıyordu.
+ * Tek yerden okunur.
+ *
+ * NOT: Bu, dizin profilindeki `summary` alanı DEĞİL (o 5000).
+ */
+export const BUSINESS_DESC_MAX = 1000;

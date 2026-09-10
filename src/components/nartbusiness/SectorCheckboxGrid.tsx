@@ -54,7 +54,7 @@ export default function SectorCheckboxGrid({
         display: 'grid',
         gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
         columnGap: 2,
-        rowGap: 0.5,
+        rowGap: 1.25,
       }}
     >
       {mains.map((s) => {
@@ -66,7 +66,9 @@ export default function SectorCheckboxGrid({
             sx={{
               m: 0,
               opacity: disabled ? 0.4 : 1,
+              alignItems: 'flex-start',
               '.MuiFormControlLabel-label': { fontSize: 14 },
+              '.MuiCheckbox-root': { pt: 0.5 },
             }}
             control={
               <Checkbox
@@ -83,13 +85,29 @@ export default function SectorCheckboxGrid({
               />
             }
             label={
-              <Typography
-                component="span"
-                variant="body2"
-                sx={{ fontWeight: checked ? 600 : 400 }}
-              >
-                {s.nameTr}
-              </Typography>
+              <Box component="span" sx={{ display: 'block', py: 0.25 }}>
+                <Typography
+                  component="span"
+                  variant="body2"
+                  sx={{ fontWeight: checked ? 600 : 400, display: 'block' }}
+                >
+                  {s.nameTr}
+                </Typography>
+                {/* Katalogdan gelen kısa örnekler. "Profesyonel Hizmetler" gibi
+                    geniş başlıklarda kullanıcı neyin nereye girdiğini bilemiyor
+                    ve yanlış sektör seçiyordu; yanlış sektör dizin aramasını ve
+                    eşleştirmeyi sessizce bozuyor. */}
+                {s.description && (
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', lineHeight: 1.35 }}
+                  >
+                    {s.description}
+                  </Typography>
+                )}
+              </Box>
             }
           />
         );

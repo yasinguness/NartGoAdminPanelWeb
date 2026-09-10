@@ -42,6 +42,7 @@ import {
   companySizeLabel,
   companyTypeLabel,
   phoneVisibilityLabel,
+  BUSINESS_DESC_MAX,
   trPhoneNationalDigits,
   trPhoneToE164,
   isTrPhoneComplete,
@@ -171,7 +172,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
     const res = await nbAdminService.generateDescriptionDraft(member.memberId);
     setDrafting(false);
     if ('draft' in res) {
-      set('businessDescription', res.draft.slice(0, 300));
+      set('businessDescription', res.draft.slice(0, BUSINESS_DESC_MAX));
     } else {
       setDraftError(res.message);
     }
@@ -696,10 +697,10 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                   size="small"
                   value={form.businessDescription ?? ''}
                   onChange={(e) => set('businessDescription', e.target.value)}
-                  inputProps={{ maxLength: 300 }}
+                  inputProps={{ maxLength: BUSINESS_DESC_MAX }}
                   helperText={
                     draftError ??
-                    `${form.businessDescription?.length ?? 0} / 300`
+                    `${form.businessDescription?.length ?? 0} / ${BUSINESS_DESC_MAX}`
                   }
                   error={!!draftError}
                 />

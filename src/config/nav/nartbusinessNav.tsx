@@ -35,6 +35,7 @@ import {
     Hub as EmbeddingIcon,
     ManageSearch as AuditIcon,
     Email as EmailIcon,
+    Login as LoginIcon,
     ReportProblem as DlqIcon,
     Settings as SettingsIcon,
 } from '@mui/icons-material';
@@ -100,6 +101,7 @@ export const nartbusinessNavSections: NavSection[] = [
             { text: 'Embedding & Matching', icon: <EmbeddingIcon />, path: '/nartbusiness/embedding-jobs', allowedRoles: NB_MANAGE },
             { text: 'İşlem Kayıtları', icon: <AuditIcon />, path: '/nartbusiness/audit', allowedRoles: NB_MANAGE },
             { text: 'E-posta Kayıtları', icon: <EmailIcon />, path: '/nartbusiness/email-logs', allowedRoles: NB_MANAGE },
+            { text: 'Giriş Kayıtları', icon: <LoginIcon />, path: '/nartbusiness/login-logs', allowedRoles: NB_MANAGE },
             { text: 'Başarısız Mesajlar', icon: <DlqIcon />, path: '/nartbusiness/dlq', allowedRoles: NB_MANAGE },
             { text: 'Ayarlar', icon: <SettingsIcon />, path: '/settings' },
         ],

@@ -56,6 +56,15 @@ export interface FindOrCreateUserValue {
   email: string;
   firstName: string;
   lastName: string;
+  /**
+   * Telefon — YALNIZ 10 haneli ulusal numara (ülke kodu YOK).
+   *
+   * Bir süre burada `+90 5321234567` biçimi tutuldu ve input değeri her
+   * tuşta bu dizeden yeniden ayrıştırıldı. Numara kısayken `+90`'ın
+   * rakamları ulusal hanelerden ayırt edilemiyor, her tuşta geri katılıyor
+   * ve "000 909 09 09" gibi büyüyen bir değer çıkıyordu. Ülke kodu artık
+   * yalnız gönderim anında ekleniyor (bkz. splitPhone).
+   */
   phone: string;
 }
 
@@ -396,10 +405,8 @@ export default function FindOrCreateUser({
                   değeri ikinci kez PhoneTrInput ile soruyordu; kullanıcı aynı
                   numarayı iki farklı biçimde iki kez giriyordu. */}
               <PhoneTrInput
-                value={(value.phone || '').replace(/\D/g, '').slice(-10)}
-                onChange={(digits) =>
-                  update({ phone: digits ? `+90 ${digits}` : '' })
-                }
+                value={value.phone}
+                onChange={(digits) => update({ phone: digits })}
                 disabled={disabled}
                 helperText="Opsiyonel — üyeyle iletişim için"
               />
