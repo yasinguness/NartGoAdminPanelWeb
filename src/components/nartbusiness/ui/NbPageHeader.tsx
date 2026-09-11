@@ -1,71 +1,138 @@
 /**
- * NB sayfa başlığı — her NB sayfasının aynı açılışı.
+ * NB sayfa başlığı — her NB ekranının aynı açılışı.
  *
- * Sayfalar arasında başlık bazen h4, bazen h5, bazen düz Typography'ydi;
- * açıklama bazen vardı bazen yoktu. Tek bileşen, tek ritim.
+ * Kalıp tek ve sabit:
+ *
+ *     breadcrumb → serif başlık → tek cümle amaç → sağda 1 birincil + 1 ikincil
+ *     → (varsa) KPI şeridi
+ *
+ * Başlık şeridi kendi kart zeminine oturur ve alttan 1px çizgiyle biter;
+ * sayfanın "kontrol" kısmı ile "sonuç" kısmı arasındaki sınır budur. Şerit
+ * sayfa dolgusunun dışına taşar (negatif margin) çünkü kenardan kenara
+ * uzanan bir başlık, içerikle aynı hizada duran bir kutudan daha okunur bir
+ * sayfa üstü kurar.
+ *
+ * Başlık boyutu iki kademe: liste sayfasında 34px, detay sayfasında 27px.
+ * Detayda başlığın yanında durum rozeti ve kademe durur, 34px o satırı
+ * taşırıyordu.
  */
 
 import type { ReactNode } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import { nb } from '../../../theme/nbBrand';
+import { nb, nbType } from '../../../theme/nbBrand';
 
 interface NbPageHeaderProps {
     title: string;
-    /** Başlığın altındaki tek satırlık açıklama — sayfanın ne işe yaradığı. */
+    /** Başlığın altındaki tek cümle — bu sayfa ne işe yarar. */
     subtitle?: string;
-    /** Başlığın üstündeki küçük bağlam etiketi. */
+    /**
+     * Başlığın üstündeki bağlam yolu, örn. "NartBusiness · Üyelik".
+     * `eyebrow` eski adı; ikisi de aynı yere basar.
+     */
+    crumb?: string;
+    /** @deprecated `crumb` kullan. Geriye dönük uyum için duruyor. */
     eyebrow?: string;
-    /** Sağ taraftaki aksiyonlar (buton, filtre vb.). */
+    /** Sağ üst: en fazla bir birincil + bir ikincil aksiyon. */
     actions?: ReactNode;
+    /** Başlığın yanına giren rozetler (detay sayfasında durum, kademe). */
+    adornment?: ReactNode;
+    /**
+     * Detay sayfasında başlığın solundaki baş harf kutusu.
+     *
+     * Fotoğraf değil harf: üyelerin çoğunda logo yok ve boş bir avatar
+     * çemberi, dolu olanın yanında eksiklik gibi duruyordu. Harf her zaman
+     * dolu ve şirketi listede gördüğü kutuyla aynı işaretle eşliyor.
+     */
+    avatarInitial?: string;
+    /** Başlık şeridinin altına giren KPI kutuları. */
+    kpis?: ReactNode;
+    /** Şeridin en altına giren sekmeler — detay sayfası için. */
+    tabs?: ReactNode;
+    /** Detay sayfası: 27px başlık ve sticky şerit. */
+    variant?: 'list' | 'detail';
 }
 
-export default function NbPageHeader({ title, subtitle, eyebrow, actions }: NbPageHeaderProps) {
+export default function NbPageHeader({
+    title, subtitle, crumb, eyebrow, actions, adornment, avatarInitial, kpis, tabs, variant = 'list',
+}: NbPageHeaderProps) {
+    const detail = variant === 'detail';
+    const path = crumb ?? eyebrow;
+
     return (
-        <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            alignItems={{ xs: 'flex-start', sm: 'flex-end' }}
-            justifyContent="space-between"
-            spacing={2}
-            sx={{ mb: 3 }}
+        <Box
+            component="header"
+            sx={{
+                bgcolor: nb.surface,
+                borderBottom: `1px solid ${nb.border}`,
+                // Şerit sayfa dolgusunu iptal edip kenardan kenara uzanır.
+                mx: { xs: -2, md: -3.25 },
+                mt: { xs: -2, md: -3.25 },
+                px: { xs: 2, md: 3.25 },
+                pt: detail ? 1.75 : 2.25,
+                pb: tabs ? 0 : 2,
+                mb: 2,
+                ...(detail && { position: 'sticky', top: 0, zIndex: 20 }),
+            }}
         >
-            <Box sx={{ minWidth: 0 }}>
-                {eyebrow && (
-                    <Typography
-                        sx={{
-                            fontSize: 10,
-                            letterSpacing: 1.6,
-                            fontWeight: 700,
-                            color: nb.gold,
-                            mb: 0.5,
-                        }}
-                    >
-                        {eyebrow.toUpperCase()}
-                    </Typography>
+            {path && (
+                <Typography sx={{ ...nbType.crumb, color: nb.textFaint }}>{path}</Typography>
+            )}
+
+            <Stack
+                direction="row"
+                flexWrap="wrap"
+                alignItems="flex-end"
+                justifyContent="space-between"
+                sx={{ gap: 2.25, mt: 0.5 }}
+            >
+                <Stack direction="row" alignItems="center" sx={{ gap: 2, minWidth: 0 }}>
+                    {avatarInitial && (
+                        <Box
+                            sx={{
+                                width: 44, height: 44, borderRadius: '11px', flexShrink: 0,
+                                display: 'grid', placeItems: 'center',
+                                bgcolor: nb.navy, color: nb.gold, fontWeight: 700, fontSize: 15,
+                            }}
+                        >
+                            {avatarInitial}
+                        </Box>
+                    )}
+                    <Box sx={{ minWidth: 0 }}>
+                    <Stack direction="row" alignItems="center" flexWrap="wrap" sx={{ gap: 1.125 }}>
+                        <Typography
+                            component="h1"
+                            sx={{
+                                ...nbType.pageTitle,
+                                fontSize: detail ? 27 : 34,
+                                color: nb.text,
+                            }}
+                        >
+                            {title}
+                        </Typography>
+                        {adornment}
+                    </Stack>
+                    {subtitle && (
+                        <Typography sx={{ mt: 0.5, fontSize: 13, color: nb.textMuted, maxWidth: '70ch' }}>
+                            {subtitle}
+                        </Typography>
+                    )}
+                    </Box>
+                </Stack>
+
+                {actions && (
+                    <Stack direction="row" flexWrap="wrap" sx={{ gap: 1, flexShrink: 0 }}>
+                        {actions}
+                    </Stack>
                 )}
-                <Typography
-                    component="h1"
-                    sx={{
-                        fontFamily: 'Georgia, "Times New Roman", serif',
-                        fontStyle: 'italic',
-                        fontWeight: 700,
-                        fontSize: { xs: 24, sm: 30 },
-                        lineHeight: 1.15,
-                        color: nb.navy,
-                    }}
-                >
-                    {title}
-                </Typography>
-                {subtitle && (
-                    <Typography sx={{ mt: 0.75, fontSize: 14, color: 'text.secondary', maxWidth: 640 }}>
-                        {subtitle}
-                    </Typography>
-                )}
-            </Box>
-            {actions && (
-                <Stack direction="row" spacing={1} alignItems="center" flexShrink={0}>
-                    {actions}
+            </Stack>
+
+            {kpis && (
+                <Stack direction="row" flexWrap="wrap" sx={{ gap: 1.25, mt: 2 }}>
+                    {kpis}
                 </Stack>
             )}
-        </Stack>
+
+            {tabs && <Stack direction="row" sx={{ gap: '2px', mt: 1.75 }}>{tabs}</Stack>}
+        </Box>
     );
 }

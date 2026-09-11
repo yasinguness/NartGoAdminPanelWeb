@@ -28,7 +28,7 @@ import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { theme as adminTheme } from '../../theme';
-import { nb } from '../../theme/nbBrand';
+import { nb, nbType } from '../../theme/nbBrand';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbPartnerOrg } from '../../services/nartbusiness/nbAdminService';
 import type {
@@ -171,13 +171,22 @@ const AUDIT_CATEGORIES: AuditCategoryOption[] = [
   { value: 'DIGER', label: 'Diğer (notta açıkla)' },
 ];
 
+/**
+ * Üç adım.
+ *
+ * Önce altı adımdı: Kullanıcı / İşletme / Kimlik / Sosyal / Paket / Onay.
+ * Altısı da aynı ağırlıkta görünüyordu ama ikisi tek başına bir adım
+ * sayılamayacak kadar küçüktü — "Sosyal" adımı üç opsiyonel bağlantıdan,
+ * "Kimlik" adımı iki açılır listeden ibaretti. Altı adımlık bir ray, işin
+ * gerçekte olduğundan uzun görünmesine yol açıyordu.
+ *
+ * Yeni gruplama işin doğal kırılımını izliyor: **kim** (kullanıcı + köken),
+ * **ne** (işletme + bağlantıları), **hangi koşullarla** (paket + onay).
+ */
 const STEPS = [
-  'Kullanıcı',
-  'İşletme',
-  'Kimlik',
-  'Sosyal',
-  'Paket & Aktivasyon',
-  'Onay',
+  { label: 'Kullanıcı & Kimlik', hint: 'hesap, köken' },
+  { label: 'İşletme & Sosyal', hint: 'şirket, sektör, bağlantılar' },
+  { label: 'Paket & Onay', hint: 'kademe, ücret, aktivasyon' },
 ];
 
 /**
@@ -196,7 +205,10 @@ const ELITE = {
   line: 'rgba(184,134,11,0.28)',
 } as const;
 
-const SERIF = '"Playfair Display", Georgia, "Times New Roman", serif';
+// Tek serif: panelin geri kalanı Instrument Serif kullanıyor, bu modal
+// kendi başına Playfair Display yüklüyordu ve iki serif yan yana düşünce
+// modal sayfanın parçası gibi durmuyordu.
+const SERIF = nbType.serif;
 
 /**
  * Modal'a özel "elite" MUI teması — admin temasını (yeşil) lacivert/altın/krem
@@ -224,66 +236,49 @@ type SidebarContent = {
 
 const STEP_SIDEBAR: SidebarContent[] = [
   {
-    eyebrow: 'Üyelik Protokolü',
-    title: 'Kimlik Doğrulama',
-    panelTitle: 'Kimlik Bütünlüğü',
-    body: 'Üyeyi mevcut NartGo hesabına bağla veya yeni bir kayıt oluştur. Ağın bütünlüğü için her üye tekil bir kimliğe bağlanır.',
+    eyebrow: 'Üyelik protokolü',
+    title: 'Kimlik doğrulama',
+    panelTitle: 'Kimlik bütünlüğü',
+    body: 'Üyeyi mevcut NartGo hesabına bağla ya da yeni kayıt aç. Her üye tek kimliğe bağlanır.',
     bullets: [
-      { label: 'Tekil Hesap', desc: 'E-posta zaten varsa mevcut kullanıcı seçilir; çift kayıt önlenir.' },
-      { label: 'Güvenli Bağ', desc: 'Kimlik auth-service tarafından doğrulanır.' },
+      { label: 'Tekil hesap', desc: 'E-posta zaten varsa mevcut kullanıcı seçilir; çift kayıt oluşmaz.' },
+      { label: 'Köken bilgisi', desc: 'Halk ve sülale opsiyonel; girilirse dizinde eşleşmeyi güçlendirir.' },
     ],
   },
   {
-    eyebrow: 'Kurumsal Hizalama',
-    title: 'İşletme Profili',
-    panelTitle: 'Kurumsal Hizalama',
-    body: 'Üyenin şirketinin temel bilgileri. Bu veriler komitenin ağ uyumunu değerlendirmesinde kritik rol oynar.',
+    eyebrow: 'Eşleşme kalitesi',
+    title: 'İşletme bilgileri',
+    panelTitle: 'Eşleşme kalitesi',
+    body: 'Eşleştirme motoru bu alanları kullanır. Sektör, şehir ve resmî unvan olmadan üye ihale eşleştirmesine giremez.',
     bullets: [
-      { label: 'Sektör Eşleşmesi', desc: 'En fazla 3 sektör; eşleştirme motoru bunları kullanır.' },
-      { label: 'Konum', desc: 'Şehir bilgisi dizin ve bölgesel filtrelerde kullanılır.' },
+      { label: 'Zorunlu alanlar', desc: 'Resmî şirket adı, sektör, şehir.' },
+      { label: 'Bağlantılar', desc: 'Web ve sosyal hesaplar profili zenginleştirir; zorunlu değil.' },
     ],
   },
   {
-    eyebrow: 'Köken & Mensubiyet',
-    title: 'Diaspora Kimliği',
-    panelTitle: 'Kültürel Bağ',
-    body: 'Kafkas kökeni ve aile bilgisi. Ağın kültürel dokusunu ve mensubiyet bağlarını oluşturur.',
+    eyebrow: 'Aktivasyon kuralı',
+    title: 'Paket ve aktivasyon',
+    panelTitle: 'Aktivasyon kuralı',
+    body: 'Kademe ve ödeme penceresini belirle. Onayla birlikte üyeye bilgilendirme gider.',
     bullets: [
-      { label: 'Köken', desc: 'Adige, Abhaz, Çeçen… mensubiyet kodu.' },
-      { label: 'Aile', desc: 'Soy / aile bağı opsiyonel olarak ilişkilendirilir.' },
-    ],
-  },
-  {
-    eyebrow: 'Dijital Varlık',
-    title: 'Sosyal & Ağ Profili',
-    panelTitle: 'Dijital İz',
-    body: 'Üyenin profesyonel dijital ayak izi. Stratejik eşleştirmede ve güven skorunda kullanılır.',
-    bullets: [
-      { label: 'Bağlantılar', desc: 'LinkedIn / web / sosyal — opsiyonel.' },
-      { label: 'Görünürlük', desc: 'Profil zenginliği ağ değerini artırır.' },
-    ],
-  },
-  {
-    eyebrow: 'Paket & Aktivasyon',
-    title: 'Üyelik Tahsisi',
-    panelTitle: 'Yönetişim & Erişim',
-    body: 'Üyenin paketini ve aktivasyon yolunu belirle. Bu seçim yönetişim seviyesini ve erişim haklarını tanımlar.',
-    bullets: [
-      { label: 'Aktivasyon', desc: 'Hemen aktive et ya da ödeme penceresi aç.' },
-      { label: 'Tahsilat', desc: 'Offline tahsil veya ücretsiz / sponsor üyelik.' },
-    ],
-  },
-  {
-    eyebrow: 'Komite Onayı',
-    title: 'Son Kontrol',
-    panelTitle: 'Komite İncelemesi',
-    body: 'Girilen tüm bilgileri gözden geçir ve üyeliği oluştur. Denetim notu kalıcı kayda işlenir.',
-    bullets: [
-      { label: 'Denetim İzi', desc: 'Manuel ekleme gerekçesi audit-log’a yazılır.' },
-      { label: 'Geri Dönülemez', desc: 'Oluşturma sonrası üye dizine düşer.' },
+      { label: 'Ödeme penceresi', desc: 'Süre dolduğunda üyelik askıya alınır, kayıt silinmez.' },
+      { label: 'Bildirim', desc: 'Oluşturma anında e-posta ve uygulama bildirimi gönderilir.' },
     ],
   },
 ];
+
+/**
+ * Taslak anahtarı.
+ *
+ * Alt şeritte "taslak otomatik kaydedilir" yazıyor; bu satırın doğru olması
+ * için gerçekten kaydedilmesi gerek. Yarıda bırakılan bir üye kaydı, dokuz
+ * alanın yeniden yazılması demekti.
+ *
+ * Yalnız **form alanları** saklanır; seçili NartGo kullanıcısı saklanmaz.
+ * Kullanıcı nesnesi sunucudan gelen canlı bir kayıt (üyelik çakışması dahil)
+ * ve bir hafta sonra geri yüklenen kopyası yanıltıcı olurdu.
+ */
+const DRAFT_KEY = 'nb.createMember.draft';
 
 const URL_RX = /^https?:\/\/.+/i;
 
@@ -366,13 +361,33 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
 
   const [user, setUser] = useState<FindOrCreateUserValue>(initialUser);
 
-  const [form, setForm] = useState<Partial<AdminCreateMemberRequest>>({
-    targetStatus: 'ACTIVE',
-    grantFreeMembership: false,
-    verifiedBusiness: false,
-    memberType: 'BUSINESS',
+  const [form, setForm] = useState<Partial<AdminCreateMemberRequest>>(() => {
+    const base: Partial<AdminCreateMemberRequest> = {
+      targetStatus: 'ACTIVE',
+      grantFreeMembership: false,
+      verifiedBusiness: false,
+      memberType: 'BUSINESS',
+    };
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      return raw ? { ...base, ...JSON.parse(raw) } : base;
+    } catch {
+      // Bozuk ya da erişilemeyen taslak sessizce yok sayılır: taslak bir
+      // kolaylık, diyaloğun açılmasının ön koşulu değil.
+      return base;
+    }
   });
   const isProfessional = form.memberType === 'PROFESSIONAL';
+
+  // Her form değişiminde taslak yazılır. Kullanıcı seçimi ve audit notu
+  // dışarıda: ikisi de o oturuma ait, sonraki açılışa taşınmamalı.
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+    } catch {
+      // Depolama kapalıysa (gizli pencere, kota) taslak tutulmaz; akış sürer.
+    }
+  }, [form]);
   // Ünvan "Diğer" modu: serbest metin girişi açık mı (UPPERCASE normalize edilir).
   const [titleOther, setTitleOther] = useState(false);
 
@@ -426,10 +441,18 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   const reset = () => {
     setStep(0);
     setUser(initialUser);
+    // Taslak burada silinir: üye başarıyla oluştuktan sonra aynı alanlarla
+    // açılan bir sonraki form, bir önceki üyenin verisini taşırdı.
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // Depolama kapalıysa silinecek bir şey de yok.
+    }
     setForm({
       targetStatus: 'ACTIVE',
       grantFreeMembership: false,
       verifiedBusiness: false,
+      memberType: 'BUSINESS',
     });
     setPlaceCityHint(null);
     setAuditCategory('SPONSOR');
@@ -608,19 +631,20 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   // bir şey anlatıyor. Kayıt yine tutuluyor.
   const auditValid = true;
 
+  // Adımlar birleşince geçerlilik de birleşir: bir adım, içindeki her
+  // parçası geçerliyse geçilebilir.
   const stepValid: Record<number, boolean> = {
-    0: isFindOrCreateValid(user),
-    1: businessValid,
-    2: identityValid,
-    3: socialValid,
-    4: tierValid,
-    5: auditValid,
+    0: isFindOrCreateValid(user) && identityValid,
+    1: businessValid && socialValid,
+    2: tierValid && auditValid,
   };
 
   const canSubmit = Object.values(stepValid).every(Boolean);
 
-  /** Mevcut adımdaki "İleri" disabled olduğunda neden disabled olduğunu açıklayan tooltip. */
+  /** "Devam et" kapalıysa neyin eksik olduğunu söyleyen ipucu. */
   const stepBlockerHint = useMemo(() => {
+    const missing: string[] = [];
+
     if (step === 0) {
       if (!isFindOrCreateValid(user)) {
         if (user.mode === 'existing') {
@@ -628,36 +652,30 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
             ? 'Seçilen kullanıcı zaten NB üyesi — başka birini seç'
             : 'NartGo kullanıcısı seç';
         }
-        return 'Geçerli email + Ad + Soyad gerekli';
+        return 'Geçerli e-posta, ad ve soyad gerekli';
       }
       return null;
     }
+
     if (step === 1) {
-      const missing: string[] = [];
-      if (!form.companyName?.trim()) missing.push(isProfessional ? 'Şirket/Kurum' : 'Şirket Adı');
+      if (!form.companyName?.trim()) missing.push(isProfessional ? 'Şirket/kurum' : 'Şirket adı');
       if (isProfessional && !form.personJobTitle?.trim()) missing.push('Ünvan');
       if (isProfessional && !form.expertise?.trim()) missing.push('Uzmanlık');
       if (!form.sectorCodes?.length) missing.push('Sektör');
       if (!form.city) missing.push('Şehir');
-      return missing.length ? `Eksik: ${missing.join(', ')}` : null;
-    }
-    if (step === 2) {
-      return null;
-    }
-    if (step === 3) {
-      if (!isProfessional && !hasSocial) return 'En az bir sosyal bağlantı gerekli';
-      const missing: string[] = [];
-      if (!linkedinValid) missing.push('Geçerli LinkedIn URL');
-      if (!websiteValid) missing.push('Geçerli Web URL');
+      if (!isProfessional && !hasSocial) missing.push('En az bir bağlantı');
+      if (!linkedinValid) missing.push('Geçerli LinkedIn adresi');
+      if (!websiteValid) missing.push('Geçerli web adresi');
       if (!instagramValid) missing.push('Geçerli Instagram kullanıcı adı');
       return missing.length ? `Eksik: ${missing.join(', ')}` : null;
     }
-    if (step === 4) {
-      const missing: string[] = [];
+
+    if (step === 2) {
       if (!form.requestedTier) missing.push('Kademe');
-      if (!form.targetStatus) missing.push('Aktivasyon Akışı');
+      if (!form.targetStatus) missing.push('Aktivasyon akışı');
       return missing.length ? `Eksik: ${missing.join(', ')}` : null;
     }
+
     return null;
   }, [
     step,
@@ -668,8 +686,6 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
     form.expertise,
     form.sectorCodes,
     form.city,
-    form.race,
-    form.clanName,
     form.requestedTier,
     form.targetStatus,
     hasSocial,
@@ -1614,17 +1630,29 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
   const stepBody = () => {
     switch (step) {
       case 0:
-        return renderUserStep();
+        // Kim: hesap bağı + köken. İkisi de "bu üye kim" sorusunun parçası.
+        return (
+          <>
+            {renderUserStep()}
+            {renderIdentityStep()}
+          </>
+        );
       case 1:
-        return renderBusinessStep();
+        // Ne: şirket ve onun dijital izi.
+        return (
+          <>
+            {renderBusinessStep()}
+            {renderSocialStep()}
+          </>
+        );
       case 2:
-        return renderIdentityStep();
-      case 3:
-        return renderSocialStep();
-      case 4:
-        return renderPackageStep();
-      case 5:
-        return renderConfirmStep();
+        // Hangi koşullarla: paket, ücret ve son kontrol.
+        return (
+          <>
+            {renderPackageStep()}
+            {renderConfirmStep()}
+          </>
+        );
       default:
         return null;
     }
@@ -1718,7 +1746,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                 textTransform: 'uppercase',
               }}
             >
-              Elite Application
+              Üyelik Protokolü
             </Typography>
           </Stack>
           <Typography
@@ -1757,7 +1785,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
             spacing={0}
             sx={{ minWidth: 'max-content' }}
           >
-            {STEPS.map((label, i) => {
+            {STEPS.map(({ label }, i) => {
               const done = i < step;
               const active = i === step;
               return (
@@ -1957,17 +1985,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                 sx={{ pt: 2, borderTop: `1px solid ${ELITE.line}` }}
               >
                 <LockOutlinedIcon sx={{ fontSize: 15, color: ELITE.goldSoft }} />
-                <Typography
-                  sx={{
-                    fontSize: '0.62rem',
-                    fontWeight: 700,
-                    letterSpacing: 1.5,
-                    textTransform: 'uppercase',
-                    color: 'rgba(255,255,255,0.55)',
-                  }}
-                >
-                  Heritage &amp; Trust Standard
-                </Typography>
+
               </Stack>
             </Box>
           </Box>
@@ -1984,8 +2002,11 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
           }}
         >
           <Button onClick={handleCloseRequest} disabled={submitting} color="inherit">
-            İptal
+            Vazgeç
           </Button>
+          <Typography sx={{ fontSize: 11.5, color: nb.textFaint, ml: 0.5 }}>
+            Taslak otomatik kaydedilir
+          </Typography>
           <Box sx={{ flexGrow: 1 }} />
           {step > 0 && (
             <Button
@@ -2012,7 +2033,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                   disabled={!stepValid[step] || submitting}
                   sx={{ minWidth: 120, px: 3 }}
                 >
-                  Devam Et
+                  Devam et
                 </Button>
               </Box>
             </Tooltip>
@@ -2037,7 +2058,7 @@ export default function NbCreateMemberDialog({ open, onClose, onCreated }: Props
                   }
                   sx={{ minWidth: 150, px: 3 }}
                 >
-                  {submitting ? 'Oluşturuluyor…' : 'Üyeyi Oluştur'}
+                  {submitting ? 'Oluşturuluyor…' : 'Üyeyi oluştur'}
                 </Button>
               </Box>
             </Tooltip>

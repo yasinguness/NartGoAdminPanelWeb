@@ -3,7 +3,6 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Autocomplete,
-  Avatar,
   Box,
   Button,
   Chip,
@@ -39,7 +38,6 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
@@ -48,6 +46,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
 import LockResetIcon from '@mui/icons-material/LockReset';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import VerifiedIcon from '@mui/icons-material/Verified';
@@ -73,6 +72,21 @@ import {
   formatMoney,
 } from '../../utils/nbDisplay';
 import { NbSectionPaper, NbStatusBadge, useNbMobile } from '../../components/nartbusiness';
+import {
+  NbCompletenessCard,
+  NbPageHeader,
+  NbUndoToast,
+  NbPeriodCard,
+  NbTabs,
+  NbTimelineCard,
+  nbColumn,
+  nbColumns,
+  nbPrimaryBtn,
+  nbSecondaryBtn,
+} from '../../components/nartbusiness/ui';
+import type { NbTabItem, NbUndoState } from '../../components/nartbusiness/ui';
+import { nb, nbRadius } from '../../theme/nbBrand';
+import { hasSector, memberTask, TRIAL_ENDING_DAYS, trialDaysLeft } from './nbMemberTask';
 import type { NbPartnerOrg } from '../../services/nartbusiness/nbAdminService';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbEditBusinessDialog from './NbEditBusinessDialog';
@@ -90,6 +104,22 @@ import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
  *   6. Dönem Geçmişi (periods table — fee, status, dates)
  *   7. İletişim & Hesap (NartGo hesap özeti — email, telefon, kayıt tarihi)
  */
+/**
+ * Detay sekmeleri.
+ *
+ * Dört sekme, sırası bilinçli: önce kim olduğu (Genel), sonra para ve süre
+ * (Üyelik & Ödeme), sonra kanıt (Kimlik & Belgeler), en sonda ne yaptığı
+ * (Aktivite). Yönetici en sık ilk ikisine bakar.
+ */
+type DetailTab = 'general' | 'membership' | 'identity' | 'activity';
+
+const DETAIL_TABS: NbTabItem<DetailTab>[] = [
+  { key: 'general', label: 'Genel' },
+  { key: 'membership', label: 'Üyelik & Ödeme' },
+  { key: 'identity', label: 'Kimlik & Belgeler' },
+  { key: 'activity', label: 'Aktivite' },
+];
+
 export default function NbMemberDetail() {
   const { memberId } = useParams<{ memberId: string }>();
   const navigate = useNavigate();
@@ -109,6 +139,16 @@ export default function NbMemberDetail() {
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Açık sekme adresten okunur ve adrese yazılır.
+   *
+   * Üye listesindeki "Belge iste" gibi işler doğrudan ilgili sekmeye
+   * götürüyor (`?tab=identity`); sekme yalnız bileşen durumunda tutulsaydı
+   * o bağlantılar hep "Genel"de açılırdı.
+   */
+  const [tab, setTab] = useState<DetailTab>(
+    () => (searchParams.get('tab') as DetailTab | null) ?? 'general',
+  );
   const [actionOpen, setActionOpen] = useState(false);
   const [trialBusy, setTrialBusy] = useState(false);
   // Ödeme süresi penceresi. Eskiden iki ardışık window.prompt kullanılıyordu;
@@ -144,13 +184,11 @@ export default function NbMemberDetail() {
     setPwBusy(true);
     try {
       const r = await nbAdminService.sendSetPasswordEmail(member.memberId);
-      alert(`Şifre belirleme e-postası gönderildi${r.to ? `: ${r.to}` : '.'}`);
-    } catch (e: any) {
-      alert(
-        nbErrorMessage(e) ??
-        e?.message ??
-        'Şifre belirleme e-postası gönderilemedi.',
-      );
+      // Engelleyici `alert` yerine kutu: gönderim bilgisi akışı durdurmamalı.
+      // Geri alma yok — gönderilmiş bir e-posta geri çağrılamaz.
+      setUndo({ message: `Şifre belirleme e-postası gönderildi${r.to ? `: ${r.to}` : '.'}` });
+    } catch (e) {
+      setError(nbErrorMessage(e, 'Şifre belirleme e-postası gönderilemedi.'));
     } finally {
       setPwBusy(false);
     }
@@ -276,7 +314,8 @@ export default function NbMemberDetail() {
       setIntroLoading(false);
     }
   };
-  const [resendOk, setResendOk] = useState<string | null>(null);
+  /** Yazma işlemi sonrası 10 sn'lik kutu — engelleyici `alert` yerine. */
+  const [undo, setUndo] = useState<NbUndoState | null>(null);
 
   const load = async () => {
     if (!memberId) return;
@@ -359,6 +398,15 @@ export default function NbMemberDetail() {
     }
   };
 
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (tab === 'general') next.delete('tab');
+    else next.set('tab', tab);
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const sectorLabel = useMemo(() => {
     const codes = member?.sectorCodes?.length ? member.sectorCodes : member?.sectorCode ? [member.sectorCode] : [];
     if (!codes.length) return undefined;
@@ -380,6 +428,193 @@ export default function NbMemberDetail() {
     if (!member?.currentPeriodId) return null;
     return periods.find((p) => p.id === member.currentPeriodId) ?? null;
   }, [member?.currentPeriodId, periods]);
+  /**
+   * Sağ paneldeki dönem kartının üç sayısı.
+   *
+   * `progress` dönemin **tükenen** yüzdesi: çubuk dolarken kalan süre azalır.
+   * Tersi (kalan yüzde) daha sezgisel görünüyor ama "süre bitiyor" uyarısıyla
+   * aynı yöne bakmıyor; ikisi ters yönde hareket edince çubuk yanıltıcı olur.
+   */
+  const periodProgress = useMemo(() => {
+    if (!currentPeriod) return 0;
+    const start = new Date(currentPeriod.startsAt).getTime();
+    const end = new Date(currentPeriod.endsAt).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
+    return Math.round(((Date.now() - start) / (end - start)) * 100);
+  }, [currentPeriod]);
+
+  const periodMonthsLeft = useMemo(() => {
+    if (!currentPeriod) return null;
+    return monthsBetween(new Date().toISOString(), currentPeriod.endsAt);
+  }, [currentPeriod]);
+
+  /**
+   * Dönem kartındaki son tarih uyarısı.
+   *
+   * Yalnız gerçekten bir son tarih varken çizilir. "Her şey yolunda" demek
+   * için kart içinde yer kaplamak gürültüdür; uyarı bölümünün varlığı zaten
+   * bir sinyal olmalı.
+   */
+  const periodDeadline = useMemo(() => {
+    if (!member) return undefined;
+    if (member.status === 'APPROVED_PENDING_PAYMENT') {
+      return {
+        title: 'Ödeme bekleniyor',
+        detail:
+          'Pencere dolduğunda üyelik otomatik olarak onay süresi dolmuş duruma geçer, kayıt silinmez.',
+      };
+    }
+    if (member.status === 'APPROVED_EXPIRED') {
+      return {
+        title: 'Onay süresi doldu',
+        detail: 'Üye ödeme yapamıyor. Süreyi yeniden açmadan üyelik aktifleşmez.',
+      };
+    }
+    if (member.status === 'TRIAL' && member.trialEndsAt) {
+      const left = trialDaysLeft(member.trialEndsAt);
+      if (left != null && left <= TRIAL_ENDING_DAYS) {
+        return {
+          title: left <= 0 ? 'Deneme bitti' : `Deneme ${left} gün sonra bitiyor`,
+          detail: 'Deneme bittiğinde üye ödeme bekleyen duruma döner.',
+        };
+      }
+    }
+    return undefined;
+  }, [member]);
+
+  /** Profil tamlığı — eşleştirmeyi etkileyen alanlar üzerinden. */
+  const completeness = useMemo(() => {
+    if (!member) return { percent: 0, missing: [] as string[] };
+    // Ağırlıklandırma yok: her alan ya dolu ya değil. Ağırlık vermek yüzdeyi
+    // açıklanamaz hale getirirdi ve "%64 ne demek" sorusunu doğururdu.
+    const checks: [string, boolean][] = [
+      ['Resmî şirket adı', Boolean(member.companyName)],
+      ['Sektör', hasSector(member)],
+      ['Şehir', Boolean(member.city)],
+      ['Telefon numarası', Boolean(member.phoneNumber)],
+      ['Web sitesi', Boolean(member.websiteUrl)],
+      ['İşletme açıklaması', Boolean(member.businessDescription)],
+      ['Halk', Boolean(member.race)],
+      ['Sülale', Boolean(member.clanName)],
+      ['Memleket bilgisi', Boolean(member.hometownDetail)],
+    ];
+    const filled = checks.filter(([, ok]) => ok).length;
+    return {
+      percent: Math.round((filled / checks.length) * 100),
+      missing: checks.filter(([, ok]) => !ok).map(([name]) => name),
+    };
+  }, [member]);
+
+  /** Başlıktaki durum rozeti — kalan gün varsa durumun içine yazılır. */
+  const statusWithDays = useMemo(() => {
+    if (!member) return '';
+    const base = STATUS_LABEL[member.status];
+    if (member.status === 'TRIAL') {
+      const left = trialDaysLeft(member.trialEndsAt);
+      if (left != null) return `${base} · ${left <= 0 ? 'bitti' : `${left} gün`}`;
+    }
+    return base;
+  }, [member]);
+
+  const identityLine = useMemo(() => {
+    if (!member?.race) return null;
+    return member.clanName ? `${RACE_LABEL[member.race]} · ${member.clanName}` : RACE_LABEL[member.race];
+  }, [member?.race, member?.clanName]);
+
+  /**
+   * Sağ paneldeki son hareketler.
+   *
+   * Komite zaman çizelgesinin tamamı değil, **yalnız son dört olay**:
+   * panel bir arşiv değil, "bu üyede en son ne oldu" sorusunun cevabı.
+   * Tam çizelge Kimlik & Belgeler sekmesinde duruyor.
+   */
+  const railTimeline = useMemo(() => {
+    const entries: { text: string; when: string; tone?: 'pending' | 'good' | 'past' }[] = [];
+    caseTimeline.slice(0, 3).forEach((t) => {
+      entries.push({
+        text: humanizeDescription(t.description) || 'Kayıt',
+        when: relativeDate(t.at),
+        tone: 'past',
+      });
+    });
+    if (member) {
+      entries.push({ text: 'NartGo hesabı bağlandı', when: relativeDate(member.joinedAt), tone: 'past' });
+    }
+    return entries.slice(0, 4);
+  }, [caseTimeline, member]);
+
+  /**
+   * Birincil ve ikincil aksiyon.
+   *
+   * Birincil, üye listesindeki satır butonuyla **aynı kuralı** okur
+   * (`memberTask`): liste "Ödemeyi onayla" diyorsa detay da onu demeli.
+   * İki ekran iki ayrı kural yazsaydı biri diğerini yalanlardı.
+   */
+  const primaryAction = useMemo(() => {
+    if (!member) return null;
+    const task = memberTask(member);
+    if (!task) return null;
+    switch (task.kind) {
+      case 'confirmPayment':
+        return {
+          label: 'Ödemeyi onayla',
+          run: () => {
+            setBankConfirmRef('');
+            setBankConfirmNote('');
+            setBankConfirmError(null);
+            setBankConfirmOpen(true);
+          },
+        };
+      case 'reopenApproval':
+        return {
+          label: 'Ödeme süresini yeniden aç',
+          run: () => {
+            setReopenDays('14');
+            setReopenNote('');
+            setReopenError(null);
+            setReopenOpen(true);
+          },
+        };
+      case 'committee':
+        return {
+          label: 'Doğrulama kuyruğuna git',
+          run: () => navigate('/nartbusiness/verification'),
+        };
+      case 'trialEnding':
+        return { label: 'Deneme süresini uzat', run: () => openTrialDialog('extend') };
+      default:
+        // Belge/eksik alan işleri hazır e-posta akışına düşer.
+        return {
+          label: 'Eksik bilgi iste',
+          run: () => {
+            setResendEmailOverride('');
+            setResendError(null);
+            setResendTemplate('NEEDS_INFO');
+            setResendOpen(true);
+          },
+        };
+    }
+  }, [member, navigate]);
+
+  const secondaryAction = useMemo(() => {
+    if (!member) return null;
+    if (member.status === 'APPROVED_PENDING_PAYMENT') {
+      return {
+        label: 'Süreyi uzat',
+        run: () => {
+          setReopenDays('14');
+          setReopenNote('');
+          setReopenError(null);
+          setReopenOpen(true);
+        },
+      };
+    }
+    if (member.status === 'TRIAL') {
+      return { label: 'Süreyi uzat', run: () => openTrialDialog('extend') };
+    }
+    return null;
+  }, [member]);
+
 
   if (loading) {
     return (
@@ -406,632 +641,652 @@ export default function NbMemberDetail() {
   }
 
   return (
-    <Box sx={{ maxWidth: 1400 }}>
-      {/* Geri ve breadcrumb */}
-      <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/nartbusiness/members')}
-          size="small"
-        >
-          Üyeler
-        </Button>
-        <Typography variant="body2" color="text.disabled">
-          /
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {member.companyName ?? 'Şirket bilgisi eksik'}
-        </Typography>
-      </Stack>
-
-      {/* Header kart */}
-      <Paper variant="outlined" sx={{ p: 3, mb: 2.5 }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems={{ md: 'center' }}>
-          <Avatar
-            sx={{
-              width: 64,
-              height: 64,
-              bgcolor: 'primary.main',
-              fontSize: 24,
-              fontWeight: 600,
-            }}
-          >
-            {userInitial}
-          </Avatar>
-          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-            <Stack direction="row" spacing={1} alignItems="center" mb={0.5} flexWrap="wrap" useFlexGap>
-              <Typography variant="h5" fontWeight={600}>
-                {member.companyName ?? (
-                  <Typography component="span" variant="h5" color="warning.main">
-                    Şirket bilgisi eksik
-                  </Typography>
-                )}
-              </Typography>
-              {member.verifiedBusiness && (
-                <Chip
-                  size="small"
-                  color="info"
-                  icon={<VerifiedIcon />}
-                  label="Doğrulanmış İşletme"
-                  variant="outlined"
-                />
-              )}
-            </Stack>
-            {userName && (
-              <Typography variant="body2" color="text.secondary">
-                {userName}
-                {user?.email ? ` · ${user.email}` : ''}
-              </Typography>
-            )}
-            <Stack direction="row" spacing={1} mt={1} flexWrap="wrap" useFlexGap>
-              <NbStatusBadge status={member.status} label={STATUS_LABEL[member.status]} />
-              <Chip
-                size="small"
-                variant="outlined"
-                label={TIER_LABEL[member.tier]}
-                sx={{ fontWeight: 500 }}
-              />
-              <Tooltip title={fullDate(member.joinedAt)} arrow>
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={`Katıldı: ${relativeDate(member.joinedAt)}`}
-                />
+    <Box>
+      <NbPageHeader
+        variant="detail"
+        crumb="NartBusiness · Üyelik"
+        title={member.companyName ?? 'Şirket bilgisi eksik'}
+        avatarInitial={userInitial}
+        subtitle={
+          [userName, user?.email, member.city, identityLine].filter(Boolean).join(' · ') || undefined
+        }
+        adornment={
+          <>
+            <NbStatusBadge status={member.status} label={statusWithDays} />
+            <Box
+              component="span"
+              sx={{
+                border: '1px solid #e2ded3',
+                bgcolor: nb.inputBg,
+                borderRadius: '5px',
+                px: 1,
+                py: 0.375,
+                fontSize: 11,
+                color: nb.textMuted,
+              }}
+            >
+              {TIER_LABEL[member.tier]}
+            </Box>
+            {member.verifiedBusiness && (
+              <Tooltip title="Doğrulanmış İşletme" arrow>
+                <VerifiedIcon sx={{ fontSize: 15, color: nb.green }} />
               </Tooltip>
-            </Stack>
-          </Box>
-          <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap' }} useFlexGap>
-            {member.status === 'APPROVED_PENDING_PAYMENT' && (
+            )}
+          </>
+        }
+        actions={
+          <>
+            {/* Birincil aksiyon duruma göre değişir ve tek tanedir.
+                Önceden sekiz düz buton yan yana duruyordu; hepsi aynı görsel
+                ağırlıkta olduğu için "şimdi ne yapmalıyım" okunmuyordu. */}
+            {primaryAction && (
               <Button
-                variant="contained"
-                color="success"
-                startIcon={<CheckCircleOutlineIcon />}
-                onClick={() => {
-                  setBankConfirmRef('');
-                  setBankConfirmNote('');
-                  setBankConfirmError(null);
-                  setBankConfirmOpen(true);
+                disableElevation
+                onClick={primaryAction.run}
+                sx={{
+                  ...(nbPrimaryBtn as object),
+                  bgcolor: nb.green,
+                  '&:hover': { bgcolor: nb.greenDeep },
                 }}
               >
-                Ödemeyi Onayla
+                {primaryAction.label}
               </Button>
             )}
-            {(member.status === 'APPROVED_EXPIRED' ||
-              member.status === 'APPROVED_PENDING_PAYMENT') && (
-                <Button
-                  variant={member.status === 'APPROVED_EXPIRED' ? 'contained' : 'outlined'}
-                  color="warning"
-                  disabled={trialBusy}
-                  onClick={() => {
-                    // MemberView mevcut pencere gününü döndürmüyor;
-                    // makul bir varsayılanla açılıyor.
-                    setReopenDays('14');
-                    setReopenNote('');
-                    setReopenError(null);
-                    setReopenOpen(true);
-                  }}
-                >
-                  {member.status === 'APPROVED_EXPIRED'
-                    ? 'Ödeme Süresini Yeniden Aç…'
-                    : 'Ödeme Süresini Uzat…'}
-                </Button>
-              )}
-            {member.status === 'APPROVED_PENDING_PAYMENT' && !member.trialUsed && (
+            {secondaryAction && (
               <Button
-                variant="outlined"
-                color="info"
-                disabled={trialBusy}
-                onClick={() => openTrialDialog('grant')}
+                disableElevation
+                onClick={secondaryAction.run}
+                sx={{
+                  border: '1px solid #e2d3ae',
+                  bgcolor: nb.amberTint,
+                  color: nb.amber,
+                  borderRadius: `${nbRadius.control}px`,
+                  px: 1.75,
+                  py: 1.25,
+                  fontSize: 12.5,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: '#f2e9d0' },
+                }}
               >
-                Deneme Ver…
+                {secondaryAction.label}
               </Button>
             )}
-            {member.status === 'TRIAL' && (
-              <>
-                <Button
-                  variant="outlined"
-                  color="info"
-                  disabled={trialBusy}
-                  onClick={() => openTrialDialog('extend')}
-                >
-                  Süre Uzat…
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="warning"
-                  disabled={trialBusy}
-                  onClick={() => openTrialDialog('revoke')}
-                >
-                  Denemeyi Sonlandır
-                </Button>
-              </>
-            )}
-            {/* İkincil aksiyonlar tek menüde.
-                Önceden sekiz düz buton yan yana duruyordu; hepsi aynı görsel
-                ağırlıkta olduğu için "şimdi ne yapmalıyım" sorusu okunmuyordu.
-                Duruma göre değişen birincil aksiyon yukarıda kalır, geri
-                kalanı buraya iner. */}
             <Button
-              variant="outlined"
-              endIcon={<MoreHorizIcon />}
+              disableElevation
+              sx={nbSecondaryBtn}
               onClick={(e) => setMoreAnchor(e.currentTarget)}
               aria-haspopup="menu"
               aria-expanded={Boolean(moreAnchor)}
             >
-              İşlemler
+              İşlemler ⌄
             </Button>
-            <Menu
-              anchorEl={moreAnchor}
-              open={Boolean(moreAnchor)}
-              onClose={() => setMoreAnchor(null)}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-              slotProps={{ paper: { sx: { minWidth: 248, borderRadius: 2 } } }}
-            >
-              <MenuItem
-                onClick={() => {
-                  setMoreAnchor(null);
-                  setEditOpen(true);
-                }}
-              >
-                <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
-                İşletmeyi Düzenle
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setMoreAnchor(null);
-                  setResendEmailOverride('');
-                  setResendError(null);
-                  setResendOk(null);
-                  setResendTemplate(
-                    member.status === 'NEEDS_INFO'
-                      ? 'NEEDS_INFO'
-                      : member.status === 'SUBMITTED'
-                        ? 'RECEIVED'
-                        : 'APPROVED',
-                  );
-                  setResendOpen(true);
-                }}
-              >
-                <ListItemIcon><EmailOutlinedIcon fontSize="small" /></ListItemIcon>
-                Mail Gönder
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setMoreAnchor(null);
-                  setPushTitle('');
-                  setPushMessage('');
-                  setPushError(null);
-                  setPushOpen(true);
-                }}
-              >
-                <ListItemIcon><NotificationsActiveOutlinedIcon fontSize="small" /></ListItemIcon>
-                Push Gönder
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setMoreAnchor(null);
-                  openIntroDialog();
-                }}
-              >
-                <ListItemIcon><HandshakeOutlinedIcon fontSize="small" /></ListItemIcon>
-                Tanıştır
-              </MenuItem>
-              <Divider />
-              <MenuItem
-                disabled={pwBusy}
-                onClick={() => {
-                  setMoreAnchor(null);
-                  handleSendSetPassword();
-                }}
-              >
-                <ListItemIcon><LockResetIcon fontSize="small" /></ListItemIcon>
-                {pwBusy ? 'Gönderiliyor…' : 'Şifre Belirleme E-postası'}
-              </MenuItem>
-            </Menu>
-            <Button variant="contained" onClick={() => setActionOpen(true)}>
-              Yönet
+            <Button disableElevation sx={nbSecondaryBtn} onClick={() => setActionOpen(true)}>
+              Üyelik durumu…
             </Button>
-          </Stack>
-        </Stack>
-      </Paper>
+          </>
+        }
+        tabs={<NbTabs items={DETAIL_TABS} value={tab} onChange={setTab} />}
+      />
 
-      <Stack spacing={2.5}>
-        {/* "Şimdi ne yapmalıyım" — sayfanın ilk cevapladığı soru bu olmalı.
-            Önceden en aksiyon gerektiren gerçek (ödeme süresi dolmuş) başlıkta
-            küçük gri bir çipti; rutin komite zaman çizelgesi ise en üstte
-            kocaman yer kaplıyordu. Sıra tersine çevrildi. */}
-        <NextActionBanner member={member} />
-
-        {/* Üyelik & Aktivasyon */}
-        <NbSectionPaper
-          title="Üyelik & Aktivasyon"
-          hint="Mevcut dönem ve durumun özeti."
+      <Menu
+        anchorEl={moreAnchor}
+        open={Boolean(moreAnchor)}
+        onClose={() => setMoreAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { sx: { minWidth: 230, borderRadius: '10px' } } }}
+      >
+        <MenuItem
+          onClick={() => {
+            setMoreAnchor(null);
+            setEditOpen(true);
+          }}
         >
-          {currentPeriod ? (
-            <Box>
-              <Typography variant="body2">
-                <b>{TIER_LABEL[currentPeriod.tier]} yıllık üyelik</b>
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {shortDate(currentPeriod.startsAt)} – {shortDate(currentPeriod.endsAt)}
-                {' · '}
-                {monthsBetween(currentPeriod.startsAt, new Date().toISOString())} ay aktif
-                {' · '}
-                Kalan: {monthsBetween(new Date().toISOString(), currentPeriod.endsAt)} ay
-              </Typography>
-              <Typography variant="body2" mt={0.5}>
-                Ücret: <b>{formatMoney(currentPeriod.fee, currentPeriod.currency)}</b>
-                {' · '}
-                Durum: <b>{PERIOD_STATUS_LABEL[currentPeriod.status]}</b>
-                {currentPeriod.paymentId
-                  ? ' · Ödeme alındı'
-                  : currentPeriod.status === 'PAYMENT_PENDING'
-                    ? ' · Ödeme bekleniyor'
-                    : ' · Offline tahsil'}
-              </Typography>
-            </Box>
-          ) : (
-            <Alert severity="info" variant="outlined">
-              Aktif dönem yok. Üye henüz ödeme yapmamış veya tüm dönemler kapanmış.
-            </Alert>
-          )}
-
-          {member.status === 'APPROVED_PENDING_PAYMENT' && member.approvalExpiresAt && (
-            <Alert severity="warning" variant="outlined">
-              Komite onayı sona eriyor:{' '}
-              <b>{shortDate(member.approvalExpiresAt)}</b> tarihine kadar üyenin ödemeyi
-              tamamlaması gerekir.
-            </Alert>
-          )}
-
-          {member.status === 'ACTIVE' && currentPeriod && (() => {
-            const daysLeft = Math.floor(
-              (new Date(currentPeriod.endsAt).getTime() - Date.now()) / 86_400_000
+          <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
+          İşletmeyi düzenle
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMoreAnchor(null);
+            setResendEmailOverride('');
+            setResendError(null);
+            setResendTemplate(
+              member.status === 'NEEDS_INFO'
+                ? 'NEEDS_INFO'
+                : member.status === 'SUBMITTED'
+                  ? 'RECEIVED'
+                  : 'APPROVED',
             );
-            if (daysLeft > 30) return null;
-            return (
-              <Alert
-                severity={daysLeft <= 7 ? 'error' : 'warning'}
-                variant="outlined"
-              >
-                {daysLeft <= 0
-                  ? 'Üyelik süresi bugün sona eriyor. Scheduler henüz çalışmamış olabilir.'
-                  : daysLeft === 1
-                    ? 'Üyelik süresi yarın sona eriyor.'
-                    : `Üyelik süresi ${daysLeft} gün içinde sona eriyor.`}{' '}
-                Bitiş: <b>{shortDate(currentPeriod.endsAt)}</b>.
-                Üye yenileme yapmazsa sistem otomatik olarak erişimini kısıtlayacak.
-              </Alert>
-            );
-          })()}
-
-          {member.status === 'EXPIRED' && (
-            <Alert severity="error" variant="outlined">
-              Yıllık üyelik süresi doldu. Üye yenileme yapana kadar NartBusiness'a
-              erişimi yoktur.
-            </Alert>
-          )}
-
-          {member.nartgoTenureMonths != null && member.nartgoTenureMonths >= 0 && (
-            <Typography variant="caption" color="text.secondary">
-              NartGo kıdemi: <b>{member.nartgoTenureMonths} ay</b>
-            </Typography>
-          )}
-        </NbSectionPaper>
-
-        {/* Şirket Bilgisi */}
-        <NbSectionPaper title="Şirket Bilgisi">
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-            {member.logoUrl ? (
-              <Box
-                component="img"
-                src={member.logoUrl}
-                alt="Logo"
-                sx={{ width: 80, height: 80, borderRadius: 2, objectFit: 'contain', bgcolor: 'white', border: '1px solid', borderColor: 'divider' }}
-              />
-            ) : (
-              <Box
-                sx={{ width: 80, height: 80, borderRadius: 2, bgcolor: 'action.hover', border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Typography variant="caption" color="text.secondary">Logosuz</Typography>
-              </Box>
-            )}
-            <Box>
-              <Typography variant="h6">{member.displayName || member.companyName || 'Şirket adı eksik'}</Typography>
-              <Typography variant="body2" color="text.secondary">{member.personRole || 'Rol belirtilmedi'}</Typography>
-            </Box>
-          </Stack>
-          <DetailRow
-            label="Resmi Şirket adı"
-            value={member.companyName}
-            emptyLabel="Şirket adı eksik"
-            warnOnEmpty
-          />
-          <DetailRow
-            label="Sektör"
-            value={sectorLabel}
-            emptyLabel="Sektör seçilmedi"
-          />
-          <DetailRow label="Şehir" value={member.city} emptyLabel="Şehir girilmedi" />
-          <DetailRow label="Telefon" value={member.phoneNumber} emptyLabel="Telefon girilmedi" />
-        </NbSectionPaper>
-
-        {/* Kurum — üyenin ağa hangi kuruluş aracılığıyla geldiği.
-            Kaynak alanından (web formu / uygulama / admin paneli) ayrıdır:
-            o hangi kapıdan girdiğini, bu hangi kurumun üyesi olduğunu söyler. */}
-        <NbSectionPaper title="Kurum">
-          {partnerOrgs.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              Katalogda kurum yok. Kurumlar sayfasından ekleyin.
-            </Typography>
-          ) : (
-            <Stack spacing={2}>
-              <TextField
-                select
-                size="small"
-                label="Geldiği kurum"
-                value={member.partnerOrgId ?? ''}
-                onChange={(e) => changePartnerOrg(e.target.value || null)}
-                disabled={savingOrg}
-                helperText="Boş bırakılabilir. Kurumsuz üyede profilde rozet çıkmaz."
-                sx={{ maxWidth: 360 }}
-              >
-                <MenuItem value="">Kurum yok</MenuItem>
-                {partnerOrgs
-                  .filter((o) => o.active || o.id === member.partnerOrgId)
-                  .map((o) => (
-                    <MenuItem key={o.id} value={o.id}>
-                      {o.shortName}
-                      {!o.active && ' (pasif)'}
-                    </MenuItem>
-                  ))}
-              </TextField>
-
-              {currentOrg && (
-                <>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={member.partnerOrgBadgeVisible !== false}
-                        onChange={(e) =>
-                          changePartnerOrg(member.partnerOrgId ?? null, e.target.checked)
-                        }
-                        disabled={savingOrg}
-                      />
-                    }
-                    label={`Profilde "${currentOrg.badgeLabel}" rozeti görünsün`}
-                  />
-                  <Typography variant="caption" color="text.secondary">
-                    Rozet kapatıldığında kurum bağı silinmez, yalnızca gizlenir.
-                    Üye kurum filtresinde de çıkmaz. Bağ, üyenin nereden geldiğinin
-                    kaydı olarak durur.
-                  </Typography>
-                </>
-              )}
-            </Stack>
-          )}
-        </NbSectionPaper>
-
-        {/* Görüntülenme — bu işletme profiline mobil/web'den kaç kez girildi */}
-        <NbSectionPaper title="Görüntülenme — İşletme Profili">
-          <Stack direction="row" spacing={4} flexWrap="wrap">
-            {[
-              ['Toplam', viewStats?.total ?? 0],
-              ['Mobil', viewStats?.mobile ?? 0],
-              ['Web', viewStats?.web ?? 0],
-              ...(viewStats && viewStats.unknown > 0 ? [['Diğer', viewStats.unknown] as const] : []),
-            ].map(([label, value]) => (
-              <Stack key={label as string} alignItems="flex-start" sx={{ minWidth: 72 }}>
-                <Typography variant="h5" fontWeight={700}>{value as number}</Typography>
-                <Typography variant="caption" color="text.secondary">{label as string}</Typography>
-              </Stack>
-            ))}
-          </Stack>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-            Aynı kişinin 6 saat içindeki tekrar ziyaretleri tek sayılır.
-          </Typography>
-        </NbSectionPaper>
-
-        {/* Kafkas Kimliği */}
-        <NbSectionPaper title="Kafkas Kimliği">
-          <DetailRow
-            label="Halk"
-            value={member.race ? RACE_LABEL[member.race] : undefined}
-            emptyLabel="Halk seçilmedi"
-          />
-          <DetailRow
-            label="Sülale"
-            value={member.clanName}
-            emptyLabel="Sülale girilmedi"
-          />
-          <DetailRow
-            label="Memleket"
-            value={member.hometownDetail}
-            emptyLabel="Memleket girilmedi"
-            mutedEmpty
-          />
-        </NbSectionPaper>
-
-        {/* Sosyal Bağlantılar */}
-        {/* Başvuru & Komite İncelemesi — karar verilmişse arşiv, aşağıda durur */}
-        {verificationCase && (
-          <VerificationCaseSection
-            caseData={verificationCase}
-            timeline={caseTimeline}
-            memberStatus={member.status}
-          />
+            setResendOpen(true);
+          }}
+        >
+          <ListItemIcon><EmailOutlinedIcon fontSize="small" /></ListItemIcon>
+          Mail gönder
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMoreAnchor(null);
+            setPushTitle('');
+            setPushMessage('');
+            setPushError(null);
+            setPushOpen(true);
+          }}
+        >
+          <ListItemIcon><NotificationsActiveOutlinedIcon fontSize="small" /></ListItemIcon>
+          Push gönder
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMoreAnchor(null);
+            openIntroDialog();
+          }}
+        >
+          <ListItemIcon><HandshakeOutlinedIcon fontSize="small" /></ListItemIcon>
+          Tanıştır
+        </MenuItem>
+        {member.status === 'APPROVED_PENDING_PAYMENT' && !member.trialUsed && (
+          <MenuItem
+            disabled={trialBusy}
+            onClick={() => {
+              setMoreAnchor(null);
+              openTrialDialog('grant');
+            }}
+          >
+            <ListItemIcon><CheckCircleOutlineIcon fontSize="small" /></ListItemIcon>
+            Ücretsiz deneme ver…
+          </MenuItem>
         )}
-
-        <NbSectionPaper title="Sosyal Bağlantılar">
-          <SocialRow label="LinkedIn" url={member.linkedinUrl} />
-          <SocialRow label="Web sitesi" url={member.websiteUrl} />
-          <SocialRow label="Instagram" url={member.instagramUrl} />
-        </NbSectionPaper>
-
-        {/* Dönem geçmişi */}
-        <NbSectionPaper
-          title="Dönem Geçmişi"
-          hint={`Toplam ${periods.length} dönem kaydı (en yeni üstte).`}
+        {member.status === 'TRIAL' && (
+          <MenuItem
+            disabled={trialBusy}
+            onClick={() => {
+              setMoreAnchor(null);
+              openTrialDialog('revoke');
+            }}
+          >
+            <ListItemIcon><CancelOutlinedIcon fontSize="small" /></ListItemIcon>
+            Denemeyi sonlandır
+          </MenuItem>
+        )}
+        <Divider />
+        <MenuItem
+          disabled={pwBusy}
+          onClick={() => {
+            setMoreAnchor(null);
+            handleSendSetPassword();
+          }}
         >
-          {periods.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              Bu üyenin henüz hiç dönem kaydı yok.
-            </Typography>
-          ) : (
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Kademe</TableCell>
-                    <TableCell>Başlangıç</TableCell>
-                    <TableCell>Bitiş</TableCell>
-                    <TableCell align="right">Ücret</TableCell>
-                    <TableCell>Durum</TableCell>
-                    <TableCell>Ödeme</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {periods.map((p) => (
-                    <TableRow key={p.id} hover>
-                      <TableCell>{TIER_LABEL[p.tier]}</TableCell>
-                      <TableCell>
-                        <Tooltip title={fullDate(p.startsAt)} arrow>
-                          <span>{shortDate(p.startsAt)}</span>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title={fullDate(p.endsAt)} arrow>
-                          <span>{shortDate(p.endsAt)}</span>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell align="right">
-                        {formatMoney(p.fee, p.currency)}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          size="small"
-                          variant={p.status === 'ACTIVE' ? 'filled' : 'outlined'}
-                          color={
-                            p.status === 'ACTIVE'
-                              ? 'success'
-                              : p.status === 'PAYMENT_PENDING'
-                                ? 'warning'
-                                : 'default'
+          <ListItemIcon><LockResetIcon fontSize="small" /></ListItemIcon>
+          {pwBusy ? 'Gönderiliyor…' : 'Şifre belirleme e-postası'}
+        </MenuItem>
+      </Menu>
+
+      {/* İki kolon: solda sekme içeriği, sağda sabit panel.
+          Uzun dikey kart yığını yerine bu kalıp — on kartı alt alta dizmek
+          "şimdi ne yapmalıyım" sorusunu kaydırma mesafesine gömüyordu. */}
+      <Box sx={nbColumns}>
+        <Stack sx={{ ...(nbColumn(3, 460) as object), gap: 1.75 }}>
+          {/* "Şimdi ne yapmalıyım" — sekmeden bağımsız, hep üstte. */}
+          <NextActionBanner member={member} />
+
+          {tab === 'general' && (
+            <>
+          <NbSectionPaper title="Şirket Bilgisi">
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
+              {member.logoUrl ? (
+                <Box
+                  component="img"
+                  src={member.logoUrl}
+                  alt="Logo"
+                  sx={{ width: 80, height: 80, borderRadius: 2, objectFit: 'contain', bgcolor: 'white', border: '1px solid', borderColor: 'divider' }}
+                />
+              ) : (
+                <Box
+                  sx={{ width: 80, height: 80, borderRadius: 2, bgcolor: 'action.hover', border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Typography variant="caption" color="text.secondary">Logosuz</Typography>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="h6">{member.displayName || member.companyName || 'Şirket adı eksik'}</Typography>
+                <Typography variant="body2" color="text.secondary">{member.personRole || 'Rol belirtilmedi'}</Typography>
+              </Box>
+            </Stack>
+            <DetailRow
+              label="Resmi Şirket adı"
+              value={member.companyName}
+              emptyLabel="Şirket adı eksik"
+              warnOnEmpty
+            />
+            <DetailRow
+              label="Sektör"
+              value={sectorLabel}
+              emptyLabel="Sektör seçilmedi"
+            />
+            <DetailRow label="Şehir" value={member.city} emptyLabel="Şehir girilmedi" />
+            <DetailRow label="Telefon" value={member.phoneNumber} emptyLabel="Telefon girilmedi" />
+          </NbSectionPaper>
+          <NbSectionPaper title="Kurum">
+            {partnerOrgs.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                Katalogda kurum yok. Kurumlar sayfasından ekleyin.
+              </Typography>
+            ) : (
+              <Stack spacing={2}>
+                <TextField
+                  select
+                  size="small"
+                  label="Geldiği kurum"
+                  value={member.partnerOrgId ?? ''}
+                  onChange={(e) => changePartnerOrg(e.target.value || null)}
+                  disabled={savingOrg}
+                  helperText="Boş bırakılabilir. Kurumsuz üyede profilde rozet çıkmaz."
+                  sx={{ maxWidth: 360 }}
+                >
+                  <MenuItem value="">Kurum yok</MenuItem>
+                  {partnerOrgs
+                    .filter((o) => o.active || o.id === member.partnerOrgId)
+                    .map((o) => (
+                      <MenuItem key={o.id} value={o.id}>
+                        {o.shortName}
+                        {!o.active && ' (pasif)'}
+                      </MenuItem>
+                    ))}
+                </TextField>
+
+                {currentOrg && (
+                  <>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={member.partnerOrgBadgeVisible !== false}
+                          onChange={(e) =>
+                            changePartnerOrg(member.partnerOrgId ?? null, e.target.checked)
                           }
-                          label={PERIOD_STATUS_LABEL[p.status]}
+                          disabled={savingOrg}
                         />
-                      </TableCell>
-                      <TableCell>
-                        {/*
-                          Ödeme durumu, period.status'a göre belirlenir —
-                          paymentId varlığı yanıltıcıydı (İyzico checkout
-                          başlatıldığında paymentId set olur ama kullanıcı
-                          ödemeyi tamamlamamış olabilir → status hâlâ
-                          PAYMENT_PENDING). Tek doğru sinyal: status.
-                        */}
-                        {p.fee === 0 ? (
-                          <Typography variant="caption" color="text.secondary">
-                            Ücretsiz
-                          </Typography>
-                        ) : p.status === 'ACTIVE' ||
-                          p.status === 'EXPIRED' ? (
-                          <Tooltip
-                            title={
-                              p.paymentId
-                                ? `Ref: ${p.paymentId}`
-                                : 'Ödeme alındı'
+                      }
+                      label={`Profilde "${currentOrg.badgeLabel}" rozeti görünsün`}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      Rozet kapatıldığında kurum bağı silinmez, yalnızca gizlenir.
+                      Üye kurum filtresinde de çıkmaz. Bağ, üyenin nereden geldiğinin
+                      kaydı olarak durur.
+                    </Typography>
+                  </>
+                )}
+              </Stack>
+            )}
+          </NbSectionPaper>
+          <NbSectionPaper title="Sosyal Bağlantılar">
+            <SocialRow label="LinkedIn" url={member.linkedinUrl} />
+            <SocialRow label="Web sitesi" url={member.websiteUrl} />
+            <SocialRow label="Instagram" url={member.instagramUrl} />
+          </NbSectionPaper>
+          <NbSectionPaper
+            title="İletişim & Hesap"
+            hint="Üyenin NartGo hesabıyla bağlantılı temel iletişim bilgileri."
+          >
+            {!user && userLoadError && (
+              <Alert severity="warning" variant="outlined" sx={{ mb: 1 }}>
+                <Typography variant="body2" fontWeight={500}>
+                  NartGo hesap bilgileri çekilemedi
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {userLoadError}
+                </Typography>
+              </Alert>
+            )}
+            <ContactRow
+              label="Ad Soyad"
+              value={userName ?? undefined}
+              emptyLabel="Ad-soyad eksik"
+            />
+            <ContactRow
+              label="Email"
+              value={user?.email}
+              emptyLabel="Email yok"
+              href={user?.email ? `mailto:${user.email}` : undefined}
+              copyable
+            />
+            <ContactRow
+              label="Telefon"
+              value={user?.phone ?? undefined}
+              emptyLabel="Telefon kayıtlı değil"
+              href={user?.phone ? `tel:${user.phone}` : undefined}
+              copyable
+            />
+            {user?.createdAt && (
+              <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 0.25 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ minWidth: 130, flexShrink: 0 }}
+                >
+                  NartGo'ya kayıt
+                </Typography>
+                <Tooltip title={fullDate(user.createdAt)} arrow>
+                  <Typography variant="body2">{relativeDate(user.createdAt)}</Typography>
+                </Tooltip>
+              </Stack>
+            )}
+          </NbSectionPaper>
+            </>
+          )}
+
+          {tab === 'membership' && (
+            <>
+          <NbSectionPaper
+            title="Üyelik & Aktivasyon"
+            hint="Mevcut dönem ve durumun özeti."
+          >
+            {currentPeriod ? (
+              <Box>
+                <Typography variant="body2">
+                  <b>{TIER_LABEL[currentPeriod.tier]} yıllık üyelik</b>
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {shortDate(currentPeriod.startsAt)} – {shortDate(currentPeriod.endsAt)}
+                  {' · '}
+                  {monthsBetween(currentPeriod.startsAt, new Date().toISOString())} ay aktif
+                  {' · '}
+                  Kalan: {monthsBetween(new Date().toISOString(), currentPeriod.endsAt)} ay
+                </Typography>
+                <Typography variant="body2" mt={0.5}>
+                  Ücret: <b>{formatMoney(currentPeriod.fee, currentPeriod.currency)}</b>
+                  {' · '}
+                  Durum: <b>{PERIOD_STATUS_LABEL[currentPeriod.status]}</b>
+                  {currentPeriod.paymentId
+                    ? ' · Ödeme alındı'
+                    : currentPeriod.status === 'PAYMENT_PENDING'
+                      ? ' · Ödeme bekleniyor'
+                      : ' · Offline tahsil'}
+                </Typography>
+              </Box>
+            ) : (
+              <Alert severity="info" variant="outlined">
+                Aktif dönem yok. Üye henüz ödeme yapmamış veya tüm dönemler kapanmış.
+              </Alert>
+            )}
+
+            {member.status === 'APPROVED_PENDING_PAYMENT' && member.approvalExpiresAt && (
+              <Alert severity="warning" variant="outlined">
+                Komite onayı sona eriyor:{' '}
+                <b>{shortDate(member.approvalExpiresAt)}</b> tarihine kadar üyenin ödemeyi
+                tamamlaması gerekir.
+              </Alert>
+            )}
+
+            {member.status === 'ACTIVE' && currentPeriod && (() => {
+              const daysLeft = Math.floor(
+                (new Date(currentPeriod.endsAt).getTime() - Date.now()) / 86_400_000
+              );
+              if (daysLeft > 30) return null;
+              return (
+                <Alert
+                  severity={daysLeft <= 7 ? 'error' : 'warning'}
+                  variant="outlined"
+                >
+                  {daysLeft <= 0
+                    ? 'Üyelik süresi bugün sona eriyor. Scheduler henüz çalışmamış olabilir.'
+                    : daysLeft === 1
+                      ? 'Üyelik süresi yarın sona eriyor.'
+                      : `Üyelik süresi ${daysLeft} gün içinde sona eriyor.`}{' '}
+                  Bitiş: <b>{shortDate(currentPeriod.endsAt)}</b>.
+                  Üye yenileme yapmazsa sistem otomatik olarak erişimini kısıtlayacak.
+                </Alert>
+              );
+            })()}
+
+            {member.status === 'EXPIRED' && (
+              <Alert severity="error" variant="outlined">
+                Yıllık üyelik süresi doldu. Üye yenileme yapana kadar NartBusiness'a
+                erişimi yoktur.
+              </Alert>
+            )}
+
+            {member.nartgoTenureMonths != null && member.nartgoTenureMonths >= 0 && (
+              <Typography variant="caption" color="text.secondary">
+                NartGo kıdemi: <b>{member.nartgoTenureMonths} ay</b>
+              </Typography>
+            )}
+          </NbSectionPaper>
+          <NbSectionPaper
+            title="Dönem Geçmişi"
+            hint={`Toplam ${periods.length} dönem kaydı (en yeni üstte).`}
+          >
+            {periods.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                Bu üyenin henüz hiç dönem kaydı yok.
+              </Typography>
+            ) : (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Kademe</TableCell>
+                      <TableCell>Başlangıç</TableCell>
+                      <TableCell>Bitiş</TableCell>
+                      <TableCell align="right">Ücret</TableCell>
+                      <TableCell>Durum</TableCell>
+                      <TableCell>Ödeme</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {periods.map((p) => (
+                      <TableRow key={p.id} hover>
+                        <TableCell>{TIER_LABEL[p.tier]}</TableCell>
+                        <TableCell>
+                          <Tooltip title={fullDate(p.startsAt)} arrow>
+                            <span>{shortDate(p.startsAt)}</span>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title={fullDate(p.endsAt)} arrow>
+                            <span>{shortDate(p.endsAt)}</span>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell align="right">
+                          {formatMoney(p.fee, p.currency)}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            variant={p.status === 'ACTIVE' ? 'filled' : 'outlined'}
+                            color={
+                              p.status === 'ACTIVE'
+                                ? 'success'
+                                : p.status === 'PAYMENT_PENDING'
+                                  ? 'warning'
+                                  : 'default'
                             }
-                            arrow
-                          >
+                            label={PERIOD_STATUS_LABEL[p.status]}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {/*
+                            Ödeme durumu, period.status'a göre belirlenir —
+                            paymentId varlığı yanıltıcıydı (İyzico checkout
+                            başlatıldığında paymentId set olur ama kullanıcı
+                            ödemeyi tamamlamamış olabilir → status hâlâ
+                            PAYMENT_PENDING). Tek doğru sinyal: status.
+                          */}
+                          {p.fee === 0 ? (
+                            <Typography variant="caption" color="text.secondary">
+                              Ücretsiz
+                            </Typography>
+                          ) : p.status === 'ACTIVE' ||
+                            p.status === 'EXPIRED' ? (
+                            <Tooltip
+                              title={
+                                p.paymentId
+                                  ? `Ref: ${p.paymentId}`
+                                  : 'Ödeme alındı'
+                              }
+                              arrow
+                            >
+                              <Typography
+                                variant="caption"
+                                color="success.main"
+                              >
+                                ✓ Ödendi
+                              </Typography>
+                            </Tooltip>
+                          ) : p.status === 'PAYMENT_PENDING' ? (
                             <Typography
                               variant="caption"
-                              color="success.main"
+                              color="warning.main"
                             >
-                              ✓ Ödendi
+                              Bekliyor
                             </Typography>
-                          </Tooltip>
-                        ) : p.status === 'PAYMENT_PENDING' ? (
-                          <Typography
-                            variant="caption"
-                            color="warning.main"
-                          >
-                            Bekliyor
-                          </Typography>
-                        ) : p.status === 'REFUNDED' ? (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                          >
-                            İade edildi
-                          </Typography>
-                        ) : (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                          >
-                            —
-                          </Typography>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                          ) : p.status === 'REFUNDED' ? (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              İade edildi
+                            </Typography>
+                          ) : (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              —
+                            </Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </NbSectionPaper>
+            </>
           )}
-        </NbSectionPaper>
 
-        {/* İletişim & Hesap — NartGo profil özeti, debug/destek için anlamlı veri */}
-        <NbSectionPaper
-          title="İletişim & Hesap"
-          hint="Üyenin NartGo hesabıyla bağlantılı temel iletişim bilgileri."
-        >
-          {!user && userLoadError && (
-            <Alert severity="warning" variant="outlined" sx={{ mb: 1 }}>
-              <Typography variant="body2" fontWeight={500}>
-                NartGo hesap bilgileri çekilemedi
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {userLoadError}
-              </Typography>
-            </Alert>
+          {tab === 'identity' && (
+            <>
+          <NbSectionPaper title="Kafkas Kimliği">
+            <DetailRow
+              label="Halk"
+              value={member.race ? RACE_LABEL[member.race] : undefined}
+              emptyLabel="Halk seçilmedi"
+            />
+            <DetailRow
+              label="Sülale"
+              value={member.clanName}
+              emptyLabel="Sülale girilmedi"
+            />
+            <DetailRow
+              label="Memleket"
+              value={member.hometownDetail}
+              emptyLabel="Memleket girilmedi"
+              mutedEmpty
+            />
+          </NbSectionPaper>
+          {/* Sosyal Bağlantılar */}
+          {/* Başvuru & Komite İncelemesi — karar verilmişse arşiv, aşağıda durur */}
+          {verificationCase && (
+            <VerificationCaseSection
+              caseData={verificationCase}
+              timeline={caseTimeline}
+              memberStatus={member.status}
+            />
           )}
-          <ContactRow
-            label="Ad Soyad"
-            value={userName ?? undefined}
-            emptyLabel="Ad-soyad eksik"
-          />
-          <ContactRow
-            label="Email"
-            value={user?.email}
-            emptyLabel="Email yok"
-            href={user?.email ? `mailto:${user.email}` : undefined}
-            copyable
-          />
-          <ContactRow
-            label="Telefon"
-            value={user?.phone ?? undefined}
-            emptyLabel="Telefon kayıtlı değil"
-            href={user?.phone ? `tel:${user.phone}` : undefined}
-            copyable
-          />
-          {user?.createdAt && (
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 0.25 }}>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ minWidth: 130, flexShrink: 0 }}
-              >
-                NartGo'ya kayıt
-              </Typography>
-              <Tooltip title={fullDate(user.createdAt)} arrow>
-                <Typography variant="body2">{relativeDate(user.createdAt)}</Typography>
-              </Tooltip>
+            </>
+          )}
+
+          {tab === 'activity' && (
+            <>
+          <NbSectionPaper title="Görüntülenme — İşletme Profili">
+            <Stack direction="row" spacing={4} flexWrap="wrap">
+              {[
+                ['Toplam', viewStats?.total ?? 0],
+                ['Mobil', viewStats?.mobile ?? 0],
+                ['Web', viewStats?.web ?? 0],
+                ...(viewStats && viewStats.unknown > 0 ? [['Diğer', viewStats.unknown] as const] : []),
+              ].map(([label, value]) => (
+                <Stack key={label as string} alignItems="flex-start" sx={{ minWidth: 72 }}>
+                  <Typography variant="h5" fontWeight={700}>{value as number}</Typography>
+                  <Typography variant="caption" color="text.secondary">{label as string}</Typography>
+                </Stack>
+              ))}
             </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+              Aynı kişinin 6 saat içindeki tekrar ziyaretleri tek sayılır.
+            </Typography>
+          </NbSectionPaper>
+            </>
           )}
-        </NbSectionPaper>
-      </Stack>
+
+        </Stack>
+
+        {/* Sağ panel — aciliyet sırası: dönem (para ve süre), tamlık, hareketler. */}
+        <Stack sx={{ ...(nbColumn(1, 300) as object), gap: 1.75, position: 'sticky', top: 150 }}>
+          {currentPeriod ? (
+            <NbPeriodCard
+              title={`${TIER_LABEL[currentPeriod.tier]} yıllık · ${formatMoney(currentPeriod.fee, currentPeriod.currency)}`}
+              range={`${shortDate(currentPeriod.startsAt)} – ${shortDate(currentPeriod.endsAt)}${
+                periodMonthsLeft == null ? '' : ` · ${periodMonthsLeft} ay kaldı`
+              }`}
+              progress={periodProgress}
+              deadline={periodDeadline}
+              primary={
+                member.status === 'APPROVED_PENDING_PAYMENT'
+                  ? {
+                      label: 'Ödemeyi onayla',
+                      onClick: () => {
+                        setBankConfirmRef('');
+                        setBankConfirmNote('');
+                        setBankConfirmError(null);
+                        setBankConfirmOpen(true);
+                      },
+                    }
+                  : undefined
+              }
+              secondary={
+                member.status === 'APPROVED_PENDING_PAYMENT'
+                  ? {
+                      label: 'Hatırlat',
+                      onClick: () => {
+                        setResendEmailOverride('');
+                        setResendError(null);
+                        setResendTemplate('APPROVED');
+                        setResendOpen(true);
+                      },
+                    }
+                  : undefined
+              }
+            />
+          ) : (
+            <NbPeriodCard
+              title="Aktif dönem yok"
+              range="Bu üyeye henüz bir üyelik dönemi oluşmamış."
+              progress={0}
+            />
+          )}
+
+          <NbCompletenessCard
+            percent={completeness.percent}
+            missing={completeness.missing.map((name) => ({
+              name,
+              // Eksik alan talebi hazır e-posta akışına düşer: hangi alanın
+              // istendiği notta yazılı kalsın, sessizce gönderilmesin.
+              onRequest: () => {
+                setResendEmailOverride('');
+                setResendError(null);
+                setResendTemplate('NEEDS_INFO');
+                setResendOpen(true);
+              },
+            }))}
+          />
+
+          <NbTimelineCard entries={railTimeline} />
+        </Stack>
+      </Box>
+
+      <NbUndoToast state={undo} onClose={() => setUndo(null)} />
 
       <NbMemberActionDialog
         open={actionOpen}
@@ -1198,11 +1453,7 @@ export default function NbMemberDetail() {
               {resendError}
             </Alert>
           )}
-          {resendOk && (
-            <Alert severity="success" sx={{ mt: 2 }}>
-              {resendOk}
-            </Alert>
-          )}
+
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setResendOpen(false)} disabled={resendBusy}>
@@ -1216,14 +1467,14 @@ export default function NbMemberDetail() {
               if (!member) return;
               setResendBusy(true);
               setResendError(null);
-              setResendOk(null);
               try {
                 const r = await nbAdminService.resendEmail(
                   member.memberId,
                   resendTemplate,
                   resendEmailOverride,
                 );
-                setResendOk(`E-posta kuyruğa alındı: ${r.to}`);
+                setResendOpen(false);
+                setUndo({ message: `E-posta kuyruğa alındı: ${r.to}` });
               } catch (e: any) {
                 setResendError(
                   nbErrorMessage(e) ??
@@ -1287,7 +1538,7 @@ export default function NbMemberDetail() {
                   message: pushMessage.trim(),
                 });
                 setPushOpen(false);
-                alert('Bildirim gönderildi.');
+                setUndo({ message: 'Bildirim gönderildi.' });
               } catch (e: any) {
                 setPushError(
                   nbErrorMessage(e, 'Bildirim gönderilemedi.'),
@@ -1504,10 +1755,10 @@ export default function NbMemberDetail() {
                   reason: introReason.trim(),
                 });
                 setIntroOpen(false);
-                alert(
-                  'Tanıştırma iletildi — iki tarafa bildirim ve e-posta gönderildi. ' +
-                  'Takip için: NartBusiness > Tanıştırmalar.',
-                );
+                setUndo({
+                  message:
+                    'Tanıştırma iletildi, iki tarafa bildirim gitti. Takip: Tanıştırmalar ekranı.',
+                });
               } catch (e: any) {
                 setIntroError(
                   nbErrorMessage(e, 'Tanıştırma gönderilemedi.'),

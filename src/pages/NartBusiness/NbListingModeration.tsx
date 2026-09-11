@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -7,13 +7,11 @@ import {
   Switch,
   CircularProgress,
   FormControl,
-  Grid,
   InputLabel,
   MenuItem,
   Pagination,
   Paper,
   Select,
-  Snackbar,
   Stack,
   Table,
   TableBody,
@@ -25,7 +23,6 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import BlockIcon from '@mui/icons-material/Block';
 import RestoreIcon from '@mui/icons-material/Restore';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -42,9 +39,22 @@ import {
   DialogTitle,
   IconButton,
 } from '@mui/material';
-import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import { nbAdminService, type NbListingPair } from '../../services/nartbusiness/nbAdminService';
 import type { NbMember, Sector } from '../../services/nartbusiness/nbTypes';
-import { NbTitleBlock } from '../../components/nartbusiness/ui';
+import {
+  NbKpi,
+  NbPageHeader,
+  NbTabs,
+  NbUndoToast,
+  type NbUndoState,
+  nbCard,
+  nbGoldBtn,
+  nbLabel,
+  nbMono,
+  nbPrimaryBtn,
+  nbSecondaryBtn,
+} from '../../components/nartbusiness/ui';
+import { nb, nbRadius } from '../../theme/nbBrand';
 import type {
   NbRequestType,
   NbListingRow,
@@ -100,15 +110,6 @@ function fmtBudget(r: NbListingRow): string {
   return '—';
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <Paper variant="outlined" sx={{ p: 1.5, textAlign: 'center' }}>
-      <Typography variant="h5" fontWeight={700}>{value.toLocaleString('tr-TR')}</Typography>
-      <Typography variant="caption" color="text.secondary">{label}</Typography>
-    </Paper>
-  );
-}
-
 export default function NbListingModeration() {
   const [type, setType] = useState<'' | NbListingType>('');
   const [status, setStatus] = useState<'' | NbListingStatus>('');
@@ -120,11 +121,104 @@ export default function NbListingModeration() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<NbUndoState | null>(null);
   const [stats, setStats] = useState<NbListingAdminStats | null>(null);
   const [views, setViews] = useState<Record<string, NbListingViewStats>>({});
   const [editing, setEditing] = useState<NbListingRow | null>(null);
   const [creating, setCreating] = useState(false);
+
+  /* ── Eşleştirme ───────────────────────────────────────────────────── */
+  const [tab, setTab] = useState<'pairs' | 'all'>('pairs');
+  const [pairs, setPairs] = useState<NbListingPair[]>([]);
+  const [pairsLoading, setPairsLoading] = useState(true);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+  const [pairBusy, setPairBusy] = useState(false);
+
+  const loadPairs = useCallback(async () => {
+    setPairsLoading(true);
+    try {
+      const list = await nbAdminService.listingPairs(5);
+      setPairs(list);
+      setSelectedRequestId((prev) => prev ?? list[0]?.request.id ?? null);
+    } catch (e) {
+      setError(nbErrorMessage(e, 'Eşleştirme önerileri alınamadı.'));
+    } finally {
+      setPairsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPairs();
+  }, [loadPairs]);
+
+  /** Sol kolondaki talepler — her biri en az bir aday taşıyanlar. */
+  const pairRequests = useMemo(() => {
+    const seen = new Map<string, NbListingRow>();
+    pairs.forEach((p) => {
+      if (!seen.has(p.request.id)) seen.set(p.request.id, p.request);
+    });
+    return [...seen.values()];
+  }, [pairs]);
+
+  /** Seçili talebin arz adayları, skora göre. */
+  const candidateOffers = useMemo(
+    () => pairs.filter((p) => p.request.id === selectedRequestId),
+    [pairs, selectedRequestId],
+  );
+
+  // Ortadaki çift: elle seçilen arz, yoksa en yüksek skorlu aday.
+  const currentPair = useMemo(
+    () => candidateOffers.find((p) => p.offer.id === selectedOfferId) ?? candidateOffers[0] ?? null,
+    [candidateOffers, selectedOfferId],
+  );
+
+  // Talep değişince arz seçimi düşer; yoksa önceki talebin arzı seçili kalır.
+  useEffect(() => {
+    setSelectedOfferId(null);
+  }, [selectedRequestId]);
+
+  /**
+   * Tanıştırma başlat.
+   *
+   * Çift onaylanınca iki ilanın **sahipleri** tanıştırılır — ilanlar değil.
+   * Gerekçe olarak iki ilanın başlığı yazılır: üyeye giden bildirimde
+   * "neden tanıştırıldım" sorusunun cevabı bu satır.
+   */
+  const startIntroduction = async () => {
+    if (!currentPair) return;
+    setPairBusy(true);
+    try {
+      await nbAdminService.createIntroduction({
+        memberAId: currentPair.request.ownerMemberId,
+        memberBId: currentPair.offer.ownerMemberId,
+        reason: `${currentPair.request.title} ↔ ${currentPair.offer.title}`,
+      });
+      // Tanıştırma kurulduğuna göre bu çift bir daha önerilmemeli.
+      await nbAdminService.dismissListingPair(currentPair.request.id, currentPair.offer.id);
+      setMsg({ message: 'Tanıştırma oluşturuldu, iki tarafa da bildirim gitti.' });
+      await loadPairs();
+    } catch (e) {
+      setError(nbErrorMessage(e, 'Tanıştırma oluşturulamadı.'));
+    } finally {
+      setPairBusy(false);
+    }
+  };
+
+  /** Atla — çift kalıcı olarak elenir. */
+  const dismissPair = async () => {
+    if (!currentPair) return;
+    setPairBusy(true);
+    try {
+      await nbAdminService.dismissListingPair(currentPair.request.id, currentPair.offer.id);
+      setMsg({ message: 'Çift elendi, bir daha önerilmeyecek.' });
+      await loadPairs();
+    } catch (e) {
+      setError(nbErrorMessage(e, 'Çift elenemedi.'));
+    } finally {
+      setPairBusy(false);
+    }
+  };
 
   useEffect(() => { setPage(0); }, [type, status, q]);
 
@@ -162,13 +256,24 @@ export default function NbListingModeration() {
 
   const act = async (row: NbListingRow, next: NbListingStatus, label: string) => {
     setBusyId(row.id);
+    const previous = row.status;
     try {
       await nbAdminService.setListingStatus(row.id, next);
-      setMsg(`İlan ${label}.`);
+      setMsg({
+        message: `İlan ${label}.`,
+        // Durum değişikliği gerçekten geri alınabilir bir işlem: eski duruma
+        // yazmak yeterli. Geri alınamayan işlemlerde bu alan boş bırakılır.
+        onUndo: async () => {
+          await nbAdminService.setListingStatus(row.id, previous);
+          load();
+        },
+      });
       load();
       nbAdminService.listingStats().then(setStats).catch(() => {});
-    } catch (e: any) {
-      setMsg(nbErrorMessage(e) ?? 'İşlem başarısız');
+    } catch (e) {
+      // Hata yeşil "başarılı" kutusuna düşüyordu: başarısız bir işlem
+      // başarıymış gibi görünüyordu.
+      setError(nbErrorMessage(e) ?? 'İşlem başarısız');
     } finally {
       setBusyId(null);
     }
@@ -179,37 +284,308 @@ export default function NbListingModeration() {
     setBusyId(row.id);
     try {
       await nbAdminService.setListingPublic(row.id, value);
-      setMsg(value ? 'İlan herkese açıldı (public).' : 'İlan üyeye özel yapıldı.');
+      setMsg({
+        message: value ? 'İlan herkese açıldı.' : 'İlan üyeye özel yapıldı.',
+        onUndo: async () => {
+          await nbAdminService.setListingPublic(row.id, !value);
+          load();
+        },
+      });
       load();
-    } catch (e: any) {
-      setMsg(nbErrorMessage(e) ?? 'İşlem başarısız');
+    } catch (e) {
+      setError(nbErrorMessage(e) ?? 'İşlem başarısız');
     } finally {
       setBusyId(null);
     }
   };
 
   return (
-    <Box sx={{ maxWidth: 1400 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-        <NbTitleBlock title="İlanlar (Talep / Arz) — Yönetim" />
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
-          Yeni İlan
-        </Button>
-      </Stack>
+    <Box>
+      <NbPageHeader
+        crumb="NartBusiness · Ticaret & Fırsatlar"
+        title="İlanlar · Talep & Arz"
+        subtitle="Talep ve arzı yan yana koy, sistemin bulduğu çifti onayla ya da ele. Onay tek tuşla tanıştırmaya dönüşür."
+        actions={
+          <Button disableElevation sx={nbPrimaryBtn} onClick={() => setCreating(true)}>
+            + Yeni ilan
+          </Button>
+        }
+        kpis={
+          <>
+            <NbKpi
+              label="AÇIK TALEP"
+              value={stats?.requests ?? '—'}
+              hint="aktif ilan"
+              tone="bad"
+              active={type === 'REQUEST'}
+              onClick={() => {
+                setTab('all');
+                setType((t) => (t === 'REQUEST' ? '' : 'REQUEST'));
+              }}
+            />
+            <NbKpi
+              label="AÇIK ARZ"
+              value={stats?.offers ?? '—'}
+              hint="aktif ilan"
+              tone="good"
+              active={type === 'OFFER'}
+              onClick={() => {
+                setTab('all');
+                setType((t) => (t === 'OFFER' ? '' : 'OFFER'));
+              }}
+            />
+            <NbKpi
+              label="ÖNERİLEN ÇİFT"
+              value={pairs.length}
+              hint="onay bekliyor"
+              active={tab === 'pairs'}
+              onClick={() => setTab('pairs')}
+            />
+            <NbKpi label="SON 7 GÜN" value={stats?.openedLast7d ?? '—'} hint="yeni ilan" />
+          </>
+        }
+        tabs={
+          <NbTabs
+            items={[
+              { key: 'pairs', label: 'Eşleştirme', count: pairs.length },
+              { key: 'all', label: 'Tüm ilanlar' },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+        }
+      />
 
-      {stats && (
-        <Grid container spacing={1.5} mb={2}>
-          <Grid item xs={6} sm={3} md={1.5}><StatCard label="Toplam" value={stats.total} /></Grid>
-          <Grid item xs={6} sm={3} md={1.5}><StatCard label="Aktif" value={stats.active} /></Grid>
-          <Grid item xs={6} sm={3} md={1.5}><StatCard label="Kapalı" value={stats.closed} /></Grid>
-          <Grid item xs={6} sm={3} md={1.5}><StatCard label="Süresi doldu" value={stats.expired} /></Grid>
-          <Grid item xs={6} sm={3} md={1.5}><StatCard label="Silinmiş" value={stats.deleted} /></Grid>
-          <Grid item xs={6} sm={3} md={1.5}><StatCard label="Talep" value={stats.requests} /></Grid>
-          <Grid item xs={6} sm={3} md={1.5}><StatCard label="Arz" value={stats.offers} /></Grid>
-          <Grid item xs={6} sm={3} md={1.5}><StatCard label="Son 7 gün" value={stats.openedLast7d} /></Grid>
-        </Grid>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
       )}
 
+      {/* ── Eşleştirme: talep | önerilen çift | arz ───────────────────── */}
+      {tab === 'pairs' && (
+        <Stack direction="row" flexWrap="wrap" sx={{ gap: 2, alignItems: 'flex-start' }}>
+          <Box sx={{ flex: '1 1 280px', minWidth: 0 }}>
+            <Stack direction="row" alignItems="center" sx={{ gap: 1.125, mb: 1.125 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: nb.red }} />
+              <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
+                Talepler{' '}
+                <Box component="span" sx={{ color: nb.textFaint, fontWeight: 400 }}>
+                  ({pairRequests.length})
+                </Box>
+              </Typography>
+            </Stack>
+
+            <Stack sx={{ gap: 1.125 }}>
+              {pairRequests.map((r) => {
+                const active = r.id === selectedRequestId;
+                const count = pairs.filter((p) => p.request.id === r.id).length;
+                return (
+                  <Box
+                    key={r.id}
+                    onClick={() => setSelectedRequestId(r.id)}
+                    sx={{
+                      bgcolor: nb.surface,
+                      border: `1px solid ${active ? nb.red : nb.border}`,
+                      borderRadius: '11px',
+                      p: 1.625,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35 }}>
+                      {r.title}
+                    </Typography>
+                    <Typography sx={{ fontSize: 11.5, color: nb.textMuted, mt: 0.625 }}>
+                      {r.ownerCompanyName ?? r.ownerDisplayName ?? 'İlan sahibi yok'}
+                    </Typography>
+                    <Stack direction="row" alignItems="center" sx={{ gap: 1, mt: 1 }}>
+                      <Typography sx={{ ...nbMono, fontSize: 11, color: nb.textFaint }}>
+                        {r.city ?? '—'}
+                      </Typography>
+                      <Box
+                        component="span"
+                        sx={{
+                          ml: 'auto', bgcolor: nb.bg, border: '1px solid #e2ded3', borderRadius: '5px',
+                          px: 0.875, py: 0.25, fontSize: 11, color: nb.textMuted,
+                        }}
+                      >
+                        {count} aday
+                      </Box>
+                    </Stack>
+                  </Box>
+                );
+              })}
+
+              {pairRequests.length === 0 && !pairsLoading && (
+                <Typography sx={{ p: 2.5, fontSize: 12, color: nb.textMuted, textAlign: 'center' }}>
+                  Eşleşen talep yok.
+                </Typography>
+              )}
+            </Stack>
+          </Box>
+
+          {/* Önerilen çift */}
+          <Box sx={{ ...(nbCard as object), flex: '1.2 1 340px', p: 2 }}>
+            <Typography sx={nbLabel}>ÖNERİLEN EŞLEŞTİRME</Typography>
+
+            {pairsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : !currentPair ? (
+              <Typography sx={{ py: 4, fontSize: 12.5, color: nb.textMuted, textAlign: 'center' }}>
+                Soldan bir talep seç.
+              </Typography>
+            ) : (
+              <>
+                <Box
+                  sx={{
+                    mt: 1.5, border: `1px solid ${nb.divider}`, bgcolor: nb.inputBg,
+                    borderRadius: '10px', p: 1.625,
+                  }}
+                >
+                  <Typography sx={{ fontSize: 10, letterSpacing: '0.1em', color: nb.red, fontWeight: 600 }}>
+                    TALEP
+                  </Typography>
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, mt: 0.625, lineHeight: 1.35 }}>
+                    {currentPair.request.title}
+                  </Typography>
+                  <Typography sx={{ fontSize: 11.5, color: nb.textMuted, mt: 0.5 }}>
+                    {currentPair.request.ownerCompanyName ?? currentPair.request.ownerDisplayName ?? '—'}
+                  </Typography>
+                </Box>
+
+                <Stack direction="row" alignItems="center" sx={{ gap: 1.25, my: 1.375 }}>
+                  <Box sx={{ flex: 1, height: '1px', bgcolor: nb.border }} />
+                  <Box
+                    component="span"
+                    sx={{
+                      ...nbMono,
+                      bgcolor: nb.greenTint, color: nb.green, fontSize: 13, fontWeight: 500,
+                      borderRadius: '6px', px: 1.25, py: 0.5,
+                    }}
+                  >
+                    %{currentPair.score}
+                  </Box>
+                  <Box sx={{ flex: 1, height: '1px', bgcolor: nb.border }} />
+                </Stack>
+
+                <Box
+                  sx={{
+                    border: `1px solid ${nb.divider}`, bgcolor: nb.inputBg,
+                    borderRadius: '10px', p: 1.625,
+                  }}
+                >
+                  <Typography sx={{ fontSize: 10, letterSpacing: '0.1em', color: nb.green, fontWeight: 600 }}>
+                    ARZ
+                  </Typography>
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, mt: 0.625, lineHeight: 1.35 }}>
+                    {currentPair.offer.title}
+                  </Typography>
+                  <Typography sx={{ fontSize: 11.5, color: nb.textMuted, mt: 0.5 }}>
+                    {currentPair.offer.ownerCompanyName ?? currentPair.offer.ownerDisplayName ?? '—'}
+                  </Typography>
+                </Box>
+
+                {/* Skor asla gerekçesiz durmaz. */}
+                <Stack direction="row" flexWrap="wrap" sx={{ gap: 0.75, mt: 1.5 }}>
+                  {currentPair.matchedOn.map((r) => (
+                    <Box
+                      key={r}
+                      component="span"
+                      sx={{
+                        bgcolor: nb.bg, border: '1px solid #e2ded3', borderRadius: `${nbRadius.pill}px`,
+                        px: 1.25, py: 0.5, fontSize: 11, color: '#4a545c',
+                      }}
+                    >
+                      {r}
+                    </Box>
+                  ))}
+                </Stack>
+
+                <Stack direction="row" sx={{ gap: 1, mt: 1.75 }}>
+                  <Button
+                    disableElevation
+                    onClick={startIntroduction}
+                    disabled={pairBusy}
+                    sx={{ ...(nbGoldBtn as object), flex: 2 }}
+                  >
+                    {pairBusy ? 'Oluşturuluyor…' : 'Tanıştırma başlat'}
+                  </Button>
+                  <Button
+                    disableElevation
+                    onClick={dismissPair}
+                    disabled={pairBusy}
+                    sx={{ ...(nbSecondaryBtn as object), flex: 1 }}
+                  >
+                    Atla
+                  </Button>
+                </Stack>
+
+                <Typography sx={{ fontSize: 11, color: nb.textFaint, mt: 1.125, lineHeight: 1.5 }}>
+                  Atlanan çift kalıcı olarak elenir ve bir daha önerilmez.
+                </Typography>
+              </>
+            )}
+          </Box>
+
+          {/* Arz kolonu — seçili talebin adayları */}
+          <Box sx={{ flex: '1 1 280px', minWidth: 0 }}>
+            <Stack direction="row" alignItems="center" sx={{ gap: 1.125, mb: 1.125 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: nb.green }} />
+              <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
+                Arz adayları{' '}
+                <Box component="span" sx={{ color: nb.textFaint, fontWeight: 400 }}>
+                  ({candidateOffers.length})
+                </Box>
+              </Typography>
+            </Stack>
+
+            <Stack sx={{ gap: 1.125 }}>
+              {candidateOffers.map((p) => {
+                const active = p.offer.id === currentPair?.offer.id;
+                return (
+                  <Box
+                    key={p.offer.id}
+                    onClick={() => setSelectedOfferId(p.offer.id)}
+                    sx={{
+                      bgcolor: nb.surface,
+                      border: `1px solid ${active ? nb.green : nb.border}`,
+                      borderRadius: '11px',
+                      p: 1.625,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Stack direction="row" alignItems="flex-start" sx={{ gap: 1 }}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35, minWidth: 0 }}>
+                        {p.offer.title}
+                      </Typography>
+                      <Typography sx={{ ...nbMono, ml: 'auto', fontSize: 11.5, color: nb.green, fontWeight: 500 }}>
+                        %{p.score}
+                      </Typography>
+                    </Stack>
+                    <Typography sx={{ fontSize: 11.5, color: nb.textMuted, mt: 0.625 }}>
+                      {p.offer.ownerCompanyName ?? p.offer.ownerDisplayName ?? '—'}
+                    </Typography>
+                    <Typography sx={{ fontSize: 11, color: nb.textFaint, mt: 0.625 }}>
+                      {p.matchedOn.join(' · ')}
+                    </Typography>
+                  </Box>
+                );
+              })}
+
+              {candidateOffers.length === 0 && !pairsLoading && (
+                <Typography sx={{ p: 2.5, fontSize: 12, color: nb.textMuted, textAlign: 'center' }}>
+                  Bu talebe uyan arz yok.
+                </Typography>
+              )}
+            </Stack>
+          </Box>
+        </Stack>
+      )}
+
+      {tab === 'all' && (
+      <>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} mb={2}>
         <TextField
           size="small"
@@ -237,8 +613,6 @@ export default function NbListingModeration() {
           </Select>
         </FormControl>
       </Stack>
-
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Paper variant="outlined">
         {loading ? (
@@ -371,11 +745,12 @@ export default function NbListingModeration() {
           <Pagination count={totalPages} page={page + 1} onChange={(_, p) => setPage(p - 1)} color="primary" />
         </Stack>
       )}
+      </>
+      )}
 
-      <Snackbar open={!!msg} autoHideDuration={4000} onClose={() => setMsg(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-        {msg ? <Alert severity="success" variant="filled" onClose={() => setMsg(null)}>{msg}</Alert> : undefined}
-      </Snackbar>
+      {/* Kalıcı yeşil "başarılı" şeridi yok: her yazma işlemi 10 sn'lik
+          geri-al kutusu bırakır, süre dolunca işlem kalıcı sayılır. */}
+      <NbUndoToast state={msg} onClose={() => setMsg(null)} />
 
       {editing && (
         <_ListingFormDialog
@@ -383,7 +758,7 @@ export default function NbListingModeration() {
           onClose={() => setEditing(null)}
           onSaved={(updatedMsg) => {
             setEditing(null);
-            setMsg(updatedMsg);
+            setMsg({ message: updatedMsg });
             load();
           }}
         />
@@ -394,7 +769,7 @@ export default function NbListingModeration() {
           onClose={() => setCreating(false)}
           onSaved={(createdMsg) => {
             setCreating(false);
-            setMsg(createdMsg);
+            setMsg({ message: createdMsg });
             load();
             nbAdminService.listingStats().then(setStats).catch(() => {});
           }}

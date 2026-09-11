@@ -104,6 +104,7 @@ import NbEmbeddingJobs from './pages/NartBusiness/NbEmbeddingJobs';
 import NbModerationQueue from './pages/NartBusiness/NbModerationQueue';
 import NbIntroductions from './pages/NartBusiness/NbIntroductions';
 import NbTenders from './pages/NartBusiness/NbTenders';
+import NbTenderReferrals from './pages/NartBusiness/NbTenderReferrals';
 import NbDlqPanel from './pages/NartBusiness/NbDlqPanel';
 import NbShareAnalytics from './pages/NartBusiness/NbShareAnalytics';
 import NbTestimonials from './pages/NartBusiness/NbTestimonials';
@@ -250,6 +251,7 @@ function App() {
                 <Route path="nartbusiness/moderation" element={<NbModerationQueue />} />
                 <Route path="nartbusiness/introductions" element={<NbIntroductions />} />
                 <Route path="nartbusiness/tenders" element={<NbTenders />} />
+                <Route path="nartbusiness/tender-referrals" element={<NbTenderReferrals />} />
                 <Route path="nartbusiness/dlq" element={<NbDlqPanel />} />
                 <Route path="nartbusiness/share-analytics" element={<NbShareAnalytics />} />
                 <Route path="nartbusiness/testimonials" element={<NbTestimonials />} />

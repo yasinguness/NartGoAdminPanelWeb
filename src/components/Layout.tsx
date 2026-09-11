@@ -32,7 +32,14 @@ import { nbTheme } from '../theme/nbTheme';
 import { workspaceForPath, workspacesForRoles, WORKSPACES, type Workspace } from '../config/workspaces';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
-const DRAWER_W = 260;
+/**
+ * Sidebar genişliği.
+ *
+ * 236px, prototipteki ölçü. 260'tan indi: menü etiketlerinin en uzunu
+ * ("Paylaşım Analitikleri") 236'ya sığıyor, aradaki 24px yalnız içerik
+ * alanından çalınmış boşluktu.
+ */
+const DRAWER_W = 236;
 
 interface LayoutShellProps {
     workspace: Workspace;

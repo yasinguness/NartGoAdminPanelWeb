@@ -609,6 +609,28 @@ async function setListingPublic(id: string, value: boolean): Promise<void> {
 }
 
 /** İlan yönetim özet istatistikleri. */
+/**
+ * Önerilen talep ↔ arz çiftleri.
+ *
+ * Skor ve gerekçe birlikte gelir; panel skoru gerekçesiz göstermez.
+ */
+export interface NbListingPair {
+  request: NbListingRow;
+  offer: NbListingRow;
+  score: number;
+  matchedOn: string[];
+}
+
+async function listingPairs(perRequest = 3): Promise<NbListingPair[]> {
+  const res = await api.get<any>('/nb/needs/admin/pairs', { params: { perRequest } });
+  return unwrap<NbListingPair[]>(res.data) ?? [];
+}
+
+/** "Atla" — bu çift bir daha önerilmez (kalıcı eleme). */
+async function dismissListingPair(requestId: string, offerId: string): Promise<void> {
+  await api.post(`/nb/needs/admin/pairs/${requestId}/${offerId}/dismiss`);
+}
+
 async function listingStats(): Promise<NbListingAdminStats | null> {
   const res = await api.get<any>('/nb/needs/admin/stats');
   return unwrap<NbListingAdminStats>(res.data);
@@ -1398,7 +1420,7 @@ async function updateIntroduction(
 // ─────────────────────────────────────────────────────────────
 
 export type NbTenderStatus = 'NEW' | 'REVIEWED' | 'ARCHIVED';
-export type NbTenderReferralStatus = 'SENT' | 'INTERESTED' | 'DECLINED' | 'WON';
+export type NbTenderReferralStatus = 'SENT' | 'INTERESTED' | 'BID' | 'DECLINED' | 'WON';
 export type NbTenderChannel = 'WHATSAPP' | 'IN_APP';
 
 export const NB_TENDER_STATUS_LABEL: Record<NbTenderStatus, string> = {
@@ -1410,6 +1432,7 @@ export const NB_TENDER_STATUS_LABEL: Record<NbTenderStatus, string> = {
 export const NB_TENDER_REFERRAL_STATUS_LABEL: Record<NbTenderReferralStatus, string> = {
   SENT: 'Gönderildi',
   INTERESTED: 'İlgilendi',
+  BID: 'Teklif verdi',
   DECLINED: 'İlgilenmedi',
   WON: 'Kazandı',
 };
@@ -1426,6 +1449,12 @@ export interface NbTenderListItem {
   status: NbTenderStatus;
   matchCount: number;
   createdAt: string;
+  /**
+   * Son teklif tarihi geçti mi. Sunucu bu satırları varsayılan olarak hiç
+   * göndermez; yalnız includeExpired ile istendiğinde gelir ve o zaman
+   * yönlendirilemez olduğunu bu alan taşır.
+   */
+  expired?: boolean;
 }
 
 export interface NbTenderMatch {
@@ -1493,6 +1522,8 @@ export interface NbConsortiumCandidate {
 
 async function listTenders(params: {
   status?: NbTenderStatus;
+  /** Süresi geçmiş ihaleleri de getir. Varsayılan: getirme. */
+  includeExpired?: boolean;
   page?: number;
   size?: number;
 }): Promise<PagedResult<NbTenderListItem>> {
@@ -1576,6 +1607,18 @@ async function listTenderReferrals(params: {
       last: true,
     }
   );
+}
+
+/**
+ * Yanlış eşleşme bildir — skorlama modeline negatif sinyal.
+ *
+ * Eşleşme listesinden çıkarmakla kalmaz, sinyali kalıcı kaydeder: aynı üye
+ * bu ihaleyle bir daha eşleşmez ve kayıt, kelime ağırlıklarının gözden
+ * geçirilmesinde kullanılır. Sessizce gizlemek, aynı hatanın yarın başka bir
+ * ihalede tekrarlanması demekti.
+ */
+async function reportTenderMismatch(tenderId: string, memberId: string): Promise<void> {
+  await api.post(`/nb/admin/tenders/${tenderId}/matches/${memberId}/mismatch`);
 }
 
 /** Tamamlayıcı (farklı sektörlerden) üye grubu önerisi. */
@@ -1689,6 +1732,8 @@ export const nbAdminService = {
   setListingStatus,
   setListingPublic,
   listingStats,
+  listingPairs,
+  dismissListingPair,
   listingViewStats,
   listReferrals,
   getReferral,
@@ -1779,6 +1824,7 @@ export const nbAdminService = {
   updateTenderReferral,
   listTenderReferrals,
   suggestConsortium,
+  reportTenderMismatch,
   // Kurum kataloğu
   listPartnerOrgs,
   createPartnerOrg,

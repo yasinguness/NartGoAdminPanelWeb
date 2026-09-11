@@ -15,23 +15,81 @@
  */
 
 export const nb = {
-  /** Derin lacivert — sidebar zemini, koyu başlıklar. */
-  navy: '#1B2A4A',
-  navyDeep: '#142036',
-  navySoft: '#243566',
+  // ── Koyu yüzey (sidebar, koyu başlık şeridi) ─────────────────────────
+  /** Sidebar zemini ve koyu yüzeyler. */
+  navy: '#0d1b25',
+  navyDeep: '#0a141c',
+  navySoft: '#25404f',
 
-  /** Altın — vurgu, aktif durum, birincil NB aksiyonu. */
-  gold: '#B8860B',
-  goldSoft: '#C9A227',
-  goldTint: 'rgba(201, 162, 39, 0.12)',
-  goldTintStrong: 'rgba(201, 162, 39, 0.20)',
+  // ── Aksan ────────────────────────────────────────────────────────────
+  /** Altın — YALNIZ marka işareti ve birincil CTA. Dekorasyon için değil. */
+  gold: '#d8a83a',
+  goldSoft: '#d8a83a',
+  goldTint: 'rgba(216, 168, 58, 0.12)',
+  goldTintStrong: 'rgba(216, 168, 58, 0.20)',
 
-  /** Koyu zemin üzerindeki metin kademeleri. */
-  onDark: 'rgba(255,255,255,0.92)',
-  onDarkMuted: 'rgba(255,255,255,0.62)',
-  onDarkFaint: 'rgba(255,255,255,0.38)',
+  // ── Aydınlık yüzeyler ────────────────────────────────────────────────
+  /** Sayfa zemini. */
+  bg: '#f4f3ef',
+  /** Kart / panel zemini. */
+  surface: '#fffefb',
+  /** 1px kenarlık. Gölge KULLANILMAZ, ayrım kenarlıkla yapılır. */
+  border: '#e6e3da',
+  /** Kart içi ayraç (kenarlıktan bir ton açık). */
+  divider: '#f0eee7',
+  /** Girdi zemini. */
+  inputBg: '#faf9f5',
+  inputBorder: '#ddd9cf',
+
+  // ── Metin kademeleri ─────────────────────────────────────────────────
+  text: '#0e1b26',
+  textMuted: '#5f6b73',
+  /** Büyük harf etiketler ve ikincil üstveri. */
+  textFaint: '#8b8478',
+
+  // ── Anlamsal renkler (aksandan AYRI) ─────────────────────────────────
+  /** İyi / başarılı / yüksek eşleşme. */
+  green: '#1f6f52',
+  greenDeep: '#0f4632',
+  greenTint: '#eaf3ee',
+  /** Bekleyen / uyarı. */
+  amber: '#8a6d1f',
+  amberTint: '#f7f0dd',
+  /** Acil / olumsuz. */
+  red: '#b0413e',
+  redTint: '#f8ebea',
+
+  // ── Koyu zemin üzerindeki metin kademeleri ───────────────────────────
+  onDark: '#e7eef3',
+  onDarkMuted: '#8fa0ad',
+  onDarkFaint: '#6f8595',
   onDarkLine: 'rgba(255,255,255,0.08)',
 } as const;
+
+/**
+ * Tipografi ölçeği.
+ *
+ * Başlıklar serif (Instrument Serif), arayüz IBM Plex Sans, sayısal ve
+ * teknik alanlar IBM Plex Mono. Mono seçimi süs değil: skor, tarih ve
+ * kimlik gibi hizalanması gereken alanlarda rakam genişliği sabit olmalı.
+ */
+export const nbType = {
+  serif: "'Instrument Serif', Georgia, serif",
+  sans: "'IBM Plex Sans', system-ui, sans-serif",
+  mono: "'IBM Plex Mono', ui-monospace, monospace",
+  /** Sayfa başlığı. */
+  pageTitle: { fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 34, fontWeight: 400, lineHeight: 1.15 },
+  /** Büyük harf bölüm/sütun etiketi. */
+  label: { fontSize: 10, letterSpacing: '0.12em', fontWeight: 600, textTransform: 'uppercase' as const },
+  /** Breadcrumb — etiketten biraz daha geniş aralıklı. */
+  crumb: { fontSize: 10, letterSpacing: '0.16em', fontWeight: 600, textTransform: 'uppercase' as const },
+  body: { fontSize: 13 },
+  bodySm: { fontSize: 12 },
+} as const;
+
+/** Köşe yarıçapları — kart 12, kontrol 7-8, pill 20. */
+export const nbRadius = { card: 12, panel: 10, control: 8, controlSm: 7, pill: 20, badge: 5 } as const;
+
 
 /**
  * Üyelik durumlarının tek renk sözlüğü.
