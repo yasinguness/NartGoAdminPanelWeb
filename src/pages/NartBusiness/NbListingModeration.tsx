@@ -79,6 +79,62 @@ const STATUS_COLOR: Record<NbListingStatus, 'success' | 'default' | 'warning' | 
   DELETED: 'error',
 };
 
+type ContactChannel = 'WHATSAPP' | 'PHONE' | 'EMAIL' | 'WEB';
+
+const CONTACT_CHANNEL: Record<
+  ContactChannel,
+  { label: string; hint: string; placeholder: string; memberAction: string }
+> = {
+  WHATSAPP: {
+    label: 'WhatsApp',
+    hint: 'Numaranın WhatsApp\'ta açık olduğundan emin olun.',
+    placeholder: '0545 456 64 40',
+    memberAction: 'WhatsApp\'tan yaz',
+  },
+  PHONE: {
+    label: 'Telefon',
+    hint: 'Üye dokununca telefon uygulaması açılır.',
+    placeholder: '0212 000 00 00',
+    memberAction: 'Ara',
+  },
+  EMAIL: {
+    label: 'E-posta',
+    hint: 'Üye dokununca e-posta uygulaması açılır.',
+    placeholder: 'info@ornek.com',
+    memberAction: 'E-posta gönder',
+  },
+  WEB: {
+    label: 'Web / katalog',
+    hint: 'Ürün sayfası ya da katalog bağlantısı.',
+    placeholder: 'ornek.com/katalog',
+    memberAction: 'Siteye git',
+  },
+};
+
+/**
+ * Kanal + değeri sunucunun beklediği kanonik biçime çevirir.
+ *
+ * Doğrulamanın kendisi sunucuda (ExternalContactLink); burada yapılan yalnız
+ * kanal seçimini biçime taşımak. Düz numara sunucuda ARAMA sayıldığı için
+ * WhatsApp kanalı wa.me kalıbını açıkça kurar.
+ */
+function buildExternalContact(channel: ContactChannel, value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  switch (channel) {
+    case 'WHATSAPP': {
+      const digits = v.replace(/\D/g, '');
+      return digits ? `wa.me/${digits}` : null;
+    }
+    case 'PHONE':
+      return `tel:${v}`;
+    case 'EMAIL':
+      return v.includes('@') ? `mailto:${v}` : null;
+    case 'WEB':
+      return v;
+  }
+}
+
 const TYPE_LABEL: Record<NbListingType, string> = { REQUEST: 'Talep', OFFER: 'Arz' };
 
 /**
@@ -841,7 +897,15 @@ function _ListingFormDialog({
   const [budgetMax, setBudgetMax] = useState(row?.budgetMax?.toString() ?? '');
   const [currency, setCurrency] = useState(row?.currency ?? 'TRY');
   const [durationDays, setDurationDays] = useState('');
-  const [externalContact, setExternalContact] = useState('');
+  // Dış iletişim: kanal + değer.
+  //
+  // Tek serbest metin kutusuydu ve "wa.me/… · tel:+90… · https://…" diye
+  // yazım biçimini admin'e ezberletiyordu. Yanlış yazılan değer sessizce
+  // kaydediliyordu; sahipsiz ilanın tek değeri o bağlantı olduğu için ilan
+  // fiilen ulaşılamaz oluyordu. Kanalı seçtiriyoruz, kanonik biçimi
+  // sunucu kuruyor.
+  const [contactChannel, setContactChannel] = useState<ContactChannel>('WHATSAPP');
+  const [contactValue, setContactValue] = useState('');
   const [source, setSource] = useState('');
 
   const [saving, setSaving] = useState(false);
@@ -876,7 +940,7 @@ function _ListingFormDialog({
     ? 'Başlık gerekli'
     : useMember && !owner
       ? 'İlan sahibi işletmeyi seçin'
-      : !isEdit && ownerMode === 'curated' && !externalContact.trim()
+      : !isEdit && ownerMode === 'curated' && !buildExternalContact(contactChannel, contactValue)
         ? 'Pazar Panosu ilanında iletişim yolu gerekli'
         : null;
 
@@ -914,7 +978,8 @@ function _ListingFormDialog({
         district: district.trim() || null,
         sectorCode: sectorCode || null,
         subSectorCode: subSectorCode || null,
-        externalContact: ownerMode === 'curated' ? externalContact.trim() || null : null,
+        externalContact:
+          ownerMode === 'curated' ? buildExternalContact(contactChannel, contactValue) : null,
         source: source.trim() || null,
         durationDays: num(durationDays),
       });
@@ -985,14 +1050,34 @@ function _ListingFormDialog({
                 />
               ) : (
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  {/* Kanal önce: "nasıl ulaşılacak" sorusu "ne yazacağım"
+                      sorusundan önce gelir ve yazım biçimini ortadan
+                      kaldırır. */}
+                  <FormControl size="small" sx={{ minWidth: 170 }}>
+                    <InputLabel>İletişim kanalı</InputLabel>
+                    <Select
+                      label="İletişim kanalı"
+                      value={contactChannel}
+                      onChange={(e) => setContactChannel(e.target.value as ContactChannel)}
+                    >
+                      {(Object.keys(CONTACT_CHANNEL) as ContactChannel[]).map((k) => (
+                        <MenuItem key={k} value={k}>{CONTACT_CHANNEL[k].label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                   <TextField
-                    label="Dış iletişim"
-                    value={externalContact}
-                    onChange={(e) => setExternalContact(e.target.value)}
+                    label={CONTACT_CHANNEL[contactChannel].label}
+                    value={contactValue}
+                    onChange={(e) => setContactValue(e.target.value)}
                     size="small"
                     fullWidth
-                    placeholder="wa.me/905… · tel:+90… · https://…"
-                    helperText="İlgilenen üyenin ulaşacağı adres."
+                    placeholder={CONTACT_CHANNEL[contactChannel].placeholder}
+                    helperText={
+                      contactValue.trim() && !buildExternalContact(contactChannel, contactValue)
+                        ? 'Bu değer anlaşılamadı.'
+                        : `${CONTACT_CHANNEL[contactChannel].hint} Üye "${CONTACT_CHANNEL[contactChannel].memberAction}" düğmesi görür.`
+                    }
+                    error={!!contactValue.trim() && !buildExternalContact(contactChannel, contactValue)}
                   />
                   <TextField
                     label="Kaynak notu"
