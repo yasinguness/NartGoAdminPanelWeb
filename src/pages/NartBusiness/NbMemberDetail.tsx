@@ -124,6 +124,7 @@ export default function NbMemberDetail() {
   const { memberId } = useParams<{ memberId: string }>();
   const navigate = useNavigate();
   const fullScreen = useNbMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [member, setMember] = useState<NbMember | null>(null);
   // Kurum kataloğu. Etiketler buradan çözülüyor; hiçbir kurum adı sayfaya
@@ -259,7 +260,6 @@ export default function NbMemberDetail() {
   };
 
   const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
   const [editOpen, setEditOpen] = useState(searchParams.get('edit') === 'business');
   // Manuel ödeme onayı (havale/EFT veya elle tahsilat) — status =
   // APPROVED_PENDING_PAYMENT olan her üyede gösterilir; üyeyi ACTIVE'e taşır.
