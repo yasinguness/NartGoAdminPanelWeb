@@ -80,16 +80,20 @@ export const phoneVisibilityLabel = label(PHONE_VISIBILITY_LABELS);
 
 /** Herhangi bir biçimden 10 haneli ulusal numarayı çıkarır (ülke kodu hariç). */
 export function trPhoneNationalDigits(raw: string | undefined | null): string {
-  const d = (raw ?? '').replace(/\D/g, '');
-  if (!d) return '';
-  // +90XXXXXXXXXX (12), 0XXXXXXXXXX (11), XXXXXXXXXX (10) — hepsinde son 10.
-  return d.slice(-10);
+  if (!raw) return '';
+  if (raw.startsWith('+90')) {
+    return raw.slice(3).replace(/\D/g, '').slice(0, 10);
+  }
+  let d = raw.replace(/\D/g, '');
+  if (d.startsWith('90') && d.length >= 11) d = d.slice(2);
+  else if (d.startsWith('0')) d = d.slice(1);
+  return d.slice(0, 10);
 }
 
-/** 10 haneli ulusal numarayı saklanacak E.164 biçimine çevirir. */
+/** 10 haneli ulusal numarayı saklanacak E.164 biçimine çevirir (yazım aşamasındaki eksik haneleri de korur). */
 export function trPhoneToE164(nationalDigits: string): string {
-  const d = (nationalDigits ?? '').replace(/\D/g, '').slice(-10);
-  return d.length === 10 ? `+90${d}` : '';
+  const d = (nationalDigits ?? '').replace(/\D/g, '').slice(0, 10);
+  return d ? `+90${d}` : '';
 }
 
 /** Telefon girildiyse eksiksiz mi (10 ulusal hane). */

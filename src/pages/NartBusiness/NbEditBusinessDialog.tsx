@@ -754,7 +754,7 @@ export default function NbEditBusinessDialog({ open, member, onClose, onSaved }:
                     5XX XXX XX XX maskesi. İki ekran farklı biçim gösteriyor ve
                     farklı biçimde saklıyordu (panel 05XX…, mobil +905XX…). */}
                 <PhoneTrInput
-                  label="Telefon Numarası"
+                  label="İşletme Telefonu"
                   value={trPhoneNationalDigits(form.phoneNumber)}
                   onChange={(digits) => set('phoneNumber', trPhoneToE164(digits))}
                   error={

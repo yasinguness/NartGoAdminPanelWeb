@@ -356,7 +356,7 @@ export default function NbMemberDetail() {
       nbAdminService.memberViewStats(memberId).then(setViewStats).catch(() => setViewStats(null));
       if (m) {
         let userFetchError: string | null = null;
-        const fetchPromises: [Promise<any>, Promise<any>, Promise<any>, Promise<any>] = [
+        const fetchPromises: [Promise<any>, Promise<any>, Promise<any>, Promise<any>, Promise<any>] = [
           nbAdminService.getUserById(m.userId).catch((e) => {
             // Hata mesajını kaybetmemek için yakala — defansif UX uyarısı için.
             const status = e?.response?.status;
@@ -370,12 +370,16 @@ export default function NbMemberDetail() {
           m.verificationCaseId
             ? nbAdminService.getCaseTimeline(m.verificationCaseId).catch(() => [])
             : Promise.resolve([]),
+          nbAdminService.getDirectoryProfile(memberId).catch(() => null),
         ];
-        const [u, ps, vc, tl] = await Promise.all(fetchPromises);
+        const [u, ps, vc, tl, dp] = await Promise.all(fetchPromises);
         setUser(u ?? null);
         setPeriods(ps ?? []);
         setVerificationCase(vc ?? null);
         setCaseTimeline(tl ?? []);
+        if (dp?.phoneNumber) {
+          setMember((prev) => (prev ? { ...prev, phoneNumber: dp.phoneNumber } : null));
+        }
         if (!u) {
           // 200 + null data senaryosu: bağlanılabildi ama backend null döndü
           // (NartGo hesabı silinmiş veya nb.internal-token boş olabilir).
@@ -905,7 +909,7 @@ export default function NbMemberDetail() {
               label="İşletme telefonu"
               value={member.phoneNumber}
               emptyLabel="Telefon girilmedi"
-              waText={`Merhaba, NartBusiness ekibinden yazıyorum.`}
+              waText={`Merhaba Sayın ${userName || '[İsim]'} , ben Yasin Güneş. NartBusiness ağımızda sizin için hazırladığımız üyeliğiniz aktif edildi. Sisteme giriş bilgileriniz e-posta adresinize iletildi (ana kutuda göremezseniz spam/gereksiz klasörüne de göz atabilirsiniz). Sizin için hazırladığımız vitrininizi ve ağdaki diğer işletmeleri incelemek için nartgo.net/business adresinden veya NartGo mobil uygulamamız üzerinden hemen giriş yapabilirsiniz. Saygılar.`}
             />
           </NbSectionPaper>
           <NbSectionPaper title="Kurum">
@@ -993,9 +997,9 @@ export default function NbMemberDetail() {
             />
             <PhoneRow
               label="Hesap telefonu"
-              value={user?.phone ?? undefined}
+              value={user?.phone?.trim() ? user.phone : member.phoneNumber || undefined}
               emptyLabel="Telefon kayıtlı değil"
-              waText={`Merhaba, NartBusiness ekibinden yazıyorum.`}
+              waText={`Merhaba Sayın ${userName || '[İsim]'} , ben Yasin Güneş. NartBusiness ağımızda sizin için hazırladığımız üyeliğiniz aktif edildi. Sisteme giriş bilgileriniz e-posta adresinize iletildi (ana kutuda göremezseniz spam/gereksiz klasörüne de göz atabilirsiniz). Sizin için hazırladığımız vitrininizi ve ağdaki diğer işletmeleri incelemek için nartgo.net/business adresinden veya NartGo mobil uygulamamız üzerinden hemen giriş yapabilirsiniz. Saygılar.`}
             />
             {user?.createdAt && (
               <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 0.25 }}>
