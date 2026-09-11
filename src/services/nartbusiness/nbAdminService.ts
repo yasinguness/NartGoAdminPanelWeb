@@ -408,6 +408,27 @@ async function resendEmail(
  * + VERIFY_EMAIL — gerçek, 72 saat geçerli link) gönderir. Onboarding maili kaybolan
  * ya da şifresini hiç belirlememiş üye için. Dönen `to` = gönderim yapılan adres.
  */
+export interface NbMemberEmailContext {
+  /** Üyenin kayıtlı e-posta adresi. */
+  to: string;
+  /** Üyeden türetilmiş hazır şablon değişkenleri. */
+  variables: Record<string, string>;
+}
+
+/**
+ * Üye detayındaki "E-posta Gönder" akışının hazır değişkenleri.
+ *
+ * Doldurmayı sunucu yapıyor: admin şirket adını ya da başvuru numarasını elle
+ * yazsaydı yazım hatası alıcıya giderdi ve biçim otomatik gönderimlerden
+ * ayrışırdı.
+ */
+async function getMemberEmailContext(memberId: string): Promise<NbMemberEmailContext> {
+  const res = await api.get<any>(`/nb/admin/members/${memberId}/email-context`);
+  return (
+    unwrap<NbMemberEmailContext>(res.data) ?? { to: '', variables: {} }
+  );
+}
+
 async function sendSetPasswordEmail(memberId: string): Promise<{ to: string }> {
   const res = await api.post<any>(
     `/nb/admin/members/${memberId}/send-set-password-email`,
@@ -1773,6 +1794,7 @@ export const nbAdminService = {
   listMemberPeriods,
   resendEmail,
   sendSetPasswordEmail,
+  getMemberEmailContext,
   // İletişim & Tanıştırma
   sendPush,
   createIntroduction,

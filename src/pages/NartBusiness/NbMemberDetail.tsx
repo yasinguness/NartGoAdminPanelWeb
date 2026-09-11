@@ -91,6 +91,7 @@ import type { NbPartnerOrg } from '../../services/nartbusiness/nbAdminService';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbEditBusinessDialog from './NbEditBusinessDialog';
 import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
+import NbMemberEmailDialog from './NbMemberEmailDialog';
 
 /**
  * Sprint 24 — Üye detay sayfası. Liste tablosundan satıra tıklayınca açılır.
@@ -119,6 +120,20 @@ const DETAIL_TABS: NbTabItem<DetailTab>[] = [
   { key: 'identity', label: 'Kimlik & Belgeler' },
   { key: 'activity', label: 'Aktivite' },
 ];
+
+/**
+ * Üye detayındaki kısayolların ("Eksik bilgi iste", "Hatırlat") açtığı şablon.
+ *
+ * Kısayol bir niyet taşıyor; kullanıcıyı şablon listesine düşürüp aramaya
+ * zorlamak o niyeti kaybettirirdi. Eski dört seçenekli listenin değerleri
+ * korunuyor ki çağrı yerleri değişmesin.
+ */
+const RESEND_TEMPLATE_KEY: Record<NbResendTemplate, string> = {
+  RECEIVED: 'nb-application-received.html',
+  APPROVED: 'nb-application-approved.html',
+  NEEDS_INFO: 'nb-needs-info.html',
+  PARTNER_WELCOME: 'nb-partner-welcome.html',
+};
 
 export default function NbMemberDetail() {
   const { memberId } = useParams<{ memberId: string }>();
@@ -272,9 +287,6 @@ export default function NbMemberDetail() {
   // Hazır e-posta template'ini elle yeniden gönderme.
   const [resendOpen, setResendOpen] = useState(false);
   const [resendTemplate, setResendTemplate] = useState<NbResendTemplate>('APPROVED');
-  const [resendEmailOverride, setResendEmailOverride] = useState('');
-  const [resendBusy, setResendBusy] = useState(false);
-  const [resendError, setResendError] = useState<string | null>(null);
 
   // Admin iletişim: üyeye tekil push (in-app kaydı + FCM; NB tercih kapılı).
   const [pushOpen, setPushOpen] = useState(false);
@@ -587,8 +599,6 @@ export default function NbMemberDetail() {
         return {
           label: 'Eksik bilgi iste',
           run: () => {
-            setResendEmailOverride('');
-            setResendError(null);
             setResendTemplate('NEEDS_INFO');
             setResendOpen(true);
           },
@@ -748,8 +758,6 @@ export default function NbMemberDetail() {
         <MenuItem
           onClick={() => {
             setMoreAnchor(null);
-            setResendEmailOverride('');
-            setResendError(null);
             setResendTemplate(
               member.status === 'NEEDS_INFO'
                 ? 'NEEDS_INFO'
@@ -1250,8 +1258,6 @@ export default function NbMemberDetail() {
                   ? {
                       label: 'Hatırlat',
                       onClick: () => {
-                        setResendEmailOverride('');
-                        setResendError(null);
                         setResendTemplate('APPROVED');
                         setResendOpen(true);
                       },
@@ -1274,8 +1280,6 @@ export default function NbMemberDetail() {
               // Eksik alan talebi hazır e-posta akışına düşer: hangi alanın
               // istendiği notta yazılı kalsın, sessizce gönderilmesin.
               onRequest: () => {
-                setResendEmailOverride('');
-                setResendError(null);
                 setResendTemplate('NEEDS_INFO');
                 setResendOpen(true);
               },
@@ -1393,103 +1397,17 @@ export default function NbMemberDetail() {
         </DialogActions>
       </Dialog>
 
-      {/* Hazır e-posta template'ini elle yeniden gönder */}
-      <Dialog
+      {/* Üyeye hazır e-posta: şablon seç, önizle, gönder.
+          Eskiden burada dört şablonluk bir açılır liste vardı ve önizleme
+          yoktu; admin mailin ne diyeceğini görmeden gönderiyordu. */}
+      <NbMemberEmailDialog
         open={resendOpen}
-        onClose={() => !resendBusy && setResendOpen(false)}
-        maxWidth="sm"
-        fullWidth
-        fullScreen={fullScreen}
-      >
-        <DialogTitle>Hazır E-posta Gönder</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
-            Hazır başvuru e-postalarından birini bu üyeye yeniden gönderir. İçerik
-            kayıttan otomatik oluşturulur. Adres yanlış girilmişse aşağıya doğru
-            adresi yazabilirsin; boş bırakırsan hesaptaki güncel adrese gider.
-          </DialogContentText>
-          <TextField
-            select
-            fullWidth
-            label="Template"
-            value={resendTemplate}
-            onChange={(e) => setResendTemplate(e.target.value as NbResendTemplate)}
-            size="small"
-            sx={{ mb: 2 }}
-            disabled={resendBusy}
-          >
-            <MenuItem value="RECEIVED">Başvuru Alındı</MenuItem>
-            <MenuItem value="APPROVED">Başvuru Onaylandı (ödeme/aktivasyon)</MenuItem>
-            <MenuItem value="NEEDS_INFO">Ek Bilgi Gerekli</MenuItem>
-            <MenuItem value="PARTNER_WELCOME" disabled={!member.partnerOrgId}>
-              Kurum Karşılaması{currentOrg ? ` (${currentOrg.shortName || currentOrg.name})` : ''}
-            </MenuItem>
-          </TextField>
-          {resendTemplate === 'PARTNER_WELCOME' && (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Bu davet metni, üye giriş bilgilerini almadan önce gönderilmek üzere yazıldı.
-              Hesap zaten açıldıysa üye ikinci bir mail almış olacak.
-            </Alert>
-          )}
-          {!member.partnerOrgId && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              Bu üyenin kurumu tanımlı olmadığı için kurum karşılaması gönderilemez.
-              Önce üyeye bir kurum atayın.
-            </Alert>
-          )}
-          <TextField
-            fullWidth
-            type="email"
-            label="Gönderilecek adres (opsiyonel)"
-            placeholder={user?.email ? `Boş = ${user.email}` : 'Boş = hesaptaki adres'}
-            value={resendEmailOverride}
-            onChange={(e) => setResendEmailOverride(e.target.value)}
-            size="small"
-            disabled={resendBusy}
-            helperText="Yanlış adrese gitmişse, düzeltilmiş adresi buraya yaz."
-          />
-          {resendError && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {resendError}
-            </Alert>
-          )}
-
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setResendOpen(false)} disabled={resendBusy}>
-            Kapat
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<EmailOutlinedIcon />}
-            disabled={resendBusy}
-            onClick={async () => {
-              if (!member) return;
-              setResendBusy(true);
-              setResendError(null);
-              try {
-                const r = await nbAdminService.resendEmail(
-                  member.memberId,
-                  resendTemplate,
-                  resendEmailOverride,
-                );
-                setResendOpen(false);
-                setUndo({ message: `E-posta kuyruğa alındı: ${r.to}` });
-              } catch (e: any) {
-                setResendError(
-                  nbErrorMessage(e) ??
-                  e?.message ??
-                  'E-posta gönderilemedi.',
-                );
-              } finally {
-                setResendBusy(false);
-              }
-            }}
-          >
-            {resendBusy ? 'Gönderiliyor…' : 'Gönder'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onClose={() => setResendOpen(false)}
+        memberId={member.memberId}
+        memberName={member.companyName}
+        initialTemplateKey={RESEND_TEMPLATE_KEY[resendTemplate]}
+        onSent={(message) => setUndo({ message })}
+      />
 
       {/* Push bildirimi — üyeye tekil (in-app + FCM) */}
       <Dialog open={pushOpen} onClose={() => !pushBusy && setPushOpen(false)} fullWidth maxWidth="sm">

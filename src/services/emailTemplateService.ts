@@ -25,6 +25,14 @@ export interface EmailTemplateDef {
   /** Mail içeriğinin tek cümlelik özeti. */
   description?: string;
   variables: EmailTemplateVar[];
+  /**
+   * Dolu ise bu şablon ELLE gönderilemez ve metin sebebini söyler. Kimlik
+   * bilgisi taşıyan şablonlar (geçici şifre, şifre belirleme bağlantısı)
+   * böyledir: değer gerçek bir sistem işlemiyle üretilmeli, elle yazılırsa
+   * alıcıya çalışmayan bir bilgi gider. Kararı sunucu veriyor; sunucu ayrıca
+   * gönderimi de reddediyor, bu alan yalnız arayüzün erken uyarması için.
+   */
+  manualSendBlockedReason?: string | null;
 }
 
 export interface EmailPreviewResult {
