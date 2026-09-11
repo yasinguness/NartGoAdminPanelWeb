@@ -793,6 +793,8 @@ export interface NbQuestionRow {
   viewCount?: number;
   expiresAt?: string | null;
   createdAt?: string | null;
+  /** Küratör hesabı adına açılmış "ortak pano" sorusu mu. */
+  curated?: boolean;
 }
 
 export interface NbQuestionAdminStats {
@@ -822,6 +824,27 @@ async function listQuestions(params: {
   });
   const d = unwrap<NbQuestionPage>(res.data);
   return d ?? { content: [], page: 0, totalPages: 0, totalElements: 0 };
+}
+
+export interface NbQuestionCreateBody {
+  /**
+   * Soruyu kimin adına açıyoruz. Boş bırakılırsa küratör hesabı adına
+   * (ortak pano) yayımlanır. İlan oluşturmadaki ownerMemberId ile aynı model.
+   */
+  askerMemberId?: string;
+  title: string;
+  body: string;
+  sectorCode?: string | null;
+  city?: string | null;
+  durationDays?: number | null;
+  /** Kaynak notu ("WhatsApp grubu" gibi) — yalnız admin görür. */
+  source?: string | null;
+}
+
+/** Admin adına topluluk sorusu açar. */
+async function createQuestion(body: NbQuestionCreateBody): Promise<NbQuestionRow | null> {
+  const res = await api.post<any>('/nb/admin/community/questions', body);
+  return unwrap<NbQuestionRow>(res.data);
 }
 
 async function getQuestion(id: string): Promise<NbQuestionRow | null> {
@@ -1777,6 +1800,7 @@ export const nbAdminService = {
   setReferralStatus,
   referralStats,
   listQuestions,
+  createQuestion,
   getQuestion,
   updateQuestion,
   setQuestionStatus,

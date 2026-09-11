@@ -28,6 +28,8 @@ import BlockIcon from '@mui/icons-material/Block';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import RestoreIcon from '@mui/icons-material/Restore';
 import EditIcon from '@mui/icons-material/Edit';
+import AddIcon from '@mui/icons-material/Add';
+import Autocomplete from '@mui/material/Autocomplete';
 import {
   Dialog,
   DialogActions,
@@ -43,6 +45,7 @@ import type {
   NbQuestionAdminStats,
 } from '../../services/nartbusiness/nbAdminService';
 import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
+import type { NbMember } from '../../services/nartbusiness/nbTypes';
 
 const STATUS_LABEL: Record<NbQuestionStatus, string> = {
   OPEN: 'Açık',
@@ -90,6 +93,20 @@ export default function NbQuestionModeration() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [stats, setStats] = useState<NbQuestionAdminStats | null>(null);
+
+  // Soru açma — ilan oluşturmadaki modelin aynısı: üye seçilirse onun adına,
+  // seçilmezse küratör hesabı adına (ortak pano).
+  const [createOpen, setCreateOpen] = useState(false);
+  const [cTitle, setCTitle] = useState('');
+  const [cBody, setCBody] = useState('');
+  const [cCity, setCCity] = useState('');
+  const [cSource, setCSource] = useState('');
+  const [cDays, setCDays] = useState(30);
+  const [cOwnerMode, setCOwnerMode] = useState<'curated' | 'member'>('curated');
+  const [cOwner, setCOwner] = useState<NbMember | null>(null);
+  const [memberOptions, setMemberOptions] = useState<NbMember[]>([]);
+  const [cBusy, setCBusy] = useState(false);
+  const [cError, setCError] = useState<string | null>(null);
   const [editing, setEditing] = useState<NbQuestionRow | null>(null);
 
   useEffect(() => { setPage(0); }, [status, q]);
@@ -97,6 +114,43 @@ export default function NbQuestionModeration() {
     const t = setTimeout(() => setQ(qInput.trim()), 350);
     return () => clearTimeout(t);
   }, [qInput]);
+
+  // Üye adına soru açmak için erişimi açık üyeler. Diyalog ilk açıldığında
+  // çekilir; sayfa açılışında çekmek her ziyarette gereksiz bir sorgu olurdu.
+  useEffect(() => {
+    if (!createOpen || memberOptions.length > 0) return;
+    nbAdminService
+      .listMembers({ size: 100 })
+      .then((p) => setMemberOptions(p?.content ?? []))
+      .catch(() => setMemberOptions([]));
+  }, [createOpen, memberOptions.length]);
+
+  const submitQuestion = async () => {
+    setCBusy(true);
+    setCError(null);
+    try {
+      await nbAdminService.createQuestion({
+        askerMemberId: cOwnerMode === 'member' ? cOwner?.memberId : undefined,
+        title: cTitle.trim(),
+        body: cBody.trim(),
+        city: cCity.trim() || null,
+        durationDays: cDays || null,
+        source: cSource.trim() || null,
+      });
+      setCreateOpen(false);
+      setCTitle('');
+      setCBody('');
+      setCCity('');
+      setCSource('');
+      setCOwner(null);
+      setMsg('Soru yayımlandı.');
+      load();
+    } catch (e) {
+      setCError(nbErrorMessage(e, 'Soru açılamadı.'));
+    } finally {
+      setCBusy(false);
+    }
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -133,6 +187,11 @@ export default function NbQuestionModeration() {
       <NbPageHeader
         eyebrow="NartBusiness"
         title="Topluluk Soruları — Yönetim"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+            Soru Aç
+          </Button>
+        }
       />
       {stats && (
         <Grid container spacing={1.5} mb={2}>
@@ -257,6 +316,113 @@ export default function NbQuestionModeration() {
           <Pagination count={totalPages} page={page + 1} onChange={(_, p) => setPage(p - 1)} color="primary" />
         </Stack>
       )}
+
+      {/* Soru açma — ilan oluşturmadaki modelin aynısı. */}
+      <Dialog open={createOpen} onClose={() => !cBusy && setCreateOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Topluluk Sorusu Aç</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <FormControl size="small">
+              <InputLabel>Kimin adına</InputLabel>
+              <Select
+                label="Kimin adına"
+                value={cOwnerMode}
+                onChange={(e) => setCOwnerMode(e.target.value as 'curated' | 'member')}
+                disabled={cBusy}
+              >
+                <MenuItem value="curated">Ortak pano (NartBusiness)</MenuItem>
+                <MenuItem value="member">Bir işletme adına</MenuItem>
+              </Select>
+            </FormControl>
+
+            {cOwnerMode === 'member' ? (
+              <Autocomplete
+                options={memberOptions}
+                value={cOwner}
+                onChange={(_, v) => setCOwner(v)}
+                getOptionLabel={(o) => o.companyName ?? o.memberId}
+                isOptionEqualToValue={(a, b) => a.memberId === b.memberId}
+                renderInput={(params) => (
+                  <TextField {...params} size="small" label="İşletme seç" />
+                )}
+                disabled={cBusy}
+              />
+            ) : (
+              <Alert severity="info" sx={{ '& .MuiAlert-message': { fontSize: 13 } }}>
+                Soru küratör hesabı adına yayımlanır ve uygulamada "ortak pano"
+                olarak görünür. Küratör hesabı yapılandırılmamışsa gönderim
+                sebebiyle birlikte reddedilir.
+              </Alert>
+            )}
+
+            <TextField
+              label="Başlık"
+              value={cTitle}
+              onChange={(e) => setCTitle(e.target.value)}
+              size="small"
+              fullWidth
+              inputProps={{ maxLength: 255 }}
+              disabled={cBusy}
+            />
+            <TextField
+              label="Soru metni"
+              value={cBody}
+              onChange={(e) => setCBody(e.target.value)}
+              size="small"
+              fullWidth
+              multiline
+              minRows={4}
+              inputProps={{ maxLength: 5000 }}
+              disabled={cBusy}
+            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Şehir (opsiyonel)"
+                value={cCity}
+                onChange={(e) => setCCity(e.target.value)}
+                size="small"
+                fullWidth
+                disabled={cBusy}
+              />
+              <TextField
+                label="Açık kalacağı gün"
+                type="number"
+                value={cDays}
+                onChange={(e) => setCDays(Number(e.target.value))}
+                size="small"
+                inputProps={{ min: 1, max: 365 }}
+                sx={{ minWidth: 160 }}
+                disabled={cBusy}
+              />
+            </Stack>
+            <TextField
+              label="Kaynak notu (opsiyonel)"
+              value={cSource}
+              onChange={(e) => setCSource(e.target.value)}
+              size="small"
+              fullWidth
+              helperText="Örn. WhatsApp grubu. Yalnız yöneticiler görür."
+              disabled={cBusy}
+            />
+            {cError && <Alert severity="error">{cError}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateOpen(false)} disabled={cBusy}>Vazgeç</Button>
+          <Button
+            variant="contained"
+            onClick={() => void submitQuestion()}
+            disabled={
+              cBusy ||
+              !cTitle.trim() ||
+              !cBody.trim() ||
+              (cOwnerMode === 'member' && !cOwner)
+            }
+          >
+            {cBusy ? 'Yayımlanıyor…' : 'Yayımla'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar open={!!msg} autoHideDuration={4000} onClose={() => setMsg(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
