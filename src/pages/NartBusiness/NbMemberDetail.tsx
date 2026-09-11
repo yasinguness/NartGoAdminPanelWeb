@@ -91,6 +91,11 @@ import type { NbPartnerOrg } from '../../services/nartbusiness/nbAdminService';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbEditBusinessDialog from './NbEditBusinessDialog';
 import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import { nbFormatPhone, nbTelLink, nbWhatsAppLink } from '../../services/nartbusiness/nbPhone';
+import { nbAuditService } from '../../services/nartbusiness/nbAuditService';
+import type { NbAuditRow } from '../../services/nartbusiness/nbAuditService';
+import { actionLabel, outcomeLabel } from './nbAuditLabels';
 import NbMemberEmailDialog from './NbMemberEmailDialog';
 
 /**
@@ -285,6 +290,14 @@ export default function NbMemberDetail() {
   const [bankConfirmError, setBankConfirmError] = useState<string | null>(null);
 
   // Hazır e-posta template'ini elle yeniden gönderme.
+  // Üyeye ait denetim kayıtları — Aktivite sekmesi.
+  //
+  // Sağ paneldeki "Son Hareketler" üyelik durumunun özeti; burası ham kayıt.
+  // İkisi farklı soruya cevap veriyor: biri "üyelik nerede", diğeri "bu üyede
+  // kim ne yaptı". Kayıt yalnız sekmeye geçilince çekiliyor.
+  const [auditRows, setAuditRows] = useState<NbAuditRow[] | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+
   const [resendOpen, setResendOpen] = useState(false);
   const [resendTemplate, setResendTemplate] = useState<NbResendTemplate>('APPROVED');
 
@@ -383,6 +396,19 @@ export default function NbMemberDetail() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
+
+  // Denetim kayıtları yalnız Aktivite sekmesine geçilince çekilir: her üye
+  // açılışında bir sorgu daha atmanın karşılığı yok, kayıtlar nadiren
+  // bakılıyor.
+  useEffect(() => {
+    if (tab !== 'activity' || auditRows !== null || !memberId) return;
+    setAuditLoading(true);
+    nbAuditService
+      .list({ targetId: memberId, days: 365, size: 50 })
+      .then((p) => setAuditRows(p.content ?? []))
+      .catch(() => setAuditRows([]))
+      .finally(() => setAuditLoading(false));
+  }, [tab, auditRows, memberId]);
 
   // Sektör listesi — sectorCode'u Türkçe ada çevirmek için.
   useEffect(() => {
@@ -872,7 +898,15 @@ export default function NbMemberDetail() {
               emptyLabel="Sektör seçilmedi"
             />
             <DetailRow label="Şehir" value={member.city} emptyLabel="Şehir girilmedi" />
-            <DetailRow label="Telefon" value={member.phoneNumber} emptyLabel="Telefon girilmedi" />
+            {/* İki ayrı telefon var ve ikisi farklı olabilir: biri işletme
+                profilinden, diğeri NartGo hesabından. Aynı "Telefon" etiketini
+                iki yerde kullanmak hangisinin ne olduğunu belirsizleştiriyordu. */}
+            <PhoneRow
+              label="İşletme telefonu"
+              value={member.phoneNumber}
+              emptyLabel="Telefon girilmedi"
+              waText={`Merhaba, NartBusiness ekibinden yazıyorum.`}
+            />
           </NbSectionPaper>
           <NbSectionPaper title="Kurum">
             {partnerOrgs.length === 0 ? (
@@ -957,12 +991,11 @@ export default function NbMemberDetail() {
               href={user?.email ? `mailto:${user.email}` : undefined}
               copyable
             />
-            <ContactRow
-              label="Telefon"
+            <PhoneRow
+              label="Hesap telefonu"
               value={user?.phone ?? undefined}
               emptyLabel="Telefon kayıtlı değil"
-              href={user?.phone ? `tel:${user.phone}` : undefined}
-              copyable
+              waText={`Merhaba, NartBusiness ekibinden yazıyorum.`}
             />
             {user?.createdAt && (
               <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 0.25 }}>
@@ -1224,6 +1257,50 @@ export default function NbMemberDetail() {
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
               Aynı kişinin 6 saat içindeki tekrar ziyaretleri tek sayılır.
             </Typography>
+          </NbSectionPaper>
+
+          <NbSectionPaper title="Son Kayıtlar">
+            {auditLoading ? (
+              <Stack alignItems="center" py={3}>
+                <CircularProgress size={20} />
+              </Stack>
+            ) : !auditRows || auditRows.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                Bu üye için son bir yılda kayıt yok.
+              </Typography>
+            ) : (
+              <Stack divider={<Divider flexItem />} sx={{ maxHeight: 420, overflowY: 'auto' }}>
+                {auditRows.map((r) => (
+                  <Stack
+                    key={r.id}
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="baseline"
+                    sx={{ py: 1 }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ minWidth: 116, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {new Date(r.occurredAt).toLocaleString('tr-TR', {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      })}
+                    </Typography>
+                    <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                      <Typography variant="body2" fontWeight={600}>
+                        {actionLabel(r.action)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {r.actorName ?? r.actorRole ?? 'sistem'}
+                        {r.outcome ? ` · ${outcomeLabel(r.outcome)}` : ''}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                ))}
+              </Stack>
+            )}
           </NbSectionPaper>
             </>
           )}
@@ -2261,6 +2338,21 @@ function DetailRow({
   );
 }
 
+/**
+ * Bağlantıyı okunabilir kısalt: şema ve "www." düşer, yüzde kodlaması çözülür.
+ * Çözülemeyen adres olduğu gibi kalır — bozuk bir değeri "düzeltilmiş" gibi
+ * göstermek, sorunu gizlemek olurdu.
+ */
+function prettyUrl(url: string): string {
+  let out = url.trim();
+  try {
+    out = decodeURI(out);
+  } catch {
+    // Bozuk yüzde kodlaması — ham hâliyle göster.
+  }
+  return out.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, '');
+}
+
 function SocialRow({ label, url }: { label: string; url?: string }) {
   return (
     <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 0.25 }}>
@@ -2272,12 +2364,95 @@ function SocialRow({ label, url }: { label: string; url?: string }) {
         {label}
       </Typography>
       {url ? (
-        <Link href={url} target="_blank" rel="noreferrer" variant="body2">
-          {url}
+        // Ham adres tek satırda basılıyordu ve uzun bağlantılar (özellikle
+        // kodlanmış Türkçe karakter taşıyanlar) satırı taşırıyordu. Artık
+        // okunabilir kısa biçim görünür, tam adres title'da durur.
+        <Link
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          variant="body2"
+          title={url}
+          sx={{
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {prettyUrl(url)}
         </Link>
       ) : (
         <Typography variant="body2" color="text.disabled" fontStyle="italic">
           Eklenmemiş
+        </Typography>
+      )}
+    </Stack>
+  );
+}
+
+/**
+ * Telefon satırı — numara + doğrudan aksiyonlar.
+ *
+ * Numara yalnız metin olarak duruyordu; admin WhatsApp'tan yazmak için
+ * kopyalayıp telefonunda aratıyordu. Numara elimizde olduğuna göre
+ * bağlantıyı kurmak bize düşer.
+ *
+ * Hazır mesaj metni GÖNDERİLMEZ, WhatsApp penceresinde dolu gelir: admin
+ * yollamadan önce okur ve düzenler.
+ */
+function PhoneRow({
+  label,
+  value,
+  emptyLabel,
+  waText,
+}: {
+  label: string;
+  value?: string | null;
+  emptyLabel: string;
+  waText?: string;
+}) {
+  const trimmed = value?.toString().trim();
+  const wa = nbWhatsAppLink(trimmed, waText);
+  const tel = nbTelLink(trimmed);
+
+  return (
+    <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 0.25 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 130, flexShrink: 0 }}>
+        {label}
+      </Typography>
+      {trimmed ? (
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flexWrap: 'wrap' }}>
+          <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+            {nbFormatPhone(trimmed)}
+          </Typography>
+          {wa && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<WhatsAppIcon fontSize="small" />}
+              href={wa}
+              target="_blank"
+              rel="noreferrer"
+              sx={{ minWidth: 0, py: 0.125 }}
+            >
+              WhatsApp
+            </Button>
+          )}
+          {tel && (
+            <Button size="small" href={tel} sx={{ minWidth: 0, py: 0.125 }}>
+              Ara
+            </Button>
+          )}
+          {!wa && (
+            <Typography variant="caption" color="text.secondary">
+              numara okunamadı
+            </Typography>
+          )}
+        </Stack>
+      ) : (
+        <Typography variant="body2" color="text.disabled" fontStyle="italic">
+          {emptyLabel}
         </Typography>
       )}
     </Stack>

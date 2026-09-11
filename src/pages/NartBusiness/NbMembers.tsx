@@ -194,12 +194,17 @@ function MemberRow({
       </Box>
 
       <Stack direction="row" alignItems="center" sx={{ gap: 1.375, minWidth: 0 }}>
+        {/* Logo varsa logo, yoksa baş harf. MemberView zaten logoUrl
+            taşıyordu ama liste hep baş harf çiziyordu; tanıdık işletmeyi
+            listede gözle bulmak zorlaşıyordu. Görsel yüklenemezse baş harfe
+            düşer (onError), kırık resim ikonu çıkmaz. */}
         <Box
           sx={{
             width: 32,
             height: 32,
             borderRadius: '9px',
             flexShrink: 0,
+            overflow: 'hidden',
             display: 'grid',
             placeItems: 'center',
             fontSize: 12.5,
@@ -208,7 +213,20 @@ function MemberRow({
             color: member.status === 'ACTIVE' ? nb.green : nb.textMuted,
           }}
         >
-          {initial}
+          {member.logoUrl ? (
+            <Box
+              component="img"
+              src={member.logoUrl}
+              alt=""
+              loading="lazy"
+              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                e.currentTarget.style.display = 'none';
+              }}
+              sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          ) : (
+            initial
+          )}
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Stack direction="row" alignItems="center" sx={{ gap: 0.75, minWidth: 0 }}>

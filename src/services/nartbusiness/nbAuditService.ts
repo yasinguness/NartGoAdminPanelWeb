@@ -31,6 +31,8 @@ export interface NbAuditPage {
 export interface NbAuditQuery {
   action?: string;
   actorUserId?: string;
+  /** Tek bir üyenin kayıtları — üye detayındaki "Son Kayıtlar" bölümü. */
+  targetId?: string;
   days?: number;
   page?: number;
   size?: number;
