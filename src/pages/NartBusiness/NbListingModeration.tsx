@@ -81,13 +81,17 @@ const STATUS_COLOR: Record<NbListingStatus, 'success' | 'default' | 'warning' | 
 
 const TYPE_LABEL: Record<NbListingType, string> = { REQUEST: 'Talep', OFFER: 'Arz' };
 
+/**
+ * Etiketler backend `RequestType` enum'una göre. Eski liste uydurmaydı ve iki
+ * yönde birden bozuyordu: panelden oluşturma 500 veriyordu, mobilden açılmış
+ * GOODS/TRANSPORT/RENTAL/PROJECT ilanları da listede etiketsiz görünüyordu.
+ */
 const REQUEST_TYPE_LABEL: Record<NbRequestType, string> = {
-  SUPPLIER: 'Tedarikçi arıyor',
-  BUYER: 'Alıcı arıyor',
-  SERVICE: 'Hizmet arıyor',
-  LOGISTICS: 'Lojistik',
-  PARTNER: 'İş ortağı',
-  OTHER: 'Diğer',
+  GOODS: 'Mal / emtia alımı',
+  SERVICE: 'Hizmet / işçilik',
+  TRANSPORT: 'Taşıma / lojistik',
+  RENTAL: 'Kiralama',
+  PROJECT: 'Proje / taahhüt',
 };
 
 /** İlan açılabilecek üyeler — yalnızca erişimi açık olanlar. */

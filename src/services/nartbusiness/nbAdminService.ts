@@ -592,8 +592,17 @@ async function updateListing(
 }
 
 /** İlan talep alt türü (talep ilanlarında ne aradığını belirtir). */
+/**
+ * Talep alt türü — backend `RequestType` enum'unun birebir karşılığı.
+ *
+ * Panel uzun süre uydurma bir set gönderiyordu (SUPPLIER, BUYER, LOGISTICS,
+ * PARTNER, OTHER). Bunlar backend'de yok; Jackson enum'a çeviremeyince gövde
+ * okunamıyor ve admin ilan oluşturamıyordu. Üstelik hata 500 "Beklenmeyen bir
+ * hata" olarak dönüyordu, yani sebep de görünmüyordu. Mobil baştan beri doğru
+ * seti kullanıyor.
+ */
 export type NbRequestType =
-  | 'SUPPLIER' | 'BUYER' | 'SERVICE' | 'LOGISTICS' | 'PARTNER' | 'OTHER';
+  | 'GOODS' | 'SERVICE' | 'TRANSPORT' | 'RENTAL' | 'PROJECT';
 
 export interface NbListingCreateBody {
   /**
