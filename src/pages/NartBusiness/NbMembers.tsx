@@ -949,7 +949,24 @@ export default function NbMembers() {
                 <MenuItem value="GRANT_TRIAL">Ücretsiz deneme ver</MenuItem>
                 <MenuItem value="RESEND_EMAIL">Hazır e-posta gönder</MenuItem>
                 <MenuItem value="SEND_PUSH">Bildirim gönder</MenuItem>
+                <MenuItem value="SEND_SET_PASSWORD">Şifre belirleme e-postası gönder</MenuItem>
               </TextField>
+
+              {bulkAction === 'SEND_SET_PASSWORD' && (
+                <Alert severity="info" sx={{ '& .MuiAlert-message': { fontSize: 13 } }}>
+                  Her üyeye 72 saat geçerli, kendine ait bir şifre belirleme bağlantısı
+                  gider. Metin &laquo;önceki e-postamız size ulaşmamış olabilir&raquo;
+                  çerçevesinde yazılmıştır.
+                  <br />
+                  <br />
+                  Geçici şifreli karşılama e-postası yeniden gönderilemez, çünkü o şifre
+                  hiçbir yerde saklanmıyor. Maili alamamış üyeler için doğru yol budur.
+                  <br />
+                  <br />
+                  Üyenin mevcut şifresi bağlantıya tıklayana kadar geçerli kalır. Hesabı
+                  bağlı olmayan üyeler sebebiyle birlikte atlanır.
+                </Alert>
+              )}
 
               {bulkAction === 'REOPEN_APPROVAL' && (
                 <TextField

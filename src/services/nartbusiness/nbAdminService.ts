@@ -287,7 +287,13 @@ export type NbBulkAction =
   | 'REOPEN_APPROVAL'
   | 'RESEND_EMAIL'
   | 'SEND_PUSH'
-  | 'GRANT_TRIAL';
+  | 'GRANT_TRIAL'
+  /**
+   * Şifre belirleme (kurtarma) e-postası. Geçici şifreli karşılama maili
+   * yeniden gönderilemez — şifre hiçbir yerde saklanmıyor — bu yüzden
+   * "maili alamamış üye" durumunun tek çözümü budur.
+   */
+  | 'SEND_SET_PASSWORD';
 
 async function bulkMemberAction(body: {
   memberIds: string[];

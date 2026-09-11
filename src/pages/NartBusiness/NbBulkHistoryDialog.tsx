@@ -39,6 +39,7 @@ const ACTION_LABEL: Record<NbBulkAction, string> = {
   GRANT_TRIAL: 'Deneme verme',
   RESEND_EMAIL: 'Hazır e-posta',
   SEND_PUSH: 'Bildirim',
+  SEND_SET_PASSWORD: 'Şifre belirleme e-postası',
 };
 
 export default function NbBulkHistoryDialog({
