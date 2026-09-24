@@ -6,10 +6,10 @@
  *   <GooglePlacesInput value={address} onChange={setAddress} />
  *   <GooglePlacesInput value={address} onChange={setAddress} showDetails />
  */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Box, TextField, Paper, Typography, Stack, Chip, alpha,
-  CircularProgress, Collapse,
+  CircularProgress, Collapse, Popper, ClickAwayListener,
 } from '@mui/material';
 import { Place as PlaceIcon, CheckCircle as CheckIcon } from '@mui/icons-material';
 import { searchPlaces, getPlaceDetails, PlacePrediction } from '../services/google/googlePlacesService';
@@ -60,6 +60,17 @@ export default function GooglePlacesInput({
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const anchorRef = useRef<HTMLDivElement>(null);
+
+  // Dışarıdan gelen adres kutuya yansısın.
+  //
+  // `search` yalnız ilk render'da `value`'dan besleniyordu. Düzenleme
+  // penceresi formu açıldıktan SONRA dolduruyor (initialData bir effect ile
+  // geliyor); o an kutu boş kalıyor ve altında yeşil "seçili adres" kartı
+  // duruyordu. Kullanıcı dolu bir adresi boş bir kutuyla görüyordu.
+  useEffect(() => {
+    setSearch(value?.description || '');
+  }, [value?.description]);
 
   const handleInput = useCallback((val: string) => {
     setSearch(val);
@@ -101,7 +112,7 @@ export default function GooglePlacesInput({
   const isSelected = !!value?.description;
 
   return (
-    <Box sx={{ position: 'relative', width: fullWidth ? '100%' : 'auto' }}>
+    <Box ref={anchorRef} sx={{ position: 'relative', width: fullWidth ? '100%' : 'auto' }}>
       <TextField
         fullWidth={fullWidth}
         size={size}
@@ -119,23 +130,37 @@ export default function GooglePlacesInput({
         sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
       />
 
-      {/* Predictions dropdown */}
-      {predictions.length > 0 && (
-        <Paper sx={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1300,
-          mt: 0.5, maxHeight: 260, overflow: 'auto',
-          border: '1px solid', borderColor: 'divider', borderRadius: 2,
-        }} elevation={4}>
-          {predictions.map(p => (
-            <Box key={p.place_id} onClick={() => handleSelect(p)}
-              sx={{ px: 2, py: 1.5, cursor: 'pointer', '&:hover': { bgcolor: 'grey.50' },
-                borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
-              <Typography variant="body2" fontWeight={600}>{p.structured_formatting.main_text}</Typography>
-              <Typography variant="caption" color="text.secondary">{p.structured_formatting.secondary_text}</Typography>
-            </Box>
-          ))}
-        </Paper>
-      )}
+      {/* Öneri listesi — portal ile body'ye çizilir.
+        *
+        * Eskiden `position: absolute` ile kutunun içinde duruyordu ve
+        * ataların taşma kuralına takılıyordu: bölüm kartı yuvarlak köşeler
+        * için `overflow: hidden` taşıyor, düzenleme penceresinin içeriği ise
+        * kendi içinde kayıyor. İkisi de listeyi kırpıyordu; kullanıcı iki
+        * satır görüp gerisini bulamıyordu. Popper listeyi ağacın dışına
+        * çizer, hiçbir ata onu kesemez. */}
+      <Popper
+        open={predictions.length > 0}
+        anchorEl={anchorRef.current}
+        placement="bottom-start"
+        style={{ zIndex: 1400, width: anchorRef.current?.clientWidth }}
+        modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
+      >
+        <ClickAwayListener onClickAway={() => setPredictions([])}>
+          <Paper sx={{
+            maxHeight: 260, overflow: 'auto',
+            border: '1px solid', borderColor: 'divider', borderRadius: 2,
+          }} elevation={4}>
+            {predictions.map(p => (
+              <Box key={p.place_id} onClick={() => handleSelect(p)}
+                sx={{ px: 2, py: 1.5, cursor: 'pointer', '&:hover': { bgcolor: 'grey.50' },
+                  borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
+                <Typography variant="body2" fontWeight={600}>{p.structured_formatting.main_text}</Typography>
+                <Typography variant="caption" color="text.secondary">{p.structured_formatting.secondary_text}</Typography>
+              </Box>
+            ))}
+          </Paper>
+        </ClickAwayListener>
+      </Popper>
 
       {/* Selected address confirmation */}
       {isSelected && (

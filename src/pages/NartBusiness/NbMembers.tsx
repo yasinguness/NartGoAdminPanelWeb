@@ -575,6 +575,7 @@ export default function NbMembers() {
       .listMembers({
         status: status || undefined,
         tier: tier || undefined,
+        q: debouncedSearch || undefined,
         page,
         size: 25,
       })
@@ -588,7 +589,14 @@ export default function NbMembers() {
       });
   };
 
-  useEffect(load, [page, status, tier]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Arama da sunucuya gider → sorgu değişince yeniden yüklenir.
+  useEffect(load, [page, status, tier, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Yeni aramanın sonucu 1. sayfadan başlar; kullanıcı 3. sayfadayken arayıp
+  // boş sonuç görmesin.
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedSearch]);
 
   // Süzgeç değişince adresi güncelle (geçmişi kirletmeden).
   useEffect(() => {
@@ -605,23 +613,13 @@ export default function NbMembers() {
     setSelectedIds(new Set());
   }, [page, status, tier, quickFilter, debouncedSearch]);
 
-  // İstemci taraflı arama + sunucuda karşılığı olmayan çipler + iş sıralaması
+  // Arama artık SUNUCUDA (bkz. listMembers `q`). Burada yalnız sunucuda
+  // karşılığı olmayan hızlı çipler + iş sıralaması kalır.
+  //
+  // Eski hâli aramayı `data.content` üzerinde yapıyordu; o dizi tek sayfa
+  // (25 kayıt) demek. Aranan üye ikinci sayfadaysa arama bozuk görünüyordu.
   const filtered = useMemo(() => {
     let result = data?.content ?? [];
-    if (debouncedSearch) {
-      result = result.filter((m) => {
-        const haystack = [
-          m.companyName,
-          m.city,
-          m.clanName,
-          ...(m.sectorCodes ?? (m.sectorCode ? [m.sectorCode] : [])),
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        return haystack.includes(debouncedSearch);
-      });
-    }
     if (quickFilter === 'task') {
       result = result.filter((m) => memberTask(m) !== null);
     }
@@ -630,7 +628,7 @@ export default function NbMembers() {
     }
     // Bekleyen işi olan üye üstte — liste bir kayıt defteri değil, iş kuyruğu.
     return sortByTask(result);
-  }, [data?.content, debouncedSearch, quickFilter]);
+  }, [data?.content, quickFilter]);
 
   const toggleSelectAll = () =>
     setSelectedIds((prev) =>

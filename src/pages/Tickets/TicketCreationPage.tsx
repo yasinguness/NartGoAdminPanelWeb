@@ -70,7 +70,17 @@ interface TierItem {
   category: TicketCategory;
   ticketTypeId?: string;
 }
-type EventType = 'paid' | 'free' | 'invite';
+/**
+ * `external`: etkinlik ücretli ama biletleri NartGo'dan satılmıyor (kapıda,
+ * başka bir platformda ya da organizatörden). Adım akışı ücretsiz etkinlikle
+ * birebir aynı — bilet kategorisi, satış takvimi ve iade politikası yok —
+ * yalnız fiyat bilgisi taşınır ve kart "satış burada değil" der.
+ *
+ * Bu tür olmadan ücretli-ama-satışı-dışarıda etkinlikler ya "ücretsiz" diye
+ * girilip fiyatı kayboluyordu ya da "ücretli" girilip kullanıcı uygulamada
+ * olmayan bir bilet arıyordu.
+ */
+type EventType = 'paid' | 'free' | 'invite' | 'external';
 type Visibility = 'public' | 'link' | 'draft';
 const TIER_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#ec4899'];
 const CURRENCY_SYMBOLS: Record<string, string> = { TRY: '₺', USD: '$', EUR: '€' };
@@ -132,7 +142,12 @@ export default function TicketCreationPage() {
   const [eventType, setEventType] = useState<EventType | null>(null);
 
   // Ucretsiz etkinlik tespiti — step sayisi ve akis buna gore degisir
-  const isFreeEvent = eventType === 'free';
+  // Biletleme adımlarını (kategori, satış takvimi, iade) atlayan türler.
+  // Ad bilerek "free" değil: `external` ücretli, ama NartGo bilet satmıyor.
+  const skipsTicketing = eventType === 'free' || eventType === 'external';
+  const isFreeEvent = skipsTicketing;
+  /** Ücret var mı — bilet satışının nerede olduğundan bağımsız. */
+  const isPaidEvent = eventType === 'paid' || eventType === 'external';
   // Ucretli: admin=7, org=6 | Ucretsiz: admin=5, org=4
   const TOTAL = (isAdmin ? 7 : 6) - (isFreeEvent ? 2 : 0);
 
@@ -149,6 +164,8 @@ export default function TicketCreationPage() {
   const [eventCategories, setEventCategories] = useState<{ id: string; name: string }[]>([]);
   const [eventAddress, setEventAddress] = useState<import('../../components/GooglePlacesInput').AddressValue | null>(null);
   const [eventDescription, setEventDescription] = useState('');
+  /** `external` türünde bilgi amaçlı fiyat — satış NartGo'da olmadığı için tahsilat yok. */
+  const [externalTicketPrice, setExternalTicketPrice] = useState('');
   const [eventStartDate, setEventStartDate] = useState<Date | null>(null);
   const [eventEndDate, setEventEndDate] = useState<Date | null>(null);
   const [capacity, setCapacity] = useState('');
@@ -215,7 +232,13 @@ export default function TicketCreationPage() {
         setLoadedTicketTypeIds(existingTicketTypes.map((tt: any) => tt.id).filter(Boolean));
         setExistingStatus(ev.status || 'ACTIVE');
 
-        setEventType(ev.isPaid ? 'paid' : 'free');
+        // Ücretli ama satış NartGo'da değilse tür `external`. `ev` alanı
+        // taşımıyorsa (eski kayıt) ücretliyi `paid` sayıyoruz — eski davranış.
+        setEventType(
+          ev.isPaid
+            ? (ev.ticketsSoldOnNartgo === false ? 'external' : 'paid')
+            : 'free',
+        );
         setEventName(ev.name || '');
         setEventDescription(ev.description || '');
         if (ev.eventTime) setEventStartDate(new Date(ev.eventTime));
@@ -533,7 +556,9 @@ export default function TicketCreationPage() {
         }
       }
 
-      const isPaid = eventType === 'paid';
+      // "Ücret var mı" ile "bileti biz mi satıyoruz" iki ayrı soru.
+      const isPaid = isPaidEvent;
+      const ticketsSoldOnNartgo = eventType === 'paid';
       const payload = {
         name: eventName,
         description: eventDescription,
@@ -541,10 +566,13 @@ export default function TicketCreationPage() {
         endTime: eventEndDate ? eventEndDate.toISOString() : undefined,
         maxParticipants: computedCapacity,
         isPaid,
+        ticketsSoldOnNartgo,
         status: isDraft ? 'PASSIVE' : 'ACTIVE',
         isPrivate: !isDraft && visibility === 'link',
         isRegistrationOpen: true,
-        ticketPrice: isPaid && tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0,
+        ticketPrice: eventType === 'external'
+            ? Number(externalTicketPrice || 0)
+            : (isPaid && tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0),
         categoryId: eventCategoryId || undefined,
         currency: currency || 'TRY',
         address: eventAddress ? {
@@ -572,7 +600,9 @@ export default function TicketCreationPage() {
         thumbnailUrl: uploadedCoverUrl || undefined,
         coverMedia: uploadedCoverUrl ? { ...coverMedia, originalUrl: uploadedCoverUrl } : undefined,
         // Bilet tiplerini event ile birlikte gönder (ticket-service Kafka ile alacak)
-        ticketTypes: isPaid ? tiers.map(t => ({
+        // Yalnız satış NartGo'dayken gönderilir: sunucu bilet kategorisi
+        // görünce "satış burada" diye işaretliyor.
+        ticketTypes: ticketsSoldOnNartgo ? tiers.map(t => ({
           name: t.name,
           basePrice: t.price,
           capacityTotal: t.quota,
@@ -631,8 +661,13 @@ export default function TicketCreationPage() {
         await api.put(`/events/${eventId}`, {
           ...payload,
           isPaid,
-          maxParticipants: isPaid ? computedCapacity : Number(capacity || computedCapacity || 0),
-          ticketPrice: isPaid && tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0,
+          ticketsSoldOnNartgo,
+          maxParticipants: ticketsSoldOnNartgo
+              ? computedCapacity
+              : Number(capacity || computedCapacity || 0),
+          ticketPrice: eventType === 'external'
+              ? Number(externalTicketPrice || 0)
+              : (ticketsSoldOnNartgo && tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0),
           isSeated: isSeated ?? false,
           isRegistrationOpen: true,
           status: existingStatus,
@@ -1005,6 +1040,7 @@ export default function TicketCreationPage() {
               {([
                 { key: 'paid' as EventType, icon: '🎟️', name: 'Ücretli Etkinlik', desc: 'Bilet satışı yapılacak. Farklı fiyat kategorileri tanımlayabilirsiniz.', features: ['Katmanlı fiyatlandırma', 'Online ödeme', 'QR bilet'], color: theme.palette.primary.main },
                 { key: 'free' as EventType, icon: '🎁', name: 'Ücretsiz Etkinlik', desc: 'Katılım bedava. Kayıt formu ile katılımcı bilgileri toplanır.', features: ['Ücretsiz kayıt', 'Kapasite kontrolü', 'Katılımcı listesi'], color: theme.palette.success.main },
+                { key: 'external' as EventType, icon: '🏷️', name: 'Ücretli — Bilet Satışı NartGo\'da Değil', desc: 'Etkinlik ücretli ama biletler kapıda, başka bir platformda ya da organizatörden alınıyor.', features: ['Fiyat bilgisi görünür', 'NartGo bilet satmaz', 'Kartta açıkça yazar'], color: theme.palette.info.main },
                 { key: 'invite' as EventType, icon: '🔒', name: 'Davetiye ile Giriş', desc: 'Sadece davet edilen kişiler katılabilir.', features: ['Özel davet kodları', 'Kontrollü erişim', 'VIP etkinlikler'], color: theme.palette.warning.main },
               ]).map(opt => {
                 const sel = eventType === opt.key;
@@ -1150,6 +1186,29 @@ export default function TicketCreationPage() {
                     />
                   </Box>
                 </SC>
+                {eventType === 'external' && (
+                  <Box sx={{ mt: 3 }}>
+                    <SH
+                      title="Bilet Fiyatı"
+                      subtitle="Bilgi amaçlı. NartGo bu etkinlik için tahsilat yapmaz, kartta yalnız fiyat ve satışın burada olmadığı yazar."
+                    />
+                    <SC>
+                      <Box sx={{ px: 2.5, py: 2 }}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Fiyat"
+                          value={externalTicketPrice}
+                          onChange={e => setExternalTicketPrice(e.target.value)}
+                          placeholder="Örn: 250"
+                          InputProps={{ endAdornment: <Typography variant="body2" color="text.secondary">{currency || 'TRY'}</Typography> }}
+                          helperText="Boş bırakırsan kartta fiyat gösterilmez, yalnız 'bilet satışı NartGo'da değil' yazar."
+                        />
+                      </Box>
+                    </SC>
+                  </Box>
+                )}
+
                 <Box sx={{ mt: 3 }}>
                   <SH title="Katılımcı Kapasitesi" subtitle="Etkinliğe maksimum kaç kişi katılabilir?" />
                   <SC>

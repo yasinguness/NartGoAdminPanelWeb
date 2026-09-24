@@ -830,6 +830,15 @@ export default function EventDetail() {
                 // Bilet fiyat aralığı hesapla
                 const priceDisplay = (() => {
                   if (!event.isPaid) return 'Ücretsiz';
+                  // Ücretli ama satış NartGo'da değilse fiyatın yanında bunu
+                  // söylemek şart: aksi halde panel de "bilet burada satılıyor"
+                  // gibi okunur ve destek ekibi olmayan bir siparişi arar.
+                  if ((event as any).ticketsSoldOnNartgo === false) {
+                    const p = event.ticketPrice || 0;
+                    return p > 0
+                      ? `₺${p} · satış NartGo'da değil`
+                      : 'Ücretli · satış NartGo\'da değil';
+                  }
                   if (ticketTypes.length > 1) {
                     const prices = ticketTypes.map(t => t.basePrice || 0).filter(p => p > 0);
                     if (prices.length > 1) {

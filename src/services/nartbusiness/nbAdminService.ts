@@ -190,6 +190,13 @@ async function getModuleActivity(): Promise<import('./nbTypes').ModuleActivity |
 async function listMembers(params: {
   status?: NbMemberStatus;
   tier?: string;
+  /**
+   * Serbest metin araması. Sunucuda çalışır: şirket adı, şehir, sülale, ünvan
+   * ve (auth-service üzerinden) kişi adı + e-posta. İstemcide filtrelemeyin —
+   * istemci yalnız açık olan sayfayı görür, aranan üye ikinci sayfadaysa
+   * "sonuç yok" çıkar.
+   */
+  q?: string;
   page?: number;
   size?: number;
 }): Promise<PagedResult<NbMember> | null> {
@@ -1551,6 +1558,11 @@ export interface NbTenderReferral {
   viewedAt?: string | null;
   /** Kilitli gidip ödeme sonrası açılan yönlendirme — duvarın getirisi. */
   unlockedAt?: string | null;
+  /**
+   * Admin bu üyeyi eşleşme listesi DIŞINDAN seçti (algoritma önermedi).
+   * Sunucu hesaplar; algoritmanın gerçek isabetini ölçmeyi mümkün kılar.
+   */
+  manualPick?: boolean;
 }
 
 export interface NbTenderDetail {

@@ -67,6 +67,12 @@ export interface EventResponseDTO {
     category: EventCategoryDto;
     organizerId: string;
     isPaid: boolean;
+    /**
+     * Ücretli etkinliğin biletleri NartGo'dan mı satılıyor.
+     * `isPaid` ücret olup olmadığını, bu alan satışın nerede olduğunu söyler.
+     * `undefined` = bilinmiyor (eski kayıt); iddia edilmez.
+     */
+    ticketsSoldOnNartgo?: boolean;
     isFeatured: boolean;
     isPrivate: boolean;
     checkInEnabled?: boolean;
@@ -91,6 +97,8 @@ export interface EventSearchDTO {
     minPrice?: number;
     maxPrice?: number;
     isPaid?: boolean;
+    /** Biletler NartGo'dan mı satılıyor. undefined = bilinmiyor. */
+    ticketsSoldOnNartgo?: boolean;
     isFeatured?: boolean;
     isPrivate?: boolean;
     isUpcoming?: boolean;

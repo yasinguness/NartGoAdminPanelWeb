@@ -32,6 +32,7 @@ import {
   Dialog,
   LinearProgress,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -46,7 +47,8 @@ import {
   type NbTenderReferralStatus,
   type NbTenderStatus,
 } from '../../services/nartbusiness/nbAdminService';
-import { relativeDate } from '../../utils/nbDisplay';
+import type { NbMember, NbMemberStatus } from '../../services/nartbusiness/nbTypes';
+import { relativeDate, STATUS_LABEL } from '../../utils/nbDisplay';
 import {
   NbFilterBar,
   NbKpi,
@@ -136,12 +138,37 @@ const SORTS: { key: SortKey; label: string }[] = [
 const TARGET_KEY = 'nb.tenders.dailyTarget';
 const DEFAULT_TARGET = 15;
 
+/**
+ * Yönlendirme ULAŞABİLECEĞİ üye durumları.
+ *
+ * Sunucudaki `NbMemberStatus.canReceiveReferral()` ile aynı küme. Burada
+ * tutulmasının sebebi, elle seçimde uygun olmayan üyeyi kuyruğa alıp gönderimde
+ * hata almak yerine düğmeyi baştan kapatmak. Sunucu yine kendi kontrolünü
+ * yapıyor — burası kolaylık, kapı değil.
+ */
+const NB_TENDER_REFERABLE_STATUSES: NbMemberStatus[] = [
+  'ACTIVE',
+  'TRIAL',
+  'APPROVED_PENDING_PAYMENT',
+  'APPROVED_EXPIRED',
+  'EXPIRED',
+  'PENDING_VERIFICATION',
+];
+
 /** Kuyruğa alınmış tek satır. */
 interface QueueItem {
   memberId: string;
   memberName: string;
   score: number;
   paywalled: boolean;
+  /**
+   * Eşleşme listesinden değil, elle aranıp eklendi.
+   *
+   * Yalnız görsel bir işaret: kayıttaki gerçek değeri sunucu hesaplıyor
+   * (yönlendirme anında üye eşleşme tablosunda var mı). İstemcinin sözüne
+   * güvenilirse algoritmanın gerçek isabeti ölçülemez.
+   */
+  manual?: boolean;
 }
 
 export default function NbTenders() {
@@ -172,6 +199,10 @@ export default function NbTenders() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [channel, setChannel] = useState<NbTenderChannel>('IN_APP');
   const [queueNote, setQueueNote] = useState('');
+  // Algoritma dışı seçim — eşleşme listesinde olmayan üyeyi elle bulup ekleme.
+  const [manualQuery, setManualQuery] = useState('');
+  const [manualResults, setManualResults] = useState<NbMember[]>([]);
+  const [manualLoading, setManualLoading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewText, setPreviewText] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -359,6 +390,64 @@ export default function NbTenders() {
     },
     [],
   );
+
+  /**
+   * Algoritma dışı üye araması.
+   *
+   * Eşleştirme kelime bazlı çalışıyor ve bazı doğru eşleşmeleri göremiyor:
+   * bir inşaat ihalesini lojistikçiye paslamak insanın gördüğü, kelimenin
+   * görmediği bir şey. Sunucu tarafı zaten eşleşme listesinde olma şartı
+   * aramıyordu; eksik olan tek şey bu kutuydu.
+   *
+   * Arama sunucuda (`/nb/admin/members?q=`): şirket adı, şehir, sülale, ünvan
+   * ve kişi adı + e-posta.
+   */
+  useEffect(() => {
+    const needle = manualQuery.trim();
+    if (needle.length < 2) {
+      setManualResults([]);
+      return;
+    }
+    let alive = true;
+    setManualLoading(true);
+    const t = setTimeout(() => {
+      nbAdminService
+        .listMembers({ q: needle, size: 8 })
+        .then((res) => {
+          if (!alive) return;
+          setManualResults(res?.content ?? []);
+        })
+        .catch(() => {
+          if (alive) setManualResults([]);
+        })
+        .finally(() => {
+          if (alive) setManualLoading(false);
+        });
+    }, 300);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [manualQuery]);
+
+  /**
+   * Elle bulunan üyeyi kuyruğa ekle.
+   *
+   * Kuyruk ortak: önizleme, not ve kanal aynı yerden geçer. Ayrı bir gönderim
+   * yolu açmak, aynı işin iki kopyasını bakımda tutmak demekti.
+   */
+  const addManualToQueue = useCallback((m: NbMember) => {
+    const name = m.companyName?.trim() || `Üye ${m.memberId.slice(0, 8)}`;
+    // Kilitli mi: tam erişimi olmayan üye ihaleyi teaser olarak görür.
+    const paywalled = !(m.status === 'ACTIVE' || m.status === 'TRIAL');
+    setQueue((prev) =>
+      prev.some((q) => q.memberId === m.memberId)
+        ? prev
+        : [...prev, { memberId: m.memberId, memberName: name, score: 0, paywalled, manual: true }],
+    );
+    setManualQuery('');
+    setManualResults([]);
+  }, []);
 
   /**
    * Ödemesi bekleyen üyeye gidecek taslak — ihaleyi **tarif eder, tanımlamaz.**
@@ -954,6 +1043,68 @@ export default function NbTenders() {
                   </Typography>
                 )}
               </Box>
+
+              {/* Algoritma dışı seçim — eşleşme listesi bir öneri, karar değil. */}
+              <Box sx={{ px: 2.25, py: 1.75, borderTop: nbDividerLine }}>
+                <Typography sx={nbLabel}>LİSTEDE YOK MU</Typography>
+                <Typography sx={{ fontSize: 11.5, color: nb.textFaint, mt: 0.5, lineHeight: 1.5 }}>
+                  Eşleştirme kelime bazlı; senin gördüğün bir eşleşmeyi görmeyebilir.
+                  Üyeyi elle ara ve kuyruğa ekle.
+                </Typography>
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={manualQuery}
+                  onChange={(e) => setManualQuery(e.target.value)}
+                  placeholder="Firma, kişi, e-posta, şehir veya sülale"
+                  sx={{ mt: 1 }}
+                />
+
+                {manualLoading && <LinearProgress sx={{ mt: 1 }} />}
+
+                {manualQuery.trim().length >= 2 && !manualLoading && manualResults.length === 0 && (
+                  <Typography sx={{ mt: 1.25, fontSize: 12, color: nb.textMuted }}>
+                    Eşleşen üye yok.
+                  </Typography>
+                )}
+
+                {manualResults.map((m) => {
+                  const name = m.companyName?.trim() || `Üye ${m.memberId.slice(0, 8)}`;
+                  // Sunucu bu durumlarda yönlendirmeyi reddediyor; kuyruğa alıp
+                  // gönderimde hata almaktansa burada söyle.
+                  const canRefer = NB_TENDER_REFERABLE_STATUSES.includes(m.status);
+                  const queued = queuedIds.has(m.memberId);
+                  const matched = matches.some((x) => x.memberId === m.memberId);
+                  return (
+                    <Stack
+                      key={m.memberId}
+                      direction="row"
+                      alignItems="center"
+                      sx={{ gap: 1, mt: 1.25 }}
+                    >
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: nb.text }} noWrap>
+                          {name}
+                        </Typography>
+                        <Typography sx={{ fontSize: 11.5, color: nb.textFaint }} noWrap>
+                          {[m.city, STATUS_LABEL[m.status] ?? m.status]
+                            .filter(Boolean)
+                            .join(' · ')}
+                          {matched ? ' · zaten eşleşme listesinde' : ''}
+                        </Typography>
+                      </Box>
+                      <Button
+                        disableElevation
+                        sx={nbSecondaryBtn}
+                        disabled={!canRefer || queued}
+                        onClick={() => addManualToQueue(m)}
+                      >
+                        {queued ? 'Kuyrukta' : canRefer ? 'Kuyruğa ekle' : 'Uygun değil'}
+                      </Button>
+                    </Stack>
+                  );
+                })}
+              </Box>
             </>
           )}
         </Box>
@@ -984,8 +1135,9 @@ export default function NbTenders() {
                     <Typography sx={{ fontSize: 12.5, minWidth: 0 }} noWrap>
                       {q.memberName}
                     </Typography>
+                    {/* Elle eklenenin skoru yok; "%0" yazmak yanlış bilgi olur. */}
                     <Typography sx={{ ...nbMono, fontSize: 11, color: nb.textFaint }}>
-                      %{Math.round(q.score)}
+                      {q.manual ? 'elle' : `%${Math.round(q.score)}`}
                     </Typography>
                     <Button
                       onClick={() => setQueue((prev) => prev.filter((x) => x.memberId !== q.memberId))}
