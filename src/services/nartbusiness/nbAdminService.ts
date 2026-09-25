@@ -209,6 +209,37 @@ async function listMembers(params: {
   }
 }
 
+/**
+ * Karar panosu — fiyat/üyelik kararlarının dayanacağı üç sayı.
+ *
+ * `silentMembers` / `neverOpenedMembers` **null olabilir**: son-aktiflik başka
+ * bir servisten geliyor, ulaşılamazsa sayı uydurulmuyor. Ekran null'ı "—"
+ * göstermeli, sıfır değil.
+ */
+export interface NbDecisionBoard {
+  referralsTotal: number;
+  referralsLockedOnSend: number;
+  referralsUnlockedAfterPayment: number;
+  referralsStillLocked: number;
+  referralsNeverViewed: number;
+  referralsInterested: number;
+  referralsBid: number;
+  referralsWon: number;
+  referralsDeclined: number;
+  fullAccessMembers: number;
+  silenceThresholdDays: number;
+  silentMembers: number | null;
+  neverOpenedMembers: number | null;
+  activityDataAvailable: boolean;
+}
+
+async function getDecisionBoard(silenceDays = 30): Promise<NbDecisionBoard | null> {
+  const res = await api.get<any>('/nb/admin/dashboard/decision-board', {
+    params: { silenceDays },
+  });
+  return unwrap<NbDecisionBoard>(res.data);
+}
+
 async function getMember(memberId: string): Promise<NbMember | null> {
   const res = await api.get<any>(`/nb/admin/members/${memberId}`);
   return unwrap<NbMember>(res.data);
@@ -1563,6 +1594,11 @@ export interface NbTenderReferral {
    * Sunucu hesaplar; algoritmanın gerçek isabetini ölçmeyi mümkün kılar.
    */
   manualPick?: boolean;
+  /**
+   * Tanışma yönlendirmesi olarak duvarsız gitti (üyenin ilki).
+   * Ödemesiz üyenin ihaleyi neden açık gördüğünü açıklar.
+   */
+  grantedOpen?: boolean;
 }
 
 export interface NbTenderDetail {
@@ -1787,6 +1823,7 @@ export const nbAdminService = {
   upsertTier,
   // Members
   listMembers,
+  getDecisionBoard,
   getMember,
   memberViewStats,
   createMemberManually,

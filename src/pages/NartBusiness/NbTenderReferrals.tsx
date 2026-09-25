@@ -320,6 +320,13 @@ export default function NbTenderReferrals() {
                       {r.unlockedAt ? 'kilitli gitti, ödeme sonrası açıldı' : 'kilitli gitti'}
                     </Typography>
                   )}
+                  {/* Ödemesiz üyenin ihaleyi neden AÇIK gördüğünü söyler.
+                      Yazılmazsa admin duvarı bozuk sanır. */}
+                  {r.grantedOpen && (
+                    <Typography sx={{ fontSize: 10.5, color: nb.textFaint, mt: 0.25 }}>
+                      tanışma yönlendirmesi — duvarsız gitti
+                    </Typography>
+                  )}
                 </Box>
 
                 <Box sx={{ minWidth: 0 }}>

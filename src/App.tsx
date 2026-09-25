@@ -91,6 +91,7 @@ import InactiveUsers from './pages/EngagementAnalytics/InactiveUsers';
 import LoginFrequency from './pages/EngagementAnalytics/LoginFrequency';
 import ProductAnalytics from './pages/EngagementAnalytics/ProductAnalytics';
 import NbDashboard from './pages/NartBusiness/NbDashboard';
+import NbDecisionBoard from './pages/NartBusiness/NbDecisionBoard';
 import NbMembers from './pages/NartBusiness/NbMembers';
 import NbMemberDetail from './pages/NartBusiness/NbMemberDetail';
 import NbVerificationQueue from './pages/NartBusiness/NbVerificationQueue';
@@ -232,6 +233,7 @@ function App() {
                 <Route path="analytics" element={<AnalyticsDashboard />} />
                 {/* NartBusiness (Sprint 7) */}
                 <Route path="nartbusiness/dashboard" element={<NbDashboard />} />
+                <Route path="nartbusiness/decision-board" element={<NbDecisionBoard />} />
                 <Route path="nartbusiness/audit" element={<NbAuditLog />} />
                 <Route path="nartbusiness/email-logs" element={<NbEmailLogs />} />
                 <Route path="nartbusiness/login-logs" element={<NbLoginLogs />} />

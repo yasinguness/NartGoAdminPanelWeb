@@ -13,6 +13,7 @@
 
 import {
     SpaceDashboard as NbDashboardIcon,
+    Balance as DecisionIcon,
     People as MembersIcon,
     VerifiedUser as VerificationIcon,
     Policy as PolicyIcon,
@@ -51,6 +52,10 @@ export const nartbusinessNavSections: NavSection[] = [
         title: 'Genel',
         items: [
             { text: 'Kontrol Paneli', icon: <NbDashboardIcon />, path: '/nartbusiness/dashboard' },
+            // Kontrol paneli "bugün ne oluyor" der; karar panosu tek bir soruyu
+            // cevaplar: denemeyi/fiyatı değiştirmeli miyiz. Ayrı duruyor ki o
+            // soru günlük gürültünün içinde kaybolmasın.
+            { text: 'Karar Panosu', icon: <DecisionIcon />, path: '/nartbusiness/decision-board', allowedRoles: NB_MANAGE },
         ],
     },
     {
