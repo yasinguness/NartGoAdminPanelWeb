@@ -28,6 +28,7 @@ import RestoreIcon from '@mui/icons-material/Restore';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import StarIcon from '@mui/icons-material/Star';
 import EditIcon from '@mui/icons-material/Edit';
+import SendIcon from '@mui/icons-material/Send';
 import {
   Autocomplete,
   Divider,
@@ -54,6 +55,7 @@ import {
   nbPrimaryBtn,
   nbSecondaryBtn,
 } from '../../components/nartbusiness/ui';
+import ListingReferralDialog from '../../components/nartbusiness/ListingReferralDialog';
 import { nb, nbRadius } from '../../theme/nbBrand';
 import type {
   NbRequestType,
@@ -186,6 +188,8 @@ export default function NbListingModeration() {
   const [views, setViews] = useState<Record<string, NbListingViewStats>>({});
   const [editing, setEditing] = useState<NbListingRow | null>(null);
   const [creating, setCreating] = useState(false);
+  /* Yönlendirme paneli — ilanı belirli üyelere gönderir. */
+  const [referring, setReferring] = useState<NbListingRow | null>(null);
 
   /* ── Eşleştirme ───────────────────────────────────────────────────── */
   const [tab, setTab] = useState<'pairs' | 'all'>('pairs');
@@ -766,6 +770,16 @@ export default function NbListingModeration() {
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
+                        {/* Yönlendirme yalnız açık ilanda anlamlı; kapanmış
+                            ilanı gönderemiyoruz ve düğmeyi çizip hata
+                            göstermek yerine hiç göstermiyoruz. */}
+                        {r.status === 'ACTIVE' && (
+                          <Tooltip title="Üyelere yönlendir">
+                            <IconButton size="small" onClick={() => setReferring(r)}>
+                              <SendIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         {r.status !== 'ACTIVE' && (
                           <Tooltip title="Yeniden aç (ACTIVE)">
                             <span>
@@ -835,6 +849,11 @@ export default function NbListingModeration() {
           }}
         />
       )}
+
+      <ListingReferralDialog
+        listing={referring}
+        onClose={() => setReferring(null)}
+      />
     </Box>
   );
 }

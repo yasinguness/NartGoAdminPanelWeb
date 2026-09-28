@@ -85,11 +85,12 @@ export const nartbusinessNavSections: NavSection[] = [
             { text: 'İhaleler', icon: <TenderIcon />, path: '/nartbusiness/tenders', allowedRoles: NB_MANAGE },
             { text: 'Pozisyon İlanları', icon: <JobIcon />, path: '/nartbusiness/jobs', allowedRoles: NB_MODERATE },
             { text: 'Tanıştırmalar', icon: <IntroductionIcon />, path: '/nartbusiness/introductions', allowedRoles: NB_MANAGE },
-            // İki ayrı yönlendirme var ve ikisi farklı iş: biri ihale/fırsat
-            // bildirimlerinin sonucu, diğeri üyenin üyeye geçirdiği iş.
-            // Menüde ikisi de "Yönlendirmeler" diye dururken hangisinin
-            // hangisi olduğu tıklamadan anlaşılmıyordu.
+            // Üç ayrı yönlendirme var ve üçü farklı iş: ihale bildirimlerinin
+            // sonucu, bir ilanın belirli bir üyeye elle gönderilmesi ve üyenin
+            // üyeye geçirdiği iş. Menüde hepsi "Yönlendirmeler" diye dururken
+            // hangisinin hangisi olduğu tıklamadan anlaşılmıyordu.
             { text: 'İhale Yönlendirmeleri', icon: <ReferralIcon />, path: '/nartbusiness/tender-referrals', allowedRoles: NB_MANAGE },
+            { text: 'İlan Yönlendirmeleri', icon: <ReferralIcon />, path: '/nartbusiness/listing-referrals', allowedRoles: NB_MANAGE },
             { text: 'İş Yönlendirmeleri', icon: <ReferralIcon />, path: '/nartbusiness/referrals', allowedRoles: NB_MODERATE },
         ],
     },

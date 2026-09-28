@@ -727,6 +727,133 @@ async function listingViewStats(ids: string[]): Promise<NbListingViewStats[]> {
   return unwrap<NbListingViewStats[]>(res.data) ?? [];
 }
 
+// ── İlan yönlendirmesi (admin → üye) ─────────────────────────────────
+//
+// Talep ilanı yayımlandığında sektörü eşleşen üyelere kendiliğinden bildirim
+// gidiyor. Buradaki uçlar onun yerine geçmiyor: o bildirim otomatik, geniş ve
+// tek kanallı. Yönlendirme tek bir üyeye, adminin seçimiyle ve iz bırakarak
+// gidiyor; WhatsApp ve e-posta da bu yolda devreye giriyor.
+
+export type NbListingReferralChannel = 'WHATSAPP' | 'IN_APP';
+export type NbListingReferralStatus = 'SENT' | 'INTERESTED' | 'DECLINED' | 'WON';
+
+export const NB_LISTING_REFERRAL_STATUS_LABEL: Record<NbListingReferralStatus, string> = {
+  SENT: 'Gönderildi',
+  INTERESTED: 'İlgilendi',
+  DECLINED: 'İlgilenmedi',
+  WON: 'İş bağlandı',
+};
+
+/**
+ * Yönlendirme için üye adayı.
+ *
+ * `score` ile `matchedOn` birlikte gösterilir; skor gerekçesiz gösterilmez.
+ * `score === null` ise bu üye öneri listesinde değil, admin elle seçmiş —
+ * o satıra "%0" yazmak yanlış bilgi olur.
+ */
+export interface NbListingCandidate {
+  memberId: string;
+  companyName?: string | null;
+  city?: string | null;
+  district?: string | null;
+  sectorCodes: string[];
+  status?: string | null;
+  /** WhatsApp bağlantısı için. Numarası olmayan üyede null. */
+  phone?: string | null;
+  score: number | null;
+  matchedOn: string[];
+  alreadyReferred: boolean;
+}
+
+/**
+ * Yönlendirme kaydı.
+ *
+ * `notifiedAt` / `emailedAt` null gelebilir ve bu bir eksiklik değil bilgi:
+ * kanal WhatsApp ise bildirim hiç çıkmadı, uygulama ise gönderilemedi.
+ */
+export interface NbListingReferral {
+  id: string;
+  listingId: string;
+  listingTitle?: string | null;
+  memberId: string;
+  memberName?: string | null;
+  channel: NbListingReferralChannel;
+  status: NbListingReferralStatus;
+  note?: string | null;
+  matchScore: number | null;
+  matchedOn: string[];
+  notifiedAt?: string | null;
+  emailedAt?: string | null;
+  createdAt: string;
+}
+
+/**
+ * İlana uygun üye adayları.
+ *
+ * `include` ile öneri listesi dışından seçilen üyeler de sonuca eklenir;
+ * şirket adı ve telefonu aynı çağrıdan gelsin diye.
+ */
+async function listingCandidates(
+  listingId: string,
+  params: { include?: string[]; limit?: number } = {},
+): Promise<NbListingCandidate[]> {
+  const res = await api.get<any>(`/nb/needs/admin/${listingId}/referral-candidates`, {
+    params: { include: params.include, limit: params.limit },
+    paramsSerializer: { indexes: null },
+  });
+  return unwrap<NbListingCandidate[]>(res.data) ?? [];
+}
+
+/** WhatsApp taslağı — admin okur, kişiselleştirir, kendi gönderir. */
+async function listingReferralDraft(listingId: string, memberId: string): Promise<string> {
+  const res = await api.get<any>(`/nb/needs/admin/${listingId}/referral-draft`, {
+    params: { memberId },
+  });
+  return unwrap<{ draft: string }>(res.data)?.draft ?? '';
+}
+
+async function referListing(
+  listingId: string,
+  body: { memberId: string; channel?: NbListingReferralChannel; note?: string },
+): Promise<NbListingReferral | null> {
+  const res = await api.post<any>(`/nb/needs/admin/${listingId}/refer`, body);
+  return unwrap<NbListingReferral>(res.data);
+}
+
+/** Bir ilanın yönlendirmeleri — detaydaki "gönderilmiş" listesi. */
+async function listingReferralsOf(listingId: string): Promise<NbListingReferral[]> {
+  const res = await api.get<any>(`/nb/needs/admin/${listingId}/referrals`);
+  return unwrap<NbListingReferral[]>(res.data) ?? [];
+}
+
+/** Takip ekranı — tüm ilan yönlendirmeleri. */
+async function listListingReferrals(params: {
+  status?: NbListingReferralStatus;
+  page?: number;
+  size?: number;
+}): Promise<PagedResult<NbListingReferral>> {
+  const res = await api.get<any>('/nb/needs/admin/referrals', { params });
+  return (
+    unwrap<PagedResult<NbListingReferral>>(res.data) ?? {
+      content: [],
+      page: 0,
+      size: 0,
+      totalElements: 0,
+      totalPages: 0,
+      first: true,
+      last: true,
+    }
+  );
+}
+
+async function updateListingReferral(
+  referralId: string,
+  body: { status?: NbListingReferralStatus; note?: string },
+): Promise<NbListingReferral | null> {
+  const res = await api.patch<any>(`/nb/needs/admin/referrals/${referralId}`, body);
+  return unwrap<NbListingReferral>(res.data);
+}
+
 // ── Yönlendirme (Referral) yönetimi ──────────────────────────────────
 
 export type NbReferralStatus =
@@ -1843,6 +1970,12 @@ export const nbAdminService = {
   listingPairs,
   dismissListingPair,
   listingViewStats,
+  listingCandidates,
+  listingReferralDraft,
+  referListing,
+  listingReferralsOf,
+  listListingReferrals,
+  updateListingReferral,
   listReferrals,
   getReferral,
   updateReferral,
