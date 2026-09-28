@@ -80,6 +80,20 @@ export interface NbJobPostingRow {
 }
 
 export type NbListingStatus = 'ACTIVE' | 'CLOSED' | 'EXPIRED' | 'DELETED';
+export type NbListingVisibility = 'TEASER' | 'SHOWCASE' | 'FULL';
+
+export const NB_LISTING_VISIBILITY_LABEL: Record<NbListingVisibility, string> = {
+  TEASER: 'Kapalı',
+  SHOWCASE: 'Vitrin',
+  FULL: 'Tam açık',
+};
+
+/** Seçicinin altında görünen tek satırlık açıklama. */
+export const NB_LISTING_VISIBILITY_HINT: Record<NbListingVisibility, string> = {
+  TEASER: 'Ziyaretçi yalnız sektör, bölge ve aralıklı miktar görür. Başlık gizli.',
+  SHOWCASE: 'Başlık ve açıklamanın başı açık. Firma adı tarif edilir, iletişim kilitli.',
+  FULL: 'Her şey açık, firma adı ve iletişim dahil. Yalnız sahipsiz derleme ilanları.',
+};
 export type NbListingType = 'REQUEST' | 'OFFER';
 
 export interface NbListingRow {
@@ -102,6 +116,16 @@ export interface NbListingRow {
   createdAt?: string | null;
   expiresAt?: string | null;
   /** Herkese açık mı? true → web'de blur yok + paylaşılabilir (public detay). */
+  /**
+   * Üye olmayan ziyaretçiye görünürlük kademesi.
+   *
+   * - `TEASER` — yalnız varlığı: sektör, bölge, aralıklı miktar.
+   * - `SHOWCASE` — başlık + açıklamanın başı açık; şirket adı tarif edilmiş,
+   *   iletişim kilitli.
+   * - `FULL` — her şey açık. Yalnız sahipsiz derleme ilanlarında.
+   */
+  visibility?: NbListingVisibility;
+  /** Geriye dönük: `visibility === 'FULL'`. Yeni kod `visibility` okumalı. */
   isPublic?: boolean;
   /** Editöryel (NartGo derleme) ilan. */
   curated?: boolean;
@@ -678,8 +702,15 @@ async function setListingStatus(id: string, status: NbListingStatus): Promise<vo
 }
 
 /** Görünürlük: ilanı herkese aç/kapat. value=true → web'de blur yok + paylaşılabilir. */
-async function setListingPublic(id: string, value: boolean): Promise<void> {
-  await api.post(`/nb/needs/admin/${id}/public`, null, { params: { value } });
+/**
+ * Görünürlük kademesi.
+ *
+ * FULL yalnız sahipsiz derleme ilanlarında kabul ediliyor: üyeye ait bir ilanı
+ * tam açmak şirket adını ve iletişim bilgisini herkese görünür yapardı, yani
+ * üyeliğin karşılığını bedelsiz dağıtmak olurdu. Sunucu bunu doğruluyor.
+ */
+async function setListingVisibility(id: string, value: NbListingVisibility): Promise<void> {
+  await api.post(`/nb/needs/admin/${id}/visibility`, null, { params: { value } });
 }
 
 /** İlan yönetim özet istatistikleri. */
@@ -1596,21 +1627,63 @@ export interface NbIntroduction {
   memberAName: string;
   memberBId: string;
   memberBName: string;
+  /** Ortak/varsayılan metin. Tarafa özel metin yoksa iki tarafa da bu gider. */
   reason: string;
+  /** A tarafına özel metin; null ise `reason` gösterilmiştir. */
+  reasonForA?: string | null;
+  /** B tarafına özel metin; null ise `reason` gösterilmiştir. */
+  reasonForB?: string | null;
   status: NbIntroductionStatus;
   adminNote?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-/** İki üyeyi tanıştır — iki tarafa push + e-posta gider, kayıt döner. */
+/**
+ * İki üyeyi tanıştır — iki tarafa push + e-posta gider, kayıt döner.
+ *
+ * `reason` ortak metin; `reasonForA` / `reasonForB` verilirse o tarafa onun
+ * metni gider. Tanıştırma mesajı doğası gereği taraflı: bir tarafa "sizin de
+ * Kocaeli merkezli EPC firmanız var" demek anlamlı, aynı cümle diğer tarafa
+ * gittiğinde anlamsız duruyor.
+ *
+ * Her tarafın göreceği bir metin olmak zorunda: ya ortak metin dolu olmalı ya
+ * da iki taraf metni de yazılmalı. Sunucu bunu doğruluyor.
+ */
 async function createIntroduction(body: {
   memberAId: string;
   memberBId: string;
-  reason: string;
+  reason?: string;
+  reasonForA?: string;
+  reasonForB?: string;
 }): Promise<NbIntroduction> {
   const res = await api.post<any>('/nb/admin/introductions', body);
   return unwrap<NbIntroduction>(res.data) as NbIntroduction;
+}
+
+/** Bir tarafa gönderilecek WhatsApp taslağı. */
+export interface NbIntroDraft {
+  memberId: string;
+  memberName?: string | null;
+  /** Numarası kayıtlı olmayan üyede null — panel çalışmayan düğme çizmez. */
+  phone?: string | null;
+  draft: string;
+}
+
+/**
+ * Tanıştırmanın üçüncü kanalı: uygulama bildirimi ve e-posta sunucudan çıkar,
+ * WhatsApp mesajını admin kendi gönderir. Taslak karşı tarafın gerçeklerini
+ * (şirket, şehir, sektör) doldurur.
+ */
+async function introductionDrafts(body: {
+  memberAId: string;
+  memberBId: string;
+  reason?: string;
+  reasonForA?: string;
+  reasonForB?: string;
+}): Promise<{ a: NbIntroDraft; b: NbIntroDraft } | null> {
+  const res = await api.post<any>('/nb/admin/introductions/draft', body);
+  return unwrap<{ a: NbIntroDraft; b: NbIntroDraft }>(res.data);
 }
 
 async function listIntroductions(params: {
@@ -1965,7 +2038,7 @@ export const nbAdminService = {
   getListing,
   updateListing,
   setListingStatus,
-  setListingPublic,
+  setListingVisibility,
   listingStats,
   listingPairs,
   dismissListingPair,
@@ -2013,6 +2086,7 @@ export const nbAdminService = {
   // İletişim & Tanıştırma
   sendPush,
   createIntroduction,
+  introductionDrafts,
   listIntroductions,
   updateIntroduction,
   // Deneme

@@ -275,9 +275,29 @@ export default function NbIntroductions() {
                       </Link>
                     </Stack>
 
-                    <Typography sx={{ fontSize: 11.5, color: nb.textMuted, lineHeight: 1.5, mt: 0.875 }}>
-                      {row.reason}
-                    </Typography>
+                    {/* Tarafa özel metin varsa hangisinin kime gittiğini
+                        göster. Yalnız ortak metni göstermek, iki tarafın
+                        aynı şeyi okuduğu izlenimi verirdi. */}
+                    {row.reasonForA || row.reasonForB ? (
+                      <Stack sx={{ mt: 0.875, gap: 0.5 }}>
+                        <Typography sx={{ fontSize: 11.5, color: nb.textMuted, lineHeight: 1.5 }}>
+                          <Box component="span" sx={{ color: nb.textFaint }}>
+                            {row.memberAName} →{' '}
+                          </Box>
+                          {row.reasonForA || row.reason}
+                        </Typography>
+                        <Typography sx={{ fontSize: 11.5, color: nb.textMuted, lineHeight: 1.5 }}>
+                          <Box component="span" sx={{ color: nb.textFaint }}>
+                            {row.memberBName} →{' '}
+                          </Box>
+                          {row.reasonForB || row.reason}
+                        </Typography>
+                      </Stack>
+                    ) : (
+                      <Typography sx={{ fontSize: 11.5, color: nb.textMuted, lineHeight: 1.5, mt: 0.875 }}>
+                        {row.reason}
+                      </Typography>
+                    )}
 
                     {row.adminNote && (
                       <Typography sx={{ fontSize: 11, color: nb.textFaint, lineHeight: 1.5, mt: 0.625 }}>

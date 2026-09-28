@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  Switch,
   CircularProgress,
   FormControl,
   InputLabel,
@@ -40,7 +39,13 @@ import {
   DialogTitle,
   IconButton,
 } from '@mui/material';
-import { nbAdminService, type NbListingPair } from '../../services/nartbusiness/nbAdminService';
+import {
+  nbAdminService,
+  NB_LISTING_VISIBILITY_HINT,
+  NB_LISTING_VISIBILITY_LABEL,
+  type NbListingPair,
+  type NbListingVisibility,
+} from '../../services/nartbusiness/nbAdminService';
 import type { NbMember, Sector } from '../../services/nartbusiness/nbTypes';
 import {
   NbKpi,
@@ -343,15 +348,23 @@ export default function NbListingModeration() {
     }
   };
 
-  // Görünürlük toggle: true → web'de blur yok + paylaşılabilir (public detay).
-  const togglePublic = async (row: NbListingRow, value: boolean) => {
+  /**
+   * Görünürlük kademesi.
+   *
+   * Eskiden bu bir aç/kapa anahtarıydı ve iki uç arasında seçim yaptırıyordu:
+   * ya başlık bile gizli ya firma adı ve iletişim dahil her şey açık. Aradaki
+   * vitrin kademesi tam olarak ihtiyaç duyulan yerdi.
+   */
+  const setVisibility = async (row: NbListingRow, value: NbListingVisibility) => {
+    const previous: NbListingVisibility = row.visibility ?? (row.isPublic ? 'FULL' : 'TEASER');
+    if (previous === value) return;
     setBusyId(row.id);
     try {
-      await nbAdminService.setListingPublic(row.id, value);
+      await nbAdminService.setListingVisibility(row.id, value);
       setMsg({
-        message: value ? 'İlan herkese açıldı.' : 'İlan üyeye özel yapıldı.',
+        message: `Görünürlük: ${NB_LISTING_VISIBILITY_LABEL[value]}.`,
         onUndo: async () => {
-          await nbAdminService.setListingPublic(row.id, !value);
+          await nbAdminService.setListingVisibility(row.id, previous);
           load();
         },
       });
@@ -697,7 +710,7 @@ export default function NbListingModeration() {
                   <TableCell align="center">Görüntülenme</TableCell>
                   <TableCell>Tarih</TableCell>
                   <TableCell>Durum</TableCell>
-                  <TableCell align="center">Herkese Açık</TableCell>
+                  <TableCell align="center">Ziyaretçiye Görünürlük</TableCell>
                   <TableCell align="right">İşlem</TableCell>
                 </TableRow>
               </TableHead>
@@ -752,16 +765,40 @@ export default function NbListingModeration() {
                         label={STATUS_LABEL[r.status] ?? r.status} />
                     </TableCell>
                     <TableCell align="center">
-                      <Tooltip title={r.isPublic ? 'Herkese açık — web\'de blur yok, paylaşılabilir' : 'Üyeye özel — non-member maskeli teaser görür'}>
-                        <span>
-                          <Switch
-                            size="small"
-                            checked={!!r.isPublic}
-                            disabled={busyId === r.id}
-                            onChange={(e) => togglePublic(r, e.target.checked)}
-                          />
-                        </span>
-                      </Tooltip>
+                      {/* Üç kademe yan yana: hangisinin seçili olduğu ve
+                          diğerlerinin ne yaptığı aynı anda görünüyor. Aç/kapa
+                          anahtarı "açık" ile "kapalı" dışında bir hâl
+                          olduğunu söylemiyordu. */}
+                      <ToggleButtonGroup
+                        size="small"
+                        exclusive
+                        value={r.visibility ?? (r.isPublic ? 'FULL' : 'TEASER')}
+                        disabled={busyId === r.id}
+                        onChange={(_, v) => v && setVisibility(r, v as NbListingVisibility)}
+                      >
+                        {(['TEASER', 'SHOWCASE', 'FULL'] as NbListingVisibility[]).map((v) => (
+                          <ToggleButton
+                            key={v}
+                            value={v}
+                            // Üyeye ait ilan tam açılamaz: firma adı ve
+                            // iletişim herkese görünür olurdu. Sunucu da
+                            // reddediyor; düğmeyi çizip hata göstermek yerine
+                            // sebebi burada yazılı.
+                            disabled={v === 'FULL' && !r.curated}
+                            sx={{ px: 1, py: 0.25, fontSize: 11, textTransform: 'none' }}
+                          >
+                            <Tooltip
+                              title={
+                                v === 'FULL' && !r.curated
+                                  ? 'Üyeye ait ilan tam açılamaz — firma adı ve iletişim herkese görünür olurdu.'
+                                  : NB_LISTING_VISIBILITY_HINT[v]
+                              }
+                            >
+                              <span>{NB_LISTING_VISIBILITY_LABEL[v]}</span>
+                            </Tooltip>
+                          </ToggleButton>
+                        ))}
+                      </ToggleButtonGroup>
                     </TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
