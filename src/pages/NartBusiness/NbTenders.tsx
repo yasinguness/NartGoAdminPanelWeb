@@ -31,6 +31,7 @@ import {
   CircularProgress,
   Dialog,
   LinearProgress,
+  Pagination,
   Stack,
   TextField,
   Tooltip,
@@ -174,6 +175,8 @@ interface QueueItem {
 export default function NbTenders() {
   const [statusFilter, setStatusFilter] = useState<NbTenderStatus>('NEW');
   const [tenders, setTenders] = useState<NbTenderListItem[]>([]);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<NbTenderDetail | null>(null);
@@ -229,19 +232,21 @@ export default function NbTenders() {
       status: NbTenderStatus;
       includeExpired: boolean;
       keepSelection?: boolean;
+      page?: number;
     }) => {
-      const { status, includeExpired: withExpired, keepSelection = false } = opts;
+      const { status, includeExpired: withExpired, keepSelection = false, page: loadPage = 0 } = opts;
       // SWR: liste zaten doluyken spinner'a kurban etme.
       setListLoading((prev) => prev || tenders.length === 0);
       setError(null);
       try {
-        const [page, c] = await Promise.all([
-          nbAdminService.listTenders({ status, includeExpired: withExpired, page: 0, size: 50 }),
+        const [pageData, c] = await Promise.all([
+          nbAdminService.listTenders({ status, includeExpired: withExpired, page: loadPage, size: 50 }),
           nbAdminService.getTenderCounts(),
         ]);
-        setTenders(page.content);
+        setTenders(pageData.content);
+        setTotalPages(pageData.totalPages);
         setCounts(c);
-        if (!keepSelection) setSelectedId(page.content[0]?.id ?? null);
+        if (!keepSelection) setSelectedId(pageData.content[0]?.id ?? null);
       } catch (e) {
         setError(nbErrorMessage(e, 'İhaleler yüklenemedi.'));
       } finally {
@@ -263,9 +268,9 @@ export default function NbTenders() {
   }, []);
 
   useEffect(() => {
-    void loadList({ status: statusFilter, includeExpired });
+    void loadList({ status: statusFilter, includeExpired, page: pageIndex });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, includeExpired]);
+  }, [statusFilter, includeExpired, pageIndex]);
 
   useEffect(() => {
     if (selectedId) void loadDetail(selectedId);
@@ -539,8 +544,8 @@ export default function NbTenders() {
           : `${ok}/${queue.length} gönderildi. Başarısız: ${failed.join(', ')}`,
     });
     await loadDetail(detail.id);
-    await loadList({ status: statusFilter, includeExpired, keepSelection: true });
-  }, [detail, queue, channel, queueNote, loadDetail, loadList, statusFilter, includeExpired]);
+    await loadList({ status: statusFilter, includeExpired, keepSelection: true, page: pageIndex });
+  }, [detail, queue, channel, queueNote, loadDetail, loadList, statusFilter, includeExpired, pageIndex]);
 
   const changeStatus = useCallback(
     async (status: NbTenderStatus, id?: string) => {
@@ -549,13 +554,13 @@ export default function NbTenders() {
       try {
         await nbAdminService.updateTenderStatus(targetId, status);
         setUndo({ message: `İhale "${NB_TENDER_STATUS_LABEL[status]}" olarak işaretlendi.` });
-        await loadList({ status: statusFilter, includeExpired, keepSelection: true });
+        await loadList({ status: statusFilter, includeExpired, keepSelection: true, page: pageIndex });
         if (detail?.id === targetId) await loadDetail(targetId);
       } catch (e) {
         setError(nbErrorMessage(e, 'Durum güncellenemedi.'));
       }
     },
-    [detail, loadList, loadDetail, statusFilter, includeExpired],
+    [detail, loadList, loadDetail, statusFilter, includeExpired, pageIndex],
   );
 
   const rematch = useCallback(async () => {
@@ -640,11 +645,11 @@ export default function NbTenders() {
             ? `${ok} ihale arşivlendi.`
             : `${ok}/${targets.length} ihale arşivlendi, kalanı başarısız.`,
       });
-      await loadList({ status: statusFilter, includeExpired });
+      await loadList({ status: statusFilter, includeExpired, page: pageIndex });
     } finally {
       setBulkBusy(false);
     }
-  }, [tenders, loadList, statusFilter, includeExpired]);
+  }, [tenders, loadList, statusFilter, includeExpired, pageIndex]);
 
   /* ── Klavye ─────────────────────────────────────────────────────────── */
 
@@ -804,7 +809,7 @@ export default function NbTenders() {
               <Button
                 key={s}
                 disableElevation
-                onClick={() => setStatusFilter(s)}
+                onClick={() => { setStatusFilter(s); setPageIndex(0); }}
                 sx={nbChip(statusFilter === s)}
               >
                 {NB_TENDER_STATUS_LABEL[s]} {counts[s] != null ? `· ${counts[s]}` : ''}
@@ -815,7 +820,7 @@ export default function NbTenders() {
             {(counts.EXPIRED ?? 0) > 0 && (
               <Button
                 disableElevation
-                onClick={() => setIncludeExpired((v) => !v)}
+                onClick={() => { setIncludeExpired((v) => !v); setPageIndex(0); }}
                 sx={{ ...(nbChip(includeExpired) as object), ml: 'auto' }}
                 title="Süresi geçmiş ihaleler yönlendirilemez; varsayılan görünümde gizlidir."
               >
@@ -870,6 +875,17 @@ export default function NbTenders() {
               </Typography>
             )}
           </Box>
+
+          {totalPages > 1 && (
+            <Stack alignItems="center" sx={{ py: 1.5, borderTop: nbDividerLine }}>
+              <Pagination
+                count={totalPages}
+                page={pageIndex + 1}
+                onChange={(_, p) => setPageIndex(p - 1)}
+                size="small"
+              />
+            </Stack>
+          )}
 
           <Typography sx={{ px: 1.75, py: 1.25, fontSize: 11, color: nb.textFaint, borderTop: nbDividerLine }}>
             J/K gezin · E arşivle · Y kuyruğu gönder
