@@ -31,7 +31,6 @@ import {
   CircularProgress,
   Dialog,
   LinearProgress,
-  Pagination,
   Stack,
   TextField,
   Tooltip,
@@ -139,6 +138,9 @@ const SORTS: { key: SortKey; label: string }[] = [
 const TARGET_KEY = 'nb.tenders.dailyTarget';
 const DEFAULT_TARGET = 15;
 
+/** Sunucudan bir seferde çekilen sayfa boyutu — aşağı kaydırdıkça birer birer eklenir. */
+const TENDER_PAGE_SIZE = 50;
+
 /**
  * Yönlendirme ULAŞABİLECEĞİ üye durumları.
  *
@@ -175,8 +177,11 @@ interface QueueItem {
 export default function NbTenders() {
   const [statusFilter, setStatusFilter] = useState<NbTenderStatus>('NEW');
   const [tenders, setTenders] = useState<NbTenderListItem[]>([]);
-  const [pageIndex, setPageIndex] = useState(0);
+  // Kaç sayfa sunucudan çekilip biriktirildi — sayfa numarası değil, "şu ana
+  // kadar yüklenmiş sayfa sayısı". Aşağı kaydırma bunu birer birer artırır.
+  const [loadedPages, setLoadedPages] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<NbTenderDetail | null>(null);
@@ -227,26 +232,38 @@ export default function NbTenders() {
   // Adlandırılmış seçenekler bilinçli: imza (status, keepSelection) iken
   // araya bir bayrak eklemek üç çağrı yerinin anlamını sessizce değiştirmişti
   // (keepSelection=true, includeExpired=true'ya dönüşüyordu).
+  //
+  // `reloadPages`: kaç sayfa baştan (0..reloadPages-1) yeniden çekilip
+  // birleştirilsin. Filtre değişince 1; bir mutasyondan sonra (gönderim,
+  // durum değişikliği, toplu arşivleme) kullanıcının kaydırarak yüklediği
+  // sayfa sayısı kadar — aksi halde aşağı kaydırıp yüklediği kayıtlar
+  // mutasyon sonrası sessizce kaybolurdu.
   const loadList = useCallback(
     async (opts: {
       status: NbTenderStatus;
       includeExpired: boolean;
       keepSelection?: boolean;
-      page?: number;
+      reloadPages?: number;
     }) => {
-      const { status, includeExpired: withExpired, keepSelection = false, page: loadPage = 0 } = opts;
+      const { status, includeExpired: withExpired, keepSelection = false, reloadPages = 1 } = opts;
       // SWR: liste zaten doluyken spinner'a kurban etme.
       setListLoading((prev) => prev || tenders.length === 0);
       setError(null);
       try {
-        const [pageData, c] = await Promise.all([
-          nbAdminService.listTenders({ status, includeExpired: withExpired, page: loadPage, size: 50 }),
+        const [pages, c] = await Promise.all([
+          Promise.all(
+            Array.from({ length: reloadPages }, (_, i) =>
+              nbAdminService.listTenders({ status, includeExpired: withExpired, page: i, size: TENDER_PAGE_SIZE }),
+            ),
+          ),
           nbAdminService.getTenderCounts(),
         ]);
-        setTenders(pageData.content);
-        setTotalPages(pageData.totalPages);
+        const merged = pages.flatMap((p) => p.content);
+        setTenders(merged);
+        setLoadedPages(pages.length);
+        setTotalPages(pages[pages.length - 1]?.totalPages ?? 0);
         setCounts(c);
-        if (!keepSelection) setSelectedId(pageData.content[0]?.id ?? null);
+        if (!keepSelection) setSelectedId(merged[0]?.id ?? null);
       } catch (e) {
         setError(nbErrorMessage(e, 'İhaleler yüklenemedi.'));
       } finally {
@@ -255,6 +272,39 @@ export default function NbTenders() {
     },
     [tenders.length],
   );
+
+  /** Aşağı kaydırınca bir sonraki sayfayı çekip listenin sonuna ekler. */
+  const loadMore = useCallback(async () => {
+    if (loadingMore || listLoading) return;
+    if (loadedPages === 0 || loadedPages >= totalPages) return;
+    setLoadingMore(true);
+    try {
+      const pageData = await nbAdminService.listTenders({
+        status: statusFilter,
+        includeExpired,
+        page: loadedPages,
+        size: TENDER_PAGE_SIZE,
+      });
+      setTenders((prev) => [...prev, ...pageData.content]);
+      setLoadedPages((p) => p + 1);
+      setTotalPages(pageData.totalPages);
+    } catch (e) {
+      setError(nbErrorMessage(e, 'Daha fazla ihale yüklenemedi.'));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, listLoading, loadedPages, totalPages, statusFilter, includeExpired]);
+
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
+
+  /** Kaydırma alt sınıra 200px'den yakınsa bir sonraki sayfayı iste. */
+  const handleListScroll = useCallback(() => {
+    const el = listScrollRef.current;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+      void loadMore();
+    }
+  }, [loadMore]);
 
   const loadDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
@@ -268,9 +318,9 @@ export default function NbTenders() {
   }, []);
 
   useEffect(() => {
-    void loadList({ status: statusFilter, includeExpired, page: pageIndex });
+    void loadList({ status: statusFilter, includeExpired });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, includeExpired, pageIndex]);
+  }, [statusFilter, includeExpired]);
 
   useEffect(() => {
     if (selectedId) void loadDetail(selectedId);
@@ -544,8 +594,8 @@ export default function NbTenders() {
           : `${ok}/${queue.length} gönderildi. Başarısız: ${failed.join(', ')}`,
     });
     await loadDetail(detail.id);
-    await loadList({ status: statusFilter, includeExpired, keepSelection: true, page: pageIndex });
-  }, [detail, queue, channel, queueNote, loadDetail, loadList, statusFilter, includeExpired, pageIndex]);
+    await loadList({ status: statusFilter, includeExpired, keepSelection: true, reloadPages: Math.max(loadedPages, 1) });
+  }, [detail, queue, channel, queueNote, loadDetail, loadList, statusFilter, includeExpired, loadedPages]);
 
   const changeStatus = useCallback(
     async (status: NbTenderStatus, id?: string) => {
@@ -554,13 +604,13 @@ export default function NbTenders() {
       try {
         await nbAdminService.updateTenderStatus(targetId, status);
         setUndo({ message: `İhale "${NB_TENDER_STATUS_LABEL[status]}" olarak işaretlendi.` });
-        await loadList({ status: statusFilter, includeExpired, keepSelection: true, page: pageIndex });
+        await loadList({ status: statusFilter, includeExpired, keepSelection: true, reloadPages: Math.max(loadedPages, 1) });
         if (detail?.id === targetId) await loadDetail(targetId);
       } catch (e) {
         setError(nbErrorMessage(e, 'Durum güncellenemedi.'));
       }
     },
-    [detail, loadList, loadDetail, statusFilter, includeExpired, pageIndex],
+    [detail, loadList, loadDetail, statusFilter, includeExpired, loadedPages],
   );
 
   const rematch = useCallback(async () => {
@@ -645,11 +695,11 @@ export default function NbTenders() {
             ? `${ok} ihale arşivlendi.`
             : `${ok}/${targets.length} ihale arşivlendi, kalanı başarısız.`,
       });
-      await loadList({ status: statusFilter, includeExpired, page: pageIndex });
+      await loadList({ status: statusFilter, includeExpired, reloadPages: Math.max(loadedPages, 1) });
     } finally {
       setBulkBusy(false);
     }
-  }, [tenders, loadList, statusFilter, includeExpired, pageIndex]);
+  }, [tenders, loadList, statusFilter, includeExpired, loadedPages]);
 
   /* ── Klavye ─────────────────────────────────────────────────────────── */
 
@@ -809,7 +859,7 @@ export default function NbTenders() {
               <Button
                 key={s}
                 disableElevation
-                onClick={() => { setStatusFilter(s); setPageIndex(0); }}
+                onClick={() => setStatusFilter(s)}
                 sx={nbChip(statusFilter === s)}
               >
                 {NB_TENDER_STATUS_LABEL[s]} {counts[s] != null ? `· ${counts[s]}` : ''}
@@ -820,7 +870,7 @@ export default function NbTenders() {
             {(counts.EXPIRED ?? 0) > 0 && (
               <Button
                 disableElevation
-                onClick={() => { setIncludeExpired((v) => !v); setPageIndex(0); }}
+                onClick={() => setIncludeExpired((v) => !v)}
                 sx={{ ...(nbChip(includeExpired) as object), ml: 'auto' }}
                 title="Süresi geçmiş ihaleler yönlendirilemez; varsayılan görünümde gizlidir."
               >
@@ -831,7 +881,7 @@ export default function NbTenders() {
 
           <Box sx={{ height: 3 }}>{listLoading && <LinearProgress />}</Box>
 
-          <Box sx={{ maxHeight: '62vh', overflowY: 'auto' }}>
+          <Box ref={listScrollRef} onScroll={handleListScroll} sx={{ maxHeight: '62vh', overflowY: 'auto' }}>
             {visible.map((t) => {
               const days = daysUntil(t.deadline);
               const u = URGENCY_STYLE[urgencyOf(days)];
@@ -874,17 +924,23 @@ export default function NbTenders() {
                 Bu filtrelerle eşleşen ihale yok.
               </Typography>
             )}
+
+            {/* Aşağı kaydırınca bir sonraki 50 kayıt otomatik eklenir. */}
+            {loadingMore && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5 }}>
+                <CircularProgress size={18} />
+              </Box>
+            )}
           </Box>
 
-          {totalPages > 1 && (
-            <Stack alignItems="center" sx={{ py: 1.5, borderTop: nbDividerLine }}>
-              <Pagination
-                count={totalPages}
-                page={pageIndex + 1}
-                onChange={(_, p) => setPageIndex(p - 1)}
-                size="small"
-              />
-            </Stack>
+          {tenders.length > 0 && (
+            <Typography
+              sx={{ px: 1.75, py: 0.875, fontSize: 10.5, color: nb.textFaint, borderTop: nbDividerLine, textAlign: 'center' }}
+            >
+              {loadedPages >= totalPages
+                ? `${tenders.length} ihale · tümü yüklendi`
+                : `${tenders.length} ihale yüklendi · devamı için aşağı kaydır`}
+            </Typography>
           )}
 
           <Typography sx={{ px: 1.75, py: 1.25, fontSize: 11, color: nb.textFaint, borderTop: nbDividerLine }}>
