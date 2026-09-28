@@ -36,6 +36,7 @@ const EMPTY: Sector = {
   nameTr: '',
   nameEn: '',
   description: '',
+  descriptionEn: '',
   sortOrder: 0,
   active: true,
 };
@@ -251,14 +252,26 @@ export default function NbSectors() {
                 placeholder="Hiyerarşi için üst sektör seç"
                 helperText="Boş bırakırsan root sektör olur."
               />
+              {/* Bu alan admin notu değil: başvuru ve profil formlarında
+                  sektör adının altında örnek satırı olarak görünüyor. Eski
+                  yardım metni "UI'da gösterilmez" diyordu ve yanlıştı. */}
               <TextField
-                label="Açıklama"
+                label="Örnekler (Türkçe)"
                 value={editing.description ?? ''}
                 onChange={(e) => setEditing({ ...editing, description: e.target.value })}
                 multiline
                 rows={2}
                 fullWidth
-                helperText="UI'da gösterilmez; admin notu / dokümantasyon."
+                helperText="Üyeye görünür: sektör adının altında 3-5 somut örnek. Cümle değil liste."
+              />
+              <TextField
+                label="Örnekler (İngilizce)"
+                value={editing.descriptionEn ?? ''}
+                onChange={(e) => setEditing({ ...editing, descriptionEn: e.target.value })}
+                multiline
+                rows={2}
+                fullWidth
+                helperText="Boş bırakılırsa İngilizce arayüzde Türkçe örnekler gösterilir."
               />
               <TextField
                 label="Sıra"

@@ -32,6 +32,7 @@ import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
 const EMPTY: JobTitle = {
   label: '',
+  labelEn: '',
   sortOrder: 0,
   active: true,
 };
@@ -84,7 +85,11 @@ export default function NbJobTitles() {
     if (!editing || !formValid) return;
     setSubmitting(true);
     try {
-      await nbAdminService.upsertJobTitle({ ...editing, label: editing.label.trim() });
+      await nbAdminService.upsertJobTitle({
+        ...editing,
+        label: editing.label.trim(),
+        labelEn: editing.labelEn?.trim() || undefined,
+      });
       setEditing(null);
       load();
     } catch (e: any) {
@@ -152,7 +157,14 @@ export default function NbJobTitles() {
             <TableBody>
               {items.map((t) => (
                 <TableRow key={t.id} hover>
-                  <TableCell>{t.label}</TableCell>
+                  <TableCell>
+                    {t.label}
+                    {t.labelEn ? (
+                      <Typography component="span" sx={{ ml: 1, fontSize: 12, color: 'text.secondary' }}>
+                        · {t.labelEn}
+                      </Typography>
+                    ) : null}
+                  </TableCell>
                   <TableCell>{t.sortOrder}</TableCell>
                   <TableCell>
                     {t.active ? (
@@ -205,6 +217,13 @@ export default function NbJobTitles() {
                 }
                 fullWidth
                 autoFocus
+              />
+              <TextField
+                label="İngilizce karşılığı"
+                value={editing.labelEn ?? ''}
+                onChange={(e) => setEditing({ ...editing, labelEn: e.target.value })}
+                helperText="Yurt dışından gelen üye bunu görür. Boş bırakılırsa Türkçesi gösterilir. Örnek: General Manager"
+                fullWidth
               />
               <TextField
                 label="Sıra"

@@ -366,7 +366,14 @@ export interface Sector {
   parentCode?: string;
   nameTr: string;
   nameEn?: string;
+  /**
+   * Sektör seçiminde gösterilen kısa örnekler ("müteahhitlik, hafriyat, …").
+   * Admin notu DEĞİL: başvuru ve profil formlarında sektör adının altında
+   * görünür ve kullanıcının doğru sektörü seçmesini sağlar.
+   */
   description?: string;
+  /** Aynı örneklerin İngilizcesi. Boşsa istemci Türkçesini gösterir. */
+  descriptionEn?: string;
   sortOrder: number;
   active: boolean;
 }
@@ -374,7 +381,13 @@ export interface Sector {
 // Profesyonel üye ünvan/pozisyon kataloğu (admin'den yönetilir — sektörler gibi).
 export interface JobTitle {
   id?: string; // null/undefined = yeni kayıt
+  /**
+   * Türkçe etiket — KİMLİK. Üyenin ünvanı arka uca bu metinle kaydediliyor;
+   * değiştirmek kayıtlı üyelerin ünvanını koparır.
+   */
   label: string;
+  /** İngilizce gösterim adı. Boşsa istemci Türkçesine düşer. */
+  labelEn?: string;
   sortOrder: number;
   active: boolean;
 }
