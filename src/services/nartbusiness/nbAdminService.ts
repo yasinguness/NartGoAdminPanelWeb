@@ -240,6 +240,51 @@ async function listMembers(params: {
  * bir servisten geliyor, ulaşılamazsa sayı uydurulmuyor. Ekran null'ı "—"
  * göstermeli, sıfır değil.
  */
+/** NEVER = hiç açmamış · SILENT = bir zamanlar açmış, eşikten beri yok · RECENT = aktif. */
+export type NbEngagementBucket = 'NEVER' | 'SILENT' | 'RECENT';
+
+/**
+ * Arama listesi satırı.
+ *
+ * Karar panosu "43 kişi hiç açmamış" diyordu; sayı bir teşhis, liste bir iş
+ * emri. 70 kişilik bir ağda yapılacak şey o 43 kişiyi aramak ve sayıyla kimse
+ * aranamaz.
+ */
+export interface NbMemberEngagementRow {
+  memberId: string;
+  userId: string;
+  companyName?: string | null;
+  city?: string | null;
+  status: NbMemberStatus;
+  phone?: string | null;
+  joinedAt?: string | null;
+  /** null = hiç açmamış. */
+  lastActiveAt?: string | null;
+  engagement: NbEngagementBucket;
+  trialEndsAt?: string | null;
+  /** Negatif = deneme bitmiş. null = denemede değil. */
+  daysUntilTrialEnd?: number | null;
+}
+
+export interface NbMemberEngagementList {
+  silenceThresholdDays: number;
+  /** false → liste boş ve bu "herkes aktif" demek DEĞİL, "veri yok" demek. */
+  activityDataAvailable: boolean;
+  rows: NbMemberEngagementRow[];
+}
+
+/**
+ * Kim uygulamayı hiç açmamış, kim sessizleşmiş — aranabilir liste.
+ *
+ * Sayfalama yok: çıktı bir çalışma listesi, gezilecek bir tablo değil.
+ */
+async function memberEngagement(silenceDays = 30): Promise<NbMemberEngagementList | null> {
+  const res = await api.get<any>('/nb/admin/members/engagement', {
+    params: { silenceDays },
+  });
+  return unwrap<NbMemberEngagementList>(res.data);
+}
+
 export interface NbDecisionBoard {
   referralsTotal: number;
   referralsLockedOnSend: number;
@@ -2024,6 +2069,7 @@ export const nbAdminService = {
   // Members
   listMembers,
   getDecisionBoard,
+  memberEngagement,
   getMember,
   memberViewStats,
   createMemberManually,

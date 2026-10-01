@@ -190,6 +190,14 @@ export interface NbMember {
   trialEndsAt?: string;
   trialUsed?: boolean;
 
+  /**
+   * NB uygulamasını en son ne zaman açtı. null = hiç açmamış.
+   *
+   * Üyelik kaydında değil auth-service'te tutuluyor; yalnız onu dolduran
+   * uçlarda (üye listesi) dolu gelir, tekil üye okumasında null kalır.
+   */
+  nbLastActiveAt?: string | null;
+
   // Sprint 23 — Hafif KYC
   companyName?: string;
   sectorCodes?: string[];

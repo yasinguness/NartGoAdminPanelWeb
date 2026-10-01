@@ -129,7 +129,10 @@ const QUICK_FILTERS: { value: Exclude<QuickFilter, 'all'>; label: string }[] = [
 ];
 
 /** Tablo ızgarası — başlık ve satırlar aynı şablonu okumak zorunda. */
-const ROW_GRID = '32px minmax(0,2.4fr) 104px minmax(0,1.5fr) 150px 40px';
+// SON GİRİŞ kolonu eklendi (2026-10-01): kimin uygulamayı hiç açmadığı
+// yalnız Karar Panosu'nda ve yalnız SAYI olarak görünüyordu. Listede
+// görünmeyen bir sinyale göre kimse aranamaz.
+const ROW_GRID = '32px minmax(0,2.4fr) 104px minmax(0,1.5fr) 104px 150px 40px';
 
 /**
  * Üye satırı.
@@ -282,6 +285,25 @@ function MemberRow({
           </Tooltip>
         )}
       </Stack>
+
+      {/* Son giriş: null = hiç açmamış, undefined = veri gelmedi. İkisi aynı
+          şey değil ve "hiç" ile "—" ayrımı tam olarak bunu söylüyor. */}
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontSize: 11,
+            whiteSpace: 'nowrap',
+            color: member.nbLastActiveAt === null ? nb.red : nb.textFaint,
+            fontWeight: member.nbLastActiveAt === null ? 600 : 400,
+          }}
+        >
+          {member.nbLastActiveAt === undefined
+            ? '—'
+            : member.nbLastActiveAt === null
+              ? 'hiç açmamış'
+              : relativeDate(member.nbLastActiveAt)}
+        </Typography>
+      </Box>
 
       <Box onClick={(e) => e.stopPropagation()}>
         {task && (
@@ -897,6 +919,7 @@ export default function NbMembers() {
               <Box>ÜYE</Box>
               <Box>KADEME</Box>
               <Box>DURUM</Box>
+              <Box>SON GİRİŞ</Box>
               <Box>BEKLEYEN İŞ</Box>
               <Box />
             </Box>

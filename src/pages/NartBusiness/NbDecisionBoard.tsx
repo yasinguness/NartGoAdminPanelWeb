@@ -34,6 +34,8 @@ import { NbPageHeader, NbPanel, NbStatCard } from '../../components/nartbusiness
 import { nb, nbType, nbRadius } from '../../theme/nbBrand';
 import { nbAdminService, type NbDecisionBoard as BoardData } from '../../services/nartbusiness/nbAdminService';
 import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
+import NbEngagementCallList from '../../components/nartbusiness/NbEngagementCallList';
+import type { NbEngagementBucket } from '../../services/nartbusiness/nbAdminService';
 
 const SILENCE_OPTIONS = [14, 30, 60];
 
@@ -53,6 +55,9 @@ export default function NbDecisionBoardPage() {
   const [data, setData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /* Panodaki sayıya tıklayınca açılan arama listesi. Sayı teşhis, liste iş
+     emri: 70 kişilik bir ağda yapılacak şey o kişileri aramak. */
+  const [callList, setCallList] = useState<NbEngagementBucket | null>(null);
 
   const load = useCallback(async (silenceDays: number) => {
     // SWR: eşik değişince mevcut sayılar ekranda kalsın, iskelete düşmesin.
@@ -226,6 +231,8 @@ export default function NbDecisionBoardPage() {
                       : 'neutral'
                   }
                   emphasize
+                  linkText="Listeyi aç"
+                  onClick={() => setCallList('SILENT')}
                 />
               </Grid>
               <Grid item xs={6} md={4}>
@@ -238,6 +245,8 @@ export default function NbDecisionBoardPage() {
                       ? 'warning'
                       : 'neutral'
                   }
+                  linkText="Listeyi aç"
+                  onClick={() => setCallList('NEVER')}
                 />
               </Grid>
               <Grid item xs={6} md={4}>
@@ -269,6 +278,13 @@ export default function NbDecisionBoardPage() {
           </Box>
         </Stack>
       )}
+
+      <NbEngagementCallList
+        open={callList !== null}
+        onClose={() => setCallList(null)}
+        silenceDays={days}
+        initialBucket={callList ?? 'NEVER'}
+      />
     </>
   );
 }
