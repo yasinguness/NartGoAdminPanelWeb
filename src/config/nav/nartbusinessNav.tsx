@@ -14,6 +14,7 @@
 import {
     SpaceDashboard as NbDashboardIcon,
     Balance as DecisionIcon,
+    Campaign as BroadcastIcon,
     People as MembersIcon,
     VerifiedUser as VerificationIcon,
     Policy as PolicyIcon,
@@ -56,6 +57,11 @@ export const nartbusinessNavSections: NavSection[] = [
             // cevaplar: denemeyi/fiyatı değiştirmeli miyiz. Ayrı duruyor ki o
             // soru günlük gürültünün içinde kaybolmasın.
             { text: 'Karar Panosu', icon: <DecisionIcon />, path: '/nartbusiness/decision-board', allowedRoles: NB_MANAGE },
+            // Karar panosu teşhis, duyuru tedavi: 71 üyenin 56'sında kayıtlı
+            // cihaz yok, yani bu kitleye ulaşmanın yolu e-posta. İkisi yan yana
+            // duruyor ki "kimse açmamış" sayısını gören kişi ne yapacağını
+            // aynı ekranda bulsun.
+            { text: 'Toplu Duyuru', icon: <BroadcastIcon />, path: '/nartbusiness/broadcast', allowedRoles: NB_MANAGE },
         ],
     },
     {

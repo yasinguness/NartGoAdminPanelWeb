@@ -285,6 +285,105 @@ async function memberEngagement(silenceDays = 30): Promise<NbMemberEngagementLis
   return unwrap<NbMemberEngagementList>(res.data);
 }
 
+// ============================================================
+// Toplu duyuru (NB kitlesi)
+// ============================================================
+
+/**
+ * Bildirim <b>ulaşabilen</b> üyelik durumları.
+ *
+ * Backend'deki {@code NbMemberStatus.canReceiveReferral()} ile birebir aynı
+ * küme. Panelde bütün durumları listelemek yanıltıcı olurdu: askıdaki ve
+ * reddedilmiş üyeye yönetici seçse bile gönderilmez, çünkü o sessizlik
+ * kasıtlı. Seçilemeyen bir kutuyu hiç çizmemek, çizip reddedilmesinden
+ * iyidir.
+ */
+export const NB_BROADCAST_STATUSES: NbMemberStatus[] = [
+  'TRIAL',
+  'APPROVED_PENDING_PAYMENT',
+  'APPROVED_EXPIRED',
+  'ACTIVE',
+  'EXPIRED',
+  'PENDING_VERIFICATION',
+];
+
+export interface NbBroadcastRequest {
+  headline: string;
+  paragraphs: string[];
+  /** Boş dizi = bildirim ulaşabilen tüm durumlar. */
+  statuses: NbMemberStatus[];
+  sendPush: boolean;
+  sendEmail: boolean;
+  ctaLabel?: string;
+  ctaLink?: string;
+  /** true = kitleyi çöz, hiçbir ileti çıkarma. */
+  dryRun: boolean;
+}
+
+/**
+ * Duyuru sonucu.
+ *
+ * <h3>Neden her alan opsiyonel</h3>
+ *
+ * Alan adları sunucu tarafında tek kaynaktan doğrulanamadı; bu yüzden panel
+ * hiçbir ada bağımlı değil. Bilinen adları {@link nbBroadcastNum} sırayla
+ * dener, bulamazsa sayıyı "—" olarak basar ve ham yanıtı açılır panelde
+ * gösterir. Yanlış ada bakıp 0 yazmak, bilinmeyeni sıfır ilan etmek olurdu.
+ */
+export interface NbBroadcastResult {
+  dryRun?: boolean;
+  audienceSize?: number;
+  byStatus?: Record<string, number>;
+  emailSent?: number;
+  /** "Bildirim kaydı oluştu" demek; "telefonda göründü" demek DEĞİL. */
+  inAppSent?: number;
+  failed?: number;
+  message?: string;
+  [key: string]: unknown;
+}
+
+/** Yanıttaki ilk dolu sayıyı döndürür; hiçbiri yoksa null (sıfır değil). */
+export function nbBroadcastNum(
+  res: NbBroadcastResult | null,
+  keys: string[],
+): number | null {
+  if (!res) return null;
+  for (const k of keys) {
+    const v = res[k];
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+  }
+  return null;
+}
+
+/** Yanıttaki durum dağılımını döndürür; yoksa null. */
+export function nbBroadcastBreakdown(
+  res: NbBroadcastResult | null,
+): Record<string, number> | null {
+  if (!res) return null;
+  for (const k of ['byStatus', 'statusBreakdown', 'distribution', 'counts']) {
+    const v = res[k];
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const out: Record<string, number> = {};
+      for (const [sk, sv] of Object.entries(v as Record<string, unknown>)) {
+        if (typeof sv === 'number' && Number.isFinite(sv)) out[sk] = sv;
+      }
+      if (Object.keys(out).length > 0) return out;
+    }
+  }
+  return null;
+}
+
+/**
+ * NB kitlesine duyuru — deneme ya da gerçek gönderim.
+ *
+ * Kitle NB tarafında çözülür, teslim notification-service'e devredilir:
+ * kimin üye olduğunu bu servis bilir, teslimi o servis bilir.
+ */
+async function broadcast(body: NbBroadcastRequest): Promise<NbBroadcastResult | null> {
+  const res = await api.post<any>('/nb/admin/broadcast', body);
+  return unwrap<NbBroadcastResult>(res.data);
+}
+
 export interface NbDecisionBoard {
   referralsTotal: number;
   referralsLockedOnSend: number;
@@ -1483,6 +1582,19 @@ async function decideVerification(
   return unwrap<VerificationCase>(res.data);
 }
 
+/**
+ * Bu üyeye deneme teklif edilsin mi — üyeye özel ticari karar.
+ *
+ * <b>Onaydan önce</b> çağrılmalı: onay e-postası da bu karara bakıyor, sonradan
+ * değiştirmek gönderilmiş maili geri almaz.
+ */
+async function setTrialOffer(memberId: string, allowed: boolean): Promise<NbMember | null> {
+  const res = await api.patch<any>(`/nb/admin/members/${memberId}/trial-offer`, null, {
+    params: { allowed },
+  });
+  return unwrap<NbMember>(res.data);
+}
+
 async function listTierDocPolicies(): Promise<TierDocumentPolicy[]> {
   const res = await api.get<any>('/nb/admin/verification/tier-doc-policies');
   return unwrap<TierDocumentPolicy[]>(res.data) ?? [];
@@ -2070,6 +2182,7 @@ export const nbAdminService = {
   listMembers,
   getDecisionBoard,
   memberEngagement,
+  broadcast,
   getMember,
   memberViewStats,
   createMemberManually,
@@ -2149,6 +2262,7 @@ export const nbAdminService = {
   getCaseTimeline,
   submitCommitteeVote,
   decideVerification,
+  setTrialOffer,
   listTierDocPolicies,
   updateTierDocPolicy,
   // Sectors

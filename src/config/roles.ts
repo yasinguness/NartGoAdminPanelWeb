@@ -156,6 +156,7 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
 
   // ── NartBusiness (NB rolleri + admin) ──
   { path: '/nartbusiness/dashboard', roles: NB, description: 'NB KPI dashboard' },
+  { path: '/nartbusiness/broadcast', roles: NB, description: 'NB toplu duyuru' },
   { path: '/nartbusiness/members', roles: NB, description: 'NB üye yönetimi' },
   { path: '/nartbusiness/verification', roles: NB, description: 'Doğrulama kuyruğu' },
   { path: '/nartbusiness/verification-policies', roles: NB, description: 'Belge politikaları' },

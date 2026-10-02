@@ -93,6 +93,7 @@ const LoginFrequency = lazy(() => import('./pages/EngagementAnalytics/LoginFrequ
 const ProductAnalytics = lazy(() => import('./pages/EngagementAnalytics/ProductAnalytics'));
 const NbDashboard = lazy(() => import('./pages/NartBusiness/NbDashboard'));
 const NbDecisionBoard = lazy(() => import('./pages/NartBusiness/NbDecisionBoard'));
+const NbBroadcast = lazy(() => import('./pages/NartBusiness/NbBroadcast'));
 const NbMembers = lazy(() => import('./pages/NartBusiness/NbMembers'));
 const NbMemberDetail = lazy(() => import('./pages/NartBusiness/NbMemberDetail'));
 const NbVerificationQueue = lazy(() => import('./pages/NartBusiness/NbVerificationQueue'));
@@ -237,6 +238,7 @@ function App() {
                 {/* NartBusiness (Sprint 7) */}
                 <Route path="nartbusiness/dashboard" element={<NbDashboard />} />
                 <Route path="nartbusiness/decision-board" element={<NbDecisionBoard />} />
+                <Route path="nartbusiness/broadcast" element={<NbBroadcast />} />
                 <Route path="nartbusiness/audit" element={<NbAuditLog />} />
                 <Route path="nartbusiness/email-logs" element={<NbEmailLogs />} />
                 <Route path="nartbusiness/login-logs" element={<NbLoginLogs />} />

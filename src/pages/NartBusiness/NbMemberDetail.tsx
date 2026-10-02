@@ -172,6 +172,7 @@ export default function NbMemberDetail() {
   );
   const [actionOpen, setActionOpen] = useState(false);
   const [trialBusy, setTrialBusy] = useState(false);
+  const [trialOfferBusy, setTrialOfferBusy] = useState(false);
   // Ödeme süresi penceresi. Eskiden iki ardışık window.prompt kullanılıyordu;
   // tarayıcı art arda gelen diyalogları bastırdığında prompt anında null
   // dönüyor ve handler sessizce çıkıyordu — butona basılıyor, hiçbir şey
@@ -276,6 +277,29 @@ export default function NbMemberDetail() {
       setTrialError(nbErrorMessage(e, 'Deneme işlemi başarısız'));
     } finally {
       setTrialBusy(false);
+    }
+  };
+
+  /**
+   * Deneme teklifi kararını çevirir.
+   *
+   * Sunucu idempotent; aynı değeri iki kez yazmak hata değil. Hata hâlinde
+   * mevcut görünümü bozmuyoruz, yalnız mesaj gösteriyoruz.
+   */
+  const handleToggleTrialOffer = async () => {
+    if (!member) return;
+    setTrialOfferBusy(true);
+    try {
+      const next = member.trialOfferAllowed === false;
+      // Yanıt güncel üyeyi döndürüyor ama deneme eylemleriyle aynı deseni
+      // izliyoruz: tek kaynak getMember, böylece ekranın geri kalanı da tazelenir.
+      await nbAdminService.setTrialOffer(member.memberId, next);
+      const m = await nbAdminService.getMember(member.memberId);
+      setMember(m);
+    } catch (e) {
+      setTrialError(nbErrorMessage(e, 'Deneme teklifi kararı değiştirilemedi.'));
+    } finally {
+      setTrialOfferBusy(false);
     }
   };
 
@@ -514,6 +538,17 @@ export default function NbMemberDetail() {
   const periodDeadline = useMemo(() => {
     if (!member) return undefined;
     if (member.status === 'APPROVED_PENDING_PAYMENT') {
+      // Deneme teklif edilmeyen üye ayrı bir durumdur: ürünü hiç kullanmadan
+      // karar veriyor. Bunu uyarıda söylemek, "neden hâlâ ödemedi" sorusunun
+      // cevabını aynı ekranda verir.
+      if (member.trialOfferAllowed === false) {
+        return {
+          title: 'Ödeme bekleniyor — deneme teklif edilmedi',
+          detail:
+            'Üye deneme düğmesi görmüyor, doğrudan ödeme ekranını görüyor. ' +
+            'Kararı değiştirmek istersen üst menüden deneme teklifini açabilirsin.',
+        };
+      }
       return {
         title: 'Ödeme bekleniyor',
         detail:
@@ -861,6 +896,23 @@ export default function NbMemberDetail() {
           >
             <ListItemIcon><CancelOutlinedIcon fontSize="small" /></ListItemIcon>
             Denemeyi sonlandır
+          </MenuItem>
+        )}
+        {/* Onayda verilen "doğrudan ödeme" kararı buradan düzeltilebilir.
+            Yanlış işaretlenen üyeyi yeniden onaya sokmak gerekmesin; ayrıca
+            ödeme penceresi dolan üyeye sonradan deneme açmanın yolu da bu. */}
+        {member.status !== 'TRIAL' && !member.trialUsed && (
+          <MenuItem
+            disabled={trialOfferBusy}
+            onClick={() => {
+              setMoreAnchor(null);
+              void handleToggleTrialOffer();
+            }}
+          >
+            <ListItemIcon><CheckCircleOutlineIcon fontSize="small" /></ListItemIcon>
+            {member.trialOfferAllowed === false
+              ? 'Deneme teklif edilebilir yap'
+              : 'Deneme teklif edilmesin (doğrudan ödeme)'}
           </MenuItem>
         )}
         <Divider />

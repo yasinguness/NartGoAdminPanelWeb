@@ -189,6 +189,14 @@ export interface NbMember {
   // Ücretsiz deneme
   trialEndsAt?: string;
   trialUsed?: boolean;
+  /**
+   * Bu üyeye ücretsiz deneme teklif edilecek mi (yönetici kararı).
+   *
+   * `trialUsed` ile karıştırma: o "hakkını kullandı", bu "ona hiç
+   * teklif etmedik". İkisi ayrı tutuluyor, yoksa deneme dönüşümü
+   * ölçülemez hâle gelir.
+   */
+  trialOfferAllowed?: boolean;
 
   /**
    * NB uygulamasını en son ne zaman açtı. null = hiç açmamış.

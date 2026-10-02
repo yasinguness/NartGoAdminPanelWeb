@@ -203,6 +203,13 @@ export default function NbVerificationDecideDialog({
   const [auditCategory, setAuditCategory] = useState('');
   const [noteBody, setNoteBody] = useState('');
   const [needsInfoItems, setNeedsInfoItems] = useState<Set<string>>(new Set());
+  /**
+   * Onayda deneme tanımlanacak mı. Varsayılan evet — bugünkü davranış.
+   *
+   * "Hayır" seçilirse oy gönderilmeden ÖNCE üyenin kaydına yazılır,
+   * çünkü onay e-postasının çerçevesi de bu karara bakıyor.
+   */
+  const [grantTrial, setGrantTrial] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -298,6 +305,13 @@ export default function NbVerificationDecideDialog({
               .join(', ')}\n${noteBody}`,
           )
         : buildAuditNote(auditCategory, noteBody);
+      // Sıra önemli: bayrak önce. Onay quorum ile tetiklenip e-posta
+      // çıktığında karar kayıtta olmalı; tersi sırada üye deneme teklif eden
+      // bir mail alır ama ekranda ödeme görür. Bayrak yazılamazsa onaya hiç
+      // geçmiyoruz — yanlış yönde başarısızlık, geri alınamaz mail demek.
+      if (vote === 'APPROVE' && !grantTrial) {
+        await nbAdminService.setTrialOffer(detail.memberId, false);
+      }
       await nbAdminService.submitCommitteeVote(detail.caseId, {
         vote,
         note: composedNote,
@@ -719,6 +733,49 @@ export default function NbVerificationDecideDialog({
                 : "Reddin gerekçesini açıkla (örn. 'Şirket web sitesi yok, sosyal hesaplar 1 hafta önce açılmış, sahtelik şüphesi')"
             }
           />
+          {vote === 'APPROVE' && (
+            <Box
+              sx={{
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
+                p: 1.5,
+              }}
+            >
+              <FormLabel
+                component="legend"
+                sx={{ fontSize: 13, mb: 1, display: 'block' }}
+              >
+                Bu üyeye ücretsiz deneme tanımlanacak mı?
+              </FormLabel>
+              <RadioCardGroup<'yes' | 'no'>
+                options={[
+                  {
+                    value: 'yes',
+                    title: 'Evet — önce ücretsiz deneme',
+                    description:
+                      'Üye fiyat görmeden tam erişim alır. Ağda olmasını istediğin, önceliği faydanın olduğu işletmeler için.',
+                  },
+                  {
+                    value: 'no',
+                    title: 'Hayır — doğrudan ödeme istensin',
+                    description:
+                      'Deneme düğmesi gösterilmez; üye ödeme ekranını ve ağın ne ürettiğini görür. Onay e-postası da ödeme çerçevesinde gider.',
+                  },
+                ]}
+                value={grantTrial ? 'yes' : 'no'}
+                onChange={(v) => setGrantTrial(v === 'yes')}
+              />
+              {!grantTrial && (
+                <Alert severity="warning" sx={{ mt: 1.5 }}>
+                  Bu üye ürünü hiç kullanmadan fiyat kararı verecek. Ödeme
+                  penceresi dolarsa APPROVED_EXPIRED'a düşer; o noktada süreyi
+                  yeniden açabilir ya da deneme tanımlayabilirsin.
+                </Alert>
+              )}
+            </Box>
+          )}
+
           {vote === 'NEEDS_INFO' && (
             <Box
               sx={{
@@ -809,6 +866,16 @@ export default function NbVerificationDecideDialog({
               { label: 'Oy', value: voteLabel },
               ...(selectedDocLabels
                 ? [{ label: 'İstenen', value: selectedDocLabels }]
+                : []),
+              // Deneme kararı son onay ekranında da yazılı: geri alınamaz bir
+              // adımın özetinde, az önce seçilen her şey tekrar görünmeli.
+              ...(vote === 'APPROVE'
+                ? [{
+                    label: 'Ücretsiz deneme',
+                    value: grantTrial
+                      ? 'Tanımlanacak'
+                      : 'Tanımlanmayacak — doğrudan ödeme istenecek',
+                  }]
                 : []),
               {
                 label: 'Sonuç',
