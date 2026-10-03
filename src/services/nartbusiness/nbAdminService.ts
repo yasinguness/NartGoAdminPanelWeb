@@ -1807,15 +1807,70 @@ export interface NbIntroduction {
  * Her tarafın göreceği bir metin olmak zorunda: ya ortak metin dolu olmalı ya
  * da iki taraf metni de yazılmalı. Sunucu bunu doğruluyor.
  */
+/** Bir tarafın teslim sonucu: uygulama bildirimi kaydedildi mi, e-posta gitti mi. */
+export interface NbIntroDelivery {
+  push: boolean;
+  email: boolean;
+}
+
+export interface NbIntroduceResult {
+  introduction: NbIntroduction;
+  /** Seçili üyeye (A) teslim. Teslim best-effort: biri düşse de kayıt kalır. */
+  deliveryA: NbIntroDelivery;
+  deliveryB: NbIntroDelivery;
+}
+
 async function createIntroduction(body: {
   memberAId: string;
   memberBId: string;
   reason?: string;
   reasonForA?: string;
   reasonForB?: string;
-}): Promise<NbIntroduction> {
+}): Promise<NbIntroduceResult> {
   const res = await api.post<any>('/nb/admin/introductions', body);
-  return unwrap<NbIntroduction>(res.data) as NbIntroduction;
+  return unwrap<NbIntroduceResult>(res.data) as NbIntroduceResult;
+}
+
+/**
+ * Eşleştirme motorunun bir aday önerisi. Puanın bileşenleri ayrı geliyor;
+ * panel bunlardan "neden önerildi" cümlesini kuruyor.
+ */
+export interface NbMatchSuggestion {
+  memberId: string;
+  displayName?: string | null;
+  companyName?: string | null;
+  logoUrl?: string | null;
+  sectorCode?: string | null;
+  city?: string | null;
+  summary?: string | null;
+  /** 0 = birebir, 2 = zıt. Benzerlik = 1 - cosineDistance / 2. */
+  cosineDistance?: number | null;
+  /** Sektörler arası tedarik ilişkisinin ağırlığı (0-1); ilişki yoksa 0. */
+  valueChainWeight?: number | null;
+  sameCity?: boolean | null;
+  verifiedBusiness?: boolean | null;
+  /** Bileşik puan (0-1 civarı). */
+  score?: number | null;
+}
+
+/** READY = öneri üretilebilir; NO_PROFILE / NO_EMBEDDING = veri eksik. */
+export type NbMatchAnchorState = 'READY' | 'NO_PROFILE' | 'NO_EMBEDDING';
+
+/**
+ * Tanıştır ekranı için: seçili üyeye eşleştirme motorunun en uygun adayları.
+ * Liste boşsa `anchorState` sebebi söyler (aday mı yok, veri mi yok).
+ */
+async function introductionSuggestions(
+  memberId: string,
+  limit = 10,
+): Promise<{ items: NbMatchSuggestion[]; anchorState: NbMatchAnchorState }> {
+  const res = await api.get<any>(`/nb/admin/directory/match/${memberId}/suggestions`, { params: { limit } });
+  return (
+    unwrap<{ items: NbMatchSuggestion[]; anchorState: NbMatchAnchorState }>(res.data) ?? {
+      items: [],
+      anchorState: 'NO_PROFILE',
+    }
+  );
 }
 
 /** Bir tarafa gönderilecek WhatsApp taslağı. */
@@ -2247,6 +2302,7 @@ export const nbAdminService = {
   createIntroduction,
   introductionDrafts,
   listIntroductions,
+  introductionSuggestions,
   updateIntroduction,
   // Deneme
   grantTrial,

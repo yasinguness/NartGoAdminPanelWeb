@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Chip,
@@ -59,7 +58,7 @@ import type {
   VerificationCase,
   VerificationDocument,
 } from '../../services/nartbusiness/nbTypes';
-import type { NbUserSearchResult, NbResendTemplate, NbMemberViewStats, NbIntroDraft } from '../../services/nartbusiness/nbAdminService';
+import type { NbUserSearchResult, NbResendTemplate, NbMemberViewStats } from '../../services/nartbusiness/nbAdminService';
 import {
   fullDate,
   monthsBetween,
@@ -97,6 +96,8 @@ import { nbAuditService } from '../../services/nartbusiness/nbAuditService';
 import type { NbAuditRow } from '../../services/nartbusiness/nbAuditService';
 import { actionLabel, outcomeLabel } from './nbAuditLabels';
 import NbMemberEmailDialog from './NbMemberEmailDialog';
+import NbIntroduceDrawer from './NbIntroduceDrawer';
+import NbMemberIntroductionsTab from './NbMemberIntroductionsTab';
 
 /**
  * Sprint 24 — Üye detay sayfası. Liste tablosundan satıra tıklayınca açılır.
@@ -117,13 +118,14 @@ import NbMemberEmailDialog from './NbMemberEmailDialog';
  * (Üyelik & Ödeme), sonra kanıt (Kimlik & Belgeler), en sonda ne yaptığı
  * (Aktivite). Yönetici en sık ilk ikisine bakar.
  */
-type DetailTab = 'general' | 'membership' | 'identity' | 'activity';
+type DetailTab = 'general' | 'membership' | 'identity' | 'activity' | 'introductions';
 
 const DETAIL_TABS: NbTabItem<DetailTab>[] = [
   { key: 'general', label: 'Genel' },
   { key: 'membership', label: 'Üyelik & Ödeme' },
   { key: 'identity', label: 'Kimlik & Belgeler' },
   { key: 'activity', label: 'Aktivite' },
+  { key: 'introductions', label: 'Tanıştırmalar' },
 ];
 
 /**
@@ -332,51 +334,11 @@ export default function NbMemberDetail() {
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
 
-  // Tanıştır — iki üyeye bildirim + e-posta; kayıt "Tanıştırmalar"a düşer.
+  // Tanıştır (v2) — yan panel: öneri + arama + karşılaştırma + mesaj.
   const [introOpen, setIntroOpen] = useState(false);
-  const [introOptions, setIntroOptions] = useState<NbMember[]>([]);
-  const [introLoading, setIntroLoading] = useState(false);
-  const [introTarget, setIntroTarget] = useState<NbMember | null>(null);
-  const [introReason, setIntroReason] = useState('');
-  /* Tarafa özel metin — boşsa ortak metne düşer. Tanıştırma mesajı doğası
-     gereği taraflı: "sizin de Kocaeli merkezli EPC firmanız var" cümlesi
-     yalnız bir tarafa anlamlı. */
-  const [introReasonA, setIntroReasonA] = useState('');
-  const [introReasonB, setIntroReasonB] = useState('');
-  const [introPerSide, setIntroPerSide] = useState(false);
-  const [introBusy, setIntroBusy] = useState(false);
-  const [introError, setIntroError] = useState<string | null>(null);
-  /* WhatsApp taslakları — gönderimden bağımsız üretilir, çünkü admin mesajı
-     kendi yolluyor ve kayıt açmadan da taslağa bakmak isteyebilir. */
-  const [introDrafts, setIntroDrafts] = useState<{ a: NbIntroDraft; b: NbIntroDraft } | null>(null);
-  const [introDraftBusy, setIntroDraftBusy] = useState(false);
+  /** Yeni tanıştırma sonrası "Tanıştırmalar" sekmesini tazeler. */
+  const [introRefresh, setIntroRefresh] = useState(0);
 
-  // Tanıştırılabilir üyeler: aktif + deneme (kendisi hariç).
-  const openIntroDialog = async () => {
-    setIntroTarget(null);
-    setIntroReason('');
-    setIntroReasonA('');
-    setIntroReasonB('');
-    setIntroPerSide(false);
-    setIntroDrafts(null);
-    setIntroError(null);
-    setIntroOpen(true);
-    setIntroLoading(true);
-    try {
-      const [active, trial] = await Promise.all([
-        nbAdminService.listMembers({ status: 'ACTIVE', page: 0, size: 200 }),
-        nbAdminService.listMembers({ status: 'TRIAL', page: 0, size: 200 }),
-      ]);
-      const all = [...(active?.content ?? []), ...(trial?.content ?? [])].filter(
-        (m) => m.memberId !== memberId,
-      );
-      setIntroOptions(all);
-    } catch {
-      setIntroOptions([]);
-    } finally {
-      setIntroLoading(false);
-    }
-  };
   /** Yazma işlemi sonrası 10 sn'lik kutu — engelleyici `alert` yerine. */
   const [undo, setUndo] = useState<NbUndoState | null>(null);
 
@@ -808,7 +770,7 @@ export default function NbMemberDetail() {
               disableElevation
               startIcon={<HandshakeOutlinedIcon />}
               sx={nbSecondaryBtn}
-              onClick={() => void openIntroDialog()}
+              onClick={() => setIntroOpen(true)}
             >
               Tanıştır
             </Button>
@@ -1311,6 +1273,14 @@ export default function NbMemberDetail() {
             </>
           )}
 
+          {tab === 'introductions' && member && (
+            <NbMemberIntroductionsTab
+              memberId={member.memberId}
+              onIntroduce={() => setIntroOpen(true)}
+              refreshKey={introRefresh}
+            />
+          )}
+
           {tab === 'activity' && (
             <>
           <NbSectionPaper title="Görüntülenme — İşletme Profili">
@@ -1769,214 +1739,18 @@ export default function NbMemberDetail() {
         </DialogActions>
       </Dialog>
 
-      {/* Tanıştır — iki üyeye bildirim + e-posta, kayıt Tanıştırmalar'a düşer */}
-      <Dialog open={introOpen} onClose={() => !introBusy && setIntroOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>
-          Üye Tanıştır
-          <Typography variant="body2" color="text.secondary">
-            {member?.companyName} ↔ seçeceğiniz üye. İki tarafa bildirim ve e-posta gider;
-            WhatsApp'tan göndermek istersen aşağıdan taslak üretebilirsin.
-          </Typography>
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            {introError && <Alert severity="error">{introError}</Alert>}
-            <Autocomplete
-              options={introOptions}
-              loading={introLoading}
-              value={introTarget}
-              onChange={(_, v) => setIntroTarget(v)}
-              getOptionLabel={(o) => o.companyName ?? o.memberId}
-              isOptionEqualToValue={(o, v) => o.memberId === v.memberId}
-              renderInput={(params) => (
-                <TextField {...params} label="Tanıştırılacak üye" placeholder="Şirket adıyla ara…" />
-              )}
-              disabled={introBusy}
-            />
-            <TextField
-              label={introPerSide ? 'Ortak metin (opsiyonel)' : 'Tanıştırma metni'}
-              placeholder='Örn. "Taşeronluk iş birliği potansiyeli, ikisi de inşaat sektöründe."'
-              value={introReason}
-              onChange={(e) => setIntroReason(e.target.value)}
-              disabled={introBusy}
-              fullWidth
-              multiline
-              minRows={3}
-              helperText={
-                introPerSide
-                  ? 'Tarafa özel metni boş bırakırsan o taraf bu metni görür.'
-                  : 'Bu metin iki tarafa da aynen gösterilir.'
-              }
-            />
-
-            {/* Tarafa özel metin: tanıştırma mesajı doğası gereği taraflı.
-                "Sizin de Kocaeli merkezli güçlü bir EPC firmanız olduğunu
-                biliyorum" cümlesi yalnız bir tarafa anlamlı; tek metin
-                zorunluyken ekip ya genel yazmak ya da panelden çıkmak
-                zorunda kalıyordu. */}
-            <Button
-              size="small"
-              onClick={() => setIntroPerSide((v) => !v)}
-              disabled={introBusy}
-              sx={{ alignSelf: 'flex-start', textTransform: 'none', fontSize: 12.5 }}
-            >
-              {introPerSide ? 'Tarafa özel metni kapat' : 'Her tarafa ayrı metin yaz'}
-            </Button>
-
-            {introPerSide && (
-              <>
-                <TextField
-                  label={`${member?.companyName ?? 'Bu üye'} görecek`}
-                  value={introReasonA}
-                  onChange={(e) => setIntroReasonA(e.target.value)}
-                  disabled={introBusy}
-                  fullWidth
-                  multiline
-                  minRows={3}
-                />
-                <TextField
-                  label={`${introTarget?.companyName ?? 'Karşı taraf'} görecek`}
-                  value={introReasonB}
-                  onChange={(e) => setIntroReasonB(e.target.value)}
-                  disabled={introBusy}
-                  fullWidth
-                  multiline
-                  minRows={3}
-                />
-              </>
-            )}
-
-            {/* WhatsApp: kaydı açmadan da taslağa bakılabilir, çünkü mesajı
-                admin kendi gönderiyor. Metin hazır gelir ama otomatik
-                gönderilmez. */}
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={introBusy || introDraftBusy || !introTarget}
-                onClick={async () => {
-                  if (!member || !introTarget) return;
-                  setIntroDraftBusy(true);
-                  setIntroError(null);
-                  try {
-                    setIntroDrafts(
-                      await nbAdminService.introductionDrafts({
-                        memberAId: member.memberId,
-                        memberBId: introTarget.memberId,
-                        reason: introReason.trim() || undefined,
-                        reasonForA: introPerSide ? introReasonA.trim() || undefined : undefined,
-                        reasonForB: introPerSide ? introReasonB.trim() || undefined : undefined,
-                      }),
-                    );
-                  } catch (e) {
-                    setIntroError(nbErrorMessage(e, 'Taslak üretilemedi.'));
-                  } finally {
-                    setIntroDraftBusy(false);
-                  }
-                }}
-                sx={{ textTransform: 'none' }}
-              >
-                {introDraftBusy ? 'Hazırlanıyor…' : 'WhatsApp taslağı üret'}
-              </Button>
-              <Typography variant="caption" color="text.secondary">
-                Mesajı sen gönderirsin; bu düğme kayıt açmaz.
-              </Typography>
-            </Stack>
-
-            {introDrafts && (
-              <Stack spacing={1.25}>
-                {[introDrafts.a, introDrafts.b].map((d) => {
-                  const wa = nbWhatsAppLink(d.phone, d.draft);
-                  return (
-                    <Box
-                      key={d.memberId}
-                      sx={{ bgcolor: nb.inputBg, borderRadius: '10px', p: 1.5 }}
-                    >
-                      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
-                        <Typography sx={{ fontSize: 12.5, fontWeight: 600, flex: 1 }} noWrap>
-                          {d.memberName ?? 'Üye'}
-                        </Typography>
-                        <Button
-                          size="small"
-                          onClick={() => void navigator.clipboard?.writeText(d.draft)}
-                          sx={{ textTransform: 'none', fontSize: 12 }}
-                        >
-                          Kopyala
-                        </Button>
-                        {wa ? (
-                          <Button
-                            size="small"
-                            component="a"
-                            href={wa}
-                            target="_blank"
-                            rel="noreferrer"
-                            sx={{ textTransform: 'none', fontSize: 12 }}
-                          >
-                            WhatsApp'ta aç
-                          </Button>
-                        ) : (
-                          // Numarası yok: bağlantı kuramayız. Çalışmayan bir
-                          // düğme çizmek yerine sebebi yazılı.
-                          <Typography sx={{ fontSize: 11, color: nb.amber }}>
-                            Numarası kayıtlı değil
-                          </Typography>
-                        )}
-                      </Stack>
-                      <Typography sx={{ fontSize: 11.5, whiteSpace: 'pre-wrap' }}>
-                        {d.draft}
-                      </Typography>
-                    </Box>
-                  );
-                })}
-              </Stack>
-            )}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIntroOpen(false)} disabled={introBusy}>
-            Vazgeç
-          </Button>
-          <Button
-            variant="contained"
-            disabled={
-              introBusy ||
-              !introTarget ||
-              // Her tarafın göreceği bir metin olmak zorunda: ortak metin ya
-              // dolu olmalı ya da iki taraf metni de yazılmalı. Sunucu da
-              // aynı kuralı doğruluyor.
-              (!introReason.trim() &&
-                !(introPerSide && introReasonA.trim() && introReasonB.trim()))
-            }
-            onClick={async () => {
-              if (!member || !introTarget) return;
-              setIntroBusy(true);
-              setIntroError(null);
-              try {
-                await nbAdminService.createIntroduction({
-                  memberAId: member.memberId,
-                  memberBId: introTarget.memberId,
-                  reason: introReason.trim() || undefined,
-                  reasonForA: introPerSide ? introReasonA.trim() || undefined : undefined,
-                  reasonForB: introPerSide ? introReasonB.trim() || undefined : undefined,
-                });
-                setIntroOpen(false);
-                setUndo({
-                  message:
-                    'Tanıştırma iletildi, iki tarafa bildirim gitti. Takip: Tanıştırmalar ekranı.',
-                });
-              } catch (e) {
-                setIntroError(
-                  nbErrorMessage(e, 'Tanıştırma gönderilemedi.'),
-                );
-              } finally {
-                setIntroBusy(false);
-              }
-            }}
-          >
-            {introBusy ? 'Gönderiliyor…' : 'Tanıştır'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Tanıştır (v2) — öneri, arama, yan yana karşılaştırma, taraflı metin,
+          önizleme ve taraf taraf teslim sonucu. Kayıt Tanıştırmalar'a düşer. */}
+      <NbIntroduceDrawer
+        open={introOpen}
+        onClose={() => setIntroOpen(false)}
+        member={member}
+        sectors={sectors}
+        onDone={(message) => {
+          setUndo({ message });
+          setIntroRefresh((n) => n + 1);
+        }}
+      />
     </Box>
   );
 }
