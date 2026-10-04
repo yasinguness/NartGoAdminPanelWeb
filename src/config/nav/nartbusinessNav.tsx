@@ -87,6 +87,7 @@ export const nartbusinessNavSections: NavSection[] = [
     {
         title: 'Ticaret & Fırsatlar',
         items: [
+            { text: 'İhtiyaç Formları', icon: <ListingIcon />, path: '/nartbusiness/need-intakes', allowedRoles: NB_MANAGE },
             { text: 'İlanlar (Talep/Arz)', icon: <ListingIcon />, path: '/nartbusiness/listings', allowedRoles: NB_MODERATE },
             { text: 'İhaleler', icon: <TenderIcon />, path: '/nartbusiness/tenders', allowedRoles: NB_MANAGE },
             { text: 'Pozisyon İlanları', icon: <JobIcon />, path: '/nartbusiness/jobs', allowedRoles: NB_MODERATE },

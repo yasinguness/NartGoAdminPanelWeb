@@ -115,6 +115,7 @@ const NbMarketOpinions = lazy(() => import('./pages/NartBusiness/NbMarketOpinion
 const NbMarketNews = lazy(() => import('./pages/NartBusiness/NbMarketNews'));
 const NbJobModeration = lazy(() => import('./pages/NartBusiness/NbJobModeration'));
 const NbListingModeration = lazy(() => import('./pages/NartBusiness/NbListingModeration'));
+const NbNeedIntakes = lazy(() => import('./pages/NartBusiness/NbNeedIntakes'));
 const NbListingReferrals = lazy(() => import('./pages/NartBusiness/NbListingReferrals'));
 const NbReferralModeration = lazy(() => import('./pages/NartBusiness/NbReferralModeration'));
 const NbQuestionModeration = lazy(() => import('./pages/NartBusiness/NbQuestionModeration'));
@@ -266,6 +267,7 @@ function App() {
                 <Route path="nartbusiness/market-news" element={<NbMarketNews />} />
                 <Route path="nartbusiness/jobs" element={<NbJobModeration />} />
                 <Route path="nartbusiness/listings" element={<NbListingModeration />} />
+                <Route path="nartbusiness/need-intakes" element={<NbNeedIntakes />} />
                 <Route path="nartbusiness/listing-referrals" element={<NbListingReferrals />} />
                 <Route path="nartbusiness/referrals" element={<NbReferralModeration />} />
                 <Route path="nartbusiness/questions" element={<NbQuestionModeration />} />

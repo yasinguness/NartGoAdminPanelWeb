@@ -177,6 +177,7 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   { path: '/nartbusiness/tenders', roles: NB, description: 'İhaleler' },
   { path: '/nartbusiness/market-news', roles: NB, description: 'Piyasa haberleri' },
   { path: '/nartbusiness/listings', roles: NB, description: 'İlanlar (talep/arz)' },
+  { path: '/nartbusiness/need-intakes', roles: [ROLES.ADMIN, ROLES.NB_ADMIN, ROLES.NB_CO_ADMIN], description: 'İhtiyaç formları' },
   { path: '/nartbusiness/referrals', roles: NB, description: 'Yönlendirmeler' },
   { path: '/nartbusiness/questions', roles: NB, description: 'Topluluk soruları' },
   { path: '/nartbusiness/jobs', roles: NB, description: 'Pozisyon ilanları' },
