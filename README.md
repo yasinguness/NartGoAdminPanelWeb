@@ -72,6 +72,17 @@ A modern admin panel for managing users, devices, and notifications in the Xeku 
    npm run build
    ```
 
+## Build ve Deploy
+
+```bash
+./deploy.sh
+```
+
+Script gerekli olduğunda bağımlılıkları `npm ci` ile kurar, TypeScript kontrolü
+ve production build çalıştırır, ardından `dist/` dosyalarını `/var/www/admin/`
+dizinine aktarır. Hedef dizine yazma yetkisi gerekir. Uygulama `/admin/` yolunda
+yayınlanır. Açık oturumların çalışmaya devam etmesi için eski asset dosyaları korunur.
+
 ## Project Structure
 
 ```

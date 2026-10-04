@@ -24,6 +24,8 @@ export const nbIntakeService = {
   async reject(id: string, note: string) { await api.post(`${base}/${id}/reject`, { note }); },
   async revoke(id: string) { await api.post(`${base}/${id}/revoke`); },
   async resultLink(id: string) { return (await api.post(`${base}/${id}/result-link`)).data.data as IntakeLink; },
+  /** Baglantiyi uyenin kayitli e-postasina gonderir. Adres yoksa uc 404 doner. */
+  async emailLink(id: string, url: string, message: string) { await api.post(`${base}/${id}/email-link`, { url, message }); },
   async completeContacts(id: string, note: string) { await api.post(`${base}/${id}/contacts/complete`, { note }); },
   async contacts(id: string) { return (await api.get(`${base}/${id}/contacts`)).data.data as IntakeContact[]; },
 };
