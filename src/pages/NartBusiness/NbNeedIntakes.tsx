@@ -10,6 +10,23 @@ const labels: Record<string,string> = { INVITED: 'Yanıt bekleniyor', PENDING: '
   ACKNOWLEDGED: 'Şimdilik ihtiyaç yok', APPROVED: 'Yayımlandı', REJECTED: 'Yayımlanmadı' };
 const times: Record<string,string> = { WITHIN_7_DAYS: '7 gün içinde', WITHIN_30_DAYS: '30 gün içinde', WITHIN_60_DAYS: '60 gün içinde', FLEXIBLE: 'Esnek' };
 const date = (v?: string) => v ? new Date(v).toLocaleString('tr-TR') : '—';
+/** Kisa tarih: "4 Eki 18:32". Liste taranirken tam zaman damgasi gurultu yapiyor. */
+const shortDate = (v?: string) => v
+  ? new Date(v).toLocaleString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})
+  : '—';
+/** "3 gun once" — admin "ne zaman yanit verdi" sorusunu takvim hesabi yapmadan gormeli. */
+const rel = (v?: string) => {
+  if (!v) return '';
+  const diff = Date.now() - new Date(v).getTime();
+  const d = Math.floor(diff/86400000), h = Math.floor(diff/3600000), m = Math.floor(diff/60000);
+  if (d > 0) return `${d} gün önce`;
+  if (h > 0) return `${h} saat önce`;
+  return m > 0 ? `${m} dk önce` : 'az önce';
+};
+/** Durumun rengi: bekleyen is sari, biten yesil, olumsuz gri. */
+const statusColor: Record<string,'default'|'warning'|'success'|'info'> = {
+  INVITED: 'info', PENDING: 'warning', ACKNOWLEDGED: 'default',
+  APPROVED: 'success', REJECTED: 'default' };
 export default function NbNeedIntakes() {
   const [rows,setRows] = useState<IntakeRow[]>([]);
   const [status,setStatus] = useState('PENDING');
@@ -22,6 +39,7 @@ export default function NbNeedIntakes() {
   const [busy,setBusy] = useState(false);
   const [query,setQuery] = useState('');
   const [members,setMembers] = useState<NbMember[]>([]);
+  const [memberTotal,setMemberTotal] = useState(0);
   const [member,setMember] = useState<NbMember | null>(null);
   const [validDays,setValidDays] = useState(14);
   const [sectors,setSectors] = useState<Sector[]>([]);
@@ -31,7 +49,8 @@ export default function NbNeedIntakes() {
   const [note,setNote] = useState('');
   const [contacts,setContacts] = useState<IntakeContact[]>([]);
   // WhatsApp dugmesi dogrudan uyenin sohbetine gitsin diye numarayi da tasiyoruz.
-  // Liste ucu numara dondurmuyor; baglanti uretilirken ayrica cekiliyor.
+  // Liste ucu numara dondurmuyor; baglanti uretilirken uc kaynaktan cozuluyor
+  // (bkz. nbAdminService.resolveMemberPhone).
   const [link,setLink] = useState<(IntakeLink & { result: boolean; memberLabel: string; phone: string | null }) | null>(null);
   /**
    * Uyenin kayitli numarasi. Alinamazsa null doner ve baglanti yine gosterilir:
@@ -39,7 +58,7 @@ export default function NbNeedIntakes() {
    * baglanti diyalogunu hic acmamak kotu bir takas olurdu.
    */
   const memberPhone = async (memberId: string): Promise<string | null> => {
-    try { return (await nbAdminService.getMember(memberId))?.phoneNumber?.toString().trim() || null; }
+    try { return await nbAdminService.resolveMemberPhone(memberId); }
     catch { return null; }
   };
   const load = useCallback(async () => {
@@ -51,8 +70,19 @@ export default function NbNeedIntakes() {
   useEffect(() => {
     let active = true;
     const timer = setTimeout(() => {
-      nbAdminService.listMembers({q:query,page:0,size:50}).then(p => {
-        if (active) setMembers((p?.content || []).filter(m => m.status === 'ACTIVE' || m.status === 'TRIAL'));
+      // size 50 iken listede 69 uygun uyenin yalnizca bir kismi gorunuyordu:
+      // sunucu ilk 50 kaydi doner, durum filtresi ONDAN SONRA uygulanir, yani
+      // uygun uyeler sayfa disinda kalip "listede yok" olur (YMM Kudret, Nart
+      // Reklam, Woshe boyle kayboldu). Arama sunucuda calistigi icin buyuk
+      // sayfa yalnizca "bos arama" durumunu kurtarmak icin; kadro buyurse
+      // toplam sayi asagida gosteriliyor, kirpilma gorunur olur.
+      nbAdminService.listMembers({q:query,page:0,size:200}).then(p => {
+        // Backend daveti yalnizca ACTIVE/TRIAL'a veriyor (NeedIntakeService.eligible);
+        // digerlerini listelemek secilince hata veren bir secenek yaratirdi.
+        if (active) {
+          setMembers((p?.content || []).filter(m => m.status === 'ACTIVE' || m.status === 'TRIAL'));
+          setMemberTotal(p?.totalElements ?? 0);
+        }
       }).catch(e => { if(active) setError(nbErrorMessage(e)); });
     },300);
     return () => { active=false; clearTimeout(timer); };
@@ -89,7 +119,8 @@ export default function NbNeedIntakes() {
         <Autocomplete sx={{flex:1,minWidth:240}} options={members} value={member} filterOptions={x=>x}
           isOptionEqualToValue={(a,b)=>a.memberId===b.memberId} onChange={(_,value)=>setMember(value)}
           onInputChange={(_,value)=>setQuery(value)} getOptionLabel={m=>`${m.companyName || m.displayName || m.memberId} · ${m.status}`}
-          renderInput={params=><TextField {...params} label="Aktif / deneme üyesi ara" size="small" />} />
+          renderInput={params=><TextField {...params} label={`Aktif / deneme üyesi ara (${members.length} yüklü)`} size="small"
+            helperText={memberTotal>200 ? `${memberTotal} üyeden ilk 200'ü yüklendi — aramayı daraltın` : ' '} />} />
         <TextField label="Geçerlilik (gün)" type="number" size="small" value={validDays} inputProps={{min:1,max:60}} onChange={e=>setValidDays(Number(e.target.value))} sx={{width:150}} />
         <Button variant="contained" disabled={busy || !member || validDays<1 || validDays>60 || !Number.isInteger(validDays)} onClick={()=>run(async()=>{
           const value=await nbIntakeService.invite(member!.memberId,validDays); setLink({...value,result:false,memberLabel:member!.companyName || member!.displayName || member!.memberId,phone:await memberPhone(member!.memberId)});
@@ -101,20 +132,46 @@ export default function NbNeedIntakes() {
       <TextField select size="small" label="Durum" value={status} onChange={e=>{setStatus(e.target.value);setPage(0);}} sx={{minWidth:230}}><MenuItem value="">Tümü</MenuItem>{Object.entries(labels).map(([key,label])=><MenuItem key={key} value={key}>{label}</MenuItem>)}</TextField>
       <FormControlLabel control={<Checkbox checked={contactsOnly} onChange={e=>{setContactsOnly(e.target.checked);setStatus(e.target.checked ? "APPROVED" : "PENDING");setPage(0);}} />} label="Bekleyen görüşmeler" /><Button disabled={busy} onClick={()=>run(async()=>{})}>Yenile</Button><Typography variant="body2">{total} kayıt</Typography>
     </Stack>
-    <Stack spacing={2}>{rows.length===0 && <Alert severity="info">Bu filtrede kayıt yok.</Alert>}{rows.map(row=><Paper variant="outlined" key={row.id} sx={{p:2}}>
+    <Stack spacing={1.5}>{rows.length===0 && <Paper variant="outlined" sx={{p:4,textAlign:'center'}}>
+      <Typography color="text.secondary">Bu filtrede kayıt yok.</Typography>
+      <Typography variant="caption" color="text.disabled">Yukarıdan bir üye seçip bağlantı oluşturabilirsiniz.</Typography>
+    </Paper>}{rows.map(row=>{
+      const expired = !row.revoked && new Date(row.expiresAt) < new Date();
+      // Dikkat isteyen satir kenarindan belli olsun: admin listeyi yukaridan
+      // asagi tariyor, rengi okumak metni okumaktan hizli.
+      const accent = row.revoked ? 'divider'
+        : row.contactPending ? 'warning.main'
+        : row.status==='PENDING' ? 'warning.main'
+        : row.status==='APPROVED' ? 'success.main' : 'divider';
+      return <Paper variant="outlined" key={row.id}
+        sx={{p:2, borderLeft:3, borderLeftColor:accent, transition:'background-color .15s',
+             '&:hover':{bgcolor:'action.hover'}}}>
       <Stack direction={{xs:'column',sm:'row'}} justifyContent="space-between" spacing={2}>
-        <Box><Typography fontWeight={600}>{row.memberLabel || row.memberId}</Typography>
-          <Typography variant="body2" color="text.secondary">Oluşturma: {date(row.createdAt)} · Yanıt: {date(row.submittedAt)}</Typography>
-          <Typography variant="caption">Sorumlu yönetici: {row.assignedTo}</Typography>
-          <Stack direction="row" spacing={1} sx={{mt:1}} flexWrap="wrap"><Chip size="small" label={row.revoked ? 'Bağlantılar iptal edildi' : labels[row.status]} />{!row.revoked && new Date(row.expiresAt)<new Date() && <Chip size="small" label="Form süresi dolmuş" />}{row.contactQuoteIds.length>0 && <Chip color={row.contactPending ? "warning" : "default"} size="small" label={row.contactPending ? `${row.contactQuoteIds.length} görüşme isteği` : "Görüşmeler takip edildi"} />}</Stack>
+        <Box sx={{minWidth:0}}>
+          <Typography fontWeight={600} sx={{overflowWrap:'anywhere'}}>{row.memberLabel || row.memberId}</Typography>
+          <Stack direction="row" spacing={1} sx={{mt:0.75}} flexWrap="wrap" useFlexGap>
+            <Chip size="small" color={row.revoked ? 'default' : (statusColor[row.status] || 'default')}
+              variant={row.revoked ? 'outlined' : 'filled'}
+              label={row.revoked ? 'Bağlantılar iptal edildi' : labels[row.status]} />
+            {expired && <Chip size="small" variant="outlined" label="Form süresi dolmuş" />}
+            {row.contactQuoteIds.length>0 && <Chip color={row.contactPending ? 'warning' : 'success'}
+              variant={row.contactPending ? 'filled' : 'outlined'} size="small"
+              label={row.contactPending ? `${row.contactQuoteIds.length} görüşme isteği` : 'Görüşmeler takip edildi'} />}
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{mt:1}}>
+            Oluşturma {shortDate(row.createdAt)}
+            {row.submittedAt
+              ? <> · Yanıt {shortDate(row.submittedAt)} <Box component="span" sx={{color:'text.disabled'}}>({rel(row.submittedAt)})</Box></>
+              : <Box component="span" sx={{color:'text.disabled'}}> · yanıt bekleniyor</Box>}
+          </Typography>
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap"><Button disabled={busy} onClick={()=>inspect(row)}>İncele</Button>
           {row.status==='APPROVED' && !row.revoked && <Button disabled={busy} onClick={()=>{if(window.confirm('Yeni sonuç bağlantısı önceki sonuç bağlantısını geçersiz kılar. Devam edilsin mi?')) void run(async()=>setLink({...await nbIntakeService.resultLink(row.id),result:true,memberLabel:row.memberLabel || row.memberId,phone:await memberPhone(row.memberId)}));}}>Sonuç bağlantısı</Button>}
           {!row.revoked && <Button color="error" disabled={busy} onClick={()=>{if(window.confirm('Form ve sonuç bağlantıları iptal edilecek. Yayımlanan ilanlar açık kalır. Devam edilsin mi?')) void run(async()=>{await nbIntakeService.revoke(row.id);});}}>Bağlantıları iptal et</Button>}
         </Stack>
       </Stack>
-    </Paper>)}</Stack>
-    <Stack direction="row" spacing={2} sx={{mt:2}}><Button disabled={busy || page===0} onClick={()=>setPage(p=>p-1)}>Önceki</Button><Typography sx={{py:1}}>{page+1} / {Math.max(1,totalPages)}</Typography><Button disabled={busy || page+1>=totalPages} onClick={()=>setPage(p=>p+1)}>Sonraki</Button></Stack>
+    </Paper>;})}</Stack>
+    <Stack direction="row" spacing={2} sx={{mt:3}} alignItems="center" justifyContent="center"><Button disabled={busy || page===0} onClick={()=>setPage(p=>p-1)}>Önceki</Button><Typography sx={{py:1}}>{page+1} / {Math.max(1,totalPages)}</Typography><Button disabled={busy || page+1>=totalPages} onClick={()=>setPage(p=>p+1)}>Sonraki</Button></Stack>
     <Dialog open={!!review} onClose={()=>{if(!busy)setReview(null);}} fullWidth maxWidth="sm"><DialogTitle>{review?.memberLabel || 'Form yanıtı'}</DialogTitle><DialogContent>
       <Typography variant="body2" sx={{mb:2}}>Kişisel bağlantı iletilebilir. Yayınlamadan önce yanıtı üyenin kayıtlı iletişim kanalından teyit edin.</Typography>
       {review?.items?.map((item,index)=><Box key={item.type} sx={{py:2,borderBottom:1,borderColor:'divider'}}>

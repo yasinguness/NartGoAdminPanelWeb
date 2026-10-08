@@ -40,6 +40,12 @@ import {
     Login as LoginIcon,
     ReportProblem as DlqIcon,
     Settings as SettingsIcon,
+    HourglassBottom as TrialIcon,
+    PlaylistAddCheck as ShortlistIcon,
+    Tune as OpsSettingsIcon,
+    Autorenew as BillingIcon,
+    MarkEmailRead as DigestIcon,
+    TrendingUp as ConversionIcon,
 } from '@mui/icons-material';
 import type { NavSection } from './types';
 
@@ -57,6 +63,7 @@ export const nartbusinessNavSections: NavSection[] = [
             // cevaplar: denemeyi/fiyatı değiştirmeli miyiz. Ayrı duruyor ki o
             // soru günlük gürültünün içinde kaybolmasın.
             { text: 'Karar Panosu', icon: <DecisionIcon />, path: '/nartbusiness/decision-board', allowedRoles: NB_MANAGE },
+            { text: 'Dönüşüm Panosu', icon: <ConversionIcon />, path: '/nartbusiness/conversion-board', allowedRoles: NB_MANAGE },
             // Karar panosu teşhis, duyuru tedavi: 71 üyenin 56'sında kayıtlı
             // cihaz yok, yani bu kitleye ulaşmanın yolu e-posta. İkisi yan yana
             // duruyor ki "kimse açmamış" sayısını gören kişi ne yapacağını
@@ -68,9 +75,11 @@ export const nartbusinessNavSections: NavSection[] = [
         title: 'Üyelik',
         items: [
             { text: 'Üyeler', icon: <MembersIcon />, path: '/nartbusiness/members' },
+            { text: 'Deneme Takibi', icon: <TrialIcon />, path: '/nartbusiness/trial-center', allowedRoles: NB_MODERATE },
             { text: 'Doğrulama Kuyruğu', icon: <VerificationIcon />, path: '/nartbusiness/verification' },
             { text: 'Belge Politikaları', icon: <PolicyIcon />, path: '/nartbusiness/verification-policies', allowedRoles: NB_MANAGE },
             { text: 'Üyelik Tipleri', icon: <TierIcon />, path: '/nartbusiness/tiers', allowedRoles: NB_MANAGE },
+            { text: 'Abonelik & Planlar', icon: <BillingIcon />, path: '/nartbusiness/billing', allowedRoles: NB_MANAGE },
             { text: 'Kurumlar', icon: <PartnerOrgIcon />, path: '/nartbusiness/partner-orgs', allowedRoles: NB_MANAGE },
         ],
     },
@@ -90,6 +99,8 @@ export const nartbusinessNavSections: NavSection[] = [
             { text: 'İhtiyaç Formları', icon: <ListingIcon />, path: '/nartbusiness/need-intakes', allowedRoles: NB_MANAGE },
             { text: 'İlanlar (Talep/Arz)', icon: <ListingIcon />, path: '/nartbusiness/listings', allowedRoles: NB_MODERATE },
             { text: 'İhaleler', icon: <TenderIcon />, path: '/nartbusiness/tenders', allowedRoles: NB_MANAGE },
+            { text: 'Haftalık İhale Seçkisi', icon: <ShortlistIcon />, path: '/nartbusiness/weekly-shortlist', allowedRoles: NB_MANAGE },
+            { text: 'Haftalık Bülten', icon: <DigestIcon />, path: '/nartbusiness/weekly-digest', allowedRoles: NB_MANAGE },
             { text: 'Pozisyon İlanları', icon: <JobIcon />, path: '/nartbusiness/jobs', allowedRoles: NB_MODERATE },
             { text: 'Tanıştırmalar', icon: <IntroductionIcon />, path: '/nartbusiness/introductions', allowedRoles: NB_MANAGE },
             // Üç ayrı yönlendirme var ve üçü farklı iş: ihale bildirimlerinin
@@ -121,6 +132,7 @@ export const nartbusinessNavSections: NavSection[] = [
             { text: 'E-posta Kayıtları', icon: <EmailIcon />, path: '/nartbusiness/email-logs', allowedRoles: NB_MANAGE },
             { text: 'Giriş Kayıtları', icon: <LoginIcon />, path: '/nartbusiness/login-logs', allowedRoles: NB_MANAGE },
             { text: 'Başarısız Mesajlar', icon: <DlqIcon />, path: '/nartbusiness/dlq', allowedRoles: NB_MANAGE },
+            { text: 'Operasyon Ayarları', icon: <OpsSettingsIcon />, path: '/nartbusiness/ops-settings', allowedRoles: NB_MANAGE },
             { text: 'Ayarlar', icon: <SettingsIcon />, path: '/settings' },
         ],
     },

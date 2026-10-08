@@ -174,6 +174,9 @@ export interface AdminUpdateDirectoryProfileRequest {
 export interface NbMember {
   memberId: string;
   userId: string;
+  /** Basvuru formundan gelen telefon (phoneCode + gsmNo birlesik). Backend
+   *  MemberView'da bu adla gonderiyor; `phoneNumber` DEGIL. */
+  submittedPhone?: string;
   tier: MembershipTier;
   /** Üye tipi: BUSINESS (işletme) | PROFESSIONAL (kurumda karar verici). */
   memberType?: 'BUSINESS' | 'PROFESSIONAL';

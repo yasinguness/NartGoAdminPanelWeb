@@ -81,12 +81,15 @@ export default function NbIntroduceDrawer({
   member,
   sectors,
   onDone,
+  initialPartner,
 }: {
   open: boolean;
   onClose: () => void;
   member: NbMember | null;
   sectors: Sector[];
   onDone: (message: string) => void;
+  /** Fırsatlar sekmesinden gelince: önerilen karşı taraf seçili açılır, admin değiştirebilir. */
+  initialPartner?: NbMatchSuggestion | null;
 }) {
   const sectorName = (code?: string | null) =>
     code ? sectors.find((s) => s.code === code)?.nameTr ?? code : null;
@@ -166,9 +169,20 @@ export default function NbIntroduceDrawer({
         setLoadError('Öneriler alınamadı; aramayla seçebilirsin.');
       }
       setAHistory(hist.status === 'fulfilled' ? hist.value.items : []);
+      if (initialPartner) {
+        setTarget({
+          memberId: initialPartner.memberId,
+          companyName: initialPartner.companyName || initialPartner.displayName || 'Üye',
+          logoUrl: initialPartner.logoUrl,
+          sectorCode: initialPartner.sectorCode,
+          city: initialPartner.city,
+          member: map.get(initialPartner.memberId),
+          suggestion: initialPartner,
+        });
+      }
       setLoading(false);
     });
-  }, [open, memberId]);
+  }, [open, memberId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sunucu araması — 300 ms gecikmeli, ACTIVE + TRIAL.
   useEffect(() => {

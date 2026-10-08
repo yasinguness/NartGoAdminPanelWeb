@@ -19,6 +19,7 @@ export interface AdminBadgeCounts {
   '/nartbusiness/moderation': number;
   '/nartbusiness/market-opinions': number;
   '/nartbusiness/market-news': number;
+  '/nartbusiness/trial-center': number;
   '/business-claims': number;
   '/email-logs': number;
 }
@@ -29,6 +30,7 @@ const EMPTY: AdminBadgeCounts = {
   '/nartbusiness/moderation': 0,
   '/nartbusiness/market-opinions': 0,
   '/nartbusiness/market-news': 0,
+  '/nartbusiness/trial-center': 0,
   '/business-claims': 0,
   '/email-logs': 0,
 };
@@ -47,7 +49,7 @@ async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 }
 
 async function fetchCounts(): Promise<AdminBadgeCounts> {
-  const [stats, moderation, opinions, news, claims, emailFailed] = await Promise.all([
+  const [stats, moderation, opinions, news, claims, emailFailed, tasksToday] = await Promise.all([
     // Üyelik dashboard istatistikleri — verification + members badge'lerini besler.
     safe(async () => {
       const s: any = await nbAdminService.getDashboardStats();
@@ -86,6 +88,12 @@ async function fetchCounts(): Promise<AdminBadgeCounts> {
       const page = await emailTemplateService.logs({ status: 'FAILED', page: 0, size: 1 });
       return Number(page?.totalElements ?? 0);
     }, 0),
+    // Deneme Merkezi — bugün vadesi gelen ya da geçmiş açık görevler
+    safe(async () => {
+      const res = await api.get<unknown>('/nb/admin/tasks', { params: { scope: 'today' } });
+      const list = unwrap(res.data);
+      return Array.isArray(list) ? list.length : 0;
+    }, 0),
   ]);
 
   return {
@@ -96,6 +104,7 @@ async function fetchCounts(): Promise<AdminBadgeCounts> {
     '/nartbusiness/moderation': moderation,
     '/nartbusiness/market-opinions': opinions,
     '/nartbusiness/market-news': news,
+    '/nartbusiness/trial-center': tasksToday,
     '/business-claims': claims,
     '/email-logs': emailFailed,
   };

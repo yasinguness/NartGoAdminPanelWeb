@@ -86,7 +86,7 @@ import {
 import type { NbTabItem, NbUndoState } from '../../components/nartbusiness/ui';
 import { nb, nbRadius } from '../../theme/nbBrand';
 import { hasSector, memberTask, TRIAL_ENDING_DAYS, trialDaysLeft } from './nbMemberTask';
-import type { NbPartnerOrg } from '../../services/nartbusiness/nbAdminService';
+import type { NbPartnerOrg, NbMatchSuggestion } from '../../services/nartbusiness/nbAdminService';
 import NbMemberActionDialog from './NbMemberActionDialog';
 import NbEditBusinessDialog from './NbEditBusinessDialog';
 import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
@@ -97,6 +97,10 @@ import type { NbAuditRow } from '../../services/nartbusiness/nbAuditService';
 import { actionLabel, outcomeLabel } from './nbAuditLabels';
 import NbMemberEmailDialog from './NbMemberEmailDialog';
 import NbIntroduceDrawer from './NbIntroduceDrawer';
+import NbMemberValueCard from '../../components/nartbusiness/NbMemberValueCard';
+import NbMemberOpportunities from '../../components/nartbusiness/NbMemberOpportunities';
+import NbMemberSubscriptionCard from '../../components/nartbusiness/NbMemberSubscriptionCard';
+import NbMemberNotesPanel from '../../components/nartbusiness/NbMemberNotesPanel';
 import NbMemberIntroductionsTab from './NbMemberIntroductionsTab';
 
 /**
@@ -118,14 +122,17 @@ import NbMemberIntroductionsTab from './NbMemberIntroductionsTab';
  * (Üyelik & Ödeme), sonra kanıt (Kimlik & Belgeler), en sonda ne yaptığı
  * (Aktivite). Yönetici en sık ilk ikisine bakar.
  */
-type DetailTab = 'general' | 'membership' | 'identity' | 'activity' | 'introductions';
+type DetailTab = 'general' | 'opportunities' | 'membership' | 'identity' | 'activity' | 'introductions' | 'value' | 'notes';
 
 const DETAIL_TABS: NbTabItem<DetailTab>[] = [
   { key: 'general', label: 'Genel' },
+  { key: 'opportunities', label: 'Fırsatlar' },
   { key: 'membership', label: 'Üyelik & Ödeme' },
   { key: 'identity', label: 'Kimlik & Belgeler' },
   { key: 'activity', label: 'Aktivite' },
   { key: 'introductions', label: 'Tanıştırmalar' },
+  { key: 'value', label: 'Faaliyet Özeti' },
+  { key: 'notes', label: 'Notlar & Görevler' },
 ];
 
 /**
@@ -336,6 +343,8 @@ export default function NbMemberDetail() {
 
   // Tanıştır (v2) — yan panel: öneri + arama + karşılaştırma + mesaj.
   const [introOpen, setIntroOpen] = useState(false);
+  /** Fırsatlar sekmesinden gelen öneri: çekmece bu karşı tarafla açılır. */
+  const [introPartner, setIntroPartner] = useState<NbMatchSuggestion | null>(null);
   /** Yeni tanıştırma sonrası "Tanıştırmalar" sekmesini tazeler. */
   const [introRefresh, setIntroRefresh] = useState(0);
 
@@ -1052,6 +1061,11 @@ export default function NbMemberDetail() {
 
           {tab === 'membership' && (
             <>
+          {member && (
+            <NbSectionPaper title="Abonelik" hint="Abonelik durumu ve üyeye özel plan teklifi.">
+              <NbMemberSubscriptionCard memberId={member.memberId} onToast={(message) => setUndo({ message })} />
+            </NbSectionPaper>
+          )}
           <NbSectionPaper
             title="Üyelik & Aktivasyon"
             hint="Mevcut dönem ve durumun özeti."
@@ -1271,6 +1285,31 @@ export default function NbMemberDetail() {
             />
           )}
             </>
+          )}
+
+          {tab === 'opportunities' && member && (
+            <NbMemberOpportunities
+              memberId={member.memberId}
+              companyName={member.companyName}
+              phone={member.phoneNumber || member.submittedPhone}
+              onIntroduce={(partner) => {
+                setIntroPartner(partner);
+                setIntroOpen(true);
+              }}
+              onToast={(message) => setUndo({ message })}
+            />
+          )}
+
+          {tab === 'value' && member && (
+            <NbSectionPaper title="Faaliyet özeti">
+              <NbMemberValueCard memberId={member.memberId} />
+            </NbSectionPaper>
+          )}
+
+          {tab === 'notes' && member && (
+            <NbSectionPaper title="Notlar ve görevler">
+              <NbMemberNotesPanel memberId={member.memberId} />
+            </NbSectionPaper>
           )}
 
           {tab === 'introductions' && member && (
@@ -1743,9 +1782,13 @@ export default function NbMemberDetail() {
           önizleme ve taraf taraf teslim sonucu. Kayıt Tanıştırmalar'a düşer. */}
       <NbIntroduceDrawer
         open={introOpen}
-        onClose={() => setIntroOpen(false)}
+        onClose={() => {
+          setIntroOpen(false);
+          setIntroPartner(null);
+        }}
         member={member}
         sectors={sectors}
+        initialPartner={introPartner}
         onDone={(message) => {
           setUndo({ message });
           setIntroRefresh((n) => n + 1);

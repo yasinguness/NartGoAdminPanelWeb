@@ -331,7 +331,7 @@ export default function NbTenderReferrals() {
 
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontSize: 11.5, color: nb.textMuted }}>
-                    {r.channel === 'IN_APP' ? 'Uygulama' : 'WhatsApp'}
+                    {r.channel === 'IN_APP' ? 'Uygulama' : (r.channel as string) === 'DIGEST' ? 'Haftalık özet' : 'WhatsApp'}
                   </Typography>
                   {r.note && (
                     <Typography sx={{ fontSize: 10.5, color: nb.textFaint, mt: 0.25 }} noWrap>

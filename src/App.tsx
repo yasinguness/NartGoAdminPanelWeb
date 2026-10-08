@@ -107,6 +107,12 @@ const NbEmbeddingJobs = lazy(() => import('./pages/NartBusiness/NbEmbeddingJobs'
 const NbModerationQueue = lazy(() => import('./pages/NartBusiness/NbModerationQueue'));
 const NbIntroductions = lazy(() => import('./pages/NartBusiness/NbIntroductions'));
 const NbTenders = lazy(() => import('./pages/NartBusiness/NbTenders'));
+const NbTrialCenter = lazy(() => import('./pages/NartBusiness/NbTrialCenter'));
+const NbWeeklyShortlist = lazy(() => import('./pages/NartBusiness/NbWeeklyShortlist'));
+const NbOpsSettings = lazy(() => import('./pages/NartBusiness/NbOpsSettings'));
+const NbBilling = lazy(() => import('./pages/NartBusiness/NbBilling'));
+const NbWeeklyDigest = lazy(() => import('./pages/NartBusiness/NbWeeklyDigest'));
+const NbConversionBoard = lazy(() => import('./pages/NartBusiness/NbConversionBoard'));
 const NbTenderReferrals = lazy(() => import('./pages/NartBusiness/NbTenderReferrals'));
 const NbDlqPanel = lazy(() => import('./pages/NartBusiness/NbDlqPanel'));
 const NbShareAnalytics = lazy(() => import('./pages/NartBusiness/NbShareAnalytics'));
@@ -259,6 +265,12 @@ function App() {
                 <Route path="nartbusiness/moderation" element={<NbModerationQueue />} />
                 <Route path="nartbusiness/introductions" element={<NbIntroductions />} />
                 <Route path="nartbusiness/tenders" element={<NbTenders />} />
+                <Route path="nartbusiness/trial-center" element={<NbTrialCenter />} />
+                <Route path="nartbusiness/weekly-shortlist" element={<NbWeeklyShortlist />} />
+                <Route path="nartbusiness/ops-settings" element={<NbOpsSettings />} />
+                <Route path="nartbusiness/billing" element={<NbBilling />} />
+                <Route path="nartbusiness/weekly-digest" element={<NbWeeklyDigest />} />
+                <Route path="nartbusiness/conversion-board" element={<NbConversionBoard />} />
                 <Route path="nartbusiness/tender-referrals" element={<NbTenderReferrals />} />
                 <Route path="nartbusiness/dlq" element={<NbDlqPanel />} />
                 <Route path="nartbusiness/share-analytics" element={<NbShareAnalytics />} />

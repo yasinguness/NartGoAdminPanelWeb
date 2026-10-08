@@ -1241,6 +1241,45 @@ async function updateMemberBusiness(
  * dizin profilinin alanları. Admin dolu bir alanı boş görüp yeniden yazıyor,
  * kaydediyor ve tekrar açtığında yine boş buluyordu.
  */
+/**
+ * Uyenin telefonu — uc kaynak sirayla denenir, ilk dolu olan kazanir.
+ *
+ * Tek kaynaga bakmak yetmiyor. 4 Ekim 2026 olcumu (81 uye):
+ *   56 uyede hem dizin profili hem basvuru numarasi var
+ *    9 uyede YALNIZ dizin profili
+ *    3 uyede YALNIZ basvuru numarasi
+ *   13 uyede hicbiri
+ * Yani tek alan okunursa 12 uye gereksiz yere "numarasi yok" gorunur.
+ *
+ * Ilk surumde `member.phoneNumber` okunuyordu ve o alan MemberView'da HIC YOK
+ * (dogru ad `submittedPhone`), bu yuzden herkes numarasiz gorundu. Ad
+ * benzerligi sessizce yanlis sonuc verdigi icin cozum tek yerde toplandi.
+ *
+ * Sira: dizin profili (uyenin kendi guncelledigi) > basvuru formu > NartGo
+ * hesabi. Dizin once, cunku uye orayi gunceller; basvuru numarasi donem donem
+ * eskir.
+ */
+async function resolveMemberPhone(memberId: string): Promise<string | null> {
+  const [member, profile] = await Promise.all([
+    getMember(memberId).catch(() => null),
+    getDirectoryProfile(memberId).catch(() => null),
+  ]);
+  const pick = (v: unknown) => {
+    const t = v == null ? '' : String(v).trim();
+    return t ? t : null;
+  };
+  const fromDirectory = pick(profile?.phoneNumber);
+  if (fromDirectory) return fromDirectory;
+  const fromApplication = pick(member?.submittedPhone);
+  if (fromApplication) return fromApplication;
+  if (member?.userId) {
+    const user = await getUserById(member.userId).catch(() => null);
+    const fromAccount = pick((user as { phone?: string } | null)?.phone);
+    if (fromAccount) return fromAccount;
+  }
+  return null;
+}
+
 async function getDirectoryProfile(memberId: string): Promise<any | null> {
   try {
     const res = await api.get<any>(`/nb/admin/directory/${memberId}/profile`);
@@ -2277,6 +2316,7 @@ export const nbAdminService = {
   updateMemberBusiness,
   generateDescriptionDraft,
   getDirectoryProfile,
+  resolveMemberPhone,
   updateDirectoryProfile,
   getDashboardAttention,
   getLoginLogs,
