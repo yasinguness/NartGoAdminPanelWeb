@@ -252,7 +252,7 @@ export default function NbWeeklyDigest() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => preview && navigator.clipboard.writeText(preview.text)}>Kopyala</Button>
-          <Button disabled={!waLink} href={waLink ?? undefined} target="_blank" rel="noopener">
+          <Button disabled={!waLink} component="a" href={waLink ?? undefined} target="_blank" rel="noopener">
             WhatsApp'ta aç
           </Button>
           <Button

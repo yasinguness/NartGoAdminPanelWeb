@@ -114,4 +114,4 @@ The admin panel integrates with the following microservices:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This repository does not include a LICENSE file; confirm licensing terms with the project owner.

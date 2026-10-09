@@ -5,7 +5,7 @@
  * 3 ihale, 1 tanıştırma, 1 alım talebi ve profil görünürlüğünden en az ikisi
  * ulaşmalı. "—" = ilgili servise ulaşılamadı; 0 ile karıştırılmasın.
  */
-import { Box, CircularProgress, Stack, Typography } from '@mui/material';
+import { Alert, Button, Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { nb, nbRadius } from '../../theme/nbBrand';
 import { nbOpsService, type NbValueSummary } from '../../services/nartbusiness/nbOpsService';
@@ -50,7 +50,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
     <Box
       sx={{
         flex: '1 1 120px',
-        bgcolor: '#f7f6f1',
+        bgcolor: nb.surface,
         border: `1px solid ${nb.divider}`,
         borderRadius: `${nbRadius.panel}px`,
         px: 1.5,
@@ -67,12 +67,14 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 export function NbValueSummaryView({ value }: { value: NbValueSummary }) {
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.25 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={1} sx={{ mb: 1.25 }}>
         <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
           Hizmet göstergeleri: {value.valueSignals}/4
         </Typography>
         <NbValueSignals value={value} />
       </Stack>
+      <Typography sx={{ fontSize: 12, color: nb.textMuted, mb: 1.5 }}>İhale, tanıştırma ve ilan sayıları tüm dönemi kapsar. Hizmet göstergeleri ulaştırılan faydayı izler; kazanılan iş sayısı değildir.</Typography>
+      {[value.requestsOpened, value.offersOpened, value.profileViewsTotal].some((v) => v == null) && <Alert severity="warning" sx={{ mb: 1.5 }}>Bazı servislerden veri alınamadı. “—” eksik veriyi belirtir; sıfır değildir.</Alert>}
       <Stack direction="row" flexWrap="wrap" sx={{ gap: 1 }}>
         <Stat
           label="İhale"
@@ -89,6 +91,7 @@ export function NbValueSummaryView({ value }: { value: NbValueSummary }) {
           value={num(value.requestsOpened)}
           hint={`gelen teklif: ${num(value.quotesReceived)}`}
         />
+        <Stat label="Arz ilanı" value={num(value.offersOpened)} />
         <Stat
           label="Verdiği teklif"
           value={num(value.quotesGiven)}
@@ -106,6 +109,7 @@ export function NbValueSummaryView({ value }: { value: NbValueSummary }) {
 
 /** Üye detayı sekmesi: sonuç kartını kendisi yükler. */
 export default function NbMemberValueCard({ memberId }: { memberId: string }) {
+  const [reload, setReload] = useState(0);
   const [value, setValue] = useState<NbValueSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -120,9 +124,9 @@ export default function NbMemberValueCard({ memberId }: { memberId: string }) {
     return () => {
       alive = false;
     };
-  }, [memberId]);
+  }, [memberId, reload]);
 
-  if (error) return <Typography sx={{ fontSize: 12.5, color: nb.red }}>{error}</Typography>;
+  if (error) return <Alert severity="error" action={<Button onClick={() => setReload((v) => v + 1)}>Tekrar dene</Button>}>{error}</Alert>;
   if (!value) return <CircularProgress size={20} />;
   return <NbValueSummaryView value={value} />;
 }

@@ -1,3 +1,4 @@
+import { nbOpsService, type NbBillingPlan } from '../../services/nartbusiness/nbOpsService';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -176,9 +177,14 @@ export default function NbMemberDetail() {
    * götürüyor (`?tab=identity`); sekme yalnız bileşen durumunda tutulsaydı
    * o bağlantılar hep "Genel"de açılırdı.
    */
-  const [tab, setTab] = useState<DetailTab>(
-    () => (searchParams.get('tab') as DetailTab | null) ?? 'general',
-  );
+  const requestedTab = searchParams.get('tab');
+  const tab: DetailTab = DETAIL_TABS.find((item) => item.key === requestedTab)?.key ?? 'general';
+  const setTab = (value: DetailTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'general') next.delete('tab');
+    else next.set('tab', value);
+    setSearchParams(next);
+  };
   const [actionOpen, setActionOpen] = useState(false);
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialOfferBusy, setTrialOfferBusy] = useState(false);
@@ -318,6 +324,18 @@ export default function NbMemberDetail() {
   // APPROVED_PENDING_PAYMENT olan her üyede gösterilir; üyeyi ACTIVE'e taşır.
   const [bankConfirmOpen, setBankConfirmOpen] = useState(false);
   const [bankConfirmRef, setBankConfirmRef] = useState('');
+  const [bankPlans, setBankPlans] = useState<NbBillingPlan[]>([]);
+  const [bankPlanId, setBankPlanId] = useState('');
+  const [bankAmount, setBankAmount] = useState('');
+  useEffect(() => {
+    if (!bankConfirmOpen || !member) return;
+    let cancelled = false;
+    setBankPlans([]); setBankPlanId(''); setBankAmount('');
+    void nbOpsService.billingPlans().then(rows => {
+      if (!cancelled) setBankPlans(rows.filter(p => p.active && p.oneTime && p.tierId === member.tier.toLowerCase()));
+    }).catch(e => { if (!cancelled) setBankConfirmError(nbErrorMessage(e, 'Planlar yüklenemedi. Pencereyi yeniden açıp deneyin.')); });
+    return () => { cancelled = true; };
+  }, [bankConfirmOpen, member]);
   const [bankConfirmNote, setBankConfirmNote] = useState('');
   const [bankConfirming, setBankConfirming] = useState(false);
   const [bankConfirmError, setBankConfirmError] = useState<string | null>(null);
@@ -329,6 +347,8 @@ export default function NbMemberDetail() {
   // İkisi farklı soruya cevap veriyor: biri "üyelik nerede", diğeri "bu üyede
   // kim ne yaptı". Kayıt yalnız sekmeye geçilince çekiliyor.
   const [auditRows, setAuditRows] = useState<NbAuditRow[] | null>(null);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [auditReload, setAuditReload] = useState(0);
   const [auditLoading, setAuditLoading] = useState(false);
 
   const [resendOpen, setResendOpen] = useState(false);
@@ -414,14 +434,16 @@ export default function NbMemberDetail() {
   // açılışında bir sorgu daha atmanın karşılığı yok, kayıtlar nadiren
   // bakılıyor.
   useEffect(() => {
-    if (tab !== 'activity' || auditRows !== null || !memberId) return;
+    if (tab !== 'activity' || !memberId) return;
+    let active = true;
     setAuditLoading(true);
-    nbAuditService
-      .list({ targetId: memberId, days: 365, size: 50 })
-      .then((p) => setAuditRows(p.content ?? []))
-      .catch(() => setAuditRows([]))
-      .finally(() => setAuditLoading(false));
-  }, [tab, auditRows, memberId]);
+    setAuditError(null);
+    nbAuditService.list({ targetId: memberId, days: 365, size: 50 })
+      .then((p) => { if (active) setAuditRows(p.content ?? []); })
+      .catch((e) => { if (active) setAuditError(nbErrorMessage(e, 'Aktivite kayıtları alınamadı.')); })
+      .finally(() => { if (active) setAuditLoading(false); });
+    return () => { active = false; };
+  }, [tab, memberId, auditReload]);
 
   // Sektör listesi — sectorCode'u Türkçe ada çevirmek için.
   useEffect(() => {
@@ -448,15 +470,6 @@ export default function NbMemberDetail() {
       setSavingOrg(false);
     }
   };
-
-  useEffect(() => {
-    const next = new URLSearchParams(searchParams);
-    if (tab === 'general') next.delete('tab');
-    else next.set('tab', tab);
-    if (next.toString() !== searchParams.toString()) {
-      setSearchParams(next, { replace: true });
-    }
-  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sectorLabel = useMemo(() => {
     const codes = member?.sectorCodes?.length ? member.sectorCodes : member?.sectorCode ? [member.sectorCode] : [];
@@ -909,6 +922,14 @@ export default function NbMemberDetail() {
 
           {tab === 'general' && (
             <>
+          <NbSectionPaper title="İşletme takibi" hint="Bu işletmeye ulaştırılan fırsatları ve sonuçlarını tek yerden takip edin.">
+            <Stack direction="row" flexWrap="wrap" sx={{ gap: 1 }}>
+              <Button variant="contained" onClick={() => setTab('opportunities')}>Fırsatları ve ihaleleri incele</Button>
+              <Button variant="outlined" onClick={() => setTab('introductions')}>Tanıştırma geçmişi</Button>
+              <Button variant="outlined" onClick={() => setTab('notes')}>Notlar ve görevler</Button>
+            </Stack>
+            <NbMemberValueCard key={`${member.memberId}-${introRefresh}`} memberId={member.memberId} />
+          </NbSectionPaper>
           <NbSectionPaper title="Şirket Bilgisi">
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
               {member.logoUrl ? (
@@ -1073,7 +1094,7 @@ export default function NbMemberDetail() {
             {currentPeriod ? (
               <Box>
                 <Typography variant="body2">
-                  <b>{TIER_LABEL[currentPeriod.tier]} yıllık üyelik</b>
+                  <b>{TIER_LABEL[currentPeriod.tier]} {currentPeriod.durationMonths ? `${currentPeriod.durationMonths} aylık üyelik` : 'üyelik dönemi'}</b>
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {shortDate(currentPeriod.startsAt)} – {shortDate(currentPeriod.endsAt)}
@@ -1209,7 +1230,7 @@ export default function NbMemberDetail() {
                             p.status === 'EXPIRED' ? (
                             <Tooltip
                               title={
-                                p.paymentId
+                                p.bankTransferReference ? `Havale / EFT: ${p.bankTransferReference}` : p.paymentId
                                   ? `Ref: ${p.paymentId}`
                                   : 'Ödeme alındı'
                               }
@@ -1219,7 +1240,7 @@ export default function NbMemberDetail() {
                                 variant="caption"
                                 color="success.main"
                               >
-                                ✓ Ödendi
+                                {p.bankTransferReference ? "✓ Havale / EFT" : "✓ Ödendi"}
                               </Typography>
                             </Tooltip>
                           ) : p.status === 'PAYMENT_PENDING' ? (
@@ -1289,6 +1310,7 @@ export default function NbMemberDetail() {
 
           {tab === 'opportunities' && member && (
             <NbMemberOpportunities
+              key={`${memberId}-${introRefresh}`}
               memberId={member.memberId}
               companyName={member.companyName}
               phone={member.phoneNumber || member.submittedPhone}
@@ -1302,7 +1324,7 @@ export default function NbMemberDetail() {
 
           {tab === 'value' && member && (
             <NbSectionPaper title="Faaliyet özeti">
-              <NbMemberValueCard memberId={member.memberId} />
+              <NbMemberValueCard key={`${member.memberId}-${introRefresh}`} memberId={member.memberId} />
             </NbSectionPaper>
           )}
 
@@ -1314,6 +1336,7 @@ export default function NbMemberDetail() {
 
           {tab === 'introductions' && member && (
             <NbMemberIntroductionsTab
+              key={memberId}
               memberId={member.memberId}
               onIntroduce={() => setIntroOpen(true)}
               refreshKey={introRefresh}
@@ -1325,9 +1348,9 @@ export default function NbMemberDetail() {
           <NbSectionPaper title="Görüntülenme — İşletme Profili">
             <Stack direction="row" spacing={4} flexWrap="wrap">
               {[
-                ['Toplam', viewStats?.total ?? 0],
-                ['Mobil', viewStats?.mobile ?? 0],
-                ['Web', viewStats?.web ?? 0],
+                ['Toplam', viewStats?.total ?? '—'],
+                ['Mobil', viewStats?.mobile ?? '—'],
+                ['Web', viewStats?.web ?? '—'],
                 ...(viewStats && viewStats.unknown > 0 ? [['Diğer', viewStats.unknown] as const] : []),
               ].map(([label, value]) => (
                 <Stack key={label as string} alignItems="flex-start" sx={{ minWidth: 72 }}>
@@ -1346,7 +1369,7 @@ export default function NbMemberDetail() {
               <Stack alignItems="center" py={3}>
                 <CircularProgress size={20} />
               </Stack>
-            ) : !auditRows || auditRows.length === 0 ? (
+            ) : auditError ? <Alert severity="error" action={<Button onClick={() => setAuditReload((v) => v + 1)}>Tekrar dene</Button>}>{auditError}</Alert> : !auditRows || auditRows.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 Bu üye için son bir yılda kayıt yok.
               </Typography>
@@ -1393,7 +1416,7 @@ export default function NbMemberDetail() {
         <Stack sx={{ ...(nbColumn(1, 300) as object), gap: 1.75, position: 'sticky', top: 150 }}>
           {currentPeriod ? (
             <NbPeriodCard
-              title={`${TIER_LABEL[currentPeriod.tier]} yıllık · ${formatMoney(currentPeriod.fee, currentPeriod.currency)}`}
+              title={`${TIER_LABEL[currentPeriod.tier]} ${currentPeriod.durationMonths ? `${currentPeriod.durationMonths} ay` : 'üyelik'} · ${formatMoney(currentPeriod.fee, currentPeriod.currency)}`}
               range={`${shortDate(currentPeriod.startsAt)} – ${shortDate(currentPeriod.endsAt)}${
                 periodMonthsLeft == null ? '' : ` · ${periodMonthsLeft} ay kaldı`
               }`}
@@ -1487,15 +1510,24 @@ export default function NbMemberDetail() {
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
             <strong>{member.companyName ?? '—'}</strong> üyesinin ödemesinin
-            alındığını onaylıyorsun (havale/EFT veya manuel tahsilat).
+            alındığını onaylıyorsun (havale/EFT). Seçilen planın toplam ücretinin bankaya ulaştığını kontrol edin.
             Onaylarsan üyelik <strong> ACTIVE</strong>'e geçer ve çevrimiçi
             ödeme (İyzico) akışı atlanır.
           </DialogContentText>
           <TextField
             fullWidth
-            label="Dekont / Referans No (opsiyonel)"
+            select label="Ödenen üyelik planı" value={bankPlanId} onChange={e => setBankPlanId(e.target.value)}
+            disabled={bankConfirming} sx={{ mb: 2 }}
+          >{bankPlans.map(p => <MenuItem key={p.id} value={p.id}>{p.name} · {p.durationMonths} ay · {formatMoney(p.price, p.currency)}</MenuItem>)}</TextField>
+          <TextField fullWidth required label="Tahsil edilen tutar (TL)" type="number" value={bankAmount}
+            onChange={e => setBankAmount(e.target.value)} disabled={bankConfirming} sx={{ mb: 2 }}
+            helperText="Dekonttaki tutarı girin; seçilen planın toplam ücretiyle eşleşmelidir." />
+          <TextField fullWidth
+            label="Dekont / Referans No"
             placeholder="Örn: TR99-... veya WhatsApp dekont no"
             value={bankConfirmRef}
+            required
+            inputProps={{ maxLength: 120 }}
             onChange={(e) => setBankConfirmRef(e.target.value)}
             size="small"
             sx={{ mb: 2 }}
@@ -1531,11 +1563,17 @@ export default function NbMemberDetail() {
             disabled={bankConfirming}
             onClick={async () => {
               if (!memberId) return;
+              if (!bankConfirmRef.trim()) { setBankConfirmError("Dekont referansı zorunludur."); return; }
+              const selectedPlan = bankPlans.find(p => p.id === bankPlanId);
+              if (!selectedPlan || !bankAmount.trim() || !Number.isFinite(Number(bankAmount)) || Number(bankAmount) <= 0 || Number(bankAmount) !== selectedPlan.price) {
+                setBankConfirmError('Planı seçin ve dekonttaki tutarı planın toplam ücretiyle eşleştirin.'); return;
+              }
               setBankConfirming(true);
               setBankConfirmError(null);
               try {
                 await nbAdminService.confirmBankTransfer(memberId, {
-                  paymentReference: bankConfirmRef.trim() || undefined,
+                  paymentReference: bankConfirmRef.trim(),
+                  planId: bankPlanId, receivedAmount: Number(bankAmount),
                   adminNote: bankConfirmNote.trim() || undefined,
                 });
                 setBankConfirmOpen(false);

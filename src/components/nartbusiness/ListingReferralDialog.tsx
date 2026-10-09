@@ -550,7 +550,7 @@ export default function ListingReferralDialog({
                           {r.memberName || `Üye ${r.memberId.slice(0, 8)}`}
                         </Typography>
                         <Typography sx={{ fontSize: 11, color: nb.textFaint }} noWrap>
-                          {r.channel === 'IN_APP' ? 'Uygulama' : 'WhatsApp'} · {fmtWhen(r.createdAt)}
+                          {r.channel === 'DIGEST' ? 'Haftalık bülten' : r.channel === 'IN_APP' ? 'Uygulama' : 'WhatsApp'} · {fmtWhen(r.createdAt)}
                           {/* Kanal uygulamayken bildirim gitmediyse bunu
                               söylemek zorunlu: yoksa admin üyenin haberi
                               olduğunu sanır. */}

@@ -650,7 +650,7 @@ async function sendSetPasswordEmail(memberId: string): Promise<{ to: string }> {
  */
 async function confirmBankTransfer(
   memberId: string,
-  body: { paymentReference?: string; adminNote?: string },
+  body: { paymentReference: string; adminNote?: string; planId: string; receivedAmount: number },
 ): Promise<NbMember | null> {
   const res = await api.post<any>(
     `/nb/admin/members/${memberId}/confirm-bank-transfer`,
@@ -909,7 +909,7 @@ async function listingViewStats(ids: string[]): Promise<NbListingViewStats[]> {
 // tek kanallı. Yönlendirme tek bir üyeye, adminin seçimiyle ve iz bırakarak
 // gidiyor; WhatsApp ve e-posta da bu yolda devreye giriyor.
 
-export type NbListingReferralChannel = 'WHATSAPP' | 'IN_APP';
+export type NbListingReferralChannel = 'WHATSAPP' | 'IN_APP' | 'DIGEST';
 export type NbListingReferralStatus = 'SENT' | 'INTERESTED' | 'DECLINED' | 'WON';
 
 export const NB_LISTING_REFERRAL_STATUS_LABEL: Record<NbListingReferralStatus, string> = {
@@ -1899,17 +1899,22 @@ export type NbMatchAnchorState = 'READY' | 'NO_PROFILE' | 'NO_EMBEDDING';
  * Tanıştır ekranı için: seçili üyeye eşleştirme motorunun en uygun adayları.
  * Liste boşsa `anchorState` sebebi söyler (aday mı yok, veri mi yok).
  */
+export interface NbDismissedSuggestion { memberId: string; companyName: string; reason?: string | null; dismissedAt: string }
+
 async function introductionSuggestions(
-  memberId: string,
-  limit = 10,
-): Promise<{ items: NbMatchSuggestion[]; anchorState: NbMatchAnchorState }> {
-  const res = await api.get<any>(`/nb/admin/directory/match/${memberId}/suggestions`, { params: { limit } });
-  return (
-    unwrap<{ items: NbMatchSuggestion[]; anchorState: NbMatchAnchorState }>(res.data) ?? {
-      items: [],
-      anchorState: 'NO_PROFILE',
-    }
-  );
+  memberId: string, limit = 10,
+): Promise<{ items: NbMatchSuggestion[]; anchorState: NbMatchAnchorState; dismissed?: NbDismissedSuggestion[] }> {
+  const res = await api.get(`/nb/admin/directory/match/${memberId}/suggestions`, { params: { limit } });
+  return unwrap<{ items: NbMatchSuggestion[]; anchorState: NbMatchAnchorState; dismissed?: NbDismissedSuggestion[] }>(res.data)
+    ?? { items: [], anchorState: 'NO_PROFILE' };
+}
+
+async function dismissIntroductionSuggestion(memberId: string, candidateId: string, reason?: string) {
+  await api.put(`/nb/admin/directory/match/${memberId}/dismissed/${candidateId}`, { reason });
+}
+
+async function restoreIntroductionSuggestion(memberId: string, candidateId: string) {
+  await api.delete(`/nb/admin/directory/match/${memberId}/dismissed/${candidateId}`);
 }
 
 /** Bir tarafa gönderilecek WhatsApp taslağı. */
@@ -1941,10 +1946,10 @@ async function listIntroductions(params: {
   memberId?: string;
   page?: number;
   size?: number;
-}): Promise<{ items: NbIntroduction[]; totalElements: number; totalPages: number; page: number }> {
+}): Promise<{ items: NbIntroduction[]; totalElements: number; totalPages: number; page: number; stats?: { total: number; open: number; successful: number } }> {
   const res = await api.get<any>('/nb/admin/introductions', { params });
   return (
-    unwrap<{ items: NbIntroduction[]; totalElements: number; totalPages: number; page: number }>(
+    unwrap<{ items: NbIntroduction[]; totalElements: number; totalPages: number; page: number; stats?: { total: number; open: number; successful: number } }>(
       res.data,
     ) ?? { items: [], totalElements: 0, totalPages: 0, page: 0 }
   );
@@ -2024,6 +2029,8 @@ export interface NbTenderMatch {
 }
 
 export interface NbTenderReferral {
+  tenderId?: string;
+  tenderTitle?: string | null;
   id: string;
   memberId: string;
   memberName: string;
@@ -2149,6 +2156,7 @@ async function updateTenderReferral(
 }
 
 async function listTenderReferrals(params: {
+  memberId?: string;
   status?: NbTenderReferralStatus;
   page?: number;
   size?: number;
@@ -2343,6 +2351,8 @@ export const nbAdminService = {
   introductionDrafts,
   listIntroductions,
   introductionSuggestions,
+  dismissIntroductionSuggestion,
+  restoreIntroductionSuggestion,
   updateIntroduction,
   // Deneme
   grantTrial,

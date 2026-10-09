@@ -282,7 +282,7 @@ export default function NbWeeklyShortlist() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => draft && navigator.clipboard.writeText(draft.text)}>Kopyala</Button>
-          <Button disabled={!draftLink} href={draftLink ?? undefined} target="_blank" rel="noopener">
+          <Button disabled={!draftLink} component="a" href={draftLink ?? undefined} target="_blank" rel="noopener">
             WhatsApp'ta aç
           </Button>
           <Button

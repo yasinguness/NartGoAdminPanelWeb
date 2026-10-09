@@ -22,7 +22,7 @@ const RaffleMachine: React.FC = () => {
         if (raffleState === RaffleState.DRAWING) {
             const interval = setInterval(() => {
                 const randomParticipant = participants[Math.floor(Math.random() * participants.length)];
-                setCyclingName(randomParticipant.name);
+                setCyclingName(randomParticipant?.name ?? '');
             }, 100); // Change name every 100ms
 
             return () => clearInterval(interval);
@@ -35,7 +35,7 @@ const RaffleMachine: React.FC = () => {
             if (e.code === 'Space') {
                 e.preventDefault();
                 if (raffleState === RaffleState.IDLE) {
-                    startDrawing();
+                    startDrawing(1);
                 } else if (raffleState === RaffleState.WINNER_REVEALED) {
                     resetRaffle();
                 }
@@ -50,7 +50,7 @@ const RaffleMachine: React.FC = () => {
         return (
             <motion.button
                 className="start-button"
-                onClick={startDrawing}
+                onClick={() => startDrawing(1)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
             >

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, CircularProgress, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Pagination, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import {
   nbAdminService,
@@ -9,6 +9,7 @@ import {
 } from '../../services/nartbusiness/nbAdminService';
 import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 import { nb, nbRadius, nbType } from '../../theme/nbBrand';
+import { useRole } from '../../hooks/useRole';
 import { formatDate } from './nbIntroMatch';
 
 const STATUSES: NbIntroductionStatus[] = ['INTRODUCED', 'MEETING_PENDING', 'MET', 'CLOSED_SUCCESS', 'CLOSED_NO_RESULT'];
@@ -32,27 +33,37 @@ export default function NbMemberIntroductionsTab({
   refreshKey?: number;
 }) {
   const navigate = useNavigate();
+  const { isAdmin, hasRole } = useRole();
+  const canManage = isAdmin || hasRole('NB_ADMIN');
+  const [page, setPage] = useState(0);
+  const [reload, setReload] = useState(0);
+  const [pages, setPages] = useState(0);
+  const [stats, setStats] = useState<{ total: number; open: number; successful: number }>();
   const [items, setItems] = useState<NbIntroduction[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    let active = true;
     setItems(null);
     setError(null);
     nbAdminService
-      .listIntroductions({ memberId, page: 0, size: 100 })
-      .then((r) => setItems(r.items))
+      .listIntroductions({ memberId, page, size: 20 })
+      .then((r) => { if (active) { setItems(r.items); setPages(r.totalPages); setStats(r.stats); } })
       .catch((e) => {
-        setItems([]);
+        if (!active) return;
         setError(nbErrorMessage(e, 'Tanıştırmalar alınamadı.'));
       });
-  }, [memberId, refreshKey]);
+    return () => { active = false; };
+  }, [memberId, refreshKey, page, reload]);
 
   const save = async (row: NbIntroduction, patch: { status?: NbIntroductionStatus; adminNote?: string }) => {
+    setError(null);
     setSavingId(row.id);
     try {
       const updated = await nbAdminService.updateIntroduction(row.id, patch);
+      setReload((v) => v + 1);
       setItems((list) => list?.map((i) => (i.id === row.id ? { ...i, ...updated } : i)) ?? null);
     } catch (e) {
       setError(nbErrorMessage(e, 'Güncellenemedi.'));
@@ -61,7 +72,7 @@ export default function NbMemberIntroductionsTab({
     }
   };
 
-  if (items === null) {
+  if (items === null && !error) {
     return (
       <Stack alignItems="center" sx={{ py: 6 }}>
         <CircularProgress size={22} />
@@ -69,25 +80,23 @@ export default function NbMemberIntroductionsTab({
     );
   }
 
-  const won = items.filter((i) => i.status === 'CLOSED_SUCCESS').length;
-  const open = items.filter((i) => !i.status.startsWith('CLOSED')).length;
+
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={2} sx={{ mb: 2 }}>
         <Typography sx={{ fontSize: 13, color: nb.textMuted, flex: 1 }}>
-          {items.length === 0
-            ? 'Bu üye henüz kimseyle tanıştırılmadı.'
-            : `${items.length} tanıştırma · ${open} açık · ${won} iş birliğine döndü`}
+          {stats ? `${stats.total} tanıştırma · ${stats.open} açık · ${stats.successful} iş birliğine döndü` : 'Tanıştırma geçmişi ve sonuç takibi'}
         </Typography>
-        <Button variant="contained" onClick={onIntroduce} sx={{ textTransform: 'none', bgcolor: nb.navy, '&:hover': { bgcolor: nb.navySoft } }}>
+        <Button disabled={!canManage} variant="contained" onClick={onIntroduce} sx={{ textTransform: 'none', bgcolor: nb.navy, '&:hover': { bgcolor: nb.navySoft } }}>
           Yeni tanıştırma
         </Button>
       </Stack>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {error && <Alert severity="error" sx={{ mb: 2 }} action={<Button onClick={() => setReload((v) => v + 1)}>Tekrar dene</Button>}>{error}</Alert>}
 
+      {items?.length === 0 && !error && <Typography sx={{ mb: 2 }}>Bu sayfada tanıştırma bulunmuyor.</Typography>}
       <Stack spacing={1.25}>
-        {items.map((row) => {
+        {items?.map((row) => {
           const isA = row.memberAId === memberId;
           const otherId = isA ? row.memberBId : row.memberAId;
           const otherName = isA ? row.memberBName : row.memberAName;
@@ -108,10 +117,11 @@ export default function NbMemberIntroductionsTab({
                   </Typography>
                 </Box>
                 <TextField
+                  label="Tanıştırma durumu"
                   select
                   size="small"
                   value={row.status}
-                  disabled={savingId === row.id}
+                  disabled={!!savingId || !canManage}
                   onChange={(e) => void save(row, { status: e.target.value as NbIntroductionStatus })}
                   sx={{ minWidth: 190, bgcolor: nb.inputBg }}
                 >
@@ -129,7 +139,10 @@ export default function NbMemberIntroductionsTab({
               <Stack direction="row" spacing={1} sx={{ mt: 1.25 }}>
                 <TextField
                   size="small"
-                  placeholder="Takip notu…"
+                  label="Takip notu"
+                  multiline
+                  inputProps={{ maxLength: 4000 }}
+                  disabled={!canManage || !!savingId}
                   value={note}
                   onChange={(e) => setNotes((n) => ({ ...n, [row.id]: e.target.value }))}
                   fullWidth
@@ -137,7 +150,7 @@ export default function NbMemberIntroductionsTab({
                 />
                 <Button
                   size="small"
-                  disabled={savingId === row.id || note === (row.adminNote ?? '')}
+                  disabled={!canManage || !!savingId || note === (row.adminNote ?? '')}
                   onClick={() => void save(row, { adminNote: note })}
                   sx={{ textTransform: 'none', flexShrink: 0 }}
                 >
@@ -148,6 +161,7 @@ export default function NbMemberIntroductionsTab({
           );
         })}
       </Stack>
+      {pages > 1 && <Pagination sx={{ mt: 2 }} count={pages} page={page + 1} disabled={!!savingId} onChange={(_, v) => setPage(v - 1)} />}
     </Box>
   );
 }

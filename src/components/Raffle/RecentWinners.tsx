@@ -4,7 +4,10 @@ import { useRaffleStore } from '../../store/raffle/raffleStore';
 import { formatRelativeTime } from '../../utils/raffle/formatters';
 
 const RecentWinners: React.FC = () => {
-    const winners = useRaffleStore(state => state.winners);
+    const drawn = useRaffleStore(state => state.drawnWinners);
+    const revealed = useRaffleStore(state => state.revealIndex);
+    const prize = useRaffleStore(state => state.campaign?.prize);
+    const winners = drawn.slice(0, revealed);
 
     return (
         <div style={{ flex: 1 }}>
@@ -17,15 +20,15 @@ const RecentWinners: React.FC = () => {
                 <div>
                     {winners.slice(0, 5).map((winner, index) => (
                         <motion.div
-                            key={`${winner.participant.id}-${winner.timestamp.getTime()}`}
+                            key={`${winner.userId}-${winner.rank}`}
                             className="winner-card"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
                         >
-                            <div className="winner-name">🎊 {winner.participant.name}</div>
-                            <div className="winner-prize">{winner.prize}</div>
-                            <div className="winner-time">{formatRelativeTime(winner.timestamp)}</div>
+                            <div className="winner-name">🎊 {winner.displayName || 'Katılımcı'}</div>
+                            <div className="winner-prize">{prize}</div>
+                            <div className="winner-time">{formatRelativeTime(new Date(winner.drawnAt))}</div>
                         </motion.div>
                     ))}
                 </div>

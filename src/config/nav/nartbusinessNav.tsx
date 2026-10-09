@@ -79,7 +79,7 @@ export const nartbusinessNavSections: NavSection[] = [
             { text: 'Doğrulama Kuyruğu', icon: <VerificationIcon />, path: '/nartbusiness/verification' },
             { text: 'Belge Politikaları', icon: <PolicyIcon />, path: '/nartbusiness/verification-policies', allowedRoles: NB_MANAGE },
             { text: 'Üyelik Tipleri', icon: <TierIcon />, path: '/nartbusiness/tiers', allowedRoles: NB_MANAGE },
-            { text: 'Abonelik & Planlar', icon: <BillingIcon />, path: '/nartbusiness/billing', allowedRoles: NB_MANAGE },
+            { text: 'Üyelik Süreleri & Ödemeler', icon: <BillingIcon />, path: '/nartbusiness/billing', allowedRoles: NB_MANAGE },
             { text: 'Kurumlar', icon: <PartnerOrgIcon />, path: '/nartbusiness/partner-orgs', allowedRoles: NB_MANAGE },
         ],
     },

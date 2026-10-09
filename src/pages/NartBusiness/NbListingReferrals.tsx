@@ -357,7 +357,7 @@ export default function NbListingReferrals() {
 
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontSize: 11.5, color: nb.textMuted }}>
-                    {r.channel === 'IN_APP' ? 'Uygulama' : 'WhatsApp'}
+                    {r.channel === 'DIGEST' ? 'Haftalık bülten' : r.channel === 'IN_APP' ? 'Uygulama' : 'WhatsApp'}
                   </Typography>
                   {/* Kanal uygulamayken gitmeyen bildirim yazılmak zorunda:
                       yoksa admin üyenin haberi olduğunu sanır. */}

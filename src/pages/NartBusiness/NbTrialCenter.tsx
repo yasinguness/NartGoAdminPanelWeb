@@ -425,7 +425,7 @@ export default function NbTrialCenter() {
                 <Stack direction="row" spacing={0.25} justifyContent="flex-end">
                   <Tooltip title={wa ? 'WhatsApp mesajını aç' : 'Kayıtlı telefon yok'}>
                     <span>
-                      <IconButton size="small" disabled={!wa} href={wa ?? undefined} target="_blank" rel="noopener">
+                      <IconButton size="small" disabled={!wa} component="a" href={wa ?? undefined} target="_blank" rel="noopener">
                         <WhatsAppIcon fontSize="small" />
                       </IconButton>
                     </span>

@@ -517,6 +517,11 @@ export type MembershipPeriodStatus =
   | 'CANCELLED';
 
 export interface NbPeriodView {
+  bankTransferReference?: string | null;
+  paymentConfirmedAt?: string | null;
+  paymentConfirmedBy?: string | null;
+  durationMonths?: number | null;
+  planId?: string | null;
   id: string;
   memberId: string;
   tier: MembershipTier;

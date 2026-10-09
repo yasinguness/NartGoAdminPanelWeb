@@ -252,7 +252,7 @@ export interface NbMemberTenderReferral {
 
 // ── Abonelik ─────────────────────────────────────────────────────────────
 
-export type NbBillingInterval = 'MONTHLY' | 'YEARLY';
+export type NbBillingInterval = 'MONTHLY' | 'QUARTERLY' | 'SEMIANNUAL' | 'YEARLY';
 export type NbSubscriptionStatus = 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';
 
 export const NB_SUBSCRIPTION_STATUS_LABEL: Record<NbSubscriptionStatus, string> = {
@@ -263,9 +263,13 @@ export const NB_SUBSCRIPTION_STATUS_LABEL: Record<NbSubscriptionStatus, string> 
   EXPIRED: 'Sona erdi',
 };
 
-export const NB_INTERVAL_LABEL: Record<NbBillingInterval, string> = { MONTHLY: 'Aylık', YEARLY: 'Yıllık' };
+export const NB_INTERVAL_LABEL: Record<NbBillingInterval, string> = { MONTHLY: 'Aylık (eski)', QUARTERLY: '3 ay', SEMIANNUAL: '6 ay', YEARLY: '12 ay' };
+
+export interface NbTermPurchase { id: string; memberId: string; memberName: string; durationMonths: number; fee: number; currency: string; status: string; startsAt: string; endsAt: string }
 
 export interface NbBillingPlan {
+  oneTime: boolean;
+  durationMonths: number;
   id: string;
   tierId: string;
   tierName: string;
@@ -436,6 +440,9 @@ export const nbOpsService = {
   },
 
   // Abonelik planları ve abonelikler
+  async termPurchases(params: { status?: string; page: number; size: number }): Promise<{ content: NbTermPurchase[]; totalPages: number; totalElements: number }> {
+    return unwrap((await api.get('/nb/admin/billing/purchases', { params })).data);
+  },
   async billingPlans(): Promise<NbBillingPlan[]> {
     return unwrap<NbBillingPlan[]>((await api.get('/nb/admin/billing/plans')).data);
   },
