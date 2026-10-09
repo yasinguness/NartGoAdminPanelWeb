@@ -28,6 +28,7 @@ const BusinessClaims = lazy(() => import('./pages/Businesses/BusinessClaims'));
 const BusinessCategories = lazy(() => import('./pages/BusinessCategories/BusinessCategories'));
 const FeaturedStories = lazy(() => import('./pages/FeaturedStories/FeaturedStories'));
 const UserCards = lazy(() => import('./pages/UserCards/UserCards'));
+const NartStoreInterest = lazy(() => import('./pages/NartStoreInterest/NartStoreInterest'));
 const FeatureFlags = lazy(() => import('./pages/FeatureFlags/FeatureFlags'));
 const Events = lazy(() => import('./pages/Events/Events'));
 const EventCategories = lazy(() => import('./pages/EventCategories/EventCategories'));
@@ -210,6 +211,7 @@ function App() {
                 <Route path="business-categories" element={<BusinessCategories />} />
                 <Route path="featured-stories" element={<FeaturedStories />} />
                 <Route path="user-cards" element={<UserCards />} />
+                <Route path="nartstore-interest" element={<NartStoreInterest />} />
                 <Route path="feature-flags" element={<FeatureFlags />} />
                 <Route path="events" element={<Events />} />
                 <Route path="events/:id" element={<EventDetailRedirect />} />
