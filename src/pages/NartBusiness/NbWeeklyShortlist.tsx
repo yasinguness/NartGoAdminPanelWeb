@@ -108,23 +108,27 @@ export default function NbWeeklyShortlist() {
 
   const selectedOf = (m: NbMemberShortlist) => m.items.filter((i) => picked[m.memberId]?.has(i.tenderId));
 
-  /** Seçilenleri sırayla yönlendirir; biri düşerse kalanlar denenir, sonuç söylenir. */
+  /** Seçilenleri toplu olarak yönlendirir; tek bildirim ve tek e-posta ile iletir. */
   const refer = async (m: NbMemberShortlist, items: NbShortlistItem[], channel: 'IN_APP' | 'WHATSAPP') => {
+    if (!items.length) return;
     setBusy(m.memberId);
-    let ok = 0;
-    const failed: string[] = [];
-    for (const it of items) {
-      try {
-        await nbAdminService.referTender(it.tenderId, { memberId: m.memberId, channel });
-        ok++;
-      } catch (e) {
-        failed.push(`${it.title}: ${nbErrorMessage(e, 'gönderilemedi')}`);
-      }
+    try {
+      await nbAdminService.referTenderBatch({
+        memberId: m.memberId,
+        tenderIds: items.map((i) => i.tenderId),
+        channel,
+      });
+      setUndo({
+        message: `${m.companyName ?? 'Üye'}: ${items.length} ihale ${
+          channel === 'IN_APP' ? 'tek bildirim ve e-posta ile iletildi' : 'WhatsApp ile iletildi olarak kaydedildi'
+        }`,
+      });
+    } catch (e) {
+      setError(nbErrorMessage(e, 'İhaleler iletilemedi'));
+    } finally {
+      setBusy(null);
+      await load();
     }
-    setBusy(null);
-    if (failed.length) setError(`${ok} ihale iletildi, ${failed.length} ihale iletilemedi: ${failed.join(' · ')}`);
-    else setUndo({ message: `${m.companyName ?? 'Üye'}: ${ok} ihale ${channel === 'IN_APP' ? 'bildirim ve e-posta ile iletildi' : 'WhatsApp ile iletildi olarak kaydedildi'}` });
-    await load();
   };
 
   const openDraft = async (m: NbMemberShortlist) => {

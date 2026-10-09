@@ -2147,6 +2147,13 @@ async function referTender(
   return unwrap<NbTenderReferral>(res.data);
 }
 
+async function referTenderBatch(
+  body: { memberId: string; tenderIds: string[]; channel?: NbTenderChannel; note?: string },
+): Promise<NbTenderReferral[]> {
+  const res = await api.post<any>('/nb/admin/tenders/refer-batch', body);
+  return unwrap<NbTenderReferral[]>(res.data) ?? [];
+}
+
 async function updateTenderReferral(
   referralId: string,
   body: { status?: NbTenderReferralStatus; note?: string },
@@ -2404,6 +2411,7 @@ export const nbAdminService = {
   rematchTender,
   getTenderDraft,
   referTender,
+  referTenderBatch,
   updateTenderReferral,
   listTenderReferrals,
   suggestConsortium,

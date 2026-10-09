@@ -193,20 +193,28 @@ export default function NbMemberOpportunities({
   const selectedTenders = shortlist?.items.filter((i) => picked.has(i.tenderId)) ?? [];
 
   const referTenders = async (channel: 'IN_APP' | 'WHATSAPP', ids: string[]) => {
+    if (!ids.length) return false;
     setBusy(true);
-    const failed: string[] = [];
-    for (const id of ids) {
-      try {
-        await nbAdminService.referTender(id, { memberId, channel });
-      } catch (e) {
-        failed.push(nbErrorMessage(e, 'gönderilemedi'));
-      }
+    try {
+      await nbAdminService.referTenderBatch({
+        memberId,
+        tenderIds: ids,
+        channel,
+      });
+      onToast(
+        `${ids.length} ihale ${
+          channel === 'IN_APP' ? 'tek bildirim ve e-posta ile iletildi' : 'WhatsApp ile iletildi olarak kaydedildi'
+        }`,
+      );
+      await loadTenders();
+      return true;
+    } catch (e) {
+      setError(nbErrorMessage(e, 'İhaleler iletilemedi'));
+      await loadTenders();
+      return false;
+    } finally {
+      setBusy(false);
     }
-    if (failed.length) setError(`${ids.length - failed.length} gönderildi, ${failed.length} gönderilemedi: ${failed.join(' · ')}`);
-    else onToast(`${ids.length} ihale ${channel === 'IN_APP' ? 'bildirim ve e-posta ile iletildi' : 'WhatsApp ile iletildi olarak kaydedildi'}`);
-    await loadTenders();
-    setBusy(false);
-    return failed.length === 0;
   };
 
   const tenderWhatsApp = async () => {
