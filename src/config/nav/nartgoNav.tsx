@@ -92,7 +92,7 @@ export const nartgoNavSections: NavSection[] = [
             { text: 'İşletme Kategorileri', icon: <CategoryIcon />, path: '/business-categories' },
             { text: 'Öne Çıkan Hikayeler', icon: <StarIcon />, path: '/featured-stories' },
             { text: 'Üye Kartları', icon: <BadgeIcon />, path: '/user-cards' },
-            { text: 'NartStore İlgi Listesi', icon: <StorefrontIcon />, path: '/nartstore-interest' },
+            { text: 'NartStore Başvuruları', icon: <StorefrontIcon />, path: '/nartstore-interest' },
             { text: 'Özellik Görünürlüğü', icon: <ToggleOnIcon />, path: '/feature-flags' },
         ],
     },
