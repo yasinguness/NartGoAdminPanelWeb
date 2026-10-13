@@ -54,6 +54,14 @@ import RaffleImageField from './RaffleImageField';
 
 const DAY = 24 * 60 * 60 * 1000;
 
+/** Bir sonraki tam saate yuvarlar: bitiş "20 Ekim 19:24" değil "20 Ekim 20:00" olsun. */
+function ceilToHour(d: Date): Date {
+  const r = new Date(d);
+  if (r.getMinutes() || r.getSeconds() || r.getMilliseconds()) r.setHours(r.getHours() + 1);
+  r.setMinutes(0, 0, 0);
+  return r;
+}
+
 /** Bölüm başlığı: başlık + tek satır açıklama. */
 function Section({ title, hint, children, id }: { title: string; hint?: string; children: ReactNode; id?: string }) {
   return (
@@ -139,10 +147,10 @@ export default function RaffleCampaignForm({
       return { ...prev, prizes: next };
     });
 
-  /** Süre kısayolu: başlangıç yoksa şimdi başlar. */
+  /** Süre kısayolu: başlangıç yoksa şimdi başlar; bitiş tam saate yuvarlanır. */
   const setLength = (days: number) => {
     const start = form.startsAt && !Number.isNaN(form.startsAt.getTime()) ? form.startsAt : new Date();
-    setForm((prev) => ({ ...prev, startsAt: start, endsAt: new Date(start.getTime() + days * DAY) }));
+    setForm((prev) => ({ ...prev, startsAt: start, endsAt: ceilToHour(new Date(start.getTime() + days * DAY)) }));
   };
 
   const save = async () => {

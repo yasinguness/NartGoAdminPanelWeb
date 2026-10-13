@@ -109,6 +109,11 @@ export const raffleAdminService = {
     return res.data.data as RaffleCampaign;
   },
 
+  /** Yumuşak silme: uygulamadan kalkar; katılım ve kazanan kayıtları kalır. */
+  async remove(id: string): Promise<void> {
+    await api.delete(`${basePath}/${id}`);
+  },
+
   async entries(id: string, limit = 100): Promise<RaffleEntry[]> {
     const res = await api.get<ApiResponse<RaffleEntry[]>>(`${basePath}/${id}/entries`, {
       params: { limit },

@@ -30,6 +30,12 @@ import DownloadIcon from '@mui/icons-material/Download';
 import AutoStoriesIcon from '@mui/icons-material/AutoStories';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
+import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
+import PublishOutlinedIcon from '@mui/icons-material/PublishOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { FeaturedStoryService } from '../../services/featured/featuredStoryService';
+
+const featuredStoryService = FeaturedStoryService.getInstance();
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import {
@@ -64,6 +70,7 @@ export default function RaffleCampaignDetail({
   onClose,
   onEdit,
   onChanged,
+  onDeleted,
 }: {
   campaign: RaffleCampaign | null;
   entries: RaffleEntry[];
@@ -72,6 +79,8 @@ export default function RaffleCampaignDetail({
   onClose: () => void;
   onEdit: (c: RaffleCampaign) => void;
   onChanged: (id: string) => Promise<void>;
+  /** Silindikten sonra: panel kapanır, liste yenilenir. */
+  onDeleted: () => Promise<void>;
 }) {
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
@@ -79,6 +88,12 @@ export default function RaffleCampaignDetail({
   const [force, setForce] = useState(false);
   const [drawCount, setDrawCount] = useState(3);
   const [drawing, setDrawing] = useState(false);
+
+  // Yayından kaldır / yayına al / sil
+  const [removal, setRemoval] = useState<'unpublish' | 'delete' | null>(null);
+  const [storyIds, setStoryIds] = useState<string[] | null>(null);
+  const [dropStories, setDropStories] = useState(true);
+  const [busy, setBusy] = useState(false);
 
   const c = campaign;
   const join = c?.entryMode === 'JOIN';
@@ -121,6 +136,65 @@ export default function RaffleCampaignDetail({
       URL.revokeObjectURL(url);
     } catch {
       enqueueSnackbar('Katılımcı listesi indirilemedi', { variant: 'error' });
+    }
+  };
+
+  /** Bu çekilişi tanıtan story'ler; kaldırınca açılmayan story kalmasın. */
+  const openRemoval = async (kind: 'unpublish' | 'delete') => {
+    setRemoval(kind);
+    setDropStories(true);
+    setStoryIds(null);
+    try {
+      const all = await featuredStoryService.list();
+      setStoryIds(all.filter((s) => s.targetType === 'RAFFLE' && s.targetId === c?.id).map((s) => s.id));
+    } catch {
+      setStoryIds([]);
+    }
+  };
+
+  const confirmRemoval = async () => {
+    if (!c || !removal) return;
+    setBusy(true);
+    try {
+      if (removal === 'delete') await raffleAdminService.remove(c.id);
+      else await raffleAdminService.update(c.id, { status: 'DRAFT' });
+      let storyFailed = false;
+      if (dropStories && storyIds?.length) {
+        const results = await Promise.allSettled(storyIds.map((id) => featuredStoryService.remove(id)));
+        storyFailed = results.some((r) => r.status === 'rejected');
+      }
+      enqueueSnackbar(
+        removal === 'delete' ? 'Çekiliş silindi; uygulamadan kalktı' : 'Çekiliş taslağa alındı; uygulamadan kalktı',
+        { variant: 'success' },
+      );
+      if (storyFailed) {
+        enqueueSnackbar("Bazı story'ler kaldırılamadı. Öne Çıkan Hikayeler'den elle kaldır.", { variant: 'warning' });
+      }
+      setRemoval(null);
+      if (removal === 'delete') await onDeleted();
+      else await onChanged(c.id);
+    } catch (e: any) {
+      enqueueSnackbar(e?.response?.data?.message || 'İşlem yapılamadı', { variant: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const publish = async () => {
+    if (!c) return;
+    if (new Date(c.endsAt).getTime() <= Date.now()) {
+      enqueueSnackbar('Bitiş tarihi geçmiş. Önce Düzenle\'den yeni bir bitiş tarihi seç.', { variant: 'warning' });
+      return;
+    }
+    setBusy(true);
+    try {
+      await raffleAdminService.update(c.id, { status: 'ACTIVE' });
+      enqueueSnackbar('Çekiliş yayında', { variant: 'success' });
+      await onChanged(c.id);
+    } catch (e: any) {
+      enqueueSnackbar(e?.response?.data?.message || 'Yayına alınamadı', { variant: 'error' });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -200,6 +274,22 @@ export default function RaffleCampaignDetail({
                   </Button>
                 </>
               )}
+            </Stack>
+            <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
+              {c.status === 'ACTIVE' ? (
+                <Button size="small" color="inherit" startIcon={<VisibilityOffOutlinedIcon />} disabled={busy}
+                  onClick={() => openRemoval('unpublish')}>
+                  Yayından kaldır
+                </Button>
+              ) : c.status === 'DRAFT' ? (
+                <Button size="small" color="success" startIcon={<PublishOutlinedIcon />} disabled={busy} onClick={publish}>
+                  Yayına al
+                </Button>
+              ) : null}
+              <Button size="small" color="error" startIcon={<DeleteOutlineIcon />} disabled={busy}
+                onClick={() => openRemoval('delete')}>
+                Sil
+              </Button>
             </Stack>
           </Box>
 
@@ -310,6 +400,40 @@ export default function RaffleCampaignDetail({
               )}
             </Block>
           </Stack>
+
+          {/* Yayından kaldır / sil onayı */}
+          <Dialog open={!!removal} onClose={() => !busy && setRemoval(null)} maxWidth="xs" fullWidth>
+            <DialogTitle>{removal === 'delete' ? 'Çekiliş silinsin mi?' : 'Yayından kaldırılsın mı?'}</DialogTitle>
+            <DialogContent>
+              <Stack spacing={2}>
+                <Typography variant="body2">
+                  {removal === 'delete'
+                    ? 'Uygulamadan tamamen kalkar ve bu listeden silinir. Geri alınamaz. Katılım ve kazanan kayıtları denetim için saklanır.'
+                    : 'Çekiliş taslağa alınır: ana sayfa kartı, çekiliş sayfası ve açılış penceresi uygulamadan kalkar. Katılımlar silinmez; istediğinde "Yayına al" ile geri açabilirsin.'}
+                </Typography>
+                {participantCount > 0 && (
+                  <Alert severity="warning">
+                    {participantCount} kişi katıldı. {removal === 'delete' ? 'Silinince' : 'Kaldırılınca'} çekiliş sayfasını göremezler.
+                  </Alert>
+                )}
+                {storyIds === null ? (
+                  <Typography variant="caption" color="text.secondary">Story&apos;ler kontrol ediliyor…</Typography>
+                ) : storyIds.length > 0 ? (
+                  <FormControlLabel
+                    control={<Checkbox checked={dropStories} onChange={(e) => setDropStories(e.target.checked)} />}
+                    label={<Typography variant="body2">Bu çekilişi tanıtan {storyIds.length} story&apos;yi de kaldır</Typography>}
+                  />
+                ) : null}
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setRemoval(null)} disabled={busy}>Vazgeç</Button>
+              <Button variant="contained" color={removal === 'delete' ? 'error' : 'primary'} onClick={confirmRemoval}
+                disabled={busy || storyIds === null}>
+                {busy ? 'İşleniyor…' : removal === 'delete' ? 'Sil' : 'Yayından kaldır'}
+              </Button>
+            </DialogActions>
+          </Dialog>
 
           {/* Kura onayı */}
           <Dialog open={confirmOpen} onClose={() => !drawing && setConfirmOpen(false)} maxWidth="xs" fullWidth>

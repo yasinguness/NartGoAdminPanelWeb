@@ -231,6 +231,10 @@ export default function RaffleCampaigns() {
         onClose={() => setDetail(null)}
         onEdit={openEdit}
         onChanged={onDetailChanged}
+        onDeleted={async () => {
+          setDetail(null);
+          await load();
+        }}
       />
 
       <RaffleCampaignForm open={formOpen} editing={editing} onClose={() => setFormOpen(false)} onSaved={onSaved} />
