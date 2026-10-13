@@ -1,234 +1,63 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
+  Avatar,
   Box,
   Button,
-  Checkbox,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControlLabel,
-  Grid,
+  Collapse,
   IconButton,
-  MenuItem,
   Paper,
   Stack,
-  Switch,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import CasinoIcon from '@mui/icons-material/Casino';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import DownloadIcon from '@mui/icons-material/Download';
-import AutoStoriesIcon from '@mui/icons-material/AutoStories';
-import { useNavigate } from 'react-router-dom';
+import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useSnackbar } from 'notistack';
 import {
   raffleAdminService,
   RaffleCampaign,
   RaffleEntry,
-  RaffleEntryMode,
-  RafflePrize,
   RaffleWinner,
-  RafflePopupFrequency,
-  RaffleStatus,
-  UpsertRaffleCampaign,
 } from '../../services/raffle/raffleAdminService';
+import { FREQ_LABEL, durationText, fmtDate, phaseOf } from './raffleForm';
+import RaffleCampaignForm from './RaffleCampaignForm';
+import RaffleCampaignDetail from './RaffleCampaignDetail';
 
-// ── yardımcılar ──
-
-const STATUS_META: Record<RaffleStatus, { label: string; color: 'default' | 'success' | 'warning' | 'error' }> = {
-  DRAFT: { label: 'Taslak', color: 'default' },
-  ACTIVE: { label: 'Aktif', color: 'success' },
-  ENDED: { label: 'Bitti', color: 'warning' },
-  CANCELLED: { label: 'İptal', color: 'error' },
-};
-
-const MODE_LABEL: Record<RaffleEntryMode, string> = {
-  JOIN: 'Katıl (bir kez)',
-  XP: 'XP ile hak',
-};
-
-const FREQ_LABEL: Record<RafflePopupFrequency, string> = {
-  ONCE: 'Bir kez',
-  DAILY: 'Günde bir',
-  EVERY_OPEN: 'Her açılışta',
-};
-
-/** ISO (Z) → input[type=datetime-local] değeri (yerel saat). */
-function toLocalInput(iso?: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-/** datetime-local → ISO (UTC). */
-function toIso(local: string): string | undefined {
-  if (!local) return undefined;
-  const d = new Date(local);
-  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
-}
-
-function fmtDate(iso?: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-interface FormState {
-  name: string;
-  prize: string;
-  description: string;
-  startsAt: string; // datetime-local
-  endsAt: string;
-  status: RaffleStatus;
-  xpPerEntry: number;
-  maxEntriesPerUser: string; // '' = sınırsız
-  popupEnabled: boolean;
-  popupTitle: string;
-  popupBody: string;
-  popupImageUrl: string;
-  popupCtaText: string;
-  popupFrequency: RafflePopupFrequency;
-  entryMode: RaffleEntryMode;
-  rules: string;
-  coverImageUrl: string;
-  prizes: RafflePrize[];
-}
-
-const EMPTY_FORM: FormState = {
-  name: '',
-  prize: '',
-  description: '',
-  startsAt: '',
-  endsAt: '',
-  status: 'DRAFT',
-  xpPerEntry: 50,
-  maxEntriesPerUser: '',
-  popupEnabled: false,
-  popupTitle: '',
-  popupBody: '',
-  popupImageUrl: '',
-  popupCtaText: '',
-  popupFrequency: 'DAILY',
-  entryMode: 'JOIN',
-  rules: '',
-  coverImageUrl: '',
-  prizes: [{ title: '', quantity: 1, imageUrl: '' }],
-};
-
-function campaignToForm(c: RaffleCampaign): FormState {
-  return {
-    name: c.name,
-    prize: c.prize,
-    description: c.description ?? '',
-    startsAt: toLocalInput(c.startsAt),
-    endsAt: toLocalInput(c.endsAt),
-    status: c.status,
-    xpPerEntry: c.xpPerEntry,
-    maxEntriesPerUser: c.maxEntriesPerUser ? String(c.maxEntriesPerUser) : '',
-    popupEnabled: c.popupEnabled,
-    popupTitle: c.popupTitle ?? '',
-    popupBody: c.popupBody ?? '',
-    popupImageUrl: c.popupImageUrl ?? '',
-    popupCtaText: c.popupCtaText ?? '',
-    popupFrequency: c.popupFrequency ?? 'DAILY',
-    entryMode: c.entryMode ?? 'XP',
-    rules: c.rules ?? '',
-    coverImageUrl: c.coverImageUrl ?? '',
-    prizes: c.prizes?.length
-      ? c.prizes.map((p) => ({ title: p.title, quantity: p.quantity, imageUrl: p.imageUrl ?? '', description: p.description ?? '' }))
-      : [{ title: '', quantity: 1, imageUrl: '' }],
-  };
-}
-
-function formToRequest(f: FormState, prizesLocked: boolean): UpsertRaffleCampaign {
-  const join = f.entryMode === 'JOIN';
-  return {
-    name: f.name.trim(),
-    // JOIN: özet ödül metni hediye adlarından sunucuda doldurulur.
-    prize: join ? undefined : f.prize.trim(),
-    entryMode: f.entryMode,
-    rules: f.rules,
-    coverImageUrl: f.coverImageUrl,
-    prizes:
-      join && !prizesLocked
-        ? f.prizes
-            .filter((p) => p.title.trim())
-            .map((p) => ({
-              title: p.title.trim(),
-              quantity: Math.max(1, Number(p.quantity) || 1),
-              imageUrl: p.imageUrl?.trim() || undefined,
-              description: p.description?.trim() || undefined,
-            }))
-        : undefined,
-    description: f.description,
-    startsAt: toIso(f.startsAt),
-    endsAt: toIso(f.endsAt),
-    status: f.status,
-    xpPerEntry: f.xpPerEntry,
-    // 0 gönderilirse backend sınırsız (null) yapar
-    maxEntriesPerUser: f.maxEntriesPerUser === '' ? 0 : Number(f.maxEntriesPerUser),
-    popupEnabled: f.popupEnabled,
-    popupTitle: f.popupTitle,
-    popupBody: f.popupBody,
-    popupImageUrl: f.popupImageUrl,
-    popupCtaText: f.popupCtaText,
-    popupFrequency: f.popupFrequency,
-  };
-}
-
-// ── sayfa ──
-
+/**
+ * Çekilişler: liste, sağdan açılan detay (kura, story, katılımcılar) ve
+ * bölümlere ayrılmış oluşturma/düzenleme formu.
+ */
 export default function RaffleCampaigns() {
   const { enqueueSnackbar } = useSnackbar();
-  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<RaffleCampaign[]>([]);
+  const [helpOpen, setHelpOpen] = useState(false);
 
-  // Form dialog
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<RaffleCampaign | null>(null);
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
 
-  // Detay (liderlik + çekim + kazananlar)
   const [detail, setDetail] = useState<RaffleCampaign | null>(null);
-  const [entriesList, setEntriesList] = useState<RaffleEntry[]>([]);
-  const [winnersList, setWinnersList] = useState<RaffleWinner[]>([]);
+  const [entries, setEntries] = useState<RaffleEntry[]>([]);
+  const [winners, setWinners] = useState<RaffleWinner[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
-
-  // Çekim
-  const [drawCount, setDrawCount] = useState(3);
-  const [drawForce, setDrawForce] = useState(false);
-  const [drawConfirmOpen, setDrawConfirmOpen] = useState(false);
-  const [drawing, setDrawing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       setCampaigns(await raffleAdminService.list());
     } catch {
-      enqueueSnackbar('Kampanyalar yüklenemedi', { variant: 'error' });
+      enqueueSnackbar('Çekilişler yüklenemedi', { variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -238,636 +67,173 @@ export default function RaffleCampaigns() {
     load();
   }, [load]);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm(EMPTY_FORM);
-    setFormOpen(true);
-  };
-
-  const openEdit = (c: RaffleCampaign) => {
-    setEditing(c);
-    setForm(campaignToForm(c));
-    setFormOpen(true);
-  };
-
-  const save = async () => {
-    const join = form.entryMode === 'JOIN';
-    if (!form.name.trim() || !form.startsAt || !form.endsAt || (!join && !form.prize.trim())) {
-      enqueueSnackbar(join ? 'Ad, başlangıç ve bitiş zorunlu' : 'Ad, ödül, başlangıç ve bitiş zorunlu', {
-        variant: 'warning',
-      });
-      return;
-    }
-    if (join && !form.prizes.some((p) => p.title.trim())) {
-      enqueueSnackbar('En az bir hediye ekleyin', { variant: 'warning' });
-      return;
-    }
-    setSaving(true);
-    try {
-      const body = formToRequest(form, !!editing?.winnersDrawn);
-      if (editing) {
-        await raffleAdminService.update(editing.id, body);
-        enqueueSnackbar('Kampanya güncellendi', { variant: 'success' });
-      } else {
-        await raffleAdminService.create(body);
-        enqueueSnackbar('Kampanya oluşturuldu', { variant: 'success' });
-      }
-      setFormOpen(false);
-      await load();
-      if (detail && editing && detail.id === editing.id) {
-        await openDetail(editing.id);
-      }
-    } catch (e: any) {
-      enqueueSnackbar(e?.response?.data?.message || 'Kaydedilemedi', { variant: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const openDetail = async (id: string) => {
+  const openDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
     try {
-      const [c, entries, winners] = await Promise.all([
+      const [c, e, w] = await Promise.all([
         raffleAdminService.get(id),
         raffleAdminService.entries(id, 100),
         raffleAdminService.winners(id),
       ]);
       setDetail(c);
-      setEntriesList(entries);
-      setWinnersList(winners);
+      setEntries(e);
+      setWinners(w);
     } catch {
-      enqueueSnackbar('Kampanya detayı yüklenemedi', { variant: 'error' });
+      enqueueSnackbar('Çekiliş detayı yüklenemedi', { variant: 'error' });
     } finally {
       setDetailLoading(false);
     }
+  }, [enqueueSnackbar]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormOpen(true);
   };
 
-  const runDraw = async () => {
-    if (!detail) return;
-    setDrawing(true);
-    try {
-      const winners = await raffleAdminService.draw(detail.id, drawCount, drawForce);
-      setWinnersList(winners);
-      enqueueSnackbar(`Çekiliş tamamlandı — ${winners.length} kazanan`, { variant: 'success' });
-      setDrawConfirmOpen(false);
-      setDrawForce(false);
-      await load();
-      await openDetail(detail.id);
-    } catch (e: any) {
-      enqueueSnackbar(e?.response?.data?.message || 'Çekim başarısız', { variant: 'error' });
-    } finally {
-      setDrawing(false);
-    }
+  const openEdit = (c: RaffleCampaign) => {
+    setEditing(c);
+    setFormOpen(true);
   };
 
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
-
-  const setPrize = (index: number, patch: Partial<RafflePrize>) =>
-    setForm((prev) => ({ ...prev, prizes: prev.prizes.map((p, i) => (i === index ? { ...p, ...patch } : p)) }));
-  const movePrize = (index: number, dir: -1 | 1) =>
-    setForm((prev) => {
-      const next = [...prev.prizes];
-      const target = index + dir;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
-      return { ...prev, prizes: next };
-    });
-
-  /** Tüm katılımcılar CSV (ad, e-posta, katılım zamanı). */
-  const downloadParticipants = async () => {
-    if (!detail) return;
-    try {
-      const rows = await raffleAdminService.entries(detail.id, 10000);
-      const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-      const csv = [
-        ['Ad', 'E-posta', 'Katılım', 'Kullanıcı ID'].map(esc).join(','),
-        ...rows.map((r) => [r.displayName, r.email, r.joinedAt ? fmtDate(r.joinedAt) : '', r.userId].map(esc).join(',')),
-      ].join('\n');
-      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `cekilis-${detail.name.replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase()}-katilimcilar.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      enqueueSnackbar('Katılımcı listesi indirilemedi', { variant: 'error' });
-    }
+  const onSaved = async (message: string) => {
+    enqueueSnackbar(message, { variant: 'success' });
+    setFormOpen(false);
+    await load();
+    if (detail && editing && detail.id === editing.id) await openDetail(editing.id);
   };
 
-  const detailIsJoin = detail?.entryMode === 'JOIN';
-  const formIsJoin = form.entryMode === 'JOIN';
-  const modeLocked = !!editing && (editing.winnersDrawn || (editing.eligibleCount ?? 0) > 0);
+  const onDetailChanged = async (id: string) => {
+    await Promise.all([load(), openDetail(id)]);
+  };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <CasinoIcon color="primary" />
-          <Typography variant="h5" fontWeight={700}>
-            Çekiliş Kampanyaları
+      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
+        <Box>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="h5" fontWeight={700}>Çekilişler</Typography>
+            <Tooltip title="Nasıl çalışır?">
+              <IconButton size="small" onClick={() => setHelpOpen((v) => !v)} aria-expanded={helpOpen}>
+                <HelpOutlineIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            Uygulamada hediye çekilişleri. Bir satıra tıkla: katılımcılar, kura ve story orada.
           </Typography>
-        </Stack>
+        </Box>
         <Stack direction="row" spacing={1}>
           <Tooltip title="Yenile">
-            <IconButton onClick={load}>
-              <RefreshIcon />
-            </IconButton>
+            <IconButton onClick={load}><RefreshIcon /></IconButton>
           </Tooltip>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-            Yeni Kampanya
-          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Yeni çekiliş</Button>
         </Stack>
       </Stack>
 
-      <Alert severity="info" sx={{ mb: 2 }}>
-        İki tür var. <strong>Katıl</strong>: kullanıcı uygulamada &quot;Çekilişe katıl&quot; der, her kişi bir kez
-        katılır; kura her hediye için adedi kadar kazanan çeker. <strong>XP ile hak</strong>: hak = kampanya
-        penceresindeki XP ÷ hak başına XP; ayrıca katılmak gerekmez. Uygulamada katılımcı sayısı ve kazananların
-        yalnız baş harfleri görünür.
-      </Alert>
+      <Collapse in={helpOpen}>
+        <Paper variant="outlined" sx={{ p: 2, mb: 2, bgcolor: 'action.hover' }}>
+          <Stack spacing={1}>
+            <Typography variant="body2">
+              <strong>Çekilişe katıl:</strong> kullanıcı uygulamada &quot;Çekilişe katıl&quot;a basar, herkes bir kez katılır.
+              Kura her hediyeye adedi kadar kazanan çeker; bir kişi iki hediye kazanamaz.
+            </Typography>
+            <Typography variant="body2">
+              <strong>XP ile hak:</strong> kullanıcı ayrıca katılmaz; hak = çekiliş süresinde kazanılan XP ÷ hak başına XP.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Uygulamada yalnız katılımcı sayısı ve kazananların baş harfleri görünür. Tam ad ve e-posta yalnız burada.
+            </Typography>
+          </Stack>
+        </Paper>
+      </Collapse>
 
-      {/* ── Kampanya listesi ── */}
-      <Paper variant="outlined" sx={{ mb: 3 }}>
-        {loading ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <CircularProgress size={28} />
-          </Box>
+      <Paper variant="outlined">
+        {loading && campaigns.length === 0 ? (
+          <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress size={28} /></Box>
         ) : campaigns.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">Henüz kampanya yok.</Typography>
-          </Box>
+          <Stack alignItems="center" spacing={1.5} sx={{ p: 6, textAlign: 'center' }}>
+            <CardGiftcardIcon color="disabled" sx={{ fontSize: 40 }} />
+            <Typography fontWeight={600}>Henüz çekiliş yok</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Hediyeleri ve tarihleri belirle, taslak olarak kaydet; hazır olunca yayınla.
+            </Typography>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>İlk çekilişi oluştur</Button>
+          </Stack>
         ) : (
-          <Table size="small">
+          <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Kampanya</TableCell>
-                <TableCell>Tür</TableCell>
-                <TableCell>Ödül</TableCell>
-                <TableCell>Dönem</TableCell>
+                <TableCell>Çekiliş</TableCell>
+                <TableCell>Tarih</TableCell>
+                <TableCell align="right">Katılım</TableCell>
                 <TableCell>Durum</TableCell>
-                <TableCell align="center">Popup</TableCell>
-                <TableCell align="center">XP/Hak</TableCell>
-                <TableCell align="center">Kazananlar</TableCell>
-                <TableCell align="right">İşlem</TableCell>
+                <TableCell>Açılış penceresi</TableCell>
+                <TableCell align="right" />
               </TableRow>
             </TableHead>
             <TableBody>
-              {campaigns.map((c) => (
-                <TableRow key={c.id} hover>
-                  <TableCell>
-                    <Typography fontWeight={600}>{c.name}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip size="small" variant="outlined" label={c.entryMode === 'JOIN' ? 'Katıl' : 'XP'}
-                      color={c.entryMode === 'JOIN' ? 'primary' : 'default'} />
-                  </TableCell>
-                  <TableCell>
-                    {c.prize}
-                    {c.entryMode === 'JOIN' && c.eligibleCount != null && (
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        {c.eligibleCount} katılımcı
+              {campaigns.map((c) => {
+                const phase = phaseOf(c);
+                const join = c.entryMode === 'JOIN';
+                const length = durationText(new Date(c.startsAt), new Date(c.endsAt));
+                return (
+                  <TableRow key={c.id} hover sx={{ cursor: 'pointer' }} onClick={() => openDetail(c.id)}
+                    selected={detail?.id === c.id}>
+                    <TableCell sx={{ maxWidth: 360 }}>
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Avatar variant="rounded" src={c.coverImageUrl ?? c.popupImageUrl ?? undefined}
+                          sx={{ width: 40, height: 40, bgcolor: 'action.hover' }}>
+                          <CardGiftcardIcon fontSize="small" color="action" />
+                        </Avatar>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography fontWeight={600} noWrap>{c.name}</Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap component="div">
+                            {join ? 'Çekilişe katıl' : `XP ile hak · ${c.xpPerEntry} XP = 1 hak`} · {c.prize}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap>{fmtDate(c.startsAt)}</Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap component="div">
+                        → {fmtDate(c.endsAt)}{length ? ` · ${length}` : ''}
                       </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {fmtDate(c.startsAt)} → {fmtDate(c.endsAt)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip size="small" label={STATUS_META[c.status].label} color={STATUS_META[c.status].color} />
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      label={c.popupEnabled ? `Açık · ${FREQ_LABEL[c.popupFrequency]}` : 'Kapalı'}
-                      color={c.popupEnabled ? 'success' : 'default'}
-                    />
-                  </TableCell>
-                  <TableCell align="center">{c.entryMode === 'JOIN' ? '—' : c.xpPerEntry}</TableCell>
-                  <TableCell align="center">
-                    {c.winnersDrawn ? (
-                      <Chip size="small" icon={<EmojiEventsIcon />} label="Çekildi" color="warning" />
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        —
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {c.eligibleCount != null ? c.eligibleCount.toLocaleString('tr-TR') : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Chip size="small" label={phase.label} color={phase.color} />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color={c.popupEnabled ? 'text.primary' : 'text.secondary'}>
+                        {c.popupEnabled ? FREQ_LABEL[c.popupFrequency] : 'Kapalı'}
                       </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="Düzenle">
-                      <IconButton size="small" onClick={() => openEdit(c)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Button size="small" onClick={() => openDetail(c.id)}>
-                      Detay
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                      <Tooltip title="Düzenle">
+                        <IconButton size="small" onClick={() => openEdit(c)}><EditIcon fontSize="small" /></IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
       </Paper>
 
-      {/* ── Detay: katılım liderliği + çekim + kazananlar ── */}
-      {detailLoading && (
-        <Box sx={{ p: 3, textAlign: 'center' }}>
-          <CircularProgress size={28} />
-        </Box>
-      )}
-      {detail && !detailLoading && (
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Typography variant="h6" fontWeight={700}>
-              {detail.name} — Katılım &amp; Çekim
-            </Typography>
-            <Stack direction="row" spacing={1} alignItems="center">
-              {detailIsJoin && (
-                <>
-                  <Button size="small" startIcon={<DownloadIcon />} onClick={downloadParticipants}>
-                    Katılımcılar (CSV)
-                  </Button>
-                  <Button size="small" startIcon={<AutoStoriesIcon />}
-                    onClick={() => navigate(`/featured-stories?raffle=${detail.id}`)}>
-                    Story&apos;de tanıt
-                  </Button>
-                </>
-              )}
-              <Chip
-                size="small"
-                label={detailIsJoin
-                  ? `${detail.eligibleCount ?? entriesList.length} katılımcı`
-                  : `${detail.eligibleCount ?? entriesList.length} katılımcı (≥1 hak)`}
-                color="info"
-              />
-            </Stack>
-          </Stack>
+      <RaffleCampaignDetail
+        campaign={detail}
+        entries={entries}
+        winners={winners}
+        loading={detailLoading}
+        onClose={() => setDetail(null)}
+        onEdit={openEdit}
+        onChanged={onDetailChanged}
+      />
 
-          <Grid container spacing={2}>
-            {/* Liderlik */}
-            <Grid item xs={12} md={7}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                {detailIsJoin ? 'Katılımcılar (ilk 100; tamamı CSV ile)' : 'Hak Liderliği (ilk 100)'}
-              </Typography>
-              {entriesList.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  {detailIsJoin ? 'Henüz katılan yok.' : 'Henüz hak kazanan yok.'}
-                </Typography>
-              ) : detailIsJoin ? (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>#</TableCell>
-                      <TableCell>Üye</TableCell>
-                      <TableCell>Katılım</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {entriesList.map((e, i) => (
-                      <TableRow key={e.userId}>
-                        <TableCell>{i + 1}</TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight={600}>{e.displayName || '—'}</Typography>
-                          <Typography variant="caption" color="text.secondary">{e.email}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="caption">{fmtDate(e.joinedAt)}</Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>#</TableCell>
-                      <TableCell>Üye</TableCell>
-                      <TableCell align="right">Dönem XP</TableCell>
-                      <TableCell align="right">Hak</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {entriesList.map((e, i) => (
-                      <TableRow key={e.userId}>
-                        <TableCell>{i + 1}</TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight={600}>
-                            {e.displayName || '—'}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {e.email}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">{e.campaignXp}</TableCell>
-                        <TableCell align="right">
-                          <Chip size="small" label={e.entries} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </Grid>
-
-            {/* Çekim + Kazananlar */}
-            <Grid item xs={12} md={5}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Çekim
-              </Typography>
-              {detailIsJoin && (
-                <Box sx={{ mb: 1 }}>
-                  {(detail.prizes ?? []).map((p) => (
-                    <Typography key={p.id ?? p.title} variant="body2">
-                      • {p.title} × {p.quantity}
-                    </Typography>
-                  ))}
-                </Box>
-              )}
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                {!detailIsJoin && (
-                <TextField
-                  label="Kazanan sayısı (1 asıl + yedekler)"
-                  type="number"
-                  size="small"
-                  value={drawCount}
-                  onChange={(e) => setDrawCount(Math.max(1, Number(e.target.value) || 1))}
-                  sx={{ width: 220 }}
-                />
-                )}
-                <Button
-                  variant="contained"
-                  color="warning"
-                  startIcon={<CasinoIcon />}
-                  disabled={drawing}
-                  onClick={() => setDrawConfirmOpen(true)}
-                >
-                  Çekilişi Yap
-                </Button>
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                {detailIsJoin
-                  ? 'Her hediye için adedi kadar kazanan, katılımcılar arasından eşit olasılıkla çekilir. Bir kişi iki hediye kazanamaz.'
-                  : 'Ağırlıklı rastgele: hak sayısı = bilet. Aynı üye bir kez kazanır.'}{' '}
-                Kampanya bitmeden ya da yeniden çekim için onay kutusundaki &quot;zorla&quot; seçeneği gerekir.
-              </Typography>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Kazananlar
-              </Typography>
-              {winnersList.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  Henüz çekim yapılmadı.
-                </Typography>
-              ) : (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>{detailIsJoin ? 'Hediye' : 'Sıra'}</TableCell>
-                      <TableCell>Üye</TableCell>
-                      {!detailIsJoin && <TableCell align="right">Hak</TableCell>}
-                      <TableCell>Çekim</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {winnersList.map((w) => (
-                      <TableRow key={`${w.userId}-${w.rank}`}>
-                        <TableCell>
-                          {detailIsJoin ? (
-                            <Chip size="small" icon={<EmojiEventsIcon />} label={w.prizeTitle || 'Hediye'} color="warning" />
-                          ) : w.rank === 1 ? (
-                            <Chip size="small" icon={<EmojiEventsIcon />} label="1 · Asıl" color="warning" />
-                          ) : (
-                            <Chip size="small" label={`${w.rank} · Yedek`} variant="outlined" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight={600}>
-                            {w.displayName || '—'}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {w.email}
-                          </Typography>
-                        </TableCell>
-                        {!detailIsJoin && <TableCell align="right">{w.entryCount}</TableCell>}
-                        <TableCell>
-                          <Typography variant="caption">
-                            {fmtDate(w.drawnAt)}
-                            {w.drawnBy ? ` · ${w.drawnBy}` : ''}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </Grid>
-          </Grid>
-        </Paper>
-      )}
-
-      {/* ── Oluştur / Düzenle dialog ── */}
-      <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>{editing ? 'Kampanyayı Düzenle' : 'Yeni Çekiliş Kampanyası'}</DialogTitle>
-        <DialogContent dividers>
-          <Grid container spacing={2} sx={{ mt: 0 }}>
-            <Grid item xs={12} md={6}>
-              <TextField label="Kampanya adı" fullWidth size="small" value={form.name}
-                onChange={(e) => set('name', e.target.value)} />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField label="Katılım türü" select fullWidth size="small" value={form.entryMode}
-                disabled={modeLocked}
-                helperText={modeLocked ? 'Katılım başladı; tür değiştirilemez.' : undefined}
-                onChange={(e) => set('entryMode', e.target.value as RaffleEntryMode)}>
-                {(Object.keys(MODE_LABEL) as RaffleEntryMode[]).map((m) => (
-                  <MenuItem key={m} value={m}>{MODE_LABEL[m]}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            {!formIsJoin && (
-              <Grid item xs={12}>
-                <TextField label="Ödül (örn. Akordeon)" fullWidth size="small" value={form.prize}
-                  onChange={(e) => set('prize', e.target.value)} />
-              </Grid>
-            )}
-            <Grid item xs={12}>
-              <TextField label="Açıklama" fullWidth size="small" multiline rows={2} value={form.description}
-                onChange={(e) => set('description', e.target.value)} />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField label="Başlangıç" type="datetime-local" fullWidth size="small" value={form.startsAt}
-                onChange={(e) => set('startsAt', e.target.value)} InputLabelProps={{ shrink: true }} />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField label="Bitiş" type="datetime-local" fullWidth size="small" value={form.endsAt}
-                onChange={(e) => set('endsAt', e.target.value)} InputLabelProps={{ shrink: true }} />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField label="Durum" select fullWidth size="small" value={form.status}
-                onChange={(e) => set('status', e.target.value as RaffleStatus)}>
-                {(Object.keys(STATUS_META) as RaffleStatus[]).map((s) => (
-                  <MenuItem key={s} value={s}>{STATUS_META[s].label}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            {!formIsJoin && (
-              <>
-                <Grid item xs={12} md={4}>
-                  <TextField label="Hak başına XP" type="number" fullWidth size="small" value={form.xpPerEntry}
-                    onChange={(e) => set('xpPerEntry', Math.max(1, Number(e.target.value) || 1))} />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <TextField label="Kişi başı max hak (boş = sınırsız)" type="number" fullWidth size="small"
-                    value={form.maxEntriesPerUser}
-                    onChange={(e) => set('maxEntriesPerUser', e.target.value)} />
-                </Grid>
-              </>
-            )}
-
-            {formIsJoin && (
-              <>
-                <Grid item xs={12}>
-                  <Divider textAlign="left">
-                    <Typography variant="caption" color="text.secondary">HEDİYELER (KURA BU SIRAYLA)</Typography>
-                  </Divider>
-                </Grid>
-                {editing?.winnersDrawn && (
-                  <Grid item xs={12}>
-                    <Alert severity="warning">Kura çekildi; hediyeler değiştirilemez.</Alert>
-                  </Grid>
-                )}
-                {form.prizes.map((p, i) => (
-                  <Grid item xs={12} key={i}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <TextField label={`Hediye ${i + 1}`} size="small" sx={{ flex: 2 }} value={p.title}
-                        disabled={!!editing?.winnersDrawn}
-                        onChange={(e) => setPrize(i, { title: e.target.value })} />
-                      <TextField label="Adet" type="number" size="small" sx={{ width: 90 }} value={p.quantity}
-                        disabled={!!editing?.winnersDrawn}
-                        onChange={(e) => setPrize(i, { quantity: Math.max(1, Number(e.target.value) || 1) })} />
-                      <TextField label="Görsel URL" size="small" sx={{ flex: 2 }} value={p.imageUrl ?? ''}
-                        disabled={!!editing?.winnersDrawn}
-                        onChange={(e) => setPrize(i, { imageUrl: e.target.value })} />
-                      <IconButton size="small" disabled={i === 0 || !!editing?.winnersDrawn} onClick={() => movePrize(i, -1)}>
-                        <ArrowUpwardIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" disabled={i === form.prizes.length - 1 || !!editing?.winnersDrawn}
-                        onClick={() => movePrize(i, 1)}>
-                        <ArrowDownwardIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" disabled={form.prizes.length === 1 || !!editing?.winnersDrawn}
-                        onClick={() => set('prizes', form.prizes.filter((_, j) => j !== i))}>
-                        <DeleteOutlineIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  </Grid>
-                ))}
-                <Grid item xs={12}>
-                  <Button size="small" startIcon={<AddIcon />} disabled={!!editing?.winnersDrawn}
-                    onClick={() => set('prizes', [...form.prizes, { title: '', quantity: 1, imageUrl: '' }])}>
-                    Hediye ekle
-                  </Button>
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField label="Kapak görseli URL (çekiliş sayfası ve story)" fullWidth size="small"
-                    value={form.coverImageUrl} onChange={(e) => set('coverImageUrl', e.target.value)} />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField label="Katılım koşulları (uygulamadaki çekiliş sayfasında görünür)" fullWidth size="small"
-                    multiline rows={4} value={form.rules} onChange={(e) => set('rules', e.target.value)} />
-                </Grid>
-              </>
-            )}
-
-            <Grid item xs={12}>
-              <Divider textAlign="left">
-                <Typography variant="caption" color="text.secondary">APP-İÇİ TANITIM POPUP&apos;I</Typography>
-              </Divider>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={<Switch checked={form.popupEnabled}
-                  onChange={(e) => set('popupEnabled', e.target.checked)} />}
-                label="Popup gösterilsin"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField label="Gösterim sıklığı" select fullWidth size="small" value={form.popupFrequency}
-                onChange={(e) => set('popupFrequency', e.target.value as RafflePopupFrequency)}>
-                {(Object.keys(FREQ_LABEL) as RafflePopupFrequency[]).map((f) => (
-                  <MenuItem key={f} value={f}>{FREQ_LABEL[f]}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField label="Popup başlık" fullWidth size="small" value={form.popupTitle}
-                onChange={(e) => set('popupTitle', e.target.value)} />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField label={formIsJoin ? 'Buton metni (örn. Çekilişe katıl)' : 'Buton metni (örn. Davet Et, Hakkını Artır)'} fullWidth size="small"
-                value={form.popupCtaText} onChange={(e) => set('popupCtaText', e.target.value)} />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField label="Popup metni" fullWidth size="small" multiline rows={3} value={form.popupBody}
-                onChange={(e) => set('popupBody', e.target.value)} />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField label="Görsel URL (ödül fotoğrafı)" fullWidth size="small" value={form.popupImageUrl}
-                onChange={(e) => set('popupImageUrl', e.target.value)} />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setFormOpen(false)}>Vazgeç</Button>
-          <Button variant="contained" onClick={save} disabled={saving}>
-            {saving ? 'Kaydediliyor…' : 'Kaydet'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Çekim onayı ── */}
-      <Dialog open={drawConfirmOpen} onClose={() => setDrawConfirmOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Çekilişi onayla</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            {detailIsJoin ? (
-              <>
-                <strong>{detail?.name}</strong> için her hediyeye adedi kadar kazanan çekilecek
-                ({(detail?.prizes ?? []).reduce((n, p) => n + p.quantity, 0)} kişi). Bu işlem kampanyayı
-                &quot;Bitti&quot; durumuna alır.
-              </>
-            ) : (
-              <>
-                <strong>{detail?.name}</strong> için <strong>{drawCount}</strong> kazanan (1 asıl
-                {drawCount > 1 ? ` + ${drawCount - 1} yedek` : ''}) çekilecek. Bu işlem kampanyayı
-                &quot;Bitti&quot; durumuna alır.
-              </>
-            )}
-          </Typography>
-          <FormControlLabel
-            control={<Checkbox checked={drawForce} onChange={(e) => setDrawForce(e.target.checked)} />}
-            label={
-              <Typography variant="body2">
-                Zorla (kampanya bitmeden erken çekim ya da mevcut kazananları silip YENİDEN çekim)
-              </Typography>
-            }
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDrawConfirmOpen(false)}>Vazgeç</Button>
-          <Button variant="contained" color="warning" onClick={runDraw} disabled={drawing}>
-            {drawing ? 'Çekiliyor…' : 'Çek'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <RaffleCampaignForm open={formOpen} editing={editing} onClose={() => setFormOpen(false)} onSaved={onSaved} />
     </Box>
   );
 }
