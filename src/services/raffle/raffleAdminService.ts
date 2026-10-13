@@ -5,6 +5,17 @@ const basePath = '/auth/admin/raffle-campaigns';
 
 export type RaffleStatus = 'DRAFT' | 'ACTIVE' | 'ENDED' | 'CANCELLED';
 export type RafflePopupFrequency = 'ONCE' | 'DAILY' | 'EVERY_OPEN';
+/** XP: hak XP'den türetilir. JOIN: kullanıcı "Çekilişe katıl" der, bir kez. */
+export type RaffleEntryMode = 'XP' | 'JOIN';
+
+export interface RafflePrize {
+  id?: string;
+  title: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  quantity: number;
+  sortOrder?: number;
+}
 
 export interface RaffleCampaign {
   id: string;
@@ -25,6 +36,10 @@ export interface RaffleCampaign {
   createdAt?: string | null;
   winnersDrawn: boolean;
   eligibleCount?: number | null;
+  entryMode: RaffleEntryMode;
+  rules?: string | null;
+  coverImageUrl?: string | null;
+  prizes: RafflePrize[];
 }
 
 export interface UpsertRaffleCampaign {
@@ -42,6 +57,11 @@ export interface UpsertRaffleCampaign {
   popupImageUrl?: string;
   popupCtaText?: string;
   popupFrequency?: RafflePopupFrequency;
+  entryMode?: RaffleEntryMode;
+  rules?: string;
+  coverImageUrl?: string;
+  /** Verilirse hediye listesinin tamamı bununla değişir. */
+  prizes?: RafflePrize[];
 }
 
 export interface RaffleEntry {
@@ -50,6 +70,8 @@ export interface RaffleEntry {
   email?: string | null;
   campaignXp: number;
   entries: number;
+  /** JOIN: katılım zamanı. */
+  joinedAt?: string | null;
 }
 
 export interface RaffleWinner {
@@ -61,6 +83,9 @@ export interface RaffleWinner {
   campaignXp: number;
   drawnAt: string;
   drawnBy?: string | null;
+  /** JOIN: kazanılan hediye. */
+  prizeId?: string | null;
+  prizeTitle?: string | null;
 }
 
 export const raffleAdminService = {

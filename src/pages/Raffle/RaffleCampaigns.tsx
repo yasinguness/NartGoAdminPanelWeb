@@ -32,11 +32,19 @@ import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import CasinoIcon from '@mui/icons-material/Casino';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import DownloadIcon from '@mui/icons-material/Download';
+import AutoStoriesIcon from '@mui/icons-material/AutoStories';
+import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import {
   raffleAdminService,
   RaffleCampaign,
   RaffleEntry,
+  RaffleEntryMode,
+  RafflePrize,
   RaffleWinner,
   RafflePopupFrequency,
   RaffleStatus,
@@ -50,6 +58,11 @@ const STATUS_META: Record<RaffleStatus, { label: string; color: 'default' | 'suc
   ACTIVE: { label: 'Aktif', color: 'success' },
   ENDED: { label: 'Bitti', color: 'warning' },
   CANCELLED: { label: 'İptal', color: 'error' },
+};
+
+const MODE_LABEL: Record<RaffleEntryMode, string> = {
+  JOIN: 'Katıl (bir kez)',
+  XP: 'XP ile hak',
 };
 
 const FREQ_LABEL: Record<RafflePopupFrequency, string> = {
@@ -95,6 +108,10 @@ interface FormState {
   popupImageUrl: string;
   popupCtaText: string;
   popupFrequency: RafflePopupFrequency;
+  entryMode: RaffleEntryMode;
+  rules: string;
+  coverImageUrl: string;
+  prizes: RafflePrize[];
 }
 
 const EMPTY_FORM: FormState = {
@@ -112,6 +129,10 @@ const EMPTY_FORM: FormState = {
   popupImageUrl: '',
   popupCtaText: '',
   popupFrequency: 'DAILY',
+  entryMode: 'JOIN',
+  rules: '',
+  coverImageUrl: '',
+  prizes: [{ title: '', quantity: 1, imageUrl: '' }],
 };
 
 function campaignToForm(c: RaffleCampaign): FormState {
@@ -130,13 +151,35 @@ function campaignToForm(c: RaffleCampaign): FormState {
     popupImageUrl: c.popupImageUrl ?? '',
     popupCtaText: c.popupCtaText ?? '',
     popupFrequency: c.popupFrequency ?? 'DAILY',
+    entryMode: c.entryMode ?? 'XP',
+    rules: c.rules ?? '',
+    coverImageUrl: c.coverImageUrl ?? '',
+    prizes: c.prizes?.length
+      ? c.prizes.map((p) => ({ title: p.title, quantity: p.quantity, imageUrl: p.imageUrl ?? '', description: p.description ?? '' }))
+      : [{ title: '', quantity: 1, imageUrl: '' }],
   };
 }
 
-function formToRequest(f: FormState): UpsertRaffleCampaign {
+function formToRequest(f: FormState, prizesLocked: boolean): UpsertRaffleCampaign {
+  const join = f.entryMode === 'JOIN';
   return {
     name: f.name.trim(),
-    prize: f.prize.trim(),
+    // JOIN: özet ödül metni hediye adlarından sunucuda doldurulur.
+    prize: join ? undefined : f.prize.trim(),
+    entryMode: f.entryMode,
+    rules: f.rules,
+    coverImageUrl: f.coverImageUrl,
+    prizes:
+      join && !prizesLocked
+        ? f.prizes
+            .filter((p) => p.title.trim())
+            .map((p) => ({
+              title: p.title.trim(),
+              quantity: Math.max(1, Number(p.quantity) || 1),
+              imageUrl: p.imageUrl?.trim() || undefined,
+              description: p.description?.trim() || undefined,
+            }))
+        : undefined,
     description: f.description,
     startsAt: toIso(f.startsAt),
     endsAt: toIso(f.endsAt),
@@ -157,6 +200,7 @@ function formToRequest(f: FormState): UpsertRaffleCampaign {
 
 export default function RaffleCampaigns() {
   const { enqueueSnackbar } = useSnackbar();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<RaffleCampaign[]>([]);
@@ -207,13 +251,20 @@ export default function RaffleCampaigns() {
   };
 
   const save = async () => {
-    if (!form.name.trim() || !form.prize.trim() || !form.startsAt || !form.endsAt) {
-      enqueueSnackbar('Ad, ödül, başlangıç ve bitiş zorunlu', { variant: 'warning' });
+    const join = form.entryMode === 'JOIN';
+    if (!form.name.trim() || !form.startsAt || !form.endsAt || (!join && !form.prize.trim())) {
+      enqueueSnackbar(join ? 'Ad, başlangıç ve bitiş zorunlu' : 'Ad, ödül, başlangıç ve bitiş zorunlu', {
+        variant: 'warning',
+      });
+      return;
+    }
+    if (join && !form.prizes.some((p) => p.title.trim())) {
+      enqueueSnackbar('En az bir hediye ekleyin', { variant: 'warning' });
       return;
     }
     setSaving(true);
     try {
-      const body = formToRequest(form);
+      const body = formToRequest(form, !!editing?.winnersDrawn);
       if (editing) {
         await raffleAdminService.update(editing.id, body);
         enqueueSnackbar('Kampanya güncellendi', { variant: 'success' });
@@ -272,6 +323,43 @@ export default function RaffleCampaigns() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const setPrize = (index: number, patch: Partial<RafflePrize>) =>
+    setForm((prev) => ({ ...prev, prizes: prev.prizes.map((p, i) => (i === index ? { ...p, ...patch } : p)) }));
+  const movePrize = (index: number, dir: -1 | 1) =>
+    setForm((prev) => {
+      const next = [...prev.prizes];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return { ...prev, prizes: next };
+    });
+
+  /** Tüm katılımcılar CSV (ad, e-posta, katılım zamanı). */
+  const downloadParticipants = async () => {
+    if (!detail) return;
+    try {
+      const rows = await raffleAdminService.entries(detail.id, 10000);
+      const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const csv = [
+        ['Ad', 'E-posta', 'Katılım', 'Kullanıcı ID'].map(esc).join(','),
+        ...rows.map((r) => [r.displayName, r.email, r.joinedAt ? fmtDate(r.joinedAt) : '', r.userId].map(esc).join(',')),
+      ].join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cekilis-${detail.name.replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase()}-katilimcilar.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      enqueueSnackbar('Katılımcı listesi indirilemedi', { variant: 'error' });
+    }
+  };
+
+  const detailIsJoin = detail?.entryMode === 'JOIN';
+  const formIsJoin = form.entryMode === 'JOIN';
+  const modeLocked = !!editing && (editing.winnersDrawn || (editing.eligibleCount ?? 0) > 0);
+
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
@@ -294,8 +382,10 @@ export default function RaffleCampaigns() {
       </Stack>
 
       <Alert severity="info" sx={{ mb: 2 }}>
-        Çekiliş hakkı = kampanya penceresi içindeki XP ÷ hak başına XP (varsayılan 50). Haklar puan
-        defterinden otomatik hesaplanır; ayrıca bir kayıt tutulmaz.
+        İki tür var. <strong>Katıl</strong>: kullanıcı uygulamada &quot;Çekilişe katıl&quot; der, her kişi bir kez
+        katılır; kura her hediye için adedi kadar kazanan çeker. <strong>XP ile hak</strong>: hak = kampanya
+        penceresindeki XP ÷ hak başına XP; ayrıca katılmak gerekmez. Uygulamada katılımcı sayısı ve kazananların
+        yalnız baş harfleri görünür.
       </Alert>
 
       {/* ── Kampanya listesi ── */}
@@ -313,6 +403,7 @@ export default function RaffleCampaigns() {
             <TableHead>
               <TableRow>
                 <TableCell>Kampanya</TableCell>
+                <TableCell>Tür</TableCell>
                 <TableCell>Ödül</TableCell>
                 <TableCell>Dönem</TableCell>
                 <TableCell>Durum</TableCell>
@@ -328,7 +419,18 @@ export default function RaffleCampaigns() {
                   <TableCell>
                     <Typography fontWeight={600}>{c.name}</Typography>
                   </TableCell>
-                  <TableCell>{c.prize}</TableCell>
+                  <TableCell>
+                    <Chip size="small" variant="outlined" label={c.entryMode === 'JOIN' ? 'Katıl' : 'XP'}
+                      color={c.entryMode === 'JOIN' ? 'primary' : 'default'} />
+                  </TableCell>
+                  <TableCell>
+                    {c.prize}
+                    {c.entryMode === 'JOIN' && c.eligibleCount != null && (
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {c.eligibleCount} katılımcı
+                      </Typography>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Typography variant="body2">
                       {fmtDate(c.startsAt)} → {fmtDate(c.endsAt)}
@@ -345,7 +447,7 @@ export default function RaffleCampaigns() {
                       color={c.popupEnabled ? 'success' : 'default'}
                     />
                   </TableCell>
-                  <TableCell align="center">{c.xpPerEntry}</TableCell>
+                  <TableCell align="center">{c.entryMode === 'JOIN' ? '—' : c.xpPerEntry}</TableCell>
                   <TableCell align="center">
                     {c.winnersDrawn ? (
                       <Chip size="small" icon={<EmojiEventsIcon />} label="Çekildi" color="warning" />
@@ -384,23 +486,62 @@ export default function RaffleCampaigns() {
             <Typography variant="h6" fontWeight={700}>
               {detail.name} — Katılım &amp; Çekim
             </Typography>
-            <Chip
-              size="small"
-              label={`${detail.eligibleCount ?? entriesList.length} katılımcı (≥1 hak)`}
-              color="info"
-            />
+            <Stack direction="row" spacing={1} alignItems="center">
+              {detailIsJoin && (
+                <>
+                  <Button size="small" startIcon={<DownloadIcon />} onClick={downloadParticipants}>
+                    Katılımcılar (CSV)
+                  </Button>
+                  <Button size="small" startIcon={<AutoStoriesIcon />}
+                    onClick={() => navigate(`/featured-stories?raffle=${detail.id}`)}>
+                    Story&apos;de tanıt
+                  </Button>
+                </>
+              )}
+              <Chip
+                size="small"
+                label={detailIsJoin
+                  ? `${detail.eligibleCount ?? entriesList.length} katılımcı`
+                  : `${detail.eligibleCount ?? entriesList.length} katılımcı (≥1 hak)`}
+                color="info"
+              />
+            </Stack>
           </Stack>
 
           <Grid container spacing={2}>
             {/* Liderlik */}
             <Grid item xs={12} md={7}>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Hak Liderliği (ilk 100)
+                {detailIsJoin ? 'Katılımcılar (ilk 100; tamamı CSV ile)' : 'Hak Liderliği (ilk 100)'}
               </Typography>
               {entriesList.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
-                  Henüz hak kazanan yok.
+                  {detailIsJoin ? 'Henüz katılan yok.' : 'Henüz hak kazanan yok.'}
                 </Typography>
+              ) : detailIsJoin ? (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>#</TableCell>
+                      <TableCell>Üye</TableCell>
+                      <TableCell>Katılım</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {entriesList.map((e, i) => (
+                      <TableRow key={e.userId}>
+                        <TableCell>{i + 1}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600}>{e.displayName || '—'}</Typography>
+                          <Typography variant="caption" color="text.secondary">{e.email}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption">{fmtDate(e.joinedAt)}</Typography>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : (
                 <Table size="small">
                   <TableHead>
@@ -439,7 +580,17 @@ export default function RaffleCampaigns() {
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
                 Çekim
               </Typography>
+              {detailIsJoin && (
+                <Box sx={{ mb: 1 }}>
+                  {(detail.prizes ?? []).map((p) => (
+                    <Typography key={p.id ?? p.title} variant="body2">
+                      • {p.title} × {p.quantity}
+                    </Typography>
+                  ))}
+                </Box>
+              )}
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                {!detailIsJoin && (
                 <TextField
                   label="Kazanan sayısı (1 asıl + yedekler)"
                   type="number"
@@ -448,6 +599,7 @@ export default function RaffleCampaigns() {
                   onChange={(e) => setDrawCount(Math.max(1, Number(e.target.value) || 1))}
                   sx={{ width: 220 }}
                 />
+                )}
                 <Button
                   variant="contained"
                   color="warning"
@@ -459,8 +611,10 @@ export default function RaffleCampaigns() {
                 </Button>
               </Stack>
               <Typography variant="caption" color="text.secondary">
-                Ağırlıklı rastgele: hak sayısı = bilet. Aynı üye bir kez kazanır. Kampanya bitmeden ya
-                da yeniden çekim için onay kutusundaki &quot;zorla&quot; seçeneği gerekir.
+                {detailIsJoin
+                  ? 'Her hediye için adedi kadar kazanan, katılımcılar arasından eşit olasılıkla çekilir. Bir kişi iki hediye kazanamaz.'
+                  : 'Ağırlıklı rastgele: hak sayısı = bilet. Aynı üye bir kez kazanır.'}{' '}
+                Kampanya bitmeden ya da yeniden çekim için onay kutusundaki &quot;zorla&quot; seçeneği gerekir.
               </Typography>
 
               <Divider sx={{ my: 2 }} />
@@ -476,9 +630,9 @@ export default function RaffleCampaigns() {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Sıra</TableCell>
+                      <TableCell>{detailIsJoin ? 'Hediye' : 'Sıra'}</TableCell>
                       <TableCell>Üye</TableCell>
-                      <TableCell align="right">Hak</TableCell>
+                      {!detailIsJoin && <TableCell align="right">Hak</TableCell>}
                       <TableCell>Çekim</TableCell>
                     </TableRow>
                   </TableHead>
@@ -486,7 +640,9 @@ export default function RaffleCampaigns() {
                     {winnersList.map((w) => (
                       <TableRow key={`${w.userId}-${w.rank}`}>
                         <TableCell>
-                          {w.rank === 1 ? (
+                          {detailIsJoin ? (
+                            <Chip size="small" icon={<EmojiEventsIcon />} label={w.prizeTitle || 'Hediye'} color="warning" />
+                          ) : w.rank === 1 ? (
                             <Chip size="small" icon={<EmojiEventsIcon />} label="1 · Asıl" color="warning" />
                           ) : (
                             <Chip size="small" label={`${w.rank} · Yedek`} variant="outlined" />
@@ -500,7 +656,7 @@ export default function RaffleCampaigns() {
                             {w.email}
                           </Typography>
                         </TableCell>
-                        <TableCell align="right">{w.entryCount}</TableCell>
+                        {!detailIsJoin && <TableCell align="right">{w.entryCount}</TableCell>}
                         <TableCell>
                           <Typography variant="caption">
                             {fmtDate(w.drawnAt)}
@@ -527,9 +683,21 @@ export default function RaffleCampaigns() {
                 onChange={(e) => set('name', e.target.value)} />
             </Grid>
             <Grid item xs={12} md={6}>
-              <TextField label="Ödül (örn. Akordeon)" fullWidth size="small" value={form.prize}
-                onChange={(e) => set('prize', e.target.value)} />
+              <TextField label="Katılım türü" select fullWidth size="small" value={form.entryMode}
+                disabled={modeLocked}
+                helperText={modeLocked ? 'Katılım başladı; tür değiştirilemez.' : undefined}
+                onChange={(e) => set('entryMode', e.target.value as RaffleEntryMode)}>
+                {(Object.keys(MODE_LABEL) as RaffleEntryMode[]).map((m) => (
+                  <MenuItem key={m} value={m}>{MODE_LABEL[m]}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
+            {!formIsJoin && (
+              <Grid item xs={12}>
+                <TextField label="Ödül (örn. Akordeon)" fullWidth size="small" value={form.prize}
+                  onChange={(e) => set('prize', e.target.value)} />
+              </Grid>
+            )}
             <Grid item xs={12}>
               <TextField label="Açıklama" fullWidth size="small" multiline rows={2} value={form.description}
                 onChange={(e) => set('description', e.target.value)} />
@@ -550,15 +718,74 @@ export default function RaffleCampaigns() {
                 ))}
               </TextField>
             </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField label="Hak başına XP" type="number" fullWidth size="small" value={form.xpPerEntry}
-                onChange={(e) => set('xpPerEntry', Math.max(1, Number(e.target.value) || 1))} />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField label="Kişi başı max hak (boş = sınırsız)" type="number" fullWidth size="small"
-                value={form.maxEntriesPerUser}
-                onChange={(e) => set('maxEntriesPerUser', e.target.value)} />
-            </Grid>
+            {!formIsJoin && (
+              <>
+                <Grid item xs={12} md={4}>
+                  <TextField label="Hak başına XP" type="number" fullWidth size="small" value={form.xpPerEntry}
+                    onChange={(e) => set('xpPerEntry', Math.max(1, Number(e.target.value) || 1))} />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField label="Kişi başı max hak (boş = sınırsız)" type="number" fullWidth size="small"
+                    value={form.maxEntriesPerUser}
+                    onChange={(e) => set('maxEntriesPerUser', e.target.value)} />
+                </Grid>
+              </>
+            )}
+
+            {formIsJoin && (
+              <>
+                <Grid item xs={12}>
+                  <Divider textAlign="left">
+                    <Typography variant="caption" color="text.secondary">HEDİYELER (KURA BU SIRAYLA)</Typography>
+                  </Divider>
+                </Grid>
+                {editing?.winnersDrawn && (
+                  <Grid item xs={12}>
+                    <Alert severity="warning">Kura çekildi; hediyeler değiştirilemez.</Alert>
+                  </Grid>
+                )}
+                {form.prizes.map((p, i) => (
+                  <Grid item xs={12} key={i}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <TextField label={`Hediye ${i + 1}`} size="small" sx={{ flex: 2 }} value={p.title}
+                        disabled={!!editing?.winnersDrawn}
+                        onChange={(e) => setPrize(i, { title: e.target.value })} />
+                      <TextField label="Adet" type="number" size="small" sx={{ width: 90 }} value={p.quantity}
+                        disabled={!!editing?.winnersDrawn}
+                        onChange={(e) => setPrize(i, { quantity: Math.max(1, Number(e.target.value) || 1) })} />
+                      <TextField label="Görsel URL" size="small" sx={{ flex: 2 }} value={p.imageUrl ?? ''}
+                        disabled={!!editing?.winnersDrawn}
+                        onChange={(e) => setPrize(i, { imageUrl: e.target.value })} />
+                      <IconButton size="small" disabled={i === 0 || !!editing?.winnersDrawn} onClick={() => movePrize(i, -1)}>
+                        <ArrowUpwardIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" disabled={i === form.prizes.length - 1 || !!editing?.winnersDrawn}
+                        onClick={() => movePrize(i, 1)}>
+                        <ArrowDownwardIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" disabled={form.prizes.length === 1 || !!editing?.winnersDrawn}
+                        onClick={() => set('prizes', form.prizes.filter((_, j) => j !== i))}>
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                  </Grid>
+                ))}
+                <Grid item xs={12}>
+                  <Button size="small" startIcon={<AddIcon />} disabled={!!editing?.winnersDrawn}
+                    onClick={() => set('prizes', [...form.prizes, { title: '', quantity: 1, imageUrl: '' }])}>
+                    Hediye ekle
+                  </Button>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField label="Kapak görseli URL (çekiliş sayfası ve story)" fullWidth size="small"
+                    value={form.coverImageUrl} onChange={(e) => set('coverImageUrl', e.target.value)} />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField label="Katılım koşulları (uygulamadaki çekiliş sayfasında görünür)" fullWidth size="small"
+                    multiline rows={4} value={form.rules} onChange={(e) => set('rules', e.target.value)} />
+                </Grid>
+              </>
+            )}
 
             <Grid item xs={12}>
               <Divider textAlign="left">
@@ -585,7 +812,7 @@ export default function RaffleCampaigns() {
                 onChange={(e) => set('popupTitle', e.target.value)} />
             </Grid>
             <Grid item xs={12} md={6}>
-              <TextField label="Buton metni (örn. Davet Et, Hakkını Artır)" fullWidth size="small"
+              <TextField label={formIsJoin ? 'Buton metni (örn. Çekilişe katıl)' : 'Buton metni (örn. Davet Et, Hakkını Artır)'} fullWidth size="small"
                 value={form.popupCtaText} onChange={(e) => set('popupCtaText', e.target.value)} />
             </Grid>
             <Grid item xs={12}>
@@ -611,9 +838,19 @@ export default function RaffleCampaigns() {
         <DialogTitle>Çekilişi onayla</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            <strong>{detail?.name}</strong> için <strong>{drawCount}</strong> kazanan (1 asıl
-            {drawCount > 1 ? ` + ${drawCount - 1} yedek` : ''}) çekilecek. Bu işlem kampanyayı
-            &quot;Bitti&quot; durumuna alır.
+            {detailIsJoin ? (
+              <>
+                <strong>{detail?.name}</strong> için her hediyeye adedi kadar kazanan çekilecek
+                ({(detail?.prizes ?? []).reduce((n, p) => n + p.quantity, 0)} kişi). Bu işlem kampanyayı
+                &quot;Bitti&quot; durumuna alır.
+              </>
+            ) : (
+              <>
+                <strong>{detail?.name}</strong> için <strong>{drawCount}</strong> kazanan (1 asıl
+                {drawCount > 1 ? ` + ${drawCount - 1} yedek` : ''}) çekilecek. Bu işlem kampanyayı
+                &quot;Bitti&quot; durumuna alır.
+              </>
+            )}
           </Typography>
           <FormControlLabel
             control={<Checkbox checked={drawForce} onChange={(e) => setDrawForce(e.target.checked)} />}

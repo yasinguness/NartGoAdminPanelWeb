@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Autocomplete,
   Avatar,
@@ -42,6 +43,7 @@ import { eventService } from '../../services/event/eventService';
 import { bulletinService } from '../../services/bulletin/bulletinService';
 import { articleService } from '../../services/article/articleService';
 import { feedService } from '../../services/feed/feedService';
+import { raffleAdminService } from '../../services/raffle/raffleAdminService';
 
 /** Normalised option used by the unified target picker. */
 interface TargetOption {
@@ -116,6 +118,23 @@ async function fetchTargetOptions(
           imageUrl: undefined,
         }));
       }
+      case 'RAFFLE': {
+        // Yalnız "Katıl" türü, taslak ya da iptal olmayan çekilişler tanıtılır.
+        const q = query.toLocaleLowerCase('tr');
+        const items = (await raffleAdminService.list()).filter(
+          (r) =>
+            r.entryMode === 'JOIN' &&
+            r.status !== 'DRAFT' &&
+            r.status !== 'CANCELLED' &&
+            (!q || r.name.toLocaleLowerCase('tr').includes(q)),
+        );
+        return items.slice(0, 10).map((r) => ({
+          id: r.id,
+          title: r.name,
+          subtitle: r.prize,
+          imageUrl: r.coverImageUrl ?? r.popupImageUrl ?? undefined,
+        }));
+      }
       case 'ARTICLE': {
         const resp = await articleService.getArticles({ keyword: query, page: 0, size: 10 });
         const items = ((resp as any)?.data?.content ?? (resp as any)?.content ?? []) as any[];
@@ -143,6 +162,7 @@ const targetTypeLabel: Record<FeaturedStoryTargetType, string> = {
   REEL: 'Reels',
   BULLETIN: 'Topluluk Bülteni',
   ARTICLE: 'Blog/Makale',
+  RAFFLE: 'Çekiliş',
 };
 
 interface FormState {
@@ -228,6 +248,40 @@ const FeaturedStories = () => {
     setTargetOptions([]);
     setTargetQuery('');
   }, [formData.targetType]);
+
+  // Çekiliş sayfasındaki "Story'de tanıt" → /featured-stories?raffle=<id>:
+  // form çekilişin adı, görseli ve tarihleriyle dolu açılır.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const raffleId = searchParams.get('raffle');
+    if (!raffleId) return;
+    setSearchParams({}, { replace: true });
+    (async () => {
+      try {
+        const r = await raffleAdminService.get(raffleId);
+        const day = (iso: string) => {
+          const d = new Date(iso);
+          const pad = (n: number) => String(n).padStart(2, '0');
+          return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        };
+        setEditing(null);
+        setFormData({
+          ...emptyForm(),
+          targetType: 'RAFFLE',
+          targetId: r.id,
+          title: r.name,
+          subtitle: r.prize,
+          imageUrl: r.coverImageUrl ?? r.popupImageUrl ?? '',
+          startDate: day(r.startsAt),
+          endDate: day(r.endsAt),
+        });
+        setDialogOpen(true);
+      } catch {
+        setError('Çekiliş bulunamadı');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -450,6 +504,7 @@ const FeaturedStories = () => {
                 <MenuItem value="REEL">Reels</MenuItem>
                 <MenuItem value="BULLETIN">Topluluk Bülteni</MenuItem>
                 <MenuItem value="ARTICLE">Blog/Makale</MenuItem>
+                <MenuItem value="RAFFLE">Çekiliş</MenuItem>
               </TextField>
             )}
 

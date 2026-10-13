@@ -1,7 +1,7 @@
 import { api } from '../api';
 
 export type FeaturedStorySource = 'MANUAL' | 'PAID';
-export type FeaturedStoryTargetType = 'BUSINESS' | 'EVENT' | 'REEL' | 'BULLETIN' | 'ARTICLE';
+export type FeaturedStoryTargetType = 'BUSINESS' | 'EVENT' | 'REEL' | 'BULLETIN' | 'ARTICLE' | 'RAFFLE';
 
 export interface FeaturedStoryPlacement {
   id: string;
