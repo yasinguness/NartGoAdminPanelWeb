@@ -6,10 +6,19 @@ export enum BulletinStatus {
     PASSIVE = 'PASSIVE'
 }
 
+export enum BulletinType {
+    JOB = 'JOB',
+    EDUCATION = 'EDUCATION',
+    HOUSING = 'HOUSING',
+    HELP = 'HELP',
+}
+
 export interface BulletinDto {
     id: string;
     title: string;
-    content: string;
+    content?: string;
+    description?: string;
+    type?: string;
     summary?: string;
     status: BulletinStatus;
     pinned?: boolean;
@@ -21,13 +30,9 @@ export interface BulletinDto {
 }
 
 export interface BulletinCreateRequest {
+    type: BulletinType;
     title: string;
-    content: string;
-    summary?: string;
-    status?: BulletinStatus;
-    pinned?: boolean;
-    startAt?: string;
-    endAt?: string;
+    description: string;
 }
 
 export interface BulletinUpdateRequest extends Partial<BulletinCreateRequest> {}

@@ -27,7 +27,7 @@ import { ActionMenu } from '../../components/Actions';
 import { ConfirmDialog, ErrorState, LoadingState } from '../../components/Feedback';
 import { ListItemIcon, ListItemText, MenuItem as ActionMenuItem } from '@mui/material';
 import {
-    BulletinCreateRequest, BulletinDto,
+    BulletinCreateRequest, BulletinDto, BulletinType,
     BulletinStatus, BulletinUpdateRequest,
 } from '../../types/bulletin/bulletinModel';
 import { useBulletinStore } from '../../store/bulletins/bulletinStore';
@@ -73,8 +73,19 @@ function toDateTimeLocal(value?: string) {
 }
 
 const initialForm: BulletinCreateRequest = {
-    title: '', summary: '', content: '',
-    status: BulletinStatus.DRAFT, pinned: false, startAt: '', endAt: '',
+    title: '', description: '', type: BulletinType.JOB,
+};
+type BulletinFormState = BulletinCreateRequest & {
+    content: string;
+    summary?: string;
+    status?: BulletinStatus;
+    pinned?: boolean;
+    startAt?: string;
+    endAt?: string;
+};
+const initialFormState: BulletinFormState = {
+    ...initialForm, content: '', summary: '', status: BulletinStatus.DRAFT,
+    pinned: false, startAt: '', endAt: '',
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -95,7 +106,7 @@ export default function Bulletins() {
 
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selected, setSelected] = useState<BulletinDto | null>(null);
-    const [form, setForm] = useState<BulletinCreateRequest>(initialForm);
+    const [form, setForm] = useState<BulletinFormState>(initialFormState);
 
     const [statusDialogOpen, setStatusDialogOpen] = useState(false);
     const [statusTarget] = useState<BulletinDto | null>(null);
@@ -135,7 +146,9 @@ export default function Bulletins() {
             setForm({
                 title: bulletin.title,
                 summary: bulletin.summary || '',
-                content: bulletin.content,
+                content: bulletin.description || bulletin.content || '',
+                description: bulletin.description || bulletin.content || '',
+                type: (bulletin.type as BulletinType) || BulletinType.JOB,
                 status: bulletin.status,
                 pinned: bulletin.pinned,
                 startAt: toDateTimeLocal(bulletin.startAt),
@@ -143,21 +156,21 @@ export default function Bulletins() {
             });
         } else {
             setSelected(null);
-            setForm(initialForm);
+            setForm(initialFormState);
         }
         setDialogOpen(true);
     };
 
-    const closeDialog = () => { setDialogOpen(false); setSelected(null); setForm(initialForm); };
+    const closeDialog = () => { setDialogOpen(false); setSelected(null); setForm(initialFormState); };
 
     const handleSubmit = async () => {
         if (!form.title.trim()) { enqueueSnackbar('Başlık zorunlu', { variant: 'warning' }); return; }
         if (!form.content.trim()) { enqueueSnackbar('İçerik zorunlu', { variant: 'warning' }); return; }
 
         const payload: BulletinCreateRequest = {
-            ...form,
-            startAt: form.startAt ? new Date(form.startAt).toISOString() : undefined,
-            endAt: form.endAt ? new Date(form.endAt).toISOString() : undefined,
+            type: form.type,
+            title: form.title.trim(),
+            description: form.content.trim(),
         };
 
         try {
@@ -435,6 +448,17 @@ export default function Bulletins() {
                                 ))}
                             </TextField>
                         </Stack>
+
+                        <TextField
+                            select label="İlan Türü *" value={form.type} fullWidth
+                            onChange={e => setForm(p => ({ ...p, type: e.target.value as BulletinType }))}
+                            InputProps={{ sx: { borderRadius: 2 } }}
+                        >
+                            <MenuItem value={BulletinType.JOB}>İş</MenuItem>
+                            <MenuItem value={BulletinType.EDUCATION}>Eğitim</MenuItem>
+                            <MenuItem value={BulletinType.HOUSING}>Konut</MenuItem>
+                            <MenuItem value={BulletinType.HELP}>Yardım</MenuItem>
+                        </TextField>
 
                         <TextField
                             label="Kısa Özet" value={form.summary || ''} fullWidth

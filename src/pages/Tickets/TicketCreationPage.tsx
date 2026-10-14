@@ -241,6 +241,7 @@ export default function TicketCreationPage() {
         );
         setEventName(ev.name || '');
         setEventDescription(ev.description || '');
+        if (ev.eventFormat) setEventFormat(ev.eventFormat);
         if (ev.eventTime) setEventStartDate(new Date(ev.eventTime));
         if (ev.endTime) setEventEndDate(new Date(ev.endTime));
         if (ev.category?.id) setEventCategoryId(ev.category.id);
@@ -373,7 +374,7 @@ export default function TicketCreationPage() {
   const checks = useMemo(() => [
     { ok: !!effectiveOrganizer, t: 'Organizatör seçildi', blocker: true },
     { ok: !!eventName && !!eventStartDate, t: 'Etkinlik adı ve tarihi girildi', blocker: true },
-    { ok: !!eventAddress?.description, t: eventAddress?.description ? 'Mekan seçildi' : 'Mekan belirlenmedi', blocker: true },
+    { ok: eventFormat === EventFormat.ONLINE || !!eventAddress?.description, t: eventFormat === EventFormat.ONLINE ? 'Online etkinlik' : eventAddress?.description ? 'Mekan seçildi' : 'Mekan belirlenmedi', blocker: true },
     { ok: isSeated !== null, t: isSeated ? 'Numaralı koltuk seçildi' : isSeated === false ? 'Serbest giriş seçildi' : 'Salon planı belirlenmedi', blocker: true },
     { ok: eventType === 'paid' ? tiers.length > 0 && tiers.every(t => !isFreeCategory(t.category) ? t.price > 0 : true) : true, t: eventType === 'paid' ? 'Bilet kategorileri tanımlandı' : 'Kayıt formu hazır', blocker: true },
     ...(eventType === 'paid'
@@ -385,7 +386,7 @@ export default function TicketCreationPage() {
     { ok: !!coverMedia?.originalUrl, t: (coverMedia?.originalUrl ? 'Kapak görseli yüklendi' : 'Kapak görseli yüklenmedi'), blocker: false },
     ...(!isConvertMode && eventType === 'paid' && capacity && tiers.reduce((s,t)=>s+t.quota,0) !== Number(capacity) ? [{ ok: false, t: `Kontenjan uyuşmazlığı: ${tiers.reduce((s,t)=>s+t.quota,0)} bilet / ${capacity} kapasite`, blocker: false, action: () => setStep(5), actionLabel: 'Düzelt' }] : []),
     ...(eventType === 'paid' && tiers.some(t => isSuspiciousName(t.name)) ? [{ ok: false, t: 'Bazı bilet kategorilerinde anlamsız isimler var', blocker: false, action: () => setStep(5), actionLabel: 'Düzelt' }] : []),
-  ], [effectiveOrganizer, eventName, eventStartDate, eventAddress, isSeated, eventType, tiers, refundPolicyConfig, coverMedia, capacity, saleStartDate]);
+  ], [effectiveOrganizer, eventName, eventStartDate, eventAddress, eventFormat, isSeated, eventType, tiers, refundPolicyConfig, coverMedia, capacity, saleStartDate]);
 
   const blockers = useMemo(() => checks.filter(c => !c.ok && c.blocker), [checks]);
   const hasBlockers = blockers.length > 0;
@@ -402,7 +403,7 @@ export default function TicketCreationPage() {
       if (eventStartDate && eventEndDate && eventStartDate >= eventEndDate) e.eventEnd = 'Bitiş başlangıçtan sonra olmalı';
     }
     if (s === 4) {
-      if (!eventAddress?.description) e.location = 'Mekan seçimi zorunludur';
+      if (eventFormat !== EventFormat.ONLINE && !eventAddress?.description) e.location = 'Mekan seçimi zorunludur';
       if (isFreeEvent) {
         // Ucretsiz etkinlikte koltuk duzeni secimi yok — serbest giris default
         if (!capacity || Number(capacity) <= 0) e.capacity = 'Katılımcı kapasitesi belirlenmelidir';
@@ -575,7 +576,7 @@ export default function TicketCreationPage() {
             : (isPaid && tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 0),
         categoryId: eventCategoryId || undefined,
         currency: currency || 'TRY',
-        address: eventAddress ? {
+        address: eventFormat !== EventFormat.ONLINE && eventAddress ? {
           city: eventAddress.city || '',
           district: eventAddress.district || '',
           country: eventAddress.country || 'Türkiye',
@@ -972,7 +973,7 @@ export default function TicketCreationPage() {
                   {eventName} — {isEditMode ? 'Etkinlik Düzenleniyor' : 'Biletli Etkinliğe Dönüştürülüyor'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {eventStartDate ? format(eventStartDate, 'dd MMM yyyy HH:mm', { locale: tr }) : ''} · {eventAddress?.description || ''} · Kapasite: {capacity || '?'}
+                  {eventStartDate ? format(eventStartDate, 'dd MMM yyyy HH:mm', { locale: tr }) : ''} · {eventFormat === EventFormat.ONLINE ? 'Online' : eventAddress?.description || ''} · Kapasite: {capacity || '?'}
                 </Typography>
               </Box>
               <Chip label={isEditMode ? 'Düzenleme' : 'Ücretli'} size="small" color="primary" sx={{ fontWeight: 700 }} />
@@ -1100,6 +1101,15 @@ export default function TicketCreationPage() {
             </Box>
             <Divider />
             <Box>
+              <SH title="Etkinlik Formatı" subtitle="Online etkinliklerde mekan adresi gerekmez." />
+              <RadioGroup row value={eventFormat} onChange={e => { setEventFormat(e.target.value as EventFormat); clr('location'); }}>
+                <FormControlLabel value={EventFormat.PHYSICAL} control={<Radio />} label="Fiziksel" />
+                <FormControlLabel value={EventFormat.ONLINE} control={<Radio />} label="Online" />
+                <FormControlLabel value={EventFormat.HYBRID} control={<Radio />} label="Hibrit" />
+              </RadioGroup>
+            </Box>
+            <Divider />
+            <Box>
               <SH title="Tarih & Saat" />
               <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={tr}>
               <Stack direction="row" spacing={2}>
@@ -1172,6 +1182,7 @@ export default function TicketCreationPage() {
             {isFreeEvent ? (
               /* Ucretsiz etkinlik: sadece adres + kapasite */
               <Box>
+                {eventFormat !== EventFormat.ONLINE && <>
                 <SH title="Etkinlik Mekanı" subtitle="Etkinliğin yapılacağı konumu veya mekan adını yazarak seçin" />
                 <SC>
                   <Box sx={{ px: 2.5, py: 3 }}>
@@ -1186,6 +1197,8 @@ export default function TicketCreationPage() {
                     />
                   </Box>
                 </SC>
+                </>}
+                {eventFormat === EventFormat.ONLINE && <Typography color="text.secondary">Online etkinlik için mekan seçmenize gerek yok.</Typography>}
                 {eventType === 'external' && (
                   <Box sx={{ mt: 3 }}>
                     <SH
@@ -1239,6 +1252,7 @@ export default function TicketCreationPage() {
                 capacity={Number(capacity) || 0}
                 addressValue={eventAddress}
                 onAddressChange={setEventAddress}
+                showLocation={eventFormat !== EventFormat.ONLINE}
                 customSections={customSections}
                 onCustomSectionsChange={setCustomSections}
                 capacityValue={capacity}
@@ -1619,7 +1633,7 @@ export default function TicketCreationPage() {
                   {([
                     { l: 'Etkinlik Adı', v: eventName || '—' },
                     { l: 'Tarih & Saat', v: eventStartDate ? format(eventStartDate, 'dd MMMM yyyy, HH:mm', { locale: tr }) : '—' },
-                    { l: 'Konum', v: eventAddress?.description || '—', warn: !eventAddress, action: !eventAddress ? () => goTo(4) : undefined, actionLabel: 'Belirle' },
+                    { l: 'Konum', v: eventFormat === EventFormat.ONLINE ? 'Online' : eventAddress?.description || '—', warn: eventFormat !== EventFormat.ONLINE && !eventAddress, action: eventFormat !== EventFormat.ONLINE && !eventAddress ? () => goTo(4) : undefined, actionLabel: 'Belirle' },
                     { l: 'Kapasite', v: computedCapacity > 0 ? `${computedCapacity} kişi` : '—' },
                     { l: 'Kapak Görseli', v: coverMedia?.originalUrl ? 'Yüklendi' : 'Yüklenmedi', warn: !coverMedia?.originalUrl, action: !coverMedia?.originalUrl ? () => goTo(3) : undefined, actionLabel: 'Yükle' },
                   ] as { l: string; v: string; warn?: boolean; action?: () => void; actionLabel?: string; }[]).map((r, i) => (

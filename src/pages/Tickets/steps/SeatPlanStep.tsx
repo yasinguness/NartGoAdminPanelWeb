@@ -42,6 +42,7 @@ interface SeatPlanStepProps {
   capacity: number;
   addressValue: AddressValue | null;
   onAddressChange: (v: AddressValue | null) => void;
+  showLocation?: boolean;
   customSections: SeatSection[];
   onCustomSectionsChange: (v: SeatSection[]) => void;
   capacityValue: string;
@@ -256,7 +257,7 @@ function TemplateSVG({ type }: { type: string }) {
 
 export default function SeatPlanStep({
   isSeated, onSeatedChange, selectedTemplate, onTemplateSelect, capacity,
-  addressValue, onAddressChange,
+  addressValue, onAddressChange, showLocation = true,
   customSections, onCustomSectionsChange,
   editorMode, onEditorModeChange,
 }: SeatPlanStepProps) {
@@ -350,6 +351,7 @@ export default function SeatPlanStep({
 
   return (
     <Box>
+      {showLocation && <>
       {/* ━━━ MEKAN SEÇİMİ ━━━ */}
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
         <PlaceIcon fontSize="small" color="primary" />
@@ -372,6 +374,7 @@ export default function SeatPlanStep({
       </Box>
 
       <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 3, mt: 1 }} />
+      </>}
 
       {/* ━━━ OTURMA DÜZENİ ━━━ */}
 
