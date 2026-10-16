@@ -10,6 +10,7 @@ const Users = lazy(() => import('./pages/Users'));
 const UserDetails = lazy(() => import('./pages/Users/UserDetails'));
 const UserActivity = lazy(() => import('./pages/Users/UserActivity'));
 const NartLiveUsers = lazy(() => import('./pages/NartLive/NartLiveUsers'));
+const HeritageLocations = lazy(() => import('./pages/HeritageLocations/HeritageLocations'));
 const NbAuditLog = lazy(() => import('./pages/NartBusiness/NbAuditLog'));
 const NbEmailLogs = lazy(() => import('./pages/NartBusiness/NbEmailLogs'));
 const NbLoginLogs = lazy(() => import('./pages/NartBusiness/NbLoginLogs'));
@@ -202,6 +203,7 @@ function App() {
                 <Route path="users" element={<Users />} />
                 <Route path="user-activity" element={<UserActivity />} />
                 <Route path="nartlive/users" element={<NartLiveUsers />} />
+                <Route path="heritage/locations" element={<HeritageLocations />} />
                 <Route path="users/:id" element={<UserDetails />} />
                 <Route path="users/:id/360" element={<User360 />} />
                 <Route path="businesses" element={<Businesses />} />
