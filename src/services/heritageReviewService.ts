@@ -45,15 +45,9 @@ const isNotFound = (error: any) => error?.response?.status === 404;
 
 export const heritageReviewService = {
   async getQueue(status = 'pending'): Promise<ReviewContribution[]> {
-    try {
-      const data = unwrap(await api.get(`${ADMIN_LOCATIONS}/review-queue`, { params: { status } }));
-      const rows = Array.isArray(data) ? data : data?.items ?? data?.records ?? data?.content ?? [];
-      return Array.isArray(rows) ? rows : [];
-    } catch (error) {
-      if (!isNotFound(error)) throw error;
-      const legacy = unwrap(await api.get(`${ROOT}/admin/contributions`, { params: { status } }));
-      return Array.isArray(legacy) ? legacy : legacy?.items ?? [];
-    }
+    const data = unwrap(await api.get(`${ROOT}/admin/contributions`, { params: { status } }));
+    const rows = Array.isArray(data) ? data : data?.items ?? data?.records ?? data?.content ?? [];
+    return Array.isArray(rows) ? rows : [];
   },
   async checkLocation(payload: Record<string, any>) {
     return unwrap(await api.post(`${ROOT}/locations/check`, payload));
@@ -75,7 +69,7 @@ export const heritageReviewService = {
   },
   async applyDecision(item: ReviewContribution, decision: HeritageDecision, body: Record<string, any>) {
     try {
-      return unwrap(await api.post(`${ADMIN_LOCATIONS}/${encodeURIComponent(item.id)}/decision`, { decision, ...body }));
+      return unwrap(await api.post(`${ADMIN_LOCATIONS}/${encodeURIComponent(item.id)}/decision`, { action: decision, ...body }));
     } catch (error) {
       if (!isNotFound(error)) throw error;
       const legacyDecisions: HeritageDecision[] = [
@@ -83,10 +77,16 @@ export const heritageReviewService = {
         'CORRECT_DISTRICT_AND_APPROVE', 'MARK_SEPARATE', 'REJECT',
       ];
       if (!legacyDecisions.includes(decision)) throw error;
+      const rawResolutions = body.duplicateResolutions ?? body.duplicateResolution;
+      const resolutions = Array.isArray(rawResolutions) ? rawResolutions : rawResolutions?.relatedIds?.map((relatedId: string) => ({ relatedId, type: rawResolutions.type, keepId: rawResolutions.keepId })) ?? [];
+      if (resolutions.some((resolution: any) => resolution.type === 'MERGE')) {
+        throw new Error('Birleştirme kararı API sunucusunda henüz desteklenmiyor; kayıt onaylanmadı.');
+      }
       const approve = decision !== 'REJECT';
       return this.reviewLegacy(item, approve, body.note || 'Admin panelinden köy konumu incelendi.', {
         ...(body.record ?? item.payload),
         ...(decision === 'MARK_SEPARATE' ? { duplicate_reviewed: true } : {}),
+        ...(resolutions.length ? { duplicate_reviewed: resolutions.every((resolution: any) => resolution.type === 'DISTINCT'), duplicate_resolution: resolutions } : {}),
       });
     }
   },

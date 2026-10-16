@@ -11,7 +11,7 @@ const REASONS: Record<string, string> = {
   DISTRICT_MISMATCH: 'İlçe uyuşmazlığı', NEAR_DUPLICATE: 'Yakın tekrar',
   BOUNDARY_OR_WATER: 'Sınır ya da su', MEDIUM_CONFIDENCE: 'Orta güven',
   MERGE_SUGGESTION: 'Birleştirme önerisi', MISSING_LOCATION: 'Konumsuz köy',
-  COMMUNITY_SUGGESTION: 'Topluluk önerisi', OTHER: 'Diğer inceleme',
+  COMMUNITY_SUGGESTION: 'Topluluk önerisi',
 };
 const FLAG_REASON: Record<string, string> = {
   outside_district: 'DISTRICT_MISMATCH', source_district_mismatch: 'DISTRICT_MISMATCH',
@@ -54,7 +54,7 @@ function reasonKeys(item: ReviewContribution): string[] {
   if (!asPoint(item)) mapped.push('MISSING_LOCATION');
   if (item.type === 'village' || item.contributionType === 'village' || item.origin === 'community') mapped.push('COMMUNITY_SUGGESTION');
   if (item.mergeCandidates?.length) mapped.push('MERGE_SUGGESTION');
-  if (mapped.length === 0) mapped.push('OTHER');
+  if (mapped.length === 0) mapped.push(item.type === 'village' || item.contributionType === 'village' ? 'COMMUNITY_SUGGESTION' : 'MISSING_LOCATION');
   return [...new Set(mapped)];
 }
 function errorText(error: any) {
@@ -86,6 +86,7 @@ export default function HeritageLocations() {
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [retainedName, setRetainedName] = useState('');
   const [separatePairId, setSeparatePairId] = useState('');
+  const [duplicateResolutions, setDuplicateResolutions] = useState<Record<string, 'MERGE' | 'DISTINCT'>>({});
   const mapHost = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.LayerGroup | null>(null);
@@ -132,7 +133,7 @@ export default function HeritageLocations() {
   useEffect(() => {
     if (!selected) { setDraft(null); setChecks(null); setPlaces([]); setManualPoint(null); return; }
     setDraft({ ...locationPayload(selected) }); setNote(''); setChecks(null); setPlaces([]); setManualPoint(null);
-    setSelectedCandidateId(''); setMergeTargetId(''); setSeparatePairId('');
+    setSelectedCandidateId(''); setMergeTargetId(''); setSeparatePairId(''); setDuplicateResolutions({});
     setRetainedName(String(locationPayload(selected).official_name ?? selected.official_name ?? ''));
     const pointDistrict = typeof selected.pointDistrict === 'string' ? selected.pointDistrict : selected.pointDistrict?.district;
     setCorrectedDistrict(pointDistrict || String(locationPayload(selected).district ?? ''));
@@ -255,15 +256,25 @@ export default function HeritageLocations() {
   const skip = () => goNext();
   const decide = async (decision: HeritageDecision, extra: Record<string, any> = {}, recordOverride?: Record<string, any>) => {
     if (!selected || busy || !draft) return;
+    if (decision === 'APPROVE' && unresolvedDuplicates.length) { setError('Onaydan önce her yakın tekrar için “Aynı köy” ya da “Farklı köy” seçin.'); return; }
     if (decision === 'REJECT' && !note.trim()) { setError('Reddetmek için neden yazılması zorunludur.'); return; }
     if (decision === 'MERGE' && !mergeTargetId) { setError('Birleştirilecek kayıt seçin.'); return; }
     if (decision === 'MARK_SEPARATE' && !separatePairId) { setError('Ayrı köy olarak işaretlenecek tekrar çiftini seçin.'); return; }
     setBusy(true); setError(null);
     try {
       const revised = { ...(recordOverride ?? draft) };
+      const resolvedPairs = Object.entries(duplicateResolutions).map(([relatedId, type]) => ({ relatedId, type, ...(type === 'MERGE' ? { keepId: selected.village_id ?? relatedId } : {}) }));
+      const resolutionTypes = new Set(resolvedPairs.map((resolution) => resolution.type));
+      const duplicateResolution = resolutionTypes.size === 1 ? {
+        type: resolvedPairs[0]?.type,
+        relatedIds: resolvedPairs.map((resolution) => resolution.relatedId),
+        ...(resolvedPairs[0]?.keepId ? { keepId: resolvedPairs[0].keepId } : {}),
+      } : undefined;
       const result = await heritageReviewService.applyDecision(selected, decision, {
         note: note.trim(),
         record: revised,
+        duplicateResolution,
+        duplicateResolutions: resolvedPairs.length ? resolvedPairs : undefined,
         ...extra,
       });
       setLastDecision({ id: selected.id, name: oldName, auditId: result?.auditId ?? result?.audit_id });
@@ -295,6 +306,7 @@ export default function HeritageLocations() {
   const validationRows = checks?.controls ?? checks?.checks ?? selected?.checks ?? activePayload?.checks ?? [];
   const possibleMerges = selected?.mergeCandidates ?? checks?.duplicates ?? [];
   const duplicatePairs = selected?.duplicatePairs ?? checks?.duplicates ?? [];
+  const unresolvedDuplicates = duplicatePairs.filter((row: any) => !duplicateResolutions[String(row.id ?? row.village_id)]);
   const updatePoint = (axis: 'latitude' | 'longitude', value: string) => {
     if (!draft || value === '' || !Number.isFinite(Number(value))) return;
     const next = { ...draft, [axis]: Number(value), osm_id: undefined };
@@ -433,6 +445,19 @@ export default function HeritageLocations() {
               {(checks?.flags ?? activePayload?.location_checks?.flags ?? []).length === 0 ? <Typography variant="body2">İşaretlenmiş kontrol yok veya henüz çalışmadı.</Typography> : (checks?.flags ?? activePayload?.location_checks?.flags ?? []).map((flag: string) => <Alert key={flag} severity={flag.includes('duplicate') ? 'warning' : 'info'} sx={{ py: 0 }}>{FLAG_REASON[flag] ? REASONS[FLAG_REASON[flag]] : flag}</Alert>)}
               {checks?.distance_m != null && <Typography variant="body2">Kaynak noktasına uzaklık: {Math.round(checks.distance_m)} m</Typography>}
               {checks?.duplicates?.map((village: any) => <Typography key={village.id} variant="body2">Yakın kayıt: {village.official_name} · {Math.round(village.distance_m)} m</Typography>)}
+              {duplicatePairs.map((village: any) => {
+                const relatedId = String(village.id ?? village.village_id);
+                const resolution = duplicateResolutions[relatedId];
+                return <Paper key={`duplicate-${relatedId}`} variant="outlined" sx={{ p: 1 }}>
+                  <Typography variant="body2" fontWeight={700}>Olası tekrar: {village.official_name ?? village.name ?? 'Yakındaki köy'} · {Math.round(Number(village.distance_m ?? village.distance_meters ?? 0))} m</Typography>
+                  <Stack direction="row" spacing={1} sx={{ mt: 0.75 }}>
+                    <Button size="small" variant={resolution === 'MERGE' ? 'contained' : 'outlined'} onClick={() => setDuplicateResolutions((current) => ({ ...current, [relatedId]: 'MERGE' }))}>Aynı köy, birleştir</Button>
+                    <Button size="small" variant={resolution === 'DISTINCT' ? 'contained' : 'outlined'} onClick={() => setDuplicateResolutions((current) => ({ ...current, [relatedId]: 'DISTINCT' }))}>Farklı köy, ayrı tut</Button>
+                  </Stack>
+                  {resolution && <Typography variant="caption" color="success.main">Karar: {resolution === 'MERGE' ? 'Birleştir' : 'Ayrı köy'}</Typography>}
+                  {!resolution && <Typography variant="caption" color="error">Onay için bu tekrar hakkında karar verin.</Typography>}
+                </Paper>;
+              })}
             </Stack>
             <Typography variant="caption" color="text.secondary">PTT resmi listesi</Typography><Typography variant="body2" sx={{ mb: 1 }}>{seed.ptt_ilce ?? seed.ptt_district ?? seed.ptt?.district ?? selected.pttMatch?.district ?? 'Bu katkıda PTT ilçe kaydı bulunmuyor.'}</Typography>
             <Divider sx={{ my: 1.5 }} />
@@ -448,7 +473,8 @@ export default function HeritageLocations() {
             </>}
             <TextField label="İnceleme notu (isteğe bağlı)" size="small" fullWidth multiline minRows={2} maxRows={4} value={note} onChange={(e) => setNote(e.target.value)} sx={{ mt: 1.5, mb: 1 }} />
             <Stack spacing={0.8}>
-              <Button variant="contained" onClick={() => void decide('APPROVE')} disabled={busy}>Onayla (A)</Button>
+              <Button variant="contained" onClick={() => void decide('APPROVE')} disabled={busy || unresolvedDuplicates.length > 0}>Onayla (A)</Button>
+              {unresolvedDuplicates.length > 0 && <Typography variant="caption" color="error">Önce {unresolvedDuplicates.length} yakın tekrar için karar verin.</Typography>}
               {candidateRows.length > 0 && <>
                 <FormControl size="small" fullWidth><InputLabel>Aday konum</InputLabel><Select label="Aday konum" value={selectedCandidateId} onChange={(e) => { const id = e.target.value; const candidate = candidateRows.find((row, index) => candidateKey(row, index) === id); if (candidate) applyCandidate(candidate); }}>
                   {candidateRows.map((candidate, index) => { const id = candidateKey(candidate, index); return <MenuItem key={id} value={id}>{candidate.official_name ?? candidate.name ?? 'Konum adayı'} · {candidate.source ?? (candidate.osm_id ? 'OSM' : 'öneri')}{(candidate.distanceKm ?? candidate.distance_km) != null ? ` · ${Number(candidate.distanceKm ?? candidate.distance_km).toFixed(1)} km` : ''}</MenuItem>; })}
