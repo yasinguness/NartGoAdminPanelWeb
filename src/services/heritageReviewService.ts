@@ -69,7 +69,8 @@ export const heritageReviewService = {
   },
   async applyDecision(item: ReviewContribution, decision: HeritageDecision, body: Record<string, any>) {
     try {
-      return unwrap(await api.post(`${ADMIN_LOCATIONS}/${encodeURIComponent(item.id)}/decision`, { action: decision, ...body }));
+      const { duplicateResolution: _duplicateResolution, duplicateResolutions: _duplicateResolutions, ...decisionBody } = body;
+      return unwrap(await api.post(`${ADMIN_LOCATIONS}/${encodeURIComponent(item.id)}/decision`, { ...decisionBody, decision }));
     } catch (error) {
       if (!isNotFound(error)) throw error;
       const legacyDecisions: HeritageDecision[] = [
