@@ -15,6 +15,16 @@ export interface ImportReport {
   newFamilyList: { name: string; race: string; otherRaceMatches: string[] }[];
 }
 
+export interface NameSuggestion {
+  id: string;
+  name: string;
+  times: number;
+  village: string | null;
+  province: string | null;
+  district: string | null;
+  candidates: { exact: { id: number; slug: string; name: string; race: string; villages: number }[]; suggestions: { id: number; slug: string; name: string; race: string; villages: number }[] };
+}
+
 export interface CleanupReport {
   renames: { id: number; from: string; to: string; race: string; alternate?: string }[];
   merges: { keep: number; gone: number; name: string; race: string; keepLinks: number; goneLinks: number }[];
@@ -50,15 +60,40 @@ export interface IgComment {
   villageCandidates: Candidate[];
 }
 
+/** Köylü teyidi kuyruğundaki kayıt (sülale bağı ya da Çerkesçe köy adı). Kişi bilgisi yok. */
+export interface TrustItem {
+  type: 'family' | 'name';
+  id: string;
+  village_id: string;
+  label: string;
+  source: string;
+  added_at: string;
+  villageName?: string;
+  province?: string;
+  district?: string;
+  villageSlug?: string;
+  confirms: number;
+  disputes: { reason: string; created_at: string }[];
+}
+
 const ROOT = '/auth/heritage/admin/families';
+const TRUST = '/auth/heritage/admin/trust';
 const unwrap = <T,>(response: { data: unknown }): T => {
   const body = response.data as { data?: T } | T;
   return (body && typeof body === 'object' && 'data' in (body as object) ? (body as { data: T }).data : body) as T;
 };
 
 export const familyAtlasService = {
+  async trustQueue(state: 'disputed' | 'pending'): Promise<TrustItem[]> { return unwrap(await api.get(TRUST, { params: { state } })); },
+  async trustDecide(type: TrustItem['type'], id: string, action: 'keep' | 'remove'): Promise<void> {
+    await api.post(`${TRUST}/${type}/${encodeURIComponent(id)}`, { action });
+  },
   async dryRun(): Promise<ImportReport> { return unwrap(await api.get(`${ROOT}/import/dry-run`)); },
   async apply(): Promise<{ linked: number; newFamilies: number; excluded: number; noVillage: number }> { return unwrap(await api.post(`${ROOT}/import`)); },
+  async nameSuggestions(status = 'pending'): Promise<NameSuggestion[]> { return unwrap(await api.get(`${ROOT}/suggestions`, { params: { status } })); },
+  async resolveName(id: string, action: 'link' | 'create' | 'reject', familyId?: number, race?: string): Promise<void> {
+    await api.post(`${ROOT}/suggestions/${encodeURIComponent(id)}`, { action, familyId, race });
+  },
   async cleanupDryRun(): Promise<CleanupReport> { return unwrap(await api.get(`${ROOT}/cleanup/dry-run`)); },
   async cleanupApply(): Promise<CleanupReport> { return unwrap(await api.post(`${ROOT}/cleanup`)); },
   async mergeQueue(limit = 100): Promise<{ total: number; items: MergeItem[] }> { return unwrap(await api.get(`${ROOT}/merge-queue`, { params: { limit } })); },

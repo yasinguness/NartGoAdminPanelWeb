@@ -6,7 +6,7 @@ import { useSnackbar } from 'notistack';
 import { errorText } from '../../services/heritageReviewService';
 import {
   familyAtlasService, parseCommentFile,
-  type CleanupReport, type IgComment, type ImportReport, type MergeItem, type MergeSide,
+  type CleanupReport, type IgComment, type NameSuggestion, type TrustItem, type ImportReport, type MergeItem, type MergeSide,
 } from '../../services/familyAtlasService';
 
 /**
@@ -30,10 +30,14 @@ export default function HeritageFamilies() {
         <Tab label="Kaynak listesi" />
         <Tab label="Birleştirme" />
         <Tab label="Instagram yorumları" />
+        <Tab label="Yeni ad önerileri" />
+        <Tab label="Tartışmalı kayıtlar" />
       </Tabs>
       {tab === 0 && <ImportPanel />}
       {tab === 1 && <MergePanel />}
       {tab === 2 && <InstagramPanel />}
+      {tab === 3 && <SuggestionPanel />}
+      {tab === 4 && <TrustPanel />}
     </Box>
   );
 }
@@ -330,5 +334,124 @@ function CommentCard({ c, onDone }: { c: IgComment; onDone: () => void }) {
         </Stack>
       )}
     </Paper>
+  );
+}
+
+// ── Üyelerin önerdiği yeni sülale adları ────────────────────────────
+
+/** Profildeki seçicide listede olmayan ad. Öneren tutulmaz; aynı ad + köy kaç kez önerildi görünür. */
+function SuggestionPanel() {
+  const { enqueueSnackbar } = useSnackbar();
+  const [rows, setRows] = useState<NameSuggestion[] | null>(null);
+  const load = useCallback(async () => {
+    try { setRows(await familyAtlasService.nameSuggestions()); } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); }
+  }, [enqueueSnackbar]);
+  useEffect(() => { void load(); }, [load]);
+  const resolve = async (s: NameSuggestion, action: 'link' | 'create' | 'reject', familyId?: number, race?: string) => {
+    try { await familyAtlasService.resolveName(s.id, action, familyId, race); setRows((r) => r && r.filter((x) => x.id !== s.id)); }
+    catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); }
+  };
+  if (!rows) return <CircularProgress />;
+  return (
+    <Stack spacing={2}>
+      <Alert severity="info">Üyeler sülale seçerken listede olmayan bir ad yazınca buraya düşer; profile serbest metin yazılmaz. Mevcut bir sülalenin yazımıysa bağla, gerçekten yeni bir sülaleyse ekle. Köy belirtildiyse bağ o köye “Topluluk katkısı” olarak eklenir.</Alert>
+      {rows.length === 0 && <Typography color="text.secondary">Bekleyen öneri yok.</Typography>}
+      {rows.map((s) => <SuggestionCard key={s.id} s={s} onResolve={resolve} />)}
+    </Stack>
+  );
+}
+
+/**
+ * Köylü teyidi kuyruğu. Topluluğun eklediği sülale bağı ve Çerkesçe köy adı onay beklemeden görünür;
+ * köyden iki kişi teyit edince kendiliğinden "köylü teyitli" olur. Buraya yalnız itiraz alanlar düşer.
+ * "Teyit bekleyen" sekmesi düşük öncelikli: kayıtlar görünür kalır, bakmak zorunlu değil.
+ */
+function TrustPanel() {
+  const { enqueueSnackbar } = useSnackbar();
+  const [state, setState] = useState<'disputed' | 'pending'>('disputed');
+  const [rows, setRows] = useState<TrustItem[] | null>(null);
+  const load = useCallback(async () => {
+    setRows(null);
+    try { setRows(await familyAtlasService.trustQueue(state)); } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); setRows([]); }
+  }, [state, enqueueSnackbar]);
+  useEffect(() => { void load(); }, [load]);
+  const decide = async (item: TrustItem, action: 'keep' | 'remove') => {
+    try {
+      await familyAtlasService.trustDecide(item.type, item.id, action);
+      setRows((r) => r && r.filter((x) => x.id !== item.id));
+      enqueueSnackbar(action === 'keep' ? 'Kayıt doğru olarak işaretlendi; itirazlar kapandı.' : 'Kayıt köyden kaldırıldı.', { variant: 'success' });
+    } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); }
+  };
+  return (
+    <Stack spacing={2}>
+      <Tabs value={state} onChange={(_, v) => setState(v)}>
+        <Tab value="disputed" label="Tartışmalı (bakılmalı)" />
+        <Tab value="pending" label="Teyit bekleyen" />
+      </Tabs>
+      <Alert severity="info">
+        {state === 'disputed'
+          ? 'Birisi “Bu yanlış” dedi. Gerekçeyi oku: kayıt doğruysa “Doğru, kalsın” (itirazlar kapanır), yanlışsa “Köyden kaldır”. İtiraz edenin ve ekleyenin kim olduğu gösterilmez.'
+          : 'Topluluğun eklediği ve henüz iki köylü teyidi almamış kayıtlar. Görünür durumdalar; bakmak zorunlu değil. Bildiğin bir kaydı buradan da kabul edebilirsin.'}
+      </Alert>
+      {!rows && <CircularProgress />}
+      {rows && rows.length === 0 && <Typography color="text.secondary">{state === 'disputed' ? 'Tartışmalı kayıt yok.' : 'Teyit bekleyen kayıt yok.'}</Typography>}
+      {rows?.map((item) => (
+        <Paper key={item.id} variant="outlined" sx={{ p: 2 }}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Chip size="small" label={item.type === 'family' ? 'Sülale' : 'Çerkesçe ad'} />
+            <Typography fontWeight={700}>{item.label}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              · {item.villageName} ({item.district}, {item.province}) · {item.confirms} köylü teyidi · {item.source === 'community' ? 'Topluluk ekledi' : 'Kaynak listesinden'}
+            </Typography>
+          </Stack>
+          {item.disputes.length > 0 && (
+            <Box component="ul" sx={{ m: 0, mt: 1, pl: 3 }}>
+              {item.disputes.map((d, i) => <li key={i}><Typography variant="body2">“{d.reason}”</Typography></li>)}
+            </Box>
+          )}
+          <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
+            <Button size="small" variant="contained" onClick={() => decide(item, 'keep')}>Doğru, kalsın</Button>
+            <Button size="small" color="error" onClick={() => decide(item, 'remove')}>Köyden kaldır</Button>
+            {item.villageSlug && <Button size="small" color="inherit" href={`https://nartgo.net/harita?koy=${encodeURIComponent(item.villageSlug)}`} target="_blank">Köy sayfası</Button>}
+          </Stack>
+        </Paper>
+      ))}
+    </Stack>
+  );
+}
+
+type Candidate = { id: number; slug: string; name: string; race: string; villages: number };
+
+function SuggestionCard({ s, onResolve }: { s: NameSuggestion; onResolve: (s: NameSuggestion, a: 'link' | 'create' | 'reject', familyId?: number, race?: string) => void }) {
+  const [race, setRace] = useState('adige');
+  const cands = [...s.candidates.exact, ...s.candidates.suggestions].slice(0, 6);
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Typography fontWeight={700}>{s.name} <Typography component="span" variant="body2" color="text.secondary">· {s.times} kez önerildi{s.village ? ` · ${s.village} (${s.district}, ${s.province})` : ''}</Typography></Typography>
+      <Typography variant="body2" sx={{ mt: 1 }}>Atlastaki yakın yazımlar (dokununca bağlar):</Typography>
+      <LinkRow s={s} cands={cands} onResolve={onResolve} />
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+        <TextField select size="small" label="Halk" value={race} onChange={(e) => setRace(e.target.value)} sx={{ minWidth: 150 }}>
+          {RACES.map(([v, l]) => <MenuItem key={v} value={v}>{l}</MenuItem>)}
+        </TextField>
+        <Button size="small" variant="contained" onClick={() => onResolve(s, 'create', undefined, race)}>Yeni sülale olarak ekle</Button>
+        <Button size="small" color="inherit" onClick={() => onResolve(s, 'reject')}>Reddet</Button>
+      </Stack>
+    </Paper>
+  );
+}
+
+/** Aday sülaleye tek dokunuşla bağla; sülale sayfası yeni sekmede açılarak kontrol edilebilir. */
+function LinkRow({ s, cands, onResolve }: { s: NameSuggestion; cands: Candidate[]; onResolve: (s: NameSuggestion, a: 'link', familyId?: number) => void }) {
+  if (!cands.length) return <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Yakın yazım yok.</Typography>;
+  return (
+    <Stack direction="row" spacing={1} sx={{ mt: 0.5 }} flexWrap="wrap" useFlexGap>
+      {cands.map((c) => (
+        <Stack key={c.slug} direction="row" spacing={0.5} alignItems="center">
+          <Button size="small" variant="outlined" onClick={() => onResolve(s, 'link', c.id)}>{c.name} · {c.race} · {c.villages} köy</Button>
+          <Button size="small" href={`https://nartgo.net/harita/sulale/${c.slug}`} target="_blank" rel="noreferrer">Sayfa</Button>
+        </Stack>
+      ))}
+    </Stack>
   );
 }
