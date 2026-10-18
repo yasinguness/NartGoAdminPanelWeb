@@ -1,101 +1,186 @@
 import { api } from './api';
 
-export interface ReviewContribution {
-  id: string;
-  type: string;
-  status: string;
-  source?: string;
-  created_at?: string;
-  reviewed_at?: string;
-  reviewed_by?: string;
-  review_note?: string;
-  village_id?: string | null;
-  official_name?: string;
-  province?: string;
-  district?: string;
-  reasons?: string[];
-  reason?: string | string[];
-  payload: Record<string, any>;
-  location?: { latitude?: number | null; longitude?: number | null };
-  candidates?: any[];
-  nearbyVillages?: any[];
-  mergeCandidates?: any[];
-  checks?: any[];
-  districtBoundary?: any;
-  pointDistrictBoundary?: any;
-  pointDistrict?: { province?: string; district?: string } | string;
-  history?: any[];
-  [key: string]: any;
+/**
+ * Köy konumu inceleme masası (auth-service `HeritageLocationReviewService`).
+ * Sunucu her kayıt için nedenleri, kontrolleri, adayları ve önerilen kararı
+ * hazır verir; panel tahmin yürütmez. Bkz. docs/plan/nartgo-koy-inceleme-masasi.md.
+ */
+
+export type ReviewReason = 'dist' | 'dup' | 'water' | 'none' | 'comm' | 'mid';
+export type ReviewTab = 'all' | ReviewReason | 'asked';
+export type CheckMark = 'ok' | 'fail' | 'warn' | 'info';
+export type RecKind = 'approve' | 'ask' | 'warn' | 'place';
+export type CandidateSource = 'geo' | 'osm' | 'uye' | 'kayit' | 'web';
+
+export interface Recommendation {
+  kind: RecKind;
+  title: string;
+  why: string;
+  resolutions: Record<string, string>;
 }
 
-export type HeritageDecision =
-  | 'APPROVE'
-  | 'MOVE_CANDIDATE_AND_APPROVE'
-  | 'MOVE_MANUAL_AND_APPROVE'
-  | 'CORRECT_DISTRICT_AND_APPROVE'
-  | 'MERGE'
-  | 'MARK_SEPARATE'
-  | 'REJECT'
-  | 'ASK_COMMUNITY';
+export interface QueueItem {
+  id: string;
+  state: 'pending' | 'asked';
+  name: string;
+  province: string;
+  district: string;
+  pointDistrict: { province: string; district: string } | null;
+  oldNames: string[];
+  reasons: ReviewReason[];
+  ease: number;
+  /** Köyü henüz olmayan kayıtta, köy açılınca bağlanacak sülale sayısı. */
+  familyLinks: number;
+  recommendation: Recommendation;
+}
 
-const ROOT = '/auth/heritage';
-const ADMIN_LOCATIONS = `${ROOT}/admin/locations`;
-const unwrap = (response: any) => response?.data?.data ?? response?.data;
-const isNotFound = (error: any) => error?.response?.status === 404;
+export interface QueueResponse {
+  datasetVersion: string;
+  decided: number;
+  pending: number;
+  counts: Record<ReviewTab, number>;
+  provinces: string[];
+  items: QueueItem[];
+  rejectReasons: string[];
+}
+
+export interface ReviewCheck {
+  key: string | null;
+  mk: CheckMark;
+  title: string;
+  detail: string;
+  options: { v: string; label: string }[];
+}
+
+export interface ReviewCandidate {
+  n: number;
+  src: CandidateSource;
+  title: string;
+  detail: string;
+  latitude: number;
+  longitude: number;
+  distance: number;
+  osmId?: string;
+}
+
+export interface NearbyVillage {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  distance: number;
+}
+
+export interface Boundary {
+  name: string;
+  geometry: { type: 'MultiPolygon'; coordinates: number[][][][] };
+}
+
+export interface ReviewDetail extends QueueItem {
+  villageId: string | null;
+  type: 'village' | 'correction';
+  latitude: number | null;
+  longitude: number | null;
+  groups: string;
+  families: string;
+  sources: string[];
+  confidence: string;
+  geonames: { id: string; name: string; url: string } | null;
+  checks: ReviewCheck[];
+  precision: string;
+  contributor: { display_name?: string; total?: number; approved?: number } | null;
+  taskVotes: { question: string; status: string; votes: { answer: string; n: number }[] } | null;
+  candidates: ReviewCandidate[];
+  nearby: NearbyVillage[];
+  boundaries: { record?: Boundary | null; point?: Boundary | null };
+}
+
+export type DecisionAction = 'APPROVE' | 'REJECT' | 'ASK_COMMUNITY';
+
+export interface DecisionBody {
+  action: DecisionAction;
+  resolutions?: Record<string, string>;
+  latitude?: number;
+  longitude?: number;
+  rejectReason?: string;
+  note?: string;
+}
+
+export interface DecisionResult {
+  decisionId: string;
+  status: 'approved' | 'rejected' | 'asked';
+  summary: string;
+}
+
+export interface HistoryEntry {
+  id: string;
+  action: DecisionAction;
+  payload: { summary?: string; note?: string };
+  created_at: string;
+  undone_at: string | null;
+  admin_name: string | null;
+  undoable: boolean;
+}
+
+export interface BulkDistrictItem {
+  id: string;
+  name: string;
+  province: string;
+  from: string;
+  to: string;
+}
+
+export interface SourceAcceptPreview {
+  accept: number;
+  questions: number;
+  left: { id: string; name: string; province: string; district: string; status: 'blocked' | 'existing'; reason: string }[];
+}
+
+const ROOT = '/auth/heritage/admin/locations';
+const unwrap = <T,>(response: { data: unknown }): T => {
+  const body = response.data as { data?: T } | T;
+  return (body && typeof body === 'object' && 'data' in (body as object) ? (body as { data: T }).data : body) as T;
+};
 
 export const heritageReviewService = {
-  async getQueue(status = 'pending'): Promise<ReviewContribution[]> {
-    const data = unwrap(await api.get(`${ROOT}/admin/contributions`, { params: { status } }));
-    const rows = Array.isArray(data) ? data : data?.items ?? data?.records ?? data?.content ?? [];
-    return Array.isArray(rows) ? rows : [];
+  async queue(): Promise<QueueResponse> {
+    return unwrap(await api.get(`${ROOT}/review`));
   },
-  async checkLocation(payload: Record<string, any>) {
-    return unwrap(await api.post(`${ROOT}/locations/check`, payload));
+  async detail(id: string): Promise<ReviewDetail> {
+    return unwrap(await api.get(`${ROOT}/review/${encodeURIComponent(id)}`));
   },
-  async regions(province?: string): Promise<{ name: string }[]> {
-    const data = unwrap(await api.get(`${ROOT}/locations/regions`, { params: province ? { province } : {} }));
-    return Array.isArray(data) ? data : [];
+  async decide(id: string, body: DecisionBody): Promise<DecisionResult> {
+    return unwrap(await api.post(`${ROOT}/${encodeURIComponent(id)}/decision`, body));
   },
-  async searchPlaces(province: string, district: string, q: string) {
-    const data = unwrap(await api.get(`${ROOT}/locations/search`, { params: { province, district, q } }));
-    return Array.isArray(data) ? data : [];
+  async history(id: string): Promise<HistoryEntry[]> {
+    return unwrap(await api.get(`${ROOT}/${encodeURIComponent(id)}/history`));
   },
-  async reviewLegacy(item: ReviewContribution, approve: boolean, note: string, payload?: Record<string, any>) {
-    return unwrap(await api.post(`${ROOT}/admin/contributions/${encodeURIComponent(item.id)}/review`, {
-      approve,
-      note,
-      payload: approve ? payload ?? item.payload : null,
-    }));
+  async undo(id: string, decisionId: string): Promise<void> {
+    await api.post(`${ROOT}/${encodeURIComponent(id)}/undo`, { decisionId });
   },
-  async applyDecision(item: ReviewContribution, decision: HeritageDecision, body: Record<string, any>) {
-    try {
-      const { duplicateResolution: _duplicateResolution, duplicateResolutions: _duplicateResolutions, ...decisionBody } = body;
-      return unwrap(await api.post(`${ADMIN_LOCATIONS}/${encodeURIComponent(item.id)}/decision`, { ...decisionBody, decision }));
-    } catch (error) {
-      if (!isNotFound(error)) throw error;
-      const legacyDecisions: HeritageDecision[] = [
-        'APPROVE', 'MOVE_CANDIDATE_AND_APPROVE', 'MOVE_MANUAL_AND_APPROVE',
-        'CORRECT_DISTRICT_AND_APPROVE', 'MARK_SEPARATE', 'REJECT',
-      ];
-      if (!legacyDecisions.includes(decision)) throw error;
-      const rawResolutions = body.duplicateResolutions ?? body.duplicateResolution;
-      const resolutions = Array.isArray(rawResolutions) ? rawResolutions : rawResolutions?.relatedIds?.map((relatedId: string) => ({ relatedId, type: rawResolutions.type, keepId: rawResolutions.keepId })) ?? [];
-      if (resolutions.some((resolution: any) => resolution.type === 'MERGE')) {
-        throw new Error('Birleştirme kararı API sunucusunda henüz desteklenmiyor; kayıt onaylanmadı.');
-      }
-      const approve = decision !== 'REJECT';
-      return this.reviewLegacy(item, approve, body.note || 'Admin panelinden köy konumu incelendi.', {
-        ...(body.record ?? item.payload),
-        ...(decision === 'MARK_SEPARATE' ? { duplicate_reviewed: true } : {}),
-        ...(resolutions.length ? { duplicate_reviewed: resolutions.every((resolution: any) => resolution.type === 'DISTINCT'), duplicate_resolution: resolutions } : {}),
-      });
-    }
+  async bulkDistrictPreview(): Promise<BulkDistrictItem[]> {
+    return unwrap(await api.get(`${ROOT}/bulk-district`));
   },
-  async getHistory(id: string) {
-    const data = unwrap(await api.get(`${ADMIN_LOCATIONS}/${encodeURIComponent(id)}/history`));
-    return Array.isArray(data) ? data : data?.items ?? data?.records ?? [];
+  async bulkDistrictApply(ids: string[]): Promise<{ approved: number; items: { id: string; status: string; decisionId?: string; reason?: string }[] }> {
+    return unwrap(await api.post(`${ROOT}/bulk-district`, { ids }));
   },
-  async undo(id: string, auditId: string) {
-    return unwrap(await api.post(`${ADMIN_LOCATIONS}/${encodeURIComponent(id)}/undo`, { auditId }));
+  /** Kaynak listesinden toplu kabul: önizleme (kaç kayıt haritaya girer, kaçında topluluğa soru açılır, kalanlar). */
+  async sourceAcceptPreview(): Promise<SourceAcceptPreview> {
+    return unwrap(await api.get(`${ROOT}/source-accept`));
   },
+  async sourceAcceptApply(): Promise<{ accepted: number; questions: number; skipped: number; failed: { id: string; reason: string }[] }> {
+    return unwrap(await api.post(`${ROOT}/source-accept`));
+  },
+  /** Yüksek güvenli seed kayıtlarının toplu onayı (kuru çalıştırma raporu). */
+  async seedDryRun(): Promise<{ reportId: string; datasetVersion: string; candidateCount: number; passed: number; failed: number }> {
+    return unwrap(await api.post(`${ROOT}/seed-high-confidence/dry-run`));
+  },
+  async seedApply(reportId: string): Promise<{ approved: number; failed: number }> {
+    return unwrap(await api.post(`${ROOT}/seed-high-confidence/apply`, { reportId, confirmation: 'APPROVE_HIGH_CONFIDENCE_HERITAGE_LOCATIONS' }));
+  },
+};
+
+export const errorText = (error: unknown): string => {
+  const e = error as { response?: { data?: { message?: string } }; message?: string };
+  return e?.response?.data?.message ?? e?.message ?? 'İstek tamamlanamadı.';
 };

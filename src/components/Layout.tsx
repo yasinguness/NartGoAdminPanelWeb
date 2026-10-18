@@ -653,11 +653,11 @@ function LayoutShell({ workspace, canSwitch }: LayoutShellProps) {
                 component="main"
                 sx={{
                     flexGrow: 1,
-                    p: location.pathname.includes('seat-map') ? 0 : 3,
+                    p: (location.pathname.includes('seat-map') || location.pathname.includes('heritage/locations')) ? 0 : 3,
                     width: isZenMode ? '100vw' : { sm: `calc(100% - ${DRAWER_W}px)` },
                     minHeight: isZenMode ? '100vh' : 'calc(100vh - 56px)',
                     mt: isZenMode ? 0 : '64px',
-                    maxWidth: location.pathname.includes('seat-map') ? 'none' : '1600px',
+                    maxWidth: (location.pathname.includes('seat-map') || location.pathname.includes('heritage/locations')) ? 'none' : '1600px',
                     overflowX: 'hidden',
                 }}
             >

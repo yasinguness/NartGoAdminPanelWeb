@@ -104,6 +104,7 @@ export const nartgoNavSections: NavSection[] = [
             { text: 'Kullanıcı Aktivitesi', icon: <PeopleIcon />, path: '/user-activity', allowedRoles: ['ADMIN'] },
             { text: 'NartLive Haritası', icon: <PeopleIcon />, path: '/nartlive/users', allowedRoles: ['ADMIN'] },
             { text: 'Köy Konumları', icon: <AccountBalanceIcon />, path: '/heritage/locations', allowedRoles: ['ADMIN'] },
+            { text: 'Sülale Atlası', icon: <AccountBalanceIcon />, path: '/heritage/families', allowedRoles: ['ADMIN'] },
             { text: 'Dernekler', icon: <HomeWork />, path: '/associations' },
         ],
     },

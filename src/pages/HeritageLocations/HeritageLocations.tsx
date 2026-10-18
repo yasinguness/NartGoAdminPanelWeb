@@ -1,518 +1,672 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSnackbar } from 'notistack';
+import './reviewDesk.css';
+import ReviewMap, { SOURCE_COLOR, distanceM, satelliteConfigured, type LatLng } from './ReviewMap';
 import {
-  Alert, Box, Button, Chip, CircularProgress, Divider, FormControl, InputLabel,
-  LinearProgress, MenuItem, Paper, Select, Stack, TextField, Typography,
-} from '@mui/material';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { heritageReviewService, type HeritageDecision, type ReviewContribution } from '../../services/heritageReviewService';
+  errorText, heritageReviewService,
+  type BulkDistrictItem, type DecisionBody, type SourceAcceptPreview, type HistoryEntry, type QueueItem, type QueueResponse,
+  type ReviewDetail, type ReviewReason, type ReviewTab,
+} from '../../services/heritageReviewService';
 
-const REASONS: Record<string, string> = {
-  DISTRICT_MISMATCH: 'İlçe uyuşmazlığı', NEAR_DUPLICATE: 'Yakın tekrar',
-  BOUNDARY_OR_WATER: 'Sınır ya da su', MEDIUM_CONFIDENCE: 'Orta güven',
-  MERGE_SUGGESTION: 'Birleştirme önerisi', MISSING_LOCATION: 'Konumsuz köy',
-  COMMUNITY_SUGGESTION: 'Topluluk önerisi',
+/**
+ * Köy konumu inceleme masası. Tasarım: docs/admin-panel-village.
+ * Kuyruk · harita · karar paneli. Nedenler, kontroller, adaylar ve önerilen
+ * karar sunucudan gelir (HeritageLocationReviewService); bu sayfa yalnız
+ * çizer ve adminin seçtiği çözümleri gönderir.
+ */
+
+const TABS: { k: ReviewTab; label: string; dot: string }[] = [
+  { k: 'all', label: 'Tümü', dot: '#14231a' },
+  { k: 'dist', label: 'İlçe uyuşmazlığı', dot: '#8f5b00' },
+  { k: 'dup', label: 'Yakın tekrar', dot: '#2b5b8c' },
+  { k: 'water', label: 'Sınır ve su', dot: '#b3412a' },
+  { k: 'none', label: 'Konumsuz', dot: '#6a4c93' },
+  { k: 'comm', label: 'Topluluk önerisi', dot: '#6a4c93' },
+  { k: 'mid', label: 'Orta güven', dot: '#8a6210' },
+  { k: 'asked', label: 'Toplulukta', dot: '#6a4c93' },
+];
+const CHIP: Record<ReviewReason, { label: string; cls: string }> = {
+  dist: { label: 'İlçe', cls: 'rchip rDist' }, dup: { label: 'Yakın tekrar', cls: 'rchip rDup' },
+  water: { label: 'Sınır / su', cls: 'rchip rWater' }, none: { label: 'Konumsuz', cls: 'rchip rNone' },
+  comm: { label: 'Üye önerisi', cls: 'rchip rComm' }, mid: { label: 'Orta güven', cls: 'rchip rMid' },
 };
-const FLAG_REASON: Record<string, string> = {
-  outside_district: 'DISTRICT_MISMATCH', source_district_mismatch: 'DISTRICT_MISMATCH',
-  possible_duplicate: 'NEAR_DUPLICATE', pending_duplicate: 'NEAR_DUPLICATE',
-  moved_over_3km: 'BOUNDARY_OR_WATER', medium: 'MEDIUM_CONFIDENCE',
-  outside_country: 'BOUNDARY_OR_WATER', water: 'BOUNDARY_OR_WATER',
-  medium_confidence: 'MEDIUM_CONFIDENCE', merge_suggested: 'MERGE_SUGGESTION',
-  community_suggestion: 'COMMUNITY_SUGGESTION', missing_location: 'MISSING_LOCATION',
+type SessionStatus = { st: 'ok' | 'rej' | 'ask' | 'skip'; text: string; decisionId?: string };
+const ST: Record<SessionStatus['st'], { label: string; cls: string }> = {
+  ok: { label: 'Onaylandı', cls: 'qSt sOk' }, rej: { label: 'Reddedildi', cls: 'qSt sRej' },
+  ask: { label: 'Toplulukta', cls: 'qSt sAsk' }, skip: { label: 'Atlandı', cls: 'qSt sSkip' },
 };
-const SATELLITE_URL = import.meta.env.VITE_HERITAGE_SATELLITE_URL as string | undefined;
-const SATELLITE_ATTRIBUTION = import.meta.env.VITE_HERITAGE_SATELLITE_ATTRIBUTION as string | undefined;
+const MK = { ok: '✓', fail: '✕', warn: '!', info: 'i' } as const;
+const MKC = { ok: 'mk mkOk', fail: 'mk mkFail', warn: 'mk mkWarn', info: 'mk mkInfo' } as const;
+const MKL = { ok: 'Geçti', fail: 'Engel', warn: 'Dikkat', info: 'Bilgi' } as const;
+const SRC_LABEL = { geo: 'GeoNames', web: 'Web kaydı', uye: 'Üye önerisi', osm: 'OSM yerleşimi', kayit: 'Kayıttaki nokta' } as const;
 
-type Place = { id?: string; osm_id?: string; official_name?: string; name?: string; latitude?: number; longitude?: number; district?: string; village_id?: string | null; source?: string; distanceKm?: number; distance_km?: number };
-type Point = { lat: number; lon: number };
-const candidateKey = (place: Place, index: number) => String(place.id ?? place.osm_id ?? `candidate-${index}`);
+const trCompare = (a: string, b: string) => a.localeCompare(b, 'tr');
+const meters = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(m)} m`);
+const isTyping = (t: EventTarget | null) => t instanceof HTMLElement && Boolean(t.closest('input,textarea,select,[contenteditable="true"]'));
 
-function asPoint(item: ReviewContribution): Point | null {
-  const p = item.location ?? item.payload?.reviewed_payload ?? item.payload ?? {};
-  const lat = Number(p.latitude ?? item.latitude); const lon = Number(p.longitude ?? item.longitude);
-  return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
-}
-function locationPayload(item: ReviewContribution) {
-  const payload = item.payload ?? {};
-  const p = payload.reviewed_payload ?? payload;
-  if (!Object.keys(p).length) return item;
-  return {
-    ...p,
-    province: p.province ?? item.province,
-    district: p.district ?? item.district,
-    official_name: p.official_name ?? item.official_name,
-  };
-}
-function reasonKeys(item: ReviewContribution): string[] {
-  const p = locationPayload(item);
-  const flags: string[] = p.location_checks?.flags ?? p.flags ?? [];
-  const declared = Array.isArray(item.reasons) ? item.reasons : Array.isArray(item.reason) ? item.reason : [item.reason].filter(Boolean);
-  const mapped = [...flags, ...declared].map((f) => FLAG_REASON[String(f)] ?? (REASONS[String(f)] ? String(f) : undefined)).filter(Boolean) as string[];
-  const seed = p.seed_record ?? {};
-  if (seed.guven && seed.guven !== 'yüksek') mapped.push('MEDIUM_CONFIDENCE');
-  if (!asPoint(item)) mapped.push('MISSING_LOCATION');
-  if (item.type === 'village' || item.contributionType === 'village' || item.origin === 'community') mapped.push('COMMUNITY_SUGGESTION');
-  if (item.mergeCandidates?.length) mapped.push('MERGE_SUGGESTION');
-  if (mapped.length === 0) mapped.push(item.type === 'village' || item.contributionType === 'village' ? 'COMMUNITY_SUGGESTION' : 'MISSING_LOCATION');
-  return [...new Set(mapped)];
-}
-function errorText(error: any) {
-  return error?.response?.data?.message ?? error?.message ?? 'İstek tamamlanamadı.';
-}
+const Arrow = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+);
+const Ext = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+);
 
 export default function HeritageLocations() {
-  const [items, setItems] = useState<ReviewContribution[]>([]);
-  const [initialCount, setInitialCount] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [provinceFilter, setProvinceFilter] = useState('');
-  const [reasonFilter, setReasonFilter] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState('');
-  const [draft, setDraft] = useState<Record<string, any> | null>(null);
-  const [checks, setChecks] = useState<any>(null);
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [districts, setDistricts] = useState<{ name: string }[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyRecord, setHistoryRecord] = useState<{ id: string; name: string } | null>(null);
-  const [lastDecision, setLastDecision] = useState<{ id: string; name: string; auditId?: string } | null>(null);
+  const { enqueueSnackbar } = useSnackbar();
+  const [queue, setQueue] = useState<QueueResponse | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<ReviewTab>('all');
+  const [il, setIl] = useState('all');
+  // Varsayılan: köy açılınca en çok sülale bağı kurulacak kayıtlar önce.
+  const [sort, setSort] = useState<'sulale' | 'il' | 'kolay'>('sulale');
+  const [sel, setSel] = useState<string | null>(null);
+  const [details, setDetails] = useState<Record<string, ReviewDetail>>({});
+  const [res, setRes] = useState<Record<string, Record<string, string>>>({});
+  const [pos, setPos] = useState<Record<string, LatLng>>({});
+  const [status, setStatus] = useState<Record<string, SessionStatus>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [moving, setMoving] = useState(false);
   const [satellite, setSatellite] = useState(false);
-  const [manualPoint, setManualPoint] = useState<Point | null>(null);
-  const [selectedCandidateId, setSelectedCandidateId] = useState('');
-  const [correctedDistrict, setCorrectedDistrict] = useState('');
-  const [mergeTargetId, setMergeTargetId] = useState('');
-  const [retainedName, setRetainedName] = useState('');
-  const [separatePairId, setSeparatePairId] = useState('');
-  const [duplicateResolutions, setDuplicateResolutions] = useState<Record<string, 'MERGE' | 'DISTINCT'>>({});
-  const mapHost = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const layersRef = useRef<L.LayerGroup | null>(null);
-  const markersRef = useRef<L.Marker[]>([]);
+  const [rejOpen, setRejOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [history, setHistory] = useState<HistoryEntry[] | null>(null);
+  const [bulk, setBulk] = useState<{ open: boolean; items: BulkDistrictItem[] | null }>({ open: false, items: null });
+  const [toast, setToast] = useState<{ name: string; text: string; undo: { id: string; decisionId: string }[] } | null>(null);
+  const [report, setReport] = useState<{ open: boolean; data?: SourceAcceptPreview; busy?: boolean }>({ open: false });
+  const toastTimer = useRef<number | undefined>(undefined);
 
-  const loadQueue = useCallback(async (preserveId?: string | null) => {
-    setLoading(true); setError(null);
+  // ── Veri ──
+  const loadQueue = useCallback(async () => {
+    setLoadError(null);
     try {
-      const result = await heritageReviewService.getQueue();
-      const villageItems = result.filter((item) => item.type === 'village'
-        || ['location', 'location_review', 'heritage_location', 'seed_location'].includes(String(item.type ?? '').toLowerCase())
-        || (item.type === 'correction' && (item.payload?.target_type === 'village' || item.payload?.seed_record))
-        || (item.type === 'removal' && item.payload?.target_type === 'village')
-        || (!item.type && Boolean(item.reason || item.reasons || item.location)));
-      setInitialCount((count) => count || villageItems.length);
-      setItems(villageItems);
-      const nextId = preserveId && villageItems.some((item) => item.id === preserveId)
-        ? preserveId : villageItems[0]?.id ?? null;
-      setSelectedId(nextId);
-    } catch (e) { setError(errorText(e)); }
-    finally { setLoading(false); }
+      const q = await heritageReviewService.queue();
+      setQueue(q);
+      setSel((cur) => (cur && q.items.some((i) => i.id === cur) ? cur : q.items.find((i) => i.state === 'pending')?.id ?? q.items[0]?.id ?? null));
+    } catch (e) { setLoadError(errorText(e)); }
   }, []);
-
   useEffect(() => { void loadQueue(); }, [loadQueue]);
-  const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
-  const activePayload = useMemo(() => selected ? locationPayload(selected) : null, [selected]);
-  const province = String(draft?.province ?? activePayload?.province ?? '');
-  const district = String(draft?.district ?? activePayload?.district ?? '');
-  const point = manualPoint ?? (selected ? asPoint(selected) : null);
-  const candidateRows = useMemo(() => {
-    const provided = selected?.candidates ?? [];
-    return [...provided, ...places].filter((place) => Number.isFinite(Number(place.latitude)) && Number.isFinite(Number(place.longitude)));
-  }, [places, selected]);
 
-  const filteredItems = useMemo(() => items.filter((item) => {
-    const p = locationPayload(item);
-    return (!provinceFilter || p.province === provinceFilter)
-      && (!reasonFilter || reasonKeys(item).includes(reasonFilter));
-  }), [items, provinceFilter, reasonFilter]);
-  const provinces = useMemo(() => [...new Set(items.map((item) => String(locationPayload(item).province ?? '')).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'tr')), [items]);
-  const reasonCounts = useMemo(() => Object.keys(REASONS).map((key) => ({ key, count: items.filter((item) => reasonKeys(item).includes(key)).length })), [items]);
-  const selectedIndex = filteredItems.findIndex((item) => item.id === selectedId);
-
-  useEffect(() => {
-    if (!selected) { setDraft(null); setChecks(null); setPlaces([]); setManualPoint(null); return; }
-    setDraft({ ...locationPayload(selected) }); setNote(''); setChecks(null); setPlaces([]); setManualPoint(null);
-    setSelectedCandidateId(''); setMergeTargetId(''); setSeparatePairId(''); setDuplicateResolutions({});
-    setRetainedName(String(locationPayload(selected).official_name ?? selected.official_name ?? ''));
-    const pointDistrict = typeof selected.pointDistrict === 'string' ? selected.pointDistrict : selected.pointDistrict?.district;
-    setCorrectedDistrict(pointDistrict || String(locationPayload(selected).district ?? ''));
-    let alive = true;
-    const pointNow = asPoint(selected);
-    if (pointNow) {
-      heritageReviewService.checkLocation({ ...locationPayload(selected), latitude: pointNow.lat, longitude: pointNow.lon })
-        .then((result) => {
-          if (!alive) return;
-          setChecks(result);
-          const detected = result?.pointDistrict?.district ?? result?.point_district?.district ?? result?.districtAtPoint;
-          if (detected) setCorrectedDistrict(String(detected));
-        }).catch((e) => { if (alive) setChecks({ error: errorText(e), flags: [] }); });
-    }
-    return () => { alive = false; };
-  }, [selected]);
-
-  useEffect(() => {
-    if (!selected || !province) { setDistricts([]); return; }
-    let alive = true;
-    heritageReviewService.regions(province).then((data) => { if (alive) setDistricts(data); }).catch(() => { if (alive) setDistricts([]); });
-    return () => { alive = false; };
-  }, [selected, province]);
-
-  useEffect(() => {
-    if (!selected || !province || !district) { setPlaces([]); return; }
-    let alive = true;
-    const q = String(draft?.official_name ?? selected.official_name ?? '').trim();
-    if (q.length < 2) return;
-    const timer = window.setTimeout(() => {
-      heritageReviewService.searchPlaces(province, district, q).then((data) => { if (alive) setPlaces(data); }).catch(() => { if (alive) setPlaces([]); });
-    }, 250);
-    return () => { alive = false; window.clearTimeout(timer); };
-  }, [selected, province, district, draft?.official_name]);
-
-  useEffect(() => {
-    if (!mapHost.current || mapRef.current) return;
-    const map = L.map(mapHost.current, { center: [point?.lat ?? 39, point?.lon ?? 35], zoom: 7 });
-    map.on('click', (event) => {
-      const next = { lat: event.latlng.lat, lon: event.latlng.lng };
-      setManualPoint(next);
-      setDraft((current) => current ? { ...current, latitude: next.lat, longitude: next.lon, osm_id: undefined } : current);
-    });
-    mapRef.current = map;
-    layersRef.current = L.layerGroup().addTo(map);
-    return () => { map.remove(); mapRef.current = null; layersRef.current = null; markersRef.current = []; };
-  // Leaflet owns the map lifecycle; data changes are handled by the layer effect below.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Boolean(selected)]);
-
-  useEffect(() => {
-    const map = mapRef.current; const layers = layersRef.current;
-    if (!map || !layers) return;
-    map.eachLayer((layer) => { if (layer instanceof L.TileLayer) map.removeLayer(layer); });
-    if (satellite && SATELLITE_URL && SATELLITE_ATTRIBUTION) {
-      L.tileLayer(SATELLITE_URL, { attribution: SATELLITE_ATTRIBUTION, maxZoom: 19 }).addTo(map);
-    } else {
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
-    }
-    layers.clearLayers(); markersRef.current = [];
-    const addBoundary = (geometry: any, color: string, name: string) => {
-      if (!geometry) return;
-      try {
-        const parsed = typeof geometry === 'string' ? JSON.parse(geometry) : geometry;
-        L.geoJSON(parsed, { style: { color, weight: 2, fillColor: color, fillOpacity: 0.04, dashArray: '5 4' } })
-          .bindTooltip(name).addTo(layers);
-      } catch { /* Ignore malformed optional geometry and keep the review map usable. */ }
-    };
-    addBoundary(selected?.districtBoundary ?? selected?.boundaries?.recordDistrict, '#7b1fa2', `Kayıt ilçesi: ${activePayload?.district ?? ''}`);
-    addBoundary(selected?.pointDistrictBoundary ?? selected?.boundaries?.pointDistrict, '#00838f', `Noktanın ilçesi: ${checks?.pointDistrict?.district ?? ''}`);
-    const seedRecord = activePayload?.seed_record ?? {};
-    if (Number.isFinite(Number(seedRecord.enlem)) && Number.isFinite(Number(seedRecord.boylam))) {
-      L.circleMarker([Number(seedRecord.enlem), Number(seedRecord.boylam)], { radius: 7, color: '#00897b', fillColor: '#4db6ac', fillOpacity: 0.9, weight: 2 })
-        .bindTooltip(`${seedRecord.geonames_adi ?? 'GeoNames adayı'} · GeoNames`).addTo(layers);
-    }
-    candidateRows.forEach((place) => {
-      const marker = L.circleMarker([Number(place.latitude), Number(place.longitude)], { radius: 7, color: '#1565c0', fillColor: '#42a5f5', fillOpacity: 0.9, weight: 2 });
-      const sourceName = place.source ?? (place.osm_id ? 'OSM' : 'Aday');
-      marker.bindTooltip(`${place.official_name ?? place.name ?? 'Konum adayı'} · ${sourceName}`);
-      marker.on('click', () => {
-        const next = { lat: Number(place.latitude), lon: Number(place.longitude) };
-        setManualPoint(next);
-        setDraft((current) => current ? { ...current, latitude: next.lat, longitude: next.lon, osm_id: place.osm_id } : current);
-      });
-      marker.addTo(layers);
-    });
-    [...(selected?.nearbyVillages ?? []), ...(checks?.duplicates ?? [])].forEach((village: any) => {
-      if (village.latitude == null || village.longitude == null) return;
-      L.circleMarker([Number(village.latitude), Number(village.longitude)], { radius: 8, color: '#ef6c00', fillColor: '#ffb74d', fillOpacity: 0.9, weight: 2 })
-        .bindTooltip(`${village.official_name ?? 'Yakındaki köy'} · mevcut kayıt`).addTo(layers);
-    });
-    if (point) {
-      const marker = L.marker([point.lat, point.lon], { draggable: true, icon: L.divIcon({ className: 'heritage-village-pin', html: '<span></span>', iconSize: [24, 24], iconAnchor: [12, 12] }) });
-      marker.on('dragend', () => {
-        const moved = marker.getLatLng(); const next = { lat: moved.lat, lon: moved.lng };
-        setManualPoint(next); setDraft((current) => current ? { ...current, latitude: moved.lat, longitude: moved.lng, osm_id: undefined } : current);
-        heritageReviewService.checkLocation({ ...(draft ?? {}), latitude: moved.lat, longitude: moved.lng }).then(setChecks).catch((e) => setChecks({ error: errorText(e), flags: [] }));
-      });
-      marker.bindTooltip('Köyün mevcut noktası · sürükleyerek taşı'); marker.addTo(layers); markersRef.current.push(marker);
-      map.setView([point.lat, point.lon], Math.max(map.getZoom(), 9));
-    }
-  // The map is a mutable Leaflet instance; redraw when its data inputs change.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [point?.lat, point?.lon, candidateRows, checks, satellite, selectedId, activePayload, selected]);
-
-  const openHistory = async (recordId = selected?.id, recordName = oldName) => {
-    if (!recordId) return;
-    setHistoryRecord({ id: recordId, name: recordName });
-    setHistoryOpen(true); setHistory([]);
+  const fetchDetail = useCallback(async (id: string, force = false) => {
+    if (!force && details[id]) return;
     try {
-      const rows = await heritageReviewService.getHistory(recordId);
-      setHistory(rows.sort((a: any, b: any) => String(b.createdAt ?? b.reviewed_at ?? '').localeCompare(String(a.createdAt ?? a.reviewed_at ?? ''))));
-    } catch (e) { setError(errorText(e)); }
+      const d = await heritageReviewService.detail(id);
+      if ('checks' in d) setDetails((cur) => ({ ...cur, [id]: d }));
+    } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); }
+  }, [details, enqueueSnackbar]);
+
+  // ── Kuyruk görünümü ──
+  const items = queue?.items ?? [];
+  const decidedHere = (id: string) => Boolean(status[id] && status[id].st !== 'skip');
+  const visible = useMemo(() => {
+    let list = items.filter((q) => (filter === 'asked' ? q.state === 'asked' : q.state === 'pending' && (filter === 'all' || q.reasons.includes(filter))))
+      .filter((q) => il === 'all' || q.province === il);
+    list = sort === 'kolay' ? [...list].sort((a, b) => a.ease - b.ease)
+      : sort === 'sulale' ? [...list].sort((a, b) => (b.familyLinks ?? 0) - (a.familyLinks ?? 0) || a.ease - b.ease)
+      : [...list].sort((a, b) => trCompare(a.province, b.province) || trCompare(a.name, b.name));
+    return list;
+  }, [items, filter, il, sort]);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: 0, dist: 0, dup: 0, water: 0, none: 0, comm: 0, mid: 0, asked: 0 };
+    items.forEach((q) => {
+      if (decidedHere(q.id)) return;
+      if (q.state === 'asked') { c.asked++; return; }
+      c.all++; q.reasons.forEach((r) => { c[r]++; });
+    });
+    return c;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, status]);
+
+  const nextId = useCallback((fromId: string | null, st: Record<string, SessionStatus>) => {
+    if (!visible.length) return fromId;
+    const i = Math.max(0, visible.findIndex((q) => q.id === fromId));
+    for (let k = 1; k <= visible.length; k++) { const q = visible[(i + k) % visible.length]; if (!st[q.id]) return q.id; }
+    for (let k = 1; k <= visible.length; k++) { const q = visible[(i + k) % visible.length]; if (!st[q.id] || st[q.id].st === 'skip') return q.id; }
+    return fromId;
+  }, [visible]);
+
+  // Süzgeç değişince seçili kayıt görünür listede değilse ilk bekleyene geç.
+  useEffect(() => {
+    if (!visible.length) return;
+    if (!sel || !visible.some((q) => q.id === sel)) setSel((visible.find((q) => !status[q.id]) ?? visible[0]).id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, il, visible.length]);
+
+  const current: QueueItem | undefined = items.find((q) => q.id === sel);
+  const detail = sel ? details[sel] : undefined;
+  useEffect(() => {
+    if (!sel) return;
+    void fetchDetail(sel);
+    setRejOpen(false); setMoreOpen(false); setMoving(false); setCopied(false); setHistory(null);
+    const n = nextId(sel, status);
+    if (n && n !== sel) void fetchDetail(n); // sıradakini önden yükle
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel]);
+
+  // ── Karar durumu ──
+  const explicit = (sel && res[sel]) || {};
+  const eff: Record<string, string> = useMemo(() => {
+    if (!current) return {};
+    const rec = current.recommendation;
+    return { ...(rec.kind === 'approve' ? rec.resolutions : {}), ...explicit };
+  }, [current, explicit]);
+  const original: LatLng | null = detail && detail.latitude != null && detail.longitude != null ? { lat: detail.latitude, lng: detail.longitude } : null;
+  const moved = sel ? pos[sel] ?? null : null;
+  const point = moved ?? original;
+  const st = sel ? status[sel] : undefined;
+  const decided = Boolean(st && st.st !== 'skip');
+
+  const unresolved = useMemo(() => (detail?.checks ?? []).filter((c) => {
+    if (!c.key) return false;
+    const v = eff[c.key];
+    return !v || ((v === 'move' || v === 'place') && !moved);
+  }), [detail, eff, moved]);
+
+  const setResolution = (key: string, v: string | undefined) => {
+    if (!sel) return;
+    setRes((cur) => {
+      const next = { ...(cur[sel] ?? {}) };
+      if (v === undefined) delete next[key]; else next[key] = v;
+      return { ...cur, [sel]: next };
+    });
+  };
+  const setPoint = (p: LatLng | null) => {
+    if (!sel) return;
+    setPos((cur) => { const next = { ...cur }; if (p) next[sel] = p; else delete next[sel]; return next; });
+  };
+  const pickFix = (key: string, v: string) => {
+    setResolution(key, v);
+    if (v === 'move' || v === 'place') setMoving(true);
+    else if (key === 'loc' && v === 'hist') { setPoint(null); setMoving(false); }
+  };
+  const onMapPick = (p: LatLng) => {
+    setPoint(p);
+    if (detail?.checks.some((c) => c.key === 'loc')) setResolution('loc', original ? 'move' : 'place');
+    setMoving(false);
   };
 
-  const goNext = () => {
-    if (!filteredItems.length) return;
-    setSelectedId(filteredItems[Math.min(selectedIndex < 0 ? 0 : selectedIndex + 1, filteredItems.length - 1)].id);
+  const sendItems = (): string[] => {
+    if (!detail || !current) return [];
+    const it: string[] = [];
+    Object.entries(eff).forEach(([k, v]) => {
+      if (!k.startsWith('dup:')) return;
+      const name = detail.nearby.find((n) => `dup:${n.id}` === k)?.name ?? 'Komşu kayıt';
+      it.push(v === 'merge' ? `${name} ile birleşir` : `${name} ayrı köy`);
+    });
+    if (eff.ilce === 'point' && current.pointDistrict) it.push(`İlçe: ${current.pointDistrict.district}`);
+    else if (eff.ilce === 'keep') it.push(`İlçe: ${current.district}`);
+    if (eff.ilce === 'approx' || eff.precision === 'approx') it.push('Konum yaklaşık');
+    if (eff.precision === 'exact') it.push('Konum kesin');
+    if (eff.loc === 'hist') it.push('Tarihî konum');
+    else if (moved && original) it.push(`Yeni konum, ${meters(distanceM(original, moved))}`);
+    else if (moved) it.push('Yeni nokta');
+    if (!it.length) it.push('Konum olduğu gibi');
+    return it;
   };
-  const skip = () => goNext();
-  const decide = async (decision: HeritageDecision, extra: Record<string, any> = {}, recordOverride?: Record<string, any>) => {
-    if (!selected || busy || !draft) return;
-    if (decision === 'APPROVE' && unresolvedDuplicates.length) { setError('Onaydan önce her yakın tekrar için “Aynı köy” ya da “Farklı köy” seçin.'); return; }
-    if (decision === 'REJECT' && !note.trim()) { setError('Reddetmek için neden yazılması zorunludur.'); return; }
-    if (decision === 'MERGE' && !mergeTargetId) { setError('Birleştirilecek kayıt seçin.'); return; }
-    if (decision === 'MARK_SEPARATE' && !separatePairId) { setError('Ayrı köy olarak işaretlenecek tekrar çiftini seçin.'); return; }
-    setBusy(true); setError(null);
+
+  // ── İşlemler ──
+  const armToast = (t: NonNullable<typeof toast>) => {
+    window.clearTimeout(toastTimer.current);
+    setToast(t);
+    toastTimer.current = window.setTimeout(() => setToast(null), 7000);
+  };
+  const decide = async (body: DecisionBody, sessionSt: SessionStatus['st']) => {
+    if (!sel || !current || busy) return;
+    setBusy(true);
     try {
-      const revised = { ...(recordOverride ?? draft) };
-      const resolvedPairs = Object.entries(duplicateResolutions).map(([relatedId, type]) => ({ relatedId, type, ...(type === 'MERGE' ? { keepId: selected.village_id ?? relatedId } : {}) }));
-      const resolutionTypes = new Set(resolvedPairs.map((resolution) => resolution.type));
-      const duplicateResolution = resolutionTypes.size === 1 ? {
-        type: resolvedPairs[0]?.type,
-        relatedIds: resolvedPairs.map((resolution) => resolution.relatedId),
-        ...(resolvedPairs[0]?.keepId ? { keepId: resolvedPairs[0].keepId } : {}),
-      } : undefined;
-      const result = await heritageReviewService.applyDecision(selected, decision, {
-        note: note.trim(),
-        record: revised,
-        duplicateResolution,
-        duplicateResolutions: resolvedPairs.length ? resolvedPairs : undefined,
-        ...extra,
-      });
-      setLastDecision({ id: selected.id, name: oldName, auditId: result?.auditId ?? result?.audit_id });
-      const oldIndex = selectedIndex;
-      const remaining = filteredItems.filter((item) => item.id !== selected.id);
-      setItems((current) => current.filter((item) => item.id !== selected.id));
-      setSelectedId(remaining[Math.min(oldIndex, remaining.length - 1)]?.id ?? null);
-      setManualPoint(null); setNote(''); setHistoryOpen(false);
-    } catch (e) { setError(errorText(e)); }
+      const note = (notes[sel] ?? '').trim();
+      const r = await heritageReviewService.decide(sel, { ...body, note: note || undefined });
+      const nextStatus = { ...status, [sel]: { st: sessionSt, text: r.summary, decisionId: r.decisionId } };
+      setStatus(nextStatus);
+      armToast({ name: current.name, text: r.summary, undo: [{ id: sel, decisionId: r.decisionId }] });
+      setRejOpen(false); setMoreOpen(false); setMoving(false);
+      const n = nextId(sel, nextStatus);
+      if (n) setSel(n);
+    } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); }
+    finally { setBusy(false); }
+  };
+  const approve = (extra: Record<string, string> = {}) => decide({
+    action: 'APPROVE',
+    resolutions: { ...eff, ...extra },
+    ...(moved ? { latitude: moved.lat, longitude: moved.lng } : {}),
+  }, 'ok');
+  const ask = () => decide({ action: 'ASK_COMMUNITY', resolutions: eff }, 'ask');
+  const reject = (reason: string) => decide({ action: 'REJECT', rejectReason: reason }, 'rej');
+  const skip = () => {
+    if (!sel) return;
+    const next = { ...status, [sel]: status[sel] ?? { st: 'skip' as const, text: 'atlandı' } };
+    setStatus(next);
+    const n = nextId(sel, next); if (n) setSel(n);
+  };
+  const undo = async (list: { id: string; decisionId: string }[]) => {
+    window.clearTimeout(toastTimer.current); setToast(null);
+    setBusy(true);
+    try {
+      for (const u of [...list].reverse()) await heritageReviewService.undo(u.id, u.decisionId);
+      setStatus((cur) => { const next = { ...cur }; list.forEach((u) => delete next[u.id]); return next; });
+      await Promise.all(list.map((u) => fetchDetail(u.id, true)));
+      setSel(list[0].id);
+      enqueueSnackbar(list.length > 1 ? `${list.length} karar geri alındı` : 'Karar geri alındı', { variant: 'info' });
+    } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); }
+    finally { setBusy(false); }
+  };
+  const openMore = async () => {
+    const open = !moreOpen; setMoreOpen(open);
+    if (open && sel) {
+      try { setHistory(await heritageReviewService.history(sel)); } catch { setHistory([]); }
+    }
+  };
+  const copy = (text: string) => {
+    navigator.clipboard?.writeText(text).catch(() => undefined);
+    setCopied(true); window.setTimeout(() => setCopied(false), 1600);
+  };
+
+  // Toplu ilçe düzeltme
+  useEffect(() => {
+    if (filter !== 'dist' || bulk.items) return;
+    heritageReviewService.bulkDistrictPreview().then((items) => setBulk((b) => ({ ...b, items }))).catch(() => setBulk((b) => ({ ...b, items: [] })));
+  }, [filter, bulk.items]);
+  const bulkIds = (bulk.items ?? []).filter((b) => !status[b.id]).map((b) => b.id);
+  const applyBulk = async () => {
+    if (!bulkIds.length || busy) return;
+    setBusy(true);
+    try {
+      const r = await heritageReviewService.bulkDistrictApply(bulkIds);
+      const done = r.items.filter((x) => x.status === 'approved' && x.decisionId) as { id: string; decisionId: string }[];
+      setStatus((cur) => { const next = { ...cur }; done.forEach((d) => { next[d.id] = { st: 'ok', text: 'onaylandı · ilçe noktanın ilçesine göre düzeltildi', decisionId: d.decisionId }; }); return next; });
+      armToast({ name: `${done.length} kayıt`, text: 'onaylandı · ilçe noktanın ilçesine göre düzeltildi', undo: done });
+      setBulk({ open: false, items: null });
+      const failed = r.items.filter((x) => x.status !== 'approved').length;
+      if (failed) enqueueSnackbar(`${failed} kayıt toplu düzeltmeye uygun değildi; tek tek incele.`, { variant: 'warning' });
+    } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); }
     finally { setBusy(false); }
   };
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLElement && event.target.closest('input,textarea,select,button,a,[contenteditable="true"],[role="dialog"]')) return;
-      if (event.key.toLowerCase() === 's') { event.preventDefault(); skip(); }
-      if (event.key.toLowerCase() === 'a' && selected && !busy) { event.preventDefault(); void decide('APPROVE'); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, busy, selectedIndex, filteredItems, note, draft]);
-
-  const seed = activePayload?.seed_record ?? {};
-  const reasons = selected ? reasonKeys(selected) : [];
-  const oldName = String(activePayload?.official_name ?? selected?.official_name ?? '');
-  const sourceRows = selected?.sources ?? activePayload?.sources ?? seed.kaynaklar ?? [];
-  const sourceText = (Array.isArray(sourceRows) ? sourceRows : [sourceRows]).map((row: any) => typeof row === 'string' ? row : [row.name, row.source, row.url].filter(Boolean).join(' · ')).filter(Boolean).join(' · ');
-  const validationRows = checks?.controls ?? checks?.checks ?? selected?.checks ?? activePayload?.checks ?? [];
-  const possibleMerges = selected?.mergeCandidates ?? checks?.duplicates ?? [];
-  const duplicatePairs = selected?.duplicatePairs ?? checks?.duplicates ?? [];
-  const unresolvedDuplicates = duplicatePairs.filter((row: any) => !duplicateResolutions[String(row.id ?? row.village_id)]);
-  const updatePoint = (axis: 'latitude' | 'longitude', value: string) => {
-    if (!draft || value === '' || !Number.isFinite(Number(value))) return;
-    const next = { ...draft, [axis]: Number(value), osm_id: undefined };
-    setDraft(next);
-    const lat = Number(next.latitude); const lon = Number(next.longitude);
-    if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) setManualPoint({ lat, lon });
+  // Kaynak listesinden toplu kabul: tam kayıtlar haritaya girer, köylü teyidi açık kalır.
+  const openReport = async () => {
+    setReport({ open: true, busy: true });
+    try { setReport({ open: true, data: await heritageReviewService.sourceAcceptPreview() }); }
+    catch (e) { setReport({ open: false }); enqueueSnackbar(errorText(e), { variant: 'error' }); }
   };
-  const applyCandidate = (place: Place) => {
-    if (place.latitude == null || place.longitude == null || !draft) return;
-    const next = { ...draft, latitude: Number(place.latitude), longitude: Number(place.longitude), osm_id: place.osm_id };
-    const index = candidateRows.indexOf(place);
-    setDraft(next); setManualPoint({ lat: next.latitude, lon: next.longitude }); setSelectedCandidateId(candidateKey(place, index));
-  };
-  const moveToCandidateAndApprove = async () => {
-    const candidate = candidateRows.find((row, index) => candidateKey(row, index) === selectedCandidateId);
-    if (!draft || !candidate || candidate.latitude == null || candidate.longitude == null) {
-      setError('Bu adla kullanılabilir OSM adayı bulunamadı.'); return;
-    }
-    const revised = { ...draft, latitude: Number(candidate.latitude), longitude: Number(candidate.longitude), osm_id: candidate.osm_id };
-    setDraft(revised); setManualPoint({ lat: revised.latitude, lon: revised.longitude });
-    await decide('MOVE_CANDIDATE_AND_APPROVE', { candidateId: candidate.id ?? candidate.osm_id }, revised);
-  };
-  const manualMoveAndApprove = () => {
-    if (!manualPoint || !draft) return;
-    void decide('MOVE_MANUAL_AND_APPROVE', { point: { latitude: manualPoint.lat, longitude: manualPoint.lon } });
-  };
-  const correctDistrictAndApprove = () => {
-    if (!draft) return;
-    const revised = { ...draft, district: correctedDistrict };
-    void decide('CORRECT_DISTRICT_AND_APPROVE', {
-      district: correctedDistrict,
-      previousDistrict: activePayload?.district,
-      previousName: activePayload?.official_name ?? selected?.official_name,
-      preserveOldNameAsAlias: true,
-    }, revised);
-  };
-  const undoChange = async (recordId: string, auditId: string) => {
-    if (busy) return;
-    setBusy(true); setError(null);
+  const applyReport = async () => {
+    if (!report.data) return;
+    setReport((r) => ({ ...r, busy: true }));
     try {
-      await heritageReviewService.undo(recordId, auditId);
-      setLastDecision(null);
-      await loadQueue(selectedId);
-      if (historyRecord?.id === recordId) setHistory(await heritageReviewService.getHistory(recordId));
-    } catch (e) { setError(errorText(e)); }
-    finally { setBusy(false); }
+      const r = await heritageReviewService.sourceAcceptApply();
+      enqueueSnackbar(`${r.accepted} köy haritaya eklendi${r.questions ? `, ${r.questions} köyde topluluğa soru açıldı` : ''}${r.failed.length ? `, ${r.failed.length} kayıt uygulanamadı` : ''}`, { variant: r.failed.length ? 'warning' : 'success' });
+      setReport({ open: false }); setDetails({}); await loadQueue();
+    } catch (e) { setReport((x) => ({ ...x, busy: false })); enqueueSnackbar(errorText(e), { variant: 'error' }); }
   };
+
+  // Kısayollar: A onayla, R reddet, S atla, M taşı
+  const primaryRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey || report.open) return;
+      const k = e.key.toLowerCase();
+      if (k === 'a') { e.preventDefault(); primaryRef.current(); }
+      else if (k === 'r' && !decided) { e.preventDefault(); setRejOpen((v) => !v); }
+      else if (k === 's') { e.preventDefault(); skip(); }
+      else if (k === 'm' && !decided && detail) { e.preventDefault(); setMoving((v) => !v); }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  });
+
+  // ── Çizim değerleri ──
+  const sessCount = Object.values(status).filter((s) => s.st !== 'skip').length;
+  const total = queue ? queue.decided + queue.pending : 0;
+  const doneTotal = (queue?.decided ?? 0) + sessCount;
+  const groups = useMemo(() => {
+    if (sort === 'kolay') return visible.length ? [{ label: 'Kolaydan zora', items: visible }] : [];
+    if (sort === 'sulale') return visible.length ? [{ label: 'Sülale bağı bekleyen önce', items: visible }] : [];
+    const m = new Map<string, QueueItem[]>();
+    visible.forEach((q) => { if (!m.has(q.province)) m.set(q.province, []); m.get(q.province)!.push(q); });
+    return [...m.entries()].map(([label, its]) => ({ label: label || 'İl yok', items: its }));
+  }, [visible, sort]);
+
+  const rec = current?.recommendation;
+  const why = unresolved.map((c) => {
+    if (c.key?.startsWith('dup:')) return `${detail?.nearby.find((n) => `dup:${n.id}` === c.key)?.name ?? 'komşu'} için yakın tekrar`;
+    return ({ ilce: 'ilçe', loc: 'konum', precision: 'konum güveni' } as Record<string, string>)[c.key ?? ''] ?? 'kontrol';
+  });
+  let primary: { label: string; cls: string; dis: boolean; why?: string; run: () => void };
+  if (decided) primary = { label: 'Sıradaki kayda geç', cls: 'btnP', dis: false, run: () => { const n = nextId(sel, status); if (n) setSel(n); } };
+  else if (!detail) primary = { label: 'Onayla', cls: 'btnP', dis: true, run: () => undefined };
+  else if (rec?.kind === 'ask' && unresolved.some((c) => c.key === 'loc')) primary = { label: 'Topluluğa sor', cls: 'btnP btnAsk', dis: false, why: "Konum seçersen bu düğme Onayla'ya döner.", run: () => void ask() };
+  else if (!point) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: 'Önce haritada köyün yerine nokta koy.', run: () => undefined };
+  else if (unresolved.length) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: `Önce karar ver: ${[...new Set(why)].join(', ')}`, run: () => undefined };
+  else primary = { label: 'Onayla', cls: 'btnP', dis: false, run: () => void approve() };
+  primaryRef.current = () => { if (!primary.dis && !busy) primary.run(); };
+
+  const legend = (() => {
+    const l: { bg: string; border: string; t: string }[] = [{ bg: '#b3412a', border: '2px solid #fff', t: 'İncelenen nokta' }];
+    const srcs = new Set(detail?.candidates.map((c) => c.src) ?? []);
+    srcs.forEach((s) => { if (s !== 'kayit') l.push({ bg: SOURCE_COLOR[s], border: '0', t: SRC_LABEL[s] }); });
+    if (detail?.nearby.length) l.push({ bg: '#fff', border: '2px solid #7d8a80', t: 'Komşu kayıt' });
+    if (detail?.boundaries?.record || detail?.boundaries?.point) l.push({ bg: 'transparent', border: '2px dashed #6a4c93', t: 'İlçe sınırı' });
+    return l;
+  })();
+  const ll = point ? { lat: point.lat.toFixed(6), lng: point.lng.toFixed(6) } : null;
+  const idx = visible.findIndex((q) => q.id === sel);
+
+  if (loadError) return <div className="hrd"><div className="loading"><div><p className="err">{loadError}</p><button type="button" className="mini" onClick={() => void loadQueue()} style={{ marginTop: 10 }}>Yeniden dene</button></div></div></div>;
+  if (!queue) return <div className="hrd"><div className="loading">İnceleme kuyruğu hazırlanıyor. İlk açılışta kontroller hesaplandığı için birkaç saniye sürebilir.</div></div>;
 
   return (
-    <Box sx={{ pb: 3 }}>
-      <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={1} sx={{ mb: 2 }}>
-        <Box>
-          <Typography variant="h5" fontWeight={750}>Köy konumu inceleme</Typography>
-          <Typography variant="body2" color="text.secondary">Bekleyen köy kayıtlarını harita ve kaynak kanıtlarıyla inceleyin.</Typography>
-        </Box>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Chip label={`${items.length ? selectedIndex + 1 : 0} / ${filteredItems.length} · toplam ${items.length}`} color="primary" variant="outlined" />
-          {lastDecision && <>
-            <Button size="small" onClick={() => void openHistory(lastDecision.id, lastDecision.name)}>Son kararın geçmişi</Button>
-            {lastDecision.auditId && <Button size="small" color="warning" disabled={busy} onClick={() => void undoChange(lastDecision.id, lastDecision.auditId!)}>Son kararı geri al</Button>}
-          </>}
-          <Button size="small" onClick={() => void loadQueue(selectedId)}>Yenile</Button>
-        </Stack>
-      </Stack>
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 2 }}>
-        {reasonCounts.filter((row) => row.count > 0).map((row) => <Chip key={row.key} size="small" clickable color={reasonFilter === row.key ? 'primary' : 'default'} variant={reasonFilter === row.key ? 'filled' : 'outlined'} label={`${REASONS[row.key]} ${row.count}`} onClick={() => setReasonFilter(reasonFilter === row.key ? '' : row.key)} />)}
-        <Box sx={{ width: { xs: '100%', sm: 180 }, px: 1 }}>
-          <Stack direction="row" justifyContent="space-between"><Typography variant="caption">İlerleme</Typography><Typography variant="caption">{Math.max(initialCount - items.length, 0)} / {initialCount}</Typography></Stack>
-          <LinearProgress variant="determinate" value={initialCount ? Math.min(100, Math.max(0, ((initialCount - items.length) / initialCount) * 100)) : 0} />
-        </Box>
-      </Stack>
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-      <Stack direction={{ xs: 'column', xl: 'row' }} spacing={2} alignItems="stretch">
-        <Paper variant="outlined" sx={{ width: { xs: '100%', xl: 310 }, flexShrink: 0, overflow: 'hidden' }}>
-          <Stack spacing={1.5} sx={{ p: 1.5 }}>
-            <FormControl size="small" fullWidth>
-              <InputLabel>İl</InputLabel><Select label="İl" value={provinceFilter} onChange={(e) => setProvinceFilter(e.target.value)}>
-                <MenuItem value="">Tüm iller</MenuItem>{provinces.map((name) => <MenuItem key={name} value={name}>{name}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <FormControl size="small" fullWidth>
-              <InputLabel>Neden</InputLabel><Select label="Neden" value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)}>
-                <MenuItem value="">Tüm nedenler</MenuItem>{Object.entries(REASONS).map(([key, label]) => <MenuItem key={key} value={key}>{label}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <Divider />
-          </Stack>
-          <Box sx={{ maxHeight: { xl: 'calc(100vh - 330px)' }, overflow: 'auto' }}>
-            {loading ? <Box sx={{ display: 'grid', placeItems: 'center', p: 4 }}><CircularProgress size={26} /></Box>
-              : filteredItems.length === 0 ? <Typography color="text.secondary" sx={{ p: 2 }}>Bu filtrelerde bekleyen kayıt yok.</Typography>
-                : filteredItems.map((item) => {
-                  const why = reasonKeys(item); const p = locationPayload(item);
-                  return <Box key={item.id} component="button" onClick={() => setSelectedId(item.id)} sx={{ textAlign: 'left', display: 'block', width: '100%', p: 1.5, border: 0, borderTop: '1px solid', borderColor: 'divider', bgcolor: selectedId === item.id ? 'action.selected' : 'transparent', cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}>
-                    <Typography fontWeight={700} noWrap>{p.official_name ?? item.official_name ?? p.seed_record?.koy ?? 'Adsız köy'}</Typography>
-                    <Typography variant="caption" color="text.secondary">{p.province ?? 'İl bilinmiyor'} / {p.district ?? 'İlçe bilinmiyor'}</Typography>
-                    <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ mt: 0.7 }}>{why.map((key) => <Chip key={key} size="small" label={REASONS[key] ?? key} />)}</Stack>
-                  </Box>;
-                })}
-          </Box>
-        </Paper>
+    <div className="hrd">
+      <header className="top">
+        <div>
+          <div className="crumb"><span>Yönetim</span><span aria-hidden="true">›</span><span>Ortak Hafıza</span><span aria-hidden="true">›</span><span>Köy konumları</span></div>
+          <h1>Köy konumu inceleme</h1>
+        </div>
+        <div className="prog">
+          <div className="progNum"><b>{doneTotal.toLocaleString('tr-TR')}</b> karara bağlandı · <b>{Math.max(0, total - doneTotal).toLocaleString('tr-TR')}</b> bekliyor<br /><span>Bu oturumda {sessCount} karar</span></div>
+          <div className="progBar" role="progressbar" aria-label="İnceleme ilerlemesi" aria-valuemin={0} aria-valuemax={total} aria-valuenow={doneTotal}>
+            <span className="progFill" style={{ width: `${total ? (queue.decided / total) * 100 : 0}%` }} />
+            <span className="progSess" style={{ width: `${total ? (sessCount / total) * 100 : 0}%` }} />
+          </div>
+          <button type="button" className="report mono" onClick={() => void openReport()} title="İl, ilçe, ad ve koordinatı tam yüksek güvenli kayıtları haritaya al">Kaynaktan toplu kabul</button>
+        </div>
+      </header>
 
-        {!selected ? <Paper variant="outlined" sx={{ flex: 1, p: 4, minHeight: 440 }}><Typography variant="h6">İnceleme kuyruğu hazır</Typography><Typography color="text.secondary">Bekleyen köy katkıları bu listede görünecek. Kayıtlar yüklenmiyorsa API erişimini kontrol edin.</Typography></Paper> : <>
-          <Paper variant="outlined" sx={{ flex: 1.35, minWidth: 0, overflow: 'hidden' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1.5 }}>
-              <Box><Typography fontWeight={700}>{draft?.official_name ?? selected.official_name ?? 'Köy konumu'}</Typography><Typography variant="caption" color="text.secondary">{province} / {district}</Typography></Box>
-              <Button size="small" onClick={() => setSatellite((value) => !value)} disabled={!SATELLITE_URL || !SATELLITE_ATTRIBUTION}>{satellite ? 'OSM katmanı' : SATELLITE_URL ? 'Uydu katmanı' : 'Uydu yapılandırılmamış'}</Button>
-            </Stack>
-            <Box ref={mapHost} sx={{ height: { xs: 340, xl: 'calc(100vh - 400px)' }, minHeight: 360, bgcolor: '#e7edf1', '& .heritage-village-pin span': { display: 'block', width: 20, height: 20, border: '3px solid white', borderRadius: '50% 50% 50% 0', transform: 'rotate(-45deg)', background: '#ba1b1b', boxShadow: '0 1px 5px #333' } }} />
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ p: 1.5 }}>
-              <Chip size="small" color="error" label="Mevcut nokta · sürükleyin" />
-              <Chip size="small" color="success" label="GeoNames adayı" />
-              <Chip size="small" color="info" label="OSM adayları · seçmek için işaretçiye tıklayın" />
-              <Chip size="small" color="warning" label="Yakındaki kayıtlar" />
-              {selected.districtBoundary && <Chip size="small" variant="outlined" label="Kayıt ilçesi sınırı" />}
-              {selected.pointDistrictBoundary && <Chip size="small" variant="outlined" label="Noktanın ilçesi sınırı" />}
-              {candidateRows.length === 0 && <Typography variant="caption" color="text.secondary">Benzer adlı OSM adayı bulunamadı.</Typography>}
-            </Stack>
-            {checks?.error && <Alert severity="warning" sx={{ m: 1 }}>Konum kontrolü: {checks.error}</Alert>}
-          </Paper>
+      <div className="filters" role="group" aria-label="İnceleme nedeni">
+        {TABS.map((t) => (
+          <button key={t.k} type="button" className="ftab" aria-pressed={filter === t.k} onClick={() => { setFilter(t.k); setBulk((b) => ({ ...b, open: false })); }}>
+            <span className="fdot" style={{ background: t.dot }} />{t.label}<span className="n">{counts[t.k] ?? 0}</span>
+          </button>
+        ))}
+        <span className="fsp" />
+        <label className="flab" htmlFor="il-sec">İl</label>
+        <select id="il-sec" className="fsel" value={il} onChange={(e) => setIl(e.target.value)}>
+          <option value="all">Tüm iller</option>
+          {queue.provinces.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <label className="flab" htmlFor="sira-sec">Sıra</label>
+        <select id="sira-sec" className="fsel" value={sort} onChange={(e) => setSort(e.target.value as 'sulale' | 'il' | 'kolay')}>
+          <option value="sulale">Sülale bağı bekleyen önce</option>
+          <option value="il">İle göre</option>
+          <option value="kolay">Kolaydan zora</option>
+        </select>
+      </div>
 
-          <Paper variant="outlined" sx={{ flex: 1, minWidth: 300, p: 2, maxHeight: { xl: 'calc(100vh - 240px)' }, overflow: 'auto' }}>
-            <Typography variant="subtitle1" fontWeight={750} sx={{ mb: 1 }}>Kanıtlar ve karar</Typography>
-            <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>{reasons.map((key) => <Chip key={key} size="small" color="warning" label={REASONS[key] ?? key} />)}</Stack>
-            <Typography variant="caption" color="text.secondary">Türkçe ad</Typography><Typography sx={{ mb: 1 }}>{draft?.official_name ?? selected.official_name ?? '—'}</Typography>
-            <Typography variant="caption" color="text.secondary">Eski ad</Typography><Typography sx={{ mb: 1 }}>{seed.eski_ad ?? seed.eski_adlar ?? activePayload?.oldName ?? '—'}</Typography>
-            <Typography variant="caption" color="text.secondary">Çerkesçe / diğer adlar</Typography><Typography sx={{ mb: 1 }}>{seed.cerkesce_ad ?? seed.adygece_ad ?? seed.cerkesce_veya_eski_adlar ?? activePayload?.circassianName ?? '—'}</Typography>
-            <Typography variant="caption" color="text.secondary">Kaynaklar</Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>{[selected.source, sourceText, seed.kaynak, activePayload?.source_note].flat().filter(Boolean).join(' · ') || 'Kayıtta belirtilen kaynak yok'}</Typography>
-            {seed.geonames_adi && <Typography variant="body2">GeoNames adayı: {seed.geonames_adi} · {seed.koordinat_kaynagi ?? 'GeoNames'}</Typography>}
-            {(seed.gruplar || seed.sulaleler_kaynakta) && <Typography variant="body2" sx={{ mb: 1 }}>Topluluk / sülale kaydı: {[seed.gruplar, seed.sulaleler_kaynakta].filter(Boolean).join(' · ')}</Typography>}
-            <Typography variant="caption" color="text.secondary">Doğrulama kontrolleri</Typography>
-            <Stack spacing={0.5} sx={{ my: 0.7 }}>
-              {validationRows.map((row: any, index: number) => <Alert key={row.id ?? row.code ?? index} severity={row.passed === false || row.status === 'failed' ? 'warning' : 'success'} sx={{ py: 0 }}>
-                {row.label ?? row.name ?? row.code ?? 'Kontrol'}: {row.reason ?? row.message ?? (row.passed === false ? 'Başarısız' : 'Geçti')}
-              </Alert>)}
-              {(checks?.flags ?? activePayload?.location_checks?.flags ?? []).length === 0 ? <Typography variant="body2">İşaretlenmiş kontrol yok veya henüz çalışmadı.</Typography> : (checks?.flags ?? activePayload?.location_checks?.flags ?? []).map((flag: string) => <Alert key={flag} severity={flag.includes('duplicate') ? 'warning' : 'info'} sx={{ py: 0 }}>{FLAG_REASON[flag] ? REASONS[FLAG_REASON[flag]] : flag}</Alert>)}
-              {checks?.distance_m != null && <Typography variant="body2">Kaynak noktasına uzaklık: {Math.round(checks.distance_m)} m</Typography>}
-              {checks?.duplicates?.map((village: any) => <Typography key={village.id} variant="body2">Yakın kayıt: {village.official_name} · {Math.round(village.distance_m)} m</Typography>)}
-              {duplicatePairs.map((village: any) => {
-                const relatedId = String(village.id ?? village.village_id);
-                const resolution = duplicateResolutions[relatedId];
-                return <Paper key={`duplicate-${relatedId}`} variant="outlined" sx={{ p: 1 }}>
-                  <Typography variant="body2" fontWeight={700}>Olası tekrar: {village.official_name ?? village.name ?? 'Yakındaki köy'} · {Math.round(Number(village.distance_m ?? village.distance_meters ?? 0))} m</Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 0.75 }}>
-                    <Button size="small" variant={resolution === 'MERGE' ? 'contained' : 'outlined'} onClick={() => setDuplicateResolutions((current) => ({ ...current, [relatedId]: 'MERGE' }))}>Aynı köy, birleştir</Button>
-                    <Button size="small" variant={resolution === 'DISTINCT' ? 'contained' : 'outlined'} onClick={() => setDuplicateResolutions((current) => ({ ...current, [relatedId]: 'DISTINCT' }))}>Farklı köy, ayrı tut</Button>
-                  </Stack>
-                  {resolution && <Typography variant="caption" color="success.main">Karar: {resolution === 'MERGE' ? 'Birleştir' : 'Ayrı köy'}</Typography>}
-                  {!resolution && <Typography variant="caption" color="error">Onay için bu tekrar hakkında karar verin.</Typography>}
-                </Paper>;
+      <div className="body">
+        <nav className="queue" aria-label="İnceleme kuyruğu">
+          {filter === 'dist' && (bulk.items?.length ?? 0) > 0 && (
+            <div className="bulk">
+              <div className="bulkT"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2f7a46" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6" /></svg>Toplu düzeltme önerisi</div>
+              <div className="bulkD">Tek sorunu ilçe adı olan ve noktası tek bir ilçenin içinde kalan kayıtlar birlikte düzeltilip onaylanabilir.</div>
+              {bulk.open && (
+                <ul className="bulkList">
+                  {bulk.items!.map((b) => (
+                    <li key={b.id}><span><b>{b.name}</b> <s>{b.from}</s> → {b.to}</span><span className={status[b.id] ? 'qSt sSkip' : 'qSt sOk'}>{status[b.id] ? 'karara bağlandı' : 'uygulanacak'}</span></li>
+                  ))}
+                </ul>
+              )}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button type="button" className="mini" aria-expanded={bulk.open} onClick={() => setBulk((b) => ({ ...b, open: !b.open }))}>{bulk.open ? 'Önizlemeyi kapat' : `Önizle (${bulkIds.length})`}</button>
+                {bulk.open && <button type="button" className="mini" style={{ background: 'var(--brand)', color: '#fff', borderColor: 'var(--brand)' }} disabled={busy || !bulkIds.length} onClick={() => void applyBulk()}>{bulkIds.length ? `${bulkIds.length} kaydı düzelt ve onayla` : 'Uygulanacak kayıt yok'}</button>}
+              </div>
+            </div>
+          )}
+          {groups.map((g) => (
+            <div className="qWrap" role="group" aria-label={g.label} key={g.label}>
+              <div className="qGroup"><span>{g.label}</span><span>{g.items.length} kayıt</span></div>
+              {g.items.map((q) => {
+                const qs = status[q.id];
+                const sub = q.district + (q.pointDistrict ? ` → nokta ${q.pointDistrict.district}` : '') + (q.oldNames[0] ? ` · eski adı ${q.oldNames[0]}` : '');
+                const recCls = q.recommendation.kind === 'approve' ? 'qRec' : q.recommendation.kind === 'warn' ? 'qRec qRecWarn' : 'qRec qRecAsk';
+                return (
+                  <button key={q.id} type="button" className={`qItem${q.id === sel ? ' qOn' : ''}${qs && qs.st !== 'skip' ? ' qDone' : ''}`} aria-current={q.id === sel} onClick={() => setSel(q.id)}>
+                    <span className="qTop"><span className="qName">{q.name}</span>{qs && <span className={ST[qs.st].cls}>{ST[qs.st].label}</span>}</span>
+                    <span className="qSub">{sub}</span>
+                    <span className="qChips">
+                      {q.state === 'asked' && <span className="rchip rAsk">Toplulukta</span>}
+                      {q.reasons.map((r) => <span key={r} className={CHIP[r].cls}>{CHIP[r].label}</span>)}
+                      {(q.familyLinks ?? 0) > 0 && <span className="rchip rComm">{q.familyLinks} sülale bekliyor</span>}
+                    </span>
+                    {!qs && <span className={recCls}><Arrow />{q.recommendation.title}</span>}
+                  </button>
+                );
               })}
-            </Stack>
-            <Typography variant="caption" color="text.secondary">PTT resmi listesi</Typography><Typography variant="body2" sx={{ mb: 1 }}>{seed.ptt_ilce ?? seed.ptt_district ?? seed.ptt?.district ?? selected.pttMatch?.district ?? 'Bu katkıda PTT ilçe kaydı bulunmuyor.'}</Typography>
-            <Divider sx={{ my: 1.5 }} />
-            {draft && <>
-              <Stack direction="row" spacing={1}>
-                <TextField label="Enlem" type="number" size="small" fullWidth value={draft.latitude ?? point?.lat ?? ''} onChange={(e) => updatePoint('latitude', e.target.value)} />
-                <TextField label="Boylam" type="number" size="small" fullWidth value={draft.longitude ?? point?.lon ?? ''} onChange={(e) => updatePoint('longitude', e.target.value)} />
-              </Stack>
-              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                <FormControl size="small" fullWidth><InputLabel>Noktanın ilçesi</InputLabel><Select label="Noktanın ilçesi" value={correctedDistrict || district} onChange={(e) => setCorrectedDistrict(e.target.value)}>{districts.map((row) => <MenuItem key={row.name} value={row.name}>{row.name}</MenuItem>)}</Select></FormControl>
-                <Button variant="outlined" onClick={() => { const q = String(draft.official_name ?? '').trim(); if (q) void heritageReviewService.checkLocation(draft).then(setChecks).catch((e) => setChecks({ error: errorText(e), flags: [] })); }}>Kontrol et</Button>
-              </Stack>
-            </>}
-            <TextField label="İnceleme notu (isteğe bağlı)" size="small" fullWidth multiline minRows={2} maxRows={4} value={note} onChange={(e) => setNote(e.target.value)} sx={{ mt: 1.5, mb: 1 }} />
-            <Stack spacing={0.8}>
-              <Button variant="contained" onClick={() => void decide('APPROVE')} disabled={busy || unresolvedDuplicates.length > 0}>Onayla (A)</Button>
-              {unresolvedDuplicates.length > 0 && <Typography variant="caption" color="error">Önce {unresolvedDuplicates.length} yakın tekrar için karar verin.</Typography>}
-              {candidateRows.length > 0 && <>
-                <FormControl size="small" fullWidth><InputLabel>Aday konum</InputLabel><Select label="Aday konum" value={selectedCandidateId} onChange={(e) => { const id = e.target.value; const candidate = candidateRows.find((row, index) => candidateKey(row, index) === id); if (candidate) applyCandidate(candidate); }}>
-                  {candidateRows.map((candidate, index) => { const id = candidateKey(candidate, index); return <MenuItem key={id} value={id}>{candidate.official_name ?? candidate.name ?? 'Konum adayı'} · {candidate.source ?? (candidate.osm_id ? 'OSM' : 'öneri')}{(candidate.distanceKm ?? candidate.distance_km) != null ? ` · ${Number(candidate.distanceKm ?? candidate.distance_km).toFixed(1)} km` : ''}</MenuItem>; })}
-                </Select></FormControl>
-                <Button variant="outlined" onClick={() => void moveToCandidateAndApprove()} disabled={busy || !selectedCandidateId}>Adaya taşı ve onayla</Button>
-              </>}
-              <Button variant="outlined" onClick={manualMoveAndApprove} disabled={busy || !manualPoint}>Noktayı elle taşı ve onayla</Button>
-              <Button variant="outlined" onClick={correctDistrictAndApprove} disabled={busy || !correctedDistrict || correctedDistrict === String(activePayload?.district ?? '')}>İlçeyi düzelt ve onayla</Button>
-              {possibleMerges.length > 0 && <>
-                <FormControl size="small" fullWidth><InputLabel>Birleştirilecek kayıt</InputLabel><Select label="Birleştirilecek kayıt" value={mergeTargetId} onChange={(e) => setMergeTargetId(e.target.value)}><MenuItem value="">Kayıt seç</MenuItem>{possibleMerges.map((row: any) => <MenuItem key={row.id ?? row.village_id} value={String(row.id ?? row.village_id)}>{row.official_name ?? row.name} · {row.district ?? ''}</MenuItem>)}</Select></FormControl>
-                <TextField size="small" label="Kalacak ad" value={retainedName} onChange={(e) => setRetainedName(e.target.value)} />
-                <Button variant="outlined" onClick={() => void decide('MERGE', { targetId: mergeTargetId, retainedName, alternativeNames: [oldName].filter((name) => name && name !== retainedName) })} disabled={busy || !mergeTargetId || !retainedName.trim()}>Seçili kayıtla birleştir</Button>
-              </>}
-              {duplicatePairs.length > 0 && <>
-                <FormControl size="small" fullWidth><InputLabel>Tekrar çifti</InputLabel><Select label="Tekrar çifti" value={separatePairId} onChange={(e) => setSeparatePairId(e.target.value)}><MenuItem value="">Kayıt seç</MenuItem>{duplicatePairs.map((row: any) => <MenuItem key={row.id ?? row.village_id} value={String(row.id ?? row.village_id)}>{row.official_name ?? row.name}</MenuItem>)}</Select></FormControl>
-                <Button variant="outlined" color="warning" onClick={() => void decide('MARK_SEPARATE', { pairVillageId: separatePairId })} disabled={busy || !separatePairId}>Bu çifti ayrı köy olarak işaretle</Button>
-              </>}
-              <Button variant="outlined" onClick={() => void decide('ASK_COMMUNITY', { record: { ...draft, approximate: true }, requestConfirmation: true })} disabled={busy}>Yaklaşık konum olarak bırak ve topluluğa sor</Button>
-              <Button variant="outlined" color="error" onClick={() => void decide('REJECT')} disabled={busy || !note.trim()}>Köy değil / kaynak hatası · reddet</Button>
-              <Button variant="text" onClick={() => void openHistory(selected.id, oldName)}>Kayıt geçmişi</Button>
-              <Button variant="text" onClick={skip} disabled={selectedIndex < 0 || selectedIndex >= filteredItems.length - 1}>Atla (S)</Button>
-            </Stack>
-            {selected.contributor && <Alert severity="info" sx={{ mt: 1.5 }}>Öneri sahibi: {selected.contributor.name ?? selected.contributor.id} · katkı: {selected.contributor.contributionCount ?? '—'} · kabul oranı: {selected.contributor.acceptanceRate ?? '—'}</Alert>}
-          </Paper>
-        </>}
-      </Stack>
+            </div>
+          ))}
+          {visible.length === 0 && <div className="qEmpty">Bu süzgeçte bekleyen kayıt yok.</div>}
+        </nav>
 
-      {historyOpen && <Paper variant="outlined" sx={{ mt: 2, p: 2 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6">Kayıt geçmişi · {historyRecord?.name ?? oldName}</Typography><Button onClick={() => setHistoryOpen(false)}>Kapat</Button></Stack>
-        {history.length === 0 ? <Typography color="text.secondary" sx={{ mt: 1 }}>Bu kayıt için henüz denetim geçmişi yok.</Typography> : history.map((entry) => <Box key={entry.id} sx={{ py: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-          <Typography fontWeight={700}>{entry.action ?? entry.decision ?? entry.status ?? 'Karar'} · {entry.createdAt ?? entry.reviewed_at ?? 'zaman bilgisi yok'}</Typography>
-          <Typography variant="body2">İşlemi yapan: {entry.actorName ?? entry.actor ?? entry.reviewed_by ?? 'bilinmiyor'} · Yöntem: {entry.method ?? entry.source ?? 'elle'}</Typography>
-          <Typography variant="body2">Not: {entry.note ?? entry.review_note ?? '—'}</Typography>
-          <Typography variant="caption" component="pre" sx={{ whiteSpace: 'pre-wrap' }}>Önce: {JSON.stringify(entry.before ?? entry.beforeSnapshot ?? entry.payload ?? {}, null, 2)}</Typography>
-          <Typography variant="caption" component="pre" sx={{ whiteSpace: 'pre-wrap' }}>Sonra: {JSON.stringify(entry.after ?? entry.afterSnapshot ?? entry.payload?.reviewed_payload ?? {}, null, 2)}</Typography>
-          <Button size="small" color="warning" disabled={busy || !(entry.canUndo ?? entry.undoable)} onClick={() => void undoChange(historyRecord!.id, String(entry.id))}>Bu değişikliği geri al</Button>
-        </Box>)}
-      </Paper>}
-    </Box>
+        <section className="mapCol" aria-label="Harita">
+          <div className="map">
+            <ReviewMap detail={detail ?? null} original={original} point={point} moving={moving} satellite={satellite} onPick={onMapPick} />
+            <div className="mapBar">
+              <div className="mapGrp">
+                <div className="seg" role="group" aria-label="Harita türü">
+                  <button type="button" className="segBtn" aria-pressed={!satellite} onClick={() => setSatellite(false)}>Harita</button>
+                  <button type="button" className="segBtn" aria-pressed={satellite} disabled={!satelliteConfigured} title={satelliteConfigured ? undefined : 'Uydu katmanı yapılandırılmamış; sağdaki Google uydu bağlantısını kullan.'} onClick={() => setSatellite(true)}>Uydu</button>
+                </div>
+                {detail && !decided && (
+                  <button type="button" className="mapBtn" aria-pressed={moving} onClick={() => setMoving((v) => !v)}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20" /><path d="m9 5 3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3" /></svg>
+                    {moving ? 'Taşımayı bırak' : point ? 'Noktayı taşı' : 'Nokta koy'}
+                  </button>
+                )}
+                {moved && original && !decided && (
+                  <button type="button" className="mapBtn" onClick={() => { setPoint(null); if (explicit.loc === 'move') setResolution('loc', undefined); }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>İlk konuma dön
+                  </button>
+                )}
+              </div>
+              {ll && (
+                <div className="mapGrp">
+                  <a className="mapBtn" href={`https://www.google.com/maps/@${ll.lat},${ll.lng},900m/data=!3m1!1e3`} target="_blank" rel="noopener noreferrer">Google uydu<Ext /></a>
+                  <a className="mapBtn" href={`https://yandex.com.tr/harita/?ll=${ll.lng}%2C${ll.lat}&z=16&l=sat&pt=${ll.lng}%2C${ll.lat}`} target="_blank" rel="noopener noreferrer">Yandex<Ext /></a>
+                </div>
+              )}
+            </div>
+            {moving && <div className="mapHint" role="status">{point ? 'Yeni konum için haritaya tıkla' : 'Köyün yerine tıkla, nokta koy'}</div>}
+            {detail && !point && !moving && (
+              <div className="noLoc">
+                <div className="noLocCard">
+                  <div style={{ fontWeight: 800, fontSize: 15 }}>Bu kaydın konumu yok</div>
+                  <p style={{ margin: '6px 0 12px', color: 'var(--muted)', fontSize: 13 }}>Haritada köyün yerine tıklayarak nokta koy ya da bir adayı seç. Bulamazsan atla.</p>
+                  <button type="button" className="mini" onClick={() => setMoving(true)}>Haritada işaretle</button>
+                </div>
+              </div>
+            )}
+            <div className="legend" aria-hidden="true">
+              {legend.map((l) => <span className="lg" key={l.t}><span className="lgDot" style={{ background: l.bg, border: l.border }} />{l.t}</span>)}
+            </div>
+          </div>
+        </section>
+
+        <aside className="panel" aria-label="Karar paneli">
+          <div className="pScroll">
+            {!current ? <div className="qEmpty">Seçili kayıt yok.</div> : !detail ? <div className="qEmpty">Kayıt yükleniyor…</div> : (
+              <div className="pIn" key={detail.id}>
+                <div className="pEyebrow"><span>{idx >= 0 ? `${idx + 1} / ${visible.length}` : ''}</span><span>{detail.type === 'village' ? 'Yeni köy kaydı' : detail.confidence ? `Kaynak güveni ${detail.confidence}` : 'Mevcut köy'}</span></div>
+                <h2 className="pName">{detail.name}</h2>
+                {detail.oldNames.length > 0 && <div className="ady serif">{detail.oldNames.join(' · ')}</div>}
+                <div className="pPlace">
+                  {detail.province} · {eff.ilce === 'point' && current.pointDistrict ? <><s>{detail.district}</s> → <b>{current.pointDistrict.district}</b></> : detail.district}
+                </div>
+                <div className="tags">
+                  {detail.groups && <span className="tag">{detail.groups}</span>}
+                  {detail.families && <span className="tag">Sülaleler: {detail.families}</span>}
+                  {detail.sources.map((s) => <span className="tag" key={s} title={s}>Kaynak: {s}</span>)}
+                  {detail.contributor && <span className="tag">Öneren: {detail.contributor.display_name ?? 'üye'} · {detail.contributor.approved ?? 0}/{detail.contributor.total ?? 0} kabul</span>}
+                </div>
+                <div className="coord">
+                  <span className="mono coordV">{point ? `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}` : 'Koordinat yok'}</span>
+                  {point && <button type="button" className="mini" onClick={() => copy(`${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`)}>{copied ? 'Kopyalandı' : 'Kopyala'}</button>}
+                  {detail.geonames && <a className="mini mono" href={detail.geonames.url} target="_blank" rel="noopener noreferrer">GeoNames {detail.geonames.id}</a>}
+                </div>
+
+                {decided && st && (
+                  <div className="rec recDone">
+                    <div className="recL">Karara bağlandı</div>
+                    <div className="recT"><span className={ST[st.st].cls.split(' ')[1]}>{ST[st.st].label}</span></div>
+                    <p className="recW">{st.text}</p>
+                    {st.decisionId && <div style={{ marginTop: 10 }}><button type="button" className="mini" disabled={busy} onClick={() => void undo([{ id: detail.id, decisionId: st.decisionId! }])}>Kararı geri al</button></div>}
+                  </div>
+                )}
+
+                {!decided && rec && (
+                  <div className={`rec${rec.kind === 'approve' ? '' : rec.kind === 'warn' ? ' recWarn' : ' recAsk'}`}>
+                    <div className="recL"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" /></svg>Önerilen karar</div>
+                    <div className="recT">{rec.title}</div>
+                    <p className="recW">{rec.why}</p>
+                  </div>
+                )}
+
+                {detail.taskVotes && (
+                  <div className="rec recAsk">
+                    <div className="recL">Topluluk yanıtları</div>
+                    <div className="recT" style={{ fontSize: 15 }}>{detail.taskVotes.question}</div>
+                    {detail.taskVotes.votes.length === 0 ? <p className="recW">Henüz yanıt yok.</p>
+                      : detail.taskVotes.votes.map((v) => <p className="recW" key={v.answer}><b>{v.n}</b> · {v.answer}</p>)}
+                  </div>
+                )}
+
+                <div className="sect">
+                  <div className="sectH"><span>Kontroller</span><span>{(() => {
+                    let f = 0, w = 0;
+                    detail.checks.forEach((c) => { const ok = c.key && explicit[c.key] && !((explicit[c.key] === 'move' || explicit[c.key] === 'place') && !moved); if (ok) return; if (c.mk === 'fail') f++; if (c.mk === 'warn') w++; });
+                    return f || w ? [f ? `${f} engel` : '', w ? `${w} uyarı` : ''].filter(Boolean).join(' · ') : 'Hepsi tamam';
+                  })()}</span></div>
+                  {detail.checks.map((c, i) => {
+                    const chosen = c.key ? explicit[c.key] : undefined;
+                    const resolved = chosen && !((chosen === 'move' || chosen === 'place') && !moved);
+                    const mk = resolved ? 'ok' : c.mk;
+                    const label = c.options.find((o) => o.v === chosen)?.label;
+                    return (
+                      <div className="chk" key={`${c.key ?? 'c'}-${i}`}>
+                        <span className={MKC[mk]} role="img" aria-label={MKL[mk]}>{MK[mk]}</span>
+                        <div>
+                          <div className="chkT">{c.title}</div>
+                          <div className="chkD">{resolved ? `Karar: ${label ?? 'noktayı elle taşıdın'}.` : c.detail}</div>
+                          {c.key && c.options.length > 0 && !decided && (
+                            <div className="fixes">
+                              {c.options.map((o) => (
+                                <button key={o.v} type="button" className="fix" aria-pressed={eff[c.key!] === o.v} onClick={() => pickFix(c.key!, o.v)}>
+                                  {o.label}{rec?.kind === 'approve' && rec.resolutions[c.key!] === o.v && <span style={{ fontSize: 10.5, fontWeight: 600, opacity: 0.7 }}>önerilen</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {detail.candidates.length > 0 && (
+                  <div className="sect">
+                    <div className="sectH"><span>Konum adayları</span><span>{detail.candidates.length}</span></div>
+                    {detail.candidates.map((c) => {
+                      const isCurrent = c.distance === 0 && original != null;
+                      const on = moved ? distanceM(moved, { lat: c.latitude, lng: c.longitude }) < 2 : isCurrent;
+                      return (
+                        <div className={`cand${on ? ' candOn' : ''}`} key={c.n}>
+                          <span className="num" style={{ background: SOURCE_COLOR[c.src] }}>{c.n}</span>
+                          <div style={{ minWidth: 0 }}><div className="candT">{c.title}</div><div className="candD">{c.detail}</div></div>
+                          {!decided && (
+                            <button type="button" className="mini" aria-pressed={on} onClick={() => {
+                              if (isCurrent) { setPoint(null); if (explicit.loc === 'move') setResolution('loc', undefined); }
+                              else { setPoint({ lat: c.latitude, lng: c.longitude }); if (detail.checks.some((k) => k.key === 'loc')) setResolution('loc', original ? 'move' : 'place'); }
+                              setMoving(false);
+                            }}>{on ? 'Seçili' : 'Bu noktayı seç'}</button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="more">
+                  <button type="button" className="moreBtn" aria-expanded={moreOpen} onClick={() => void openMore()}><span>Diğer işlemler, geçmiş ve not</span><span aria-hidden="true">{moreOpen ? '−' : '+'}</span></button>
+                  {moreOpen && (
+                    <>
+                      {!decided && (
+                        <>
+                          <div className="act"><div><div className="actT">Yaklaşık konum olarak onayla</div><div className="actD">Haritada içi boş nokta olarak görünür; köylüler teyit edebilir.</div></div><button type="button" className="mini" disabled={busy || !point} onClick={() => void approve({ precision: 'approx' })}>Uygula</button></div>
+                          <div className="act"><div><div className="actT">Tarihî konum olarak onayla</div><div className="actD">Köy taşındıysa ya da su altında kaldıysa eski yeri saklanır; haritada gösterilmez.</div></div><button type="button" className="mini" disabled={busy || !original || detail.type === 'village'} onClick={() => void approve({ loc: 'hist' })}>Uygula</button></div>
+                        </>
+                      )}
+                      <div className="sectH" style={{ marginTop: 14 }}><span>Kayıt geçmişi</span><span>{history?.length ?? ''}</span></div>
+                      {history === null ? <div className="histD">Yükleniyor…</div> : history.length === 0 ? <div className="histD">Bu kayıt için karar geçmişi yok.</div> : history.map((h) => (
+                        <div className="hist" key={h.id}>
+                          <div className="histT">{h.payload?.summary ?? h.action}{h.undone_at ? ' · geri alındı' : ''}</div>
+                          <div className="histD">{new Date(h.created_at).toLocaleString('tr-TR')} · {h.admin_name ?? 'admin'}{h.payload?.note ? ` · “${h.payload.note}”` : ''}</div>
+                          {h.undoable && !h.undone_at && <button type="button" className="mini" style={{ marginTop: 6 }} disabled={busy} onClick={() => void undo([{ id: detail.id, decisionId: h.id }])}>Bu kararı geri al</button>}
+                        </div>
+                      ))}
+                      <label htmlFor="karar-notu" style={{ display: 'block', fontWeight: 700, fontSize: 13, margin: '14px 0 6px' }}>Karar notu <span style={{ fontWeight: 500, color: 'var(--muted)' }}>(isteğe bağlı, kayıt geçmişinde görünür)</span></label>
+                      <textarea id="karar-notu" className="note" value={notes[detail.id] ?? ''} maxLength={900} onChange={(e) => setNotes((n) => ({ ...n, [detail.id]: e.target.value }))} placeholder="Örneğin: köyden bir üye telefonda teyit etti." />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="foot">
+            {rejOpen && !decided && (
+              <div className="rej">
+                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--ember)' }}>Neden reddediyorsun?</div>
+                <div className="rejOpts">{queue.rejectReasons.map((o) => <button key={o} type="button" className="rejOpt" disabled={busy} onClick={() => void reject(o)}>{o}</button>)}</div>
+              </div>
+            )}
+            {detail && !decided && !unresolved.length && point && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center', fontSize: 12, color: 'var(--muted)' }}>
+                <span>Gönderilecek:</span>
+                {sendItems().map((s) => <span key={s} className="tag" style={{ color: 'var(--ink)', background: '#f1f6f2', borderColor: '#cfe0d2' }}>{s}</span>)}
+              </div>
+            )}
+            <button type="button" className={primary.cls} aria-disabled={primary.dis || busy} onClick={() => { if (!primary.dis && !busy) primary.run(); }}>{busy ? 'Kaydediliyor…' : primary.label}<Arrow /></button>
+            {primary.why && !decided && <div className="footWhy">{primary.why}</div>}
+            <div className="footRow">
+              <button type="button" className="btnS" style={{ color: 'var(--violet)' }} disabled={busy || decided || !detail?.villageId || current?.state === 'asked'} title={!detail?.villageId ? 'Köy sayfası olmayan kayıt topluluğa sorulamaz.' : undefined} onClick={() => void ask()}>Topluluğa sor</button>
+              <button type="button" className="btnS btnDanger" aria-expanded={rejOpen} disabled={busy || decided || !detail} onClick={() => setRejOpen((v) => !v)}>Reddet</button>
+              <button type="button" className="btnS" onClick={skip}>Atla</button>
+            </div>
+            <div className="keys">Kısayollar: <span className="kbd">A</span> onayla <span className="kbd">R</span> reddet <span className="kbd">S</span> atla <span className="kbd">M</span> taşı</div>
+          </div>
+        </aside>
+      </div>
+
+      {toast && (
+        <div className="toast" role="status">
+          <span className="toastIc" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg></span>
+          <span className="toastT"><b>{toast.name}</b> {toast.text}</span>
+          <button type="button" className="undo" disabled={busy} onClick={() => void undo(toast.undo)}>Geri al</button>
+        </div>
+      )}
+
+      {report.open && (
+        <div className="dlgBack" role="dialog" aria-modal="true" aria-labelledby="rapor-baslik" onClick={(e) => { if (e.target === e.currentTarget && !report.busy) setReport({ open: false }); }}>
+          <div className="dlg">
+            <h2 id="rapor-baslik">Kaynaktan toplu kabul</h2>
+            {!report.data ? <p>Kayıtlar kontrol ediliyor…</p> : (
+              <>
+                <p>Kaynak güveni yüksek; il, ilçe, köy adı ve koordinatı tam olan kayıtlar haritaya alınır. Bunlar &quot;admin teyitli&quot; sayılmaz, &quot;kaynaktan kabul&quot; olarak görünür; köylüler teyit edebilir. İlçe sınırı ya da yakın tekrar şüphesi olan köyde, köy sayfasında topluluğa soru açılır.</p>
+                <div className="dlgRow"><span>Haritaya girecek</span><b style={{ color: 'var(--ok)' }}>{report.data.accept}</b></div>
+                <div className="dlgRow"><span>Bunlardan topluluğa soru açılacak</span><b>{report.data.questions}</b></div>
+                <div className="dlgRow"><span>Kuyrukta kalacak</span><b>{report.data.left.length}</b></div>
+                {report.data.left.length > 0 && (
+                  <ul className="bulkList" style={{ maxHeight: 180, overflow: 'auto', marginTop: 8 }}>
+                    {report.data.left.map((l) => <li key={l.id}><span><b>{l.name}</b> · {l.province} / {l.district}</span><span className="qSt sSkip">{l.reason}</span></li>)}
+                  </ul>
+                )}
+                <p style={{ fontSize: 12.5, color: 'var(--muted)' }}>Orta ve düşük güvenli, koordinatı olmayan kayıtlar bu işleme girmez; kuyrukta tek tek incelenir. Her kabul kayıt geçmişine yazılır ve tek tek geri alınabilir.</p>
+              </>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+              <button type="button" className="btnS" disabled={report.busy} onClick={() => setReport({ open: false })}>Kapat</button>
+              {report.data && report.data.accept > 0 && <button type="button" className="btnP" style={{ minHeight: 40, fontSize: 14 }} disabled={report.busy} onClick={() => void applyReport()}>{report.busy ? 'Haritaya alınıyor…' : `${report.data.accept} köyü haritaya al`}</button>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
