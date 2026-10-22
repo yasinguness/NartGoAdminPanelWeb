@@ -20,7 +20,15 @@ export interface Overview {
   topProducts: { productId: string; title: string | null; storeName: string | null; views: number; clicks: number; addToCart: number; removed: number; cartUsers: number }[];
   topSearches: { query: string; count: number; zeroResults: number }[];
   topErrors: { eventType: string; message: string; endpoint: string | null; status: string | null; count: number; people: number; lastAt: string }[];
+  platforms: { platform: 'app' | 'web'; visitors: number; users: number; addToCart: number; orders: number; errors: number }[];
 }
+
+export type Platform = 'all' | 'app' | 'web';
+
+/** Mobil `ios`/`android`, web `mobile`/`desktop` (tarayıcı) gönderir. */
+export const deviceLabel = (device: string | null, source: string | null) =>
+  device === 'ios' ? 'Uygulama · iPhone' : device === 'android' ? 'Uygulama · Android' : source === 'app' ? 'Uygulama'
+    : device === 'mobile' ? 'Web · telefon' : device === 'desktop' ? 'Web · bilgisayar' : device ?? '—';
 
 export interface StoreEvent {
   id: string;
@@ -28,6 +36,7 @@ export interface StoreEvent {
   createdAt: string;
   path: string | null;
   deviceType: string | null;
+  source: string | null;
   visitorId: string | null;
   sessionId: string | null;
   metadata: Record<string, unknown> | null;
@@ -54,9 +63,9 @@ export const storeActivityService = {
   async overview(days: number): Promise<Overview> {
     return (await api.get(`${COMMERCE}/overview`, { params: { days } })).data;
   },
-  async events(params: { group?: EventGroup; userId?: string; q?: string; days: number; page: number; size?: number }): Promise<{ total: number; page: number; size: number; items: StoreEvent[] }> {
-    const { group, ...rest } = params;
-    return (await api.get(`${COMMERCE}/events`, { params: { ...rest, group: group === 'all' ? undefined : group } })).data;
+  async events(params: { group?: EventGroup; userId?: string; q?: string; platform?: Platform; days: number; page: number; size?: number }): Promise<{ total: number; page: number; size: number; items: StoreEvent[] }> {
+    const { group, platform, ...rest } = params;
+    return (await api.get(`${COMMERCE}/events`, { params: { ...rest, group: group === 'all' ? undefined : group, platform: platform === 'all' ? undefined : platform } })).data;
   },
   async users(days: number): Promise<StoreUserActivity[]> {
     return (await api.get(`${COMMERCE}/users`, { params: { days } })).data;

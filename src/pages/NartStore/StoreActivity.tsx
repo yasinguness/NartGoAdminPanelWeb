@@ -6,8 +6,8 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import {
-  ERROR_TYPES, EVENT_LABEL, PAYMENT_LABEL, errorText, storeActivityService,
-  type EventGroup, type Overview, type StoreEvent, type StoreOrder, type StoreUserActivity,
+  ERROR_TYPES, EVENT_LABEL, PAYMENT_LABEL, deviceLabel, errorText, storeActivityService,
+  type EventGroup, type Overview, type Platform, type StoreEvent, type StoreOrder, type StoreUserActivity,
 } from '../../services/nartstore/storeActivityService';
 
 /**
@@ -40,7 +40,7 @@ export default function StoreActivity() {
         <Button startIcon={<RefreshIcon />} onClick={() => setRefreshKey((k) => k + 1)}>Yenile</Button>
       </Stack>
       <Typography color="text.secondary" sx={{ mb: 2, maxWidth: 900 }}>
-        store.nartgo.net'te kim hangi ürüne baktı, neyi sepete ekledi ya da çıkardı, ne aradı ve nerede hata aldı. Sipariş ve ödeme sonucu siparişler kaydından gelir.
+        store.nartgo.net'te ve NartGo uygulamasındaki mağazada kim hangi ürüne baktı, neyi sepete ekledi ya da çıkardı, ne aradı ve nerede hata aldı. Sipariş ve ödeme sonucu siparişler kaydından gelir.
         Giriş yapmamış ziyaretçiler "Misafir" olarak görünür.
       </Typography>
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }} variant="scrollable">
@@ -102,6 +102,22 @@ function OverviewTab({ days, refreshKey }: { days: number; refreshKey: number })
         <Stat label="Sipariş" value={allOrders} hint={`${paid?.count ?? 0} ödendi · ${fmtMoney(paid?.total ?? 0)}`} tone="success" />
         <Stat label="Hata" value={t.errors} hint={`${t.peopleWithErrors} kişi etkilendi · ${failed?.count ?? 0} ödeme başarısız`} tone={t.errors ? 'error' : undefined} />
       </Stack>
+
+      {data.platforms?.length > 0 && (
+        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+          {(['app', 'web'] as const).map((k) => {
+            const p = data.platforms.find((x) => x.platform === k);
+            return (
+              <Paper key={k} variant="outlined" sx={{ p: 2, borderRadius: 2, flex: 1, minWidth: 260 }}>
+                <Typography fontWeight={700}>{k === 'app' ? 'NartGo uygulaması' : 'store.nartgo.net (web)'}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {p ? `${p.visitors} ziyaretçi · ${p.users} giriş yapmış · ${p.addToCart} sepete ekleme · ${p.orders} sipariş · ${p.errors} hata` : 'Bu dönemde hareket yok.'}
+                </Typography>
+              </Paper>
+            );
+          })}
+        </Stack>
+      )}
 
       <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
         <Typography fontWeight={700} sx={{ mb: 1 }}>Satın alma hunisi (oturum)</Typography>
@@ -220,14 +236,15 @@ function EventsTab({ days, refreshKey, user, onClearUser, onUser, fixedGroup }: 
   onUser: (id: string, label: string) => void; fixedGroup?: EventGroup;
 }) {
   const [group, setGroup] = useState<EventGroup>(fixedGroup ?? 'all');
+  const [platform, setPlatform] = useState<Platform>('all');
   const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
   useEffect(() => { const t = window.setTimeout(() => { setQuery(q); setPage(0); }, 350); return () => window.clearTimeout(t); }, [q]);
-  useEffect(() => { setPage(0); }, [group, user?.id, days]);
+  useEffect(() => { setPage(0); }, [group, platform, user?.id, days]);
   const { data, loading, error } = useLoad(
-    () => storeActivityService.events({ group: fixedGroup ?? group, userId: user?.id, q: query || undefined, days, page, size: 50 }),
-    [fixedGroup, group, user?.id, query, days, page, refreshKey],
+    () => storeActivityService.events({ group: fixedGroup ?? group, platform, userId: user?.id, q: query || undefined, days, page, size: 50 }),
+    [fixedGroup, group, platform, user?.id, query, days, page, refreshKey],
   );
   return (
     <Stack spacing={2}>
@@ -239,12 +256,17 @@ function EventsTab({ days, refreshKey, user, onClearUser, onUser, fixedGroup }: 
             {GROUPS.map((g) => <MenuItem key={g.v} value={g.v}>{g.label}</MenuItem>)}
           </TextField>
         )}
+        <TextField size="small" select label="Nereden" value={platform} onChange={(e) => setPlatform(e.target.value as Platform)} sx={{ minWidth: 160 }}>
+          <MenuItem value="all">Uygulama ve web</MenuItem>
+          <MenuItem value="app">Yalnız uygulama</MenuItem>
+          <MenuItem value="web">Yalnız web</MenuItem>
+        </TextField>
         {user && <Chip label={`Kişi: ${user.label}`} onDelete={onClearUser} color="primary" />}
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
       <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'auto' }}>
         <Table size="small">
-          <TableHead><TableRow><TableCell>Zaman</TableCell><TableCell>Kim</TableCell><TableCell>Ne yaptı</TableCell><TableCell>Ürün</TableCell><TableCell>Ayrıntı</TableCell><TableCell>Cihaz</TableCell></TableRow></TableHead>
+          <TableHead><TableRow><TableCell>Zaman</TableCell><TableCell>Kim</TableCell><TableCell>Ne yaptı</TableCell><TableCell>Ürün</TableCell><TableCell>Ayrıntı</TableCell><TableCell>Nereden</TableCell></TableRow></TableHead>
           <TableBody>
             {loading && <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4 }}><CircularProgress size={24} /></TableCell></TableRow>}
             {!loading && data?.items.length === 0 && <TableRow><TableCell colSpan={6} sx={{ py: 4, color: 'text.secondary' }}>Bu süzgeçte kayıt yok. Yeni olaylar mağaza sitesi güncellendikten sonra birikmeye başlar.</TableCell></TableRow>}
@@ -264,7 +286,7 @@ function EventsTab({ days, refreshKey, user, onClearUser, onUser, fixedGroup }: 
                 <TableCell><Chip size="small" label={EVENT_LABEL[e.eventType] ?? e.eventType} color={ERROR_TYPES.has(e.eventType) ? 'error' : e.eventType === 'order_submit' ? 'success' : 'default'} variant={ERROR_TYPES.has(e.eventType) ? 'outlined' : 'filled'} /></TableCell>
                 <TableCell><Typography variant="body2">{e.productTitle ?? '—'}</Typography>{e.storeName && <Typography variant="caption" color="text.secondary">{e.storeName}</Typography>}</TableCell>
                 <TableCell sx={{ maxWidth: 380 }}><Typography variant="body2" sx={{ wordBreak: 'break-word' }}>{detailOf(e) || '—'}</Typography></TableCell>
-                <TableCell>{e.deviceType === 'mobile' ? 'Telefon' : e.deviceType === 'desktop' ? 'Bilgisayar' : e.deviceType ?? '—'}</TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>{deviceLabel(e.deviceType, e.source)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
