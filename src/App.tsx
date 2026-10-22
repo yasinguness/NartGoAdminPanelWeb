@@ -12,6 +12,7 @@ const UserActivity = lazy(() => import('./pages/Users/UserActivity'));
 const NartLiveUsers = lazy(() => import('./pages/NartLive/NartLiveUsers'));
 const HeritageLocations = lazy(() => import('./pages/HeritageLocations/HeritageLocations'));
 const HeritageFamilies = lazy(() => import('./pages/HeritageFamilies/HeritageFamilies'));
+const HeritageVillages = lazy(() => import('./pages/HeritageVillages/HeritageVillages'));
 const NbAuditLog = lazy(() => import('./pages/NartBusiness/NbAuditLog'));
 const NbEmailLogs = lazy(() => import('./pages/NartBusiness/NbEmailLogs'));
 const NbLoginLogs = lazy(() => import('./pages/NartBusiness/NbLoginLogs'));
@@ -205,6 +206,7 @@ function App() {
                 <Route path="user-activity" element={<UserActivity />} />
                 <Route path="nartlive/users" element={<NartLiveUsers />} />
                 <Route path="heritage/locations" element={<HeritageLocations />} />
+                <Route path="heritage/villages" element={<HeritageVillages />} />
                 <Route path="heritage/families" element={<HeritageFamilies />} />
                 <Route path="users/:id" element={<UserDetails />} />
                 <Route path="users/:id/360" element={<User360 />} />

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSnackbar } from 'notistack';
 import './reviewDesk.css';
+import GeocodeFinder from '../HeritageVillages/GeocodeFinder';
 import ReviewMap, { SOURCE_COLOR, distanceM, satelliteConfigured, type LatLng } from './ReviewMap';
 import {
   errorText, heritageReviewService,
@@ -66,6 +67,7 @@ export default function HeritageLocations() {
   const [status, setStatus] = useState<Record<string, SessionStatus>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [moving, setMoving] = useState(false);
+  const [finding, setFinding] = useState(false);
   const [satellite, setSatellite] = useState(false);
   const [rejOpen, setRejOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -138,7 +140,7 @@ export default function HeritageLocations() {
   useEffect(() => {
     if (!sel) return;
     void fetchDetail(sel);
-    setRejOpen(false); setMoreOpen(false); setMoving(false); setCopied(false); setHistory(null);
+    setRejOpen(false); setMoreOpen(false); setMoving(false); setFinding(false); setCopied(false); setHistory(null);
     const n = nextId(sel, status);
     if (n && n !== sel) void fetchDetail(n); // sıradakini önden yükle
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -469,7 +471,15 @@ export default function HeritageLocations() {
                 <div className="noLocCard">
                   <div style={{ fontWeight: 800, fontSize: 15 }}>Bu kaydın konumu yok</div>
                   <p style={{ margin: '6px 0 12px', color: 'var(--muted)', fontSize: 13 }}>Haritada köyün yerine tıklayarak nokta koy ya da bir adayı seç. Bulamazsan atla.</p>
-                  <button type="button" className="mini" onClick={() => setMoving(true)}>Haritada işaretle</button>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                    <button type="button" className="mini" onClick={() => setMoving(true)}>Haritada işaretle</button>
+                    <button type="button" className="mini" aria-pressed={finding} onClick={() => setFinding((v) => !v)}>Konumu bul (Google / OpenStreetMap)</button>
+                  </div>
+                  {finding && (
+                    <div style={{ marginTop: 12, textAlign: 'left' }}>
+                      <GeocodeFinder query={detail.name} province={detail.province} district={detail.district} onPick={(c) => { onMapPick({ lat: c.latitude, lng: c.longitude }); setFinding(false); }} />
+                    </div>
+                  )}
                 </div>
               </div>
             )}

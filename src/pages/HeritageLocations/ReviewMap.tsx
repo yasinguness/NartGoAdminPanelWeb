@@ -134,5 +134,11 @@ export default function ReviewMap({
     }
   }, [detail, original, point]);
 
+  // Sonradan konan nokta (ör. Google'dan bulunan) görünüm dışındaysa harita ona gider.
+  useEffect(() => {
+    const m = map.current;
+    if (m && point && !m.getBounds().contains([point.lat, point.lng])) m.setView([point.lat, point.lng], Math.max(m.getZoom(), 14));
+  }, [point?.lat, point?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return <div ref={host} className={`leafletHost${moving ? ' moving' : ''}`} aria-hidden="true" />;
 }

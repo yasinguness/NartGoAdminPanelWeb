@@ -92,7 +92,7 @@
 .hrd .lg{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .hrd .lgDot{width:10px;height:10px;border-radius:50%}
 .hrd .noLoc{position:absolute;inset:0;display:grid;place-items:center;z-index:450;pointer-events:none}
-.hrd .noLocCard{pointer-events:auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px;max-width:340px;text-align:center;box-shadow:0 20px 40px -24px rgba(0,0,0,.5)}
+.hrd .noLocCard{pointer-events:auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px;width:min(440px,92%);text-align:center;box-shadow:0 20px 40px -24px rgba(0,0,0,.5)}
 .hrd .leaflet-control-scale{margin:0 14px 14px 0!important}
 .hrd .leaflet-control-scale-line{background:rgba(255,255,255,.95);border:1.5px solid var(--ink);border-top:0;color:var(--muted);font:11px 'IBM Plex Mono',monospace;padding:4px 8px 2px}
 .hrd .leaflet-control-attribution{font-size:10px}
