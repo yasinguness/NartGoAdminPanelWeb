@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+import HeritagePendingCard from '../../components/HeritagePendingCard';
 import {
   Alert, Box, Button, Chip, CircularProgress, InputAdornment, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TablePagination,
   TableRow, TextField, Typography,
@@ -27,7 +28,8 @@ export default function HeritageVillages() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<{ id: string; tab: number } | null>(null);
-  const [pendingOnly, setPendingOnly] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [pendingOnly, setPendingOnly] = useState(searchParams.get('pending') === '1');
 
   useEffect(() => { const t = window.setTimeout(() => { setQuery(q); setPage(0); }, 300); return () => window.clearTimeout(t); }, [q]);
 
@@ -50,6 +52,7 @@ export default function HeritageVillages() {
         Haritada eksik köyü buradan ekleyin; konumu Google ya da OpenStreetMap'ten bulabilir, Kosova gibi Türkiye dışındaki köyleri de girebilirsiniz.
         Bir köyü açıp adını, konumunu, Çerkesçe adlarını ve sülalelerini düzenleyebilirsiniz.
       </Typography>
+      <HeritagePendingCard />
       {data && data.villagesWithPending > 0 && !pendingOnly && (
         <Alert severity="warning" sx={{ mb: 2 }} action={<Button size="small" onClick={() => { setPendingOnly(true); setPage(0); }}>Göster</Button>}>
           {data.villagesWithPending} köyde kullanıcıların verdiği ve onay bekleyen bilgi var (ad, sülale, tarihçe, düzeltme).

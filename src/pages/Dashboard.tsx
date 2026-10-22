@@ -58,6 +58,8 @@ import {
   Store as StoreIcon,
   Campaign as CampaignIcon,
   OpenInNew as OpenInNewIcon,
+  Map as MapIcon,
+  Gavel as GavelIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { useSnackbar } from 'notistack';
@@ -67,6 +69,7 @@ import { campaignService } from '../services/notification/campaignService';
 import { api } from '../services/api';
 import { useRole } from '../hooks/useRole';
 import OrganizerDashboard from './OrganizerDashboard';
+import AttentionPanel from '../components/dashboard/AttentionPanel';
 import type {
   LoginStatsOverviewDto,
   RecentLoggedInUserDto,
@@ -528,6 +531,8 @@ function AdminDashboard() {
         </Stack>
       )}
 
+      {isAdmin && <AttentionPanel />}
+
       {/* ── Metric Cards ── */}
       <Grid container spacing={2.5} mb={3}>
         {metricCards.map((card, i) => (
@@ -607,6 +612,9 @@ function AdminDashboard() {
               { icon: <StoreIcon fontSize="small" />, label: 'İşletme Ekle', desc: 'Yeni işletme kaydet', color: theme.palette.primary.main, path: '/businesses' },
               { icon: <CampaignIcon fontSize="small" />, label: 'Bildirim Gönder', desc: 'Kampanya oluştur', color: theme.palette.error.main, path: '/notifications' },
               { icon: <PersonIcon fontSize="small" />, label: 'Kullanıcılar', desc: 'Kullanıcı yönetimi', color: '#8b5cf6', path: '/users' },
+              { icon: <MapIcon fontSize="small" />, label: 'Köyler', desc: 'Köy ekle, katkıları onayla', color: '#2f7a46', path: '/heritage/villages' },
+              { icon: <StoreIcon fontSize="small" />, label: 'NartStore Hareketleri', desc: 'Sepet, sipariş, hata', color: '#8a6210', path: '/nartstore/activity' },
+              { icon: <GavelIcon fontSize="small" />, label: 'NB Karar Panosu', desc: 'Başvuru kararları', color: '#1d3b5c', path: '/nartbusiness/decision-board' },
             ].map((action) => (
               <Grid item xs={12} sm={6} md={4} lg={2} key={action.label}>
                 <QuickAction {...action} onClick={() => navigate(action.path)} />

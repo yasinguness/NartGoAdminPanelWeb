@@ -39,6 +39,16 @@ export interface VillageList {
   villagesWithPending: number;
 }
 
+export interface PendingSummary {
+  villageContributions: number;
+  communityPending: number;
+  communityDisputed: number;
+  familySuggestions: number;
+  locationQueue: number;
+  instagramComments: number;
+  decidableTasks: number;
+}
+
 export interface ContributionItem {
   id: string;
   type: string;
@@ -188,6 +198,9 @@ export const heritageVillageService = {
   },
   async removeFamily(id: string, linkId: string): Promise<void> {
     await api.delete(`${ROOT}/${id}/families/${linkId}`);
+  },
+  async pendingSummary(): Promise<PendingSummary> {
+    return unwrap(await api.get(`${ROOT}/pending-summary`));
   },
   async contributions(id: string): Promise<VillageContributions> {
     return unwrap(await api.get(`${ROOT}/${id}/contributions`));

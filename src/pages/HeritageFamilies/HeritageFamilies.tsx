@@ -19,7 +19,8 @@ const SITE = 'https://nartgo.net/harita/sulale/';
 const RACES = [['adige', 'Çerkes (Adige)'], ['abhaz', 'Abhaz / Abaza'], ['cecen', 'Çeçen'], ['oset', 'Oset'], ['dagistan', 'Dağıstan'], ['karacay', 'Karaçay']];
 
 export default function HeritageFamilies() {
-  const [tab, setTab] = useState(0);
+  // ?tab=: panel ana sayfasındaki "bekleyenler" kartı doğrudan ilgili sekmeye götürür.
+  const [tab, setTab] = useState(() => Math.min(4, Math.max(0, Number(new URLSearchParams(window.location.search).get('tab')) || 0)));
   return (
     <Box>
       <Typography variant="h5" fontWeight={700}>Sülale atlası</Typography>

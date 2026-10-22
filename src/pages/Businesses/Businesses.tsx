@@ -3,7 +3,7 @@
  * Matching Events page pattern with glass cards, chip filters, stat cards.
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Stack, Avatar, TextField, Chip, IconButton, Menu, MenuItem, ListItemIcon, ListItemText,
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -76,7 +76,12 @@ export default function Businesses() {
   // State
   const [page, setPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [searchParams] = useSearchParams();
+  // ?filter=featured: panel ana sayfasındaki "öne çıkarma bitiyor" kartından gelir.
+  const [activeFilter, setActiveFilter] = useState<FilterKey>(() => {
+    const f = searchParams.get('filter');
+    return FILTERS.some((x) => x.id === f) ? (f as FilterKey) : 'all';
+  });
   const [selectedCategory, setSelectedCategory] = useState('');
 
   // Menu state
