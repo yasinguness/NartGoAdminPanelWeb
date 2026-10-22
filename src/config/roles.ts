@@ -79,6 +79,7 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   // ── Etkinlik Yönetimi (organizatör) ──
   { path: '/events', roles: ORG, description: 'Etkinlik listesi' },
   { path: '/event-categories', roles: ADMIN_ONLY, description: 'Etkinlik kategorileri' },
+  { path: '/events/instagram-candidates', roles: ADMIN_ONLY, description: 'Instagram etkinlik adayları' },
   { path: '/event-creation', roles: ORG, description: 'Etkinlik oluşturma sihirbazı' },
   { path: '/tickets', roles: ORG, description: 'Bilet yönetimi' },
   { path: '/event-operations', roles: ORG, description: 'Etkinlik operasyon konsolu' },

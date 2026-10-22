@@ -23,6 +23,7 @@ import { normalizeRole } from './config/roles';
 import { getLandingPath } from './config/workspaces';
 const WorkspaceSelect = lazy(() => import('./pages/WorkspaceSelect'));
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import InstagramCandidates from './pages/Events/InstagramCandidates';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 const Businesses = lazy(() => import('./pages/Businesses/Businesses'));
 const BusinessDetails = lazy(() => import('./pages/Businesses/BusinessDetails'));
@@ -233,6 +234,7 @@ function App() {
                 <Route path="event-operations" element={<EventOperations />} />
                 <Route path="event-operations/:eventId" element={<EventOperations />} />
                 <Route path="event-categories" element={<EventCategories />} />
+                <Route path="events/instagram-candidates" element={<InstagramCandidates />} />
                 <Route path="event/raffle-live" element={<RaffleLivePage />} />
                 <Route path="event-creation" element={<TicketCreationPage />} />
                 <Route path="event-creation/:eventId" element={<TicketCreationPage />} />

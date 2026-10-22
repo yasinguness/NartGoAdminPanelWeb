@@ -12,9 +12,10 @@ import {
   Event as EventIcon, Article as ArticleIcon,
   Groups as GroupsIcon, Store as StoreIcon,
   Celebration as CelebrationIcon, Close as CloseIcon,
+  Map as MapIcon, AccountTree as AccountTreeIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
-import { notificationPlanService, NotificationPlan } from '../../services/notification/notificationPlanService';
+import { notificationPlanService, NotificationPlan, PlanPreview } from '../../services/notification/notificationPlanService';
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 const DAY_LABELS: Record<string, string> = {
@@ -28,6 +29,8 @@ const CATEGORIES: { value: string; label: string; icon: React.ReactNode; color: 
   { value: 'TOPLULUK', label: 'Topluluk', icon: <GroupsIcon sx={{ fontSize: 16 }} />, color: '#9C27B0' },
   { value: 'ISLETME', label: 'İşletme', icon: <StoreIcon sx={{ fontSize: 16 }} />, color: '#FF9800' },
   { value: 'KULTUR', label: 'Kültür', icon: <CelebrationIcon sx={{ fontSize: 16 }} />, color: '#E91E63' },
+  { value: 'ORTAK_HAFIZA', label: 'Ortak Hafıza', icon: <MapIcon sx={{ fontSize: 16 }} />, color: '#795548' },
+  { value: 'SULALE', label: 'Sülale', icon: <AccountTreeIcon sx={{ fontSize: 16 }} />, color: '#C9A227' },
 ];
 
 const getCategoryMeta = (cat: string) => CATEGORIES.find(c => c.value === cat) || CATEGORIES[0];
@@ -122,11 +125,35 @@ export default function NotificationCalendar() {
     } catch { enqueueSnackbar('Silme hatası', { variant: 'error' }); }
   };
 
-  const handleToggle = async (id: string) => {
+  // Planı AÇMAK gerçek bir gönderim taahhüdü: açıldığı anda zamanı gelince
+  // binlerce cihaza gider. Bu yüzden açmadan önce ne gideceği gösterilir.
+  // Kapatmak zararsız olduğu için doğrudan yapılır.
+  const [previewFor, setPreviewFor] = useState<NotificationPlan | null>(null);
+  const [preview, setPreview] = useState<PlanPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [toggling, setToggling] = useState(false);
+
+  const applyToggle = async (id: string) => {
+    setToggling(true);
     try {
       await notificationPlanService.toggleActive(id);
+      setPreviewFor(null); setPreview(null);
       fetchPlans();
     } catch { enqueueSnackbar('Durum değiştirme hatası', { variant: 'error' }); }
+    finally { setToggling(false); }
+  };
+
+  const handleToggle = async (plan: NotificationPlan) => {
+    if (plan.active) { void applyToggle(plan.id); return; }
+    setPreviewFor(plan); setPreview(null); setPreviewLoading(true);
+    try { setPreview(await notificationPlanService.preview(plan.id)); }
+    catch {
+      // Önizleme alınamazsa planı sessizce açma; admin körlemesine
+      // onaylamış olurdu.
+      enqueueSnackbar('Önizleme alınamadı; plan açılmadı.', { variant: 'error' });
+      setPreviewFor(null);
+    }
+    finally { setPreviewLoading(false); }
   };
 
   const handleSendNow = async (id: string) => {
@@ -144,7 +171,10 @@ export default function NotificationCalendar() {
     setSeeding(true);
     try {
       const result = await notificationPlanService.seedDefaults();
-      enqueueSnackbar(`${(result as any).count || 14} varsayılan plan oluşturuldu`, { variant: 'success' });
+      enqueueSnackbar(
+        `${(result as { count?: number }).count ?? 17} varsayılan plan yüklendi — hepsi kapalı.`,
+        { variant: 'success' },
+      );
       setSeedConfirmOpen(false);
       fetchPlans();
     } catch { enqueueSnackbar('Varsayılan planlar yüklenemedi', { variant: 'error' }); }
@@ -185,19 +215,79 @@ export default function NotificationCalendar() {
       </Box>
 
       {/* Seed onay dialog */}
+      {/* Planı açmadan önce önizleme.
+          Uyarı varsa düğme "Uyarılara rağmen aç" olur; sessiz saatte gönderim
+          ya da doldurulmamış alan gibi sorunlar fark edilmeden açılmasın. */}
+      <Dialog open={!!previewFor} onClose={() => { setPreviewFor(null); setPreview(null); }} maxWidth="sm" fullWidth>
+        <DialogTitle>Bildirimi aç</DialogTitle>
+        <DialogContent>
+          {previewLoading || !preview ? (
+            <Box sx={{ py: 4, textAlign: 'center' }}><CircularProgress size={24} /></Box>
+          ) : (
+            <Stack spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                Bu planı açarsan, zamanı geldiğinde aşağıdaki bildirim
+                {typeof preview.estimatedDevices === 'number'
+                  ? <> <b>~{preview.estimatedDevices.toLocaleString('tr-TR')} cihaza</b> gidecek.</>
+                  : ' abonelere gidecek.'}
+              </Typography>
+
+              {/* Üyenin göreceği bildirimin önizlemesi */}
+              <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover' }}>
+                <Typography variant="body2" fontWeight={700}>{preview.title}</Typography>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>{preview.body}</Typography>
+                {preview.deepLink && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    Dokununca açılacak: {preview.deepLink}
+                  </Typography>
+                )}
+                {preview.topic && (
+                  <Typography variant="caption" color="text.disabled" sx={{ display: 'block' }}>
+                    Hedef: {preview.topic}
+                  </Typography>
+                )}
+              </Paper>
+
+              {!!preview.warnings?.length && (
+                <Box>
+                  <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
+                    Dikkat edilmesi gerekenler
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {preview.warnings.map((w) => (
+                      <Typography key={w} variant="body2" color="warning.dark">• {w}</Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setPreviewFor(null); setPreview(null); }}>Vazgeç</Button>
+          <Button
+            variant="contained"
+            color={preview?.warnings?.length ? 'warning' : 'primary'}
+            disabled={!preview || toggling}
+            onClick={() => previewFor && void applyToggle(previewFor.id)}
+          >
+            {preview?.warnings?.length ? 'Uyarılara rağmen aç' : 'Aç'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={seedConfirmOpen} onClose={() => setSeedConfirmOpen(false)}>
         <DialogTitle>
           {plans.length === 0 ? 'Varsayılan Planları Yükle' : 'Planları Sıfırla'}
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {plans.length === 0
-              ? '30 günlük bildirim planı (12 haftalık + 2 kültürel gün) otomatik oluşturulacak. Tüm planlar daha sonra düzenlenebilir.'
-              : 'Mevcut tüm planlar silinecek ve varsayılan 14 plan yeniden oluşturulacak. Bu işlem geri alınamaz.'
-            }
+            Mevcut tüm planlar <b>silinir</b> ve varsayılan 17 plan yeniden yüklenir.
+            Yeni planların <b>hepsi kapalı gelir</b>; hiçbiri sen açmadan bildirim göndermez.
+            Bu işlem geri alınamaz.
           </Typography>
           <Typography variant="caption" color="text.disabled">
-            Hafta 1-4 tekrarlayan planlar + Çerkes Sürgünü Anma Günü + Çerkes Bayrağı Günü
+            Haftalık tekrarlayan planlar, kültürel anma günleri, Ortak Hafıza ve Sülale planları.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -300,7 +390,7 @@ export default function NotificationCalendar() {
                   <Typography variant="body2" fontWeight={600}>{plan.name}</Typography>
                   <Typography variant="caption" color="text.secondary">{plan.title}</Typography>
                 </Box>
-                <Switch checked={plan.active} onChange={() => handleToggle(plan.id)} size="small" />
+                <Switch checked={plan.active} onChange={() => void handleToggle(plan)} size="small" />
                 <IconButton size="small" onClick={() => openEdit(plan)}><EditIcon fontSize="small" /></IconButton>
                 <IconButton size="small" color="error" onClick={() => handleDelete(plan.id)}><DeleteIcon fontSize="small" /></IconButton>
               </Paper>
@@ -344,7 +434,7 @@ export default function NotificationCalendar() {
                   )}
                 </Box>
 
-                <Switch checked={plan.active} onChange={() => handleToggle(plan.id)} size="small" />
+                <Switch checked={plan.active} onChange={() => void handleToggle(plan)} size="small" />
                 <Tooltip title="Şimdi Gönder">
                   <IconButton size="small" color="primary" onClick={() => handleSendNow(plan.id)}>
                     <SendIcon fontSize="small" />

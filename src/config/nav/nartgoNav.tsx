@@ -16,6 +16,7 @@ import {
     Category as CategoryIcon,
     Settings as SettingsIcon,
     Event as EventIcon,
+    CameraAlt as InstagramIcon,
     EventNote as EventCategoryIcon,
     HomeWork,
     Feed as FeedIcon,
@@ -60,6 +61,7 @@ export const nartgoNavSections: NavSection[] = [
             { text: 'Bilet Yönetimi', icon: <TicketIcon />, path: '/tickets' },
             { text: 'Salon Planları', icon: <EventSeatIcon />, path: '/seat-templates' },
             { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories', allowedRoles: ['ADMIN'] },
+            { text: 'Instagram Adayları', icon: <InstagramIcon />, path: '/events/instagram-candidates', allowedRoles: ['ADMIN'] },
         ],
     },
     {

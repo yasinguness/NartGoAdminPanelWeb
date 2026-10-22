@@ -20,7 +20,13 @@ export interface PlacePrediction {
  */
 export const searchPlaces = async (
     input: string,
-    options?: { types?: string[] },
+    /**
+     * `regionCodes` verilmezse arama GLOBAL yapılır. Önceden istek
+     * `includedRegionCodes: ['tr']` ile sabitlenmişti; Türkiye dışındaki
+     * hiçbir yer bulunamıyordu. Diaspora etkinlikleri yurt dışında da
+     * olduğu için varsayılan kısıtsız; daraltmak isteyen çağıran belirtir.
+     */
+    options?: { types?: string[]; regionCodes?: string[] },
 ): Promise<PlacePrediction[]> => {
     if (!input || input.length < 3) return [];
     if (!GOOGLE_API_KEY) {
@@ -31,9 +37,11 @@ export const searchPlaces = async (
     try {
         const body: Record<string, unknown> = {
             input,
-            includedRegionCodes: ['tr'],
             languageCode: 'tr',
         };
+        if (options?.regionCodes?.length) {
+            body.includedRegionCodes = options.regionCodes;
+        }
         if (options?.types?.length) {
             body.includedPrimaryTypes = options.types;
         }
@@ -79,7 +87,9 @@ export const searchPlaces = async (
 /**
  * Get place details and convert to AddressDTO using Place Details REST API
  */
-export const getPlaceDetails = async (placeId: string): Promise<Partial<AddressDTO> | null> => {
+export const getPlaceDetails = async (
+    placeId: string,
+): Promise<(Partial<AddressDTO> & { countryCode?: string }) | null> => {
     if (!GOOGLE_API_KEY) return null;
 
     try {
@@ -105,10 +115,15 @@ export const getPlaceDetails = async (placeId: string): Promise<Partial<AddressD
             return comp?.longText || comp?.shortText || '';
         };
 
-        const address: Partial<AddressDTO> & { displayName?: string } = {
+        const address: Partial<AddressDTO> & { displayName?: string; countryCode?: string } = {
             city: getComponent('administrative_area_level_1') || getComponent('locality'),
             district: getComponent('administrative_area_level_2') || getComponent('sublocality_level_1') || getComponent('sublocality'),
             country: getComponent('country'),
+            // Ülke kodu (TR, DE, JO…) — kısa metinden gelir. Önceden
+            // çıkarılmıyordu, bu yüzden arayüz 'TR' varsaymak zorunda kalıyordu.
+            countryCode: (place.addressComponents || []).find(
+                (c: { types: string[] }) => c.types?.includes('country'),
+            )?.shortText || '',
             street: `${getComponent('route')} ${getComponent('street_number')}`.trim() || place.formattedAddress || '',
             postalCode: getComponent('postal_code'),
             latitude: place.location?.latitude,

@@ -322,7 +322,13 @@ export default function NbMemberDetail() {
   const [editOpen, setEditOpen] = useState(searchParams.get('edit') === 'business');
   // Manuel ödeme onayı (havale/EFT veya elle tahsilat) — status =
   // APPROVED_PENDING_PAYMENT olan her üyede gösterilir; üyeyi ACTIVE'e taşır.
-  const [bankConfirmOpen, setBankConfirmOpen] = useState(false);
+  // Üye listesindeki "ödeme onayı" işi buraya yönlendirir
+  // (?tab=membership&action=confirm-payment) ve diyalog açılır. Liste
+  // satırından doğrudan onaylamak mümkün değil: onay dekont referansı, plan
+  // ve plan fiyatıyla eşleşen tutar ister; bunların hiçbiri listede yok.
+  const [bankConfirmOpen, setBankConfirmOpen] = useState(
+    searchParams.get('action') === 'confirm-payment',
+  );
   const [bankConfirmRef, setBankConfirmRef] = useState('');
   const [bankPlans, setBankPlans] = useState<NbBillingPlan[]>([]);
   const [bankPlanId, setBankPlanId] = useState('');

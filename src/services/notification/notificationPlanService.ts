@@ -24,6 +24,24 @@ export interface NotificationPlan {
   sortOrder: number;
 }
 
+/**
+ * Planın gönderilmeden önceki hâli.
+ *
+ * Açma anahtarına basmadan önce gösterilir: admin hangi metnin kaç cihaza
+ * gideceğini görmeden planı açmasın. `warnings` sunucudan Türkçe gelir ve
+ * olduğu gibi basılır.
+ */
+export interface PlanPreview {
+  title: string;
+  body: string;
+  deepLink?: string | null;
+  topic?: string | null;
+  /** Bu planın şu an ulaşacağı yaklaşık cihaz sayısı. */
+  estimatedDevices?: number | null;
+  /** Başlık uzunluğu, eksik bağlantı, sessiz saat gibi uyarılar. */
+  warnings?: string[];
+}
+
 const BASE = '/notifications/admin/plans';
 
 export const notificationPlanService = {
@@ -49,6 +67,12 @@ export const notificationPlanService = {
 
   delete: async (id: string): Promise<void> => {
     await api.delete(`${BASE}/${id}`);
+  },
+
+  /** Gönderim önizlemesi — yazma yapmaz. */
+  preview: async (id: string): Promise<PlanPreview> => {
+    const res = await api.get<PlanPreview>(`${BASE}/${id}/preview`);
+    return (res.data as { data?: PlanPreview })?.data ?? (res.data as PlanPreview);
   },
 
   toggleActive: async (id: string): Promise<NotificationPlan> => {

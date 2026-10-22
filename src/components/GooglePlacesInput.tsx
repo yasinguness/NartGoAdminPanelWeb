@@ -92,8 +92,10 @@ export default function GooglePlacesInput({
       onChange({
         city: details.city || undefined,
         district: details.district || undefined,
-        country: details.country || 'Türkiye',
-        countryCode: 'TR',
+        // Önceden ülke 'Türkiye'/'TR' olarak sabitleniyordu; yurt dışı bir
+        // yer seçilse bile Türkiye kaydediliyordu. Artık Google ne döndürüyorsa o.
+        country: details.country || undefined,
+        countryCode: (details as { countryCode?: string }).countryCode || undefined,
         street: details.street || undefined,
         postalCode: details.postalCode || undefined,
         description: details.description || p.description,

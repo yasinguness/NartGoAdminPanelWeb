@@ -692,21 +692,23 @@ export default function NbMembers() {
       navigate(`/nartbusiness/members/${member.memberId}?tab=membership`);
       return;
     }
+    if (task.kind === 'confirmPayment') {
+      // Ödeme onayı buradan gönderilemez: sunucu dekont referansı, plan ve
+      // plan fiyatıyla birebir eşleşen tutar istiyor. Liste satırı bunların
+      // hiçbirini bilmiyordu; eski kod yalnız adminNote gönderip her
+      // seferinde 400 alıyordu. Doğru yer, bu alanların doldurulduğu form.
+      navigate(`/nartbusiness/members/${member.memberId}?tab=membership&action=confirm-payment`);
+      return;
+    }
 
     // Buradan sonrası yazma işlemi: gönderim 10 sn askıda bekler.
-    const label = task.kind === 'confirmPayment' ? 'Ödeme onaylandı' : 'Ödeme süresi yeniden açıldı';
+    const label = 'Ödeme süresi yeniden açıldı';
     let cancelled = false;
 
     const timer = setTimeout(async () => {
       if (cancelled) return;
       try {
-        if (task.kind === 'confirmPayment') {
-          await nbAdminService.confirmBankTransfer(member.memberId, {
-            adminNote: 'Üye listesinden onaylandı',
-          });
-        } else {
-          await nbAdminService.reopenApproval(member.memberId, 14, 'Üye listesinden yeniden açıldı');
-        }
+        await nbAdminService.reopenApproval(member.memberId, 14, 'Üye listesinden yeniden açıldı');
         load();
       } catch (e) {
         setError(nbErrorMessage(e, `${name} için işlem başarısız`));
