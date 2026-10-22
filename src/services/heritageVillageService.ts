@@ -24,6 +24,8 @@ export interface VillageRow {
   location_precision: Precision;
   confidence: string;
   family_count: number;
+  /** Onay bekleyen kullanıcı katkısı + teyit bekleyen/tartışmalı topluluk kaydı (konum katkıları hariç). */
+  pending_count: number;
 }
 
 export interface VillageList {
@@ -34,6 +36,48 @@ export interface VillageList {
   provinces: string[];
   countries: string[];
   pendingWithoutLocation: number;
+  villagesWithPending: number;
+}
+
+export interface ContributionItem {
+  id: string;
+  type: string;
+  title: string;
+  lines: { label: string; value: string }[];
+  source: string;
+  createdAt: string;
+  contributor: string | null;
+  contributorApproved: number;
+}
+
+export interface CommunityItem {
+  type: 'name' | 'family';
+  id: string;
+  label: string;
+  detail: string | null;
+  trust: 'pending' | 'disputed';
+  added_at: string;
+  confirms: number;
+  disputes: { reason: string | null; created_at: string }[];
+}
+
+export interface VillageTask {
+  id: string;
+  task_key: string;
+  question: string;
+  options: string[];
+  context_value: string | null;
+  votes: Record<string, number>;
+}
+
+export interface VillageContributions {
+  pending: ContributionItem[];
+  locationPending: ContributionItem[];
+  recent: { id: string; type: string; status: string; review_note: string | null; reviewed_at: string | null; contributor: string | null; reviewer: string | null }[];
+  community: CommunityItem[];
+  trustNeeded: number;
+  tasks: VillageTask[];
+  locationAnswers: Record<string, number>;
 }
 
 export interface VillageName { id: string; name: string; language: string; script: 'latin' | 'cyrillic'; status: string; trust: string; source: string }
@@ -106,7 +150,7 @@ export const emptyBody = (): VillageBody => ({
 });
 
 export const heritageVillageService = {
-  async list(params: { q?: string; province?: string; country?: string; status?: string; page?: number; size?: number }): Promise<VillageList> {
+  async list(params: { q?: string; province?: string; country?: string; status?: string; pendingOnly?: boolean; page?: number; size?: number }): Promise<VillageList> {
     return unwrap(await api.get(ROOT, { params }));
   },
   async detail(id: string): Promise<VillageDetail> {
@@ -145,6 +189,19 @@ export const heritageVillageService = {
   async removeFamily(id: string, linkId: string): Promise<void> {
     await api.delete(`${ROOT}/${id}/families/${linkId}`);
   },
+  async contributions(id: string): Promise<VillageContributions> {
+    return unwrap(await api.get(`${ROOT}/${id}/contributions`));
+  },
+  async reviewContribution(id: string, contributionId: string, approve: boolean, note?: string): Promise<void> {
+    await api.post(`${ROOT}/${id}/contributions/${contributionId}`, { approve, note });
+  },
+  /** keep: doğru kabul edilir (teyitli sayılır); remove: kaldırılır. */
+  async resolveCommunity(id: string, type: 'name' | 'family', itemId: string, action: 'keep' | 'remove'): Promise<void> {
+    await api.post(`${ROOT}/${id}/community/${type}/${itemId}`, { action });
+  },
+  async decideTask(id: string, taskId: string, answer: string): Promise<void> {
+    await api.post(`${ROOT}/${id}/tasks/${taskId}`, { answer });
+  },
 };
 
 export const COUNTRIES: { code: string; label: string }[] = [
@@ -165,5 +222,7 @@ export const PRECISION_LABEL: Record<Precision, string> = { EXACT: 'Kesin', APPR
 
 export const ACTION_LABEL: Record<string, string> = {
   CREATE: 'Köy eklendi', UPDATE: 'Köy düzenlendi', REMOVE: 'Köy kaldırıldı', RESTORE: 'Köy geri alındı',
+  CONTRIB_APPROVE: 'Kullanıcı katkısı onaylandı', CONTRIB_REJECT: 'Kullanıcı katkısı reddedildi',
+  COMMUNITY_ACCEPT: 'Topluluk kaydı kabul edildi', COMMUNITY_REMOVE: 'Topluluk kaydı kaldırıldı', TASK_DECIDE: 'Köy sorusu karara bağlandı',
   NAME_ADD: 'Ad eklendi', NAME_REMOVE: 'Ad kaldırıldı', FAMILY_ADD: 'Sülale eklendi', FAMILY_REMOVE: 'Sülale kaldırıldı',
 };

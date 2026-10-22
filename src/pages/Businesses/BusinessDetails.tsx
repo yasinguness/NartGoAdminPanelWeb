@@ -21,14 +21,16 @@ import {
     CardMedia,
     Alert,
     useTheme,
-    alpha,
-    InputAdornment
+    InputAdornment,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from '@mui/material';
 import {
     ArrowBack,
     Save as SaveIcon,
     Star as StarIcon,
-    LocationOn as LocationIcon,
     CheckCircle as VerifyIcon,
     Verified as VerifiedIcon,
     Business as BusinessIcon,
@@ -46,6 +48,8 @@ import { useBusinessDetails } from '../../hooks/useBusinessDetails';
 import { useBusinessStore } from '../../store/businesses/businessStore';
 import { BusinessDto } from '../../types/businesses/businessModel';
 import { ImageUploader } from '../../components/ImageUploader';
+import { featuredAdminService, featuredErrorText, formatDate } from '../../services/business/featuredAdminService';
+import FeatureDialog, { type FeatureTarget } from './FeatureDialog';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -113,6 +117,10 @@ export default function BusinessDetails() {
 
     // Fetch Data
     const { data: business, isLoading, isError, refetch } = useBusinessDetails(id);
+    // Süresi dolup zamanlayıcının henüz kapatmadığı kayıt öne çıkıyor sayılmaz.
+    const featuredEndMs = business?.featuredEndDate ? new Date(business.featuredEndDate).getTime() : 0;
+    const featuredActive = Boolean(business?.globallyFeatured) && (!business?.featuredEndDate || featuredEndMs > Date.now());
+    const featuredDaysLeft = featuredEndMs ? Math.max(0, Math.ceil((featuredEndMs - Date.now()) / 86_400_000)) : 0;
 
     // Local State
     const [tabValue, setTabValue] = useState(0);
@@ -122,9 +130,8 @@ export default function BusinessDetails() {
     const [galleryImages, setGalleryImages] = useState<File[]>([]);
     
     // Feature Config State
-    const [durationInDays, setDurationInDays] = useState<number>(30);
-    const [featuredRadiusInKm, setFeaturedRadiusInKm] = useState<number>(10);
-    const [featuredTab, setFeaturedTab] = useState(0);
+    const [featureTarget, setFeatureTarget] = useState<FeatureTarget | null>(null);
+    const [unfeatureOpen, setUnfeatureOpen] = useState(false);
 
     // Sync edited state when business loads
     useEffect(() => {
@@ -194,37 +201,16 @@ export default function BusinessDetails() {
         }
     };
 
-    const handleSetGlobalFeatured = async () => {
-        if (!business) return;
-        try {
-            await businessStore.setBusinessAsGloballyFeatured(business.ownerId, business.id, durationInDays);
-            enqueueSnackbar('Global öne çıkan olarak ayarlandı', { variant: 'success' });
-            refetch();
-        } catch (error) {
-            enqueueSnackbar('Global öne çıkarma ayarlanamadı', { variant: 'error' });
-        }
-    };
-
-    const handleSetLocalFeatured = async () => {
-        if (!business) return;
-        try {
-            await businessStore.setBusinessAsLocallyFeatured(business.ownerId, business.id, durationInDays, featuredRadiusInKm);
-            enqueueSnackbar('Yerel öne çıkan olarak ayarlandı', { variant: 'success' });
-            refetch();
-        } catch (error) {
-            enqueueSnackbar('Yerel öne çıkarma ayarlanamadı', { variant: 'error' });
-        }
-    };
-
     const handleRemoveFeatured = async () => {
         if (!business) return;
         try {
-            await businessStore.removeFeaturedStatus(business.id);
-            enqueueSnackbar('Öne çıkan durumu kaldırıldı', { variant: 'success' });
+            await featuredAdminService.unfeature(business.id);
+            enqueueSnackbar('Öne çıkarma iptal edildi.', { variant: 'success' });
             refetch();
         } catch (error) {
-            enqueueSnackbar('Öne çıkan durumu kaldırılamadı', { variant: 'error' });
+            enqueueSnackbar(featuredErrorText(error), { variant: 'error' });
         }
+        setUnfeatureOpen(false);
     };
 
     if (isLoading) {
@@ -357,186 +343,61 @@ export default function BusinessDetails() {
                         </Card>
 
 
-                        {/* Featured Actions Card - Refactored */}
+                        {/* Öne çıkarma: yalnız genel (yerel şimdilik kapalı) */}
                         <Card elevation={0} sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
-                            <CardContent sx={{ p: 0 }}>
-                                <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2, pt: 2 }}>
-                                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                                        Öne Çıkarma Yönetimi
-                                    </Typography>
-                                    <Tabs  
-                                        value={featuredTab} 
-                                        onChange={(_e, v) => setFeaturedTab(v)}
-                                        variant="fullWidth"
-                                        sx={{ minHeight: 40 }}
-                                    >
-                                        <Tab 
-                                            label="Küresel"
-                                            icon={<StarIcon sx={{ fontSize: 18 }} />} 
-                                            iconPosition="start"
-                                            sx={{ minHeight: 40, py: 1 }}
-                                        />
-                                        <Tab 
-                                            label="Yerel"
-                                            icon={<LocationIcon sx={{ fontSize: 18 }} />} 
-                                            iconPosition="start" 
-                                            sx={{ minHeight: 40, py: 1 }}
-                                        />
-                                    </Tabs>
-                                </Box>
-
-                                {/* GLOBAL TAB */}
-                                <TabPanel value={featuredTab} index={0}>
-                                    {business.globallyFeatured ? (
-                                        <Stack spacing={2} alignItems="center" textAlign="center">
-                                            <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', width: 56, height: 56 }}>
-                                                <StarIcon fontSize="large" />
-                                            </Avatar>
-                                            <Box>
-                                                <Typography variant="h6" color="primary.main">Aktif Küresel Öne Çıkarma</Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Tüm platformda tanıtılıyor.
-                                                </Typography>
-                                            </Box>
-                                            
-                                            <Paper variant="outlined" sx={{ width: '100%', p: 2, borderRadius: 2, bgcolor: 'background.default' }}>
-                                                <Stack spacing={1}>
-                                                    <Box display="flex" justifyContent="space-between">
-                                                        <Typography variant="caption" color="text.secondary">Kalan Gün</Typography>
-                                                        <Typography variant="body2" fontWeight="bold">{business.remainingFeaturedDays || 0} gün</Typography>
-                                                    </Box>
-                                                    <Divider />
-                                                    <Box display="flex" justifyContent="space-between">
-                                                        <Typography variant="caption" color="text.secondary">Bitiş Tarihi</Typography>
-                                                        <Typography variant="body2" fontWeight="bold">
-                                                            {business.featuredEndDate ? new Date(business.featuredEndDate).toLocaleDateString() : 'N/A'}
-                                                        </Typography>
-                                                    </Box>
-                                                </Stack>
-                                            </Paper>
-
-                                            <Button 
-                                                fullWidth 
-                                                variant="outlined" 
-                                                color="error"
-                                                onClick={handleRemoveFeatured}
-                                            >
-                                                Küresel Öne Çıkarmayı İptal Et
-                                            </Button>
+                            <CardContent>
+                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                                    <StarIcon sx={{ color: featuredActive ? '#f59e0b' : 'text.disabled' }} />
+                                    <Typography variant="subtitle1" fontWeight="bold">Öne çıkarma</Typography>
+                                    <Box sx={{ flex: 1 }} />
+                                    <Chip size="small" label={featuredActive ? 'Öne çıkıyor' : 'Öne çıkmıyor'} color={featuredActive ? 'warning' : 'default'} variant={featuredActive ? 'filled' : 'outlined'} />
+                                </Stack>
+                                {featuredActive ? (
+                                    <Stack spacing={1.5}>
+                                        <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: 'background.default' }}>
+                                            <Stack spacing={0.75}>
+                                                <Box display="flex" justifyContent="space-between">
+                                                    <Typography variant="caption" color="text.secondary">Bitiş</Typography>
+                                                    <Typography variant="body2" fontWeight="bold">{formatDate(business.featuredEndDate ?? null)}</Typography>
+                                                </Box>
+                                                <Box display="flex" justifyContent="space-between">
+                                                    <Typography variant="caption" color="text.secondary">Kalan</Typography>
+                                                    <Typography variant="body2" fontWeight="bold">{featuredDaysLeft} gün</Typography>
+                                                </Box>
+                                                <Box display="flex" justifyContent="space-between">
+                                                    <Typography variant="caption" color="text.secondary">Gösterim / tıklama</Typography>
+                                                    <Typography variant="body2" fontWeight="bold">{business.featuredViewsCount || 0} / {business.featuredClicksCount || 0}</Typography>
+                                                </Box>
+                                            </Stack>
+                                        </Paper>
+                                        <Stack direction="row" spacing={1}>
+                                            <Button fullWidth variant="contained" onClick={() => setFeatureTarget({ id: business.id, name: business.name, activeUntil: business.featuredEndDate ?? null })}>Süreyi uzat</Button>
+                                            <Button fullWidth variant="outlined" color="error" onClick={() => setUnfeatureOpen(true)}>İptal et</Button>
                                         </Stack>
-                                    ) : (
-                                        <Stack spacing={2}>
-                                            <Alert severity="info" sx={{ py: 0 }}>
-                                                Küresel öne çıkarma, bu işletmeyi konumdan bağımsız olarak tüm kullanıcılara tanıtır.
-                                            </Alert>
-                                            <TextField
-                                                label="Süre (Gün)"
-                                                type="number"
-                                                size="small"
-                                                value={durationInDays}
-                                                onChange={(e) => setDurationInDays(Number(e.target.value))}
-                                                fullWidth
-                                                InputProps={{
-                                                    endAdornment: <InputAdornment position="end">Gün</InputAdornment>,
-                                                }}
-                                            />
-                                            <Button 
-                                                fullWidth 
-                                                variant="contained" 
-                                                onClick={handleSetGlobalFeatured}
-                                                startIcon={<TrendingUpIcon />}
-                                            >
-                                                Küresel Öne Çıkar
-                                            </Button>
-                                        </Stack>
-                                    )}
-                                </TabPanel>
-
-                                {/* LOCAL TAB */}
-                                <TabPanel value={featuredTab} index={1}>
-                                    {business.locallyFeatured ? (
-                                        <Stack spacing={2} alignItems="center" textAlign="center">
-                                            <Avatar sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.1), color: 'secondary.main', width: 56, height: 56 }}>
-                                                <LocationIcon fontSize="large" />
-                                            </Avatar>
-                                            <Box>
-                                                <Typography variant="h6" color="secondary.main">Aktif Yerel Öne Çıkarma</Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    <strong>{business.featuredRadiusKm || featuredRadiusInKm} km</strong> içindeki kullanıcılara tanıtılıyor.
-                                                </Typography>
-                                            </Box>
-
-                                            <Paper variant="outlined" sx={{ width: '100%', p: 2, borderRadius: 2, bgcolor: 'background.default' }}>
-                                                <Stack spacing={1}>
-                                                    <Box display="flex" justifyContent="space-between">
-                                                        <Typography variant="caption" color="text.secondary">Yarıçap</Typography>
-                                                        <Typography variant="body2" fontWeight="bold">{business.featuredRadiusKm} km</Typography>
-                                                    </Box>
-                                                    <Divider />
-                                                    <Box display="flex" justifyContent="space-between">
-                                                        <Typography variant="caption" color="text.secondary">Kalan Gün</Typography>
-                                                        <Typography variant="body2" fontWeight="bold">{business.remainingFeaturedDays || 0} gün</Typography>
-                                                    </Box>
-                                                    <Divider />
-                                                    <Box display="flex" justifyContent="space-between">
-                                                        <Typography variant="caption" color="text.secondary">Bitiş Tarihi</Typography>
-                                                        <Typography variant="body2" fontWeight="bold">
-                                                            {business.featuredEndDate ? new Date(business.featuredEndDate).toLocaleDateString() : 'N/A'}
-                                                        </Typography>
-                                                    </Box>
-                                                </Stack>
-                                            </Paper>
-
-                                            <Button 
-                                                fullWidth 
-                                                variant="outlined" 
-                                                color="error"
-                                                onClick={handleRemoveFeatured}
-                                            >
-                                                Yerel Öne Çıkarmayı İptal Et
-                                            </Button>
-                                        </Stack>
-                                    ) : (
-                                        <Stack spacing={2}>
-                                            <Alert severity="info" sx={{ py: 0 }}>
-                                                Yerel öne çıkarma, bu işletmenin yakınındaki kullanıcılar için görünürlüğü artırır.
-                                            </Alert>
-                                            <TextField
-                                                label="Süre (Gün)"
-                                                type="number"
-                                                size="small"
-                                                value={durationInDays}
-                                                onChange={(e) => setDurationInDays(Number(e.target.value))}
-                                                fullWidth
-                                                InputProps={{
-                                                    endAdornment: <InputAdornment position="end">Gün</InputAdornment>,
-                                                }}
-                                            />
-                                            <TextField
-                                                label="Yarıçap (Km)"
-                                                type="number"
-                                                size="small"
-                                                value={featuredRadiusInKm}
-                                                onChange={(e) => setFeaturedRadiusInKm(Number(e.target.value))}
-                                                fullWidth
-                                                InputProps={{
-                                                    endAdornment: <InputAdornment position="end">Km</InputAdornment>,
-                                                }}
-                                            />
-                                            <Button 
-                                                fullWidth 
-                                                variant="contained" 
-                                                color="secondary"
-                                                onClick={handleSetLocalFeatured}
-                                                startIcon={<LocationIcon />}
-                                            >
-                                                Yerel Öne Çıkar
-                                            </Button>
-                                        </Stack>
-                                    )}
-                                </TabPanel>
+                                    </Stack>
+                                ) : (
+                                    <Stack spacing={1.5}>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Öne çıkan işletme ana sayfada ve işletmeler listesinde, konumdan bağımsız olarak en üstte gösterilir.
+                                        </Typography>
+                                        <Button fullWidth variant="contained" startIcon={<StarIcon />} onClick={() => setFeatureTarget({ id: business.id, name: business.name, activeUntil: null })}>
+                                            Öne çıkar
+                                        </Button>
+                                    </Stack>
+                                )}
                             </CardContent>
                         </Card>
+                        <FeatureDialog target={featureTarget} onClose={() => setFeatureTarget(null)} onDone={() => refetch()} />
+                        <Dialog open={unfeatureOpen} onClose={() => setUnfeatureOpen(false)} maxWidth="xs" fullWidth>
+                            <DialogTitle sx={{ fontWeight: 700 }}>Öne çıkarmayı iptal et</DialogTitle>
+                            <DialogContent>
+                                <Typography variant="body2" color="text.secondary">{business.name} hemen öne çıkanlardan kalkar; kalan süre geri gelmez.</Typography>
+                            </DialogContent>
+                            <DialogActions>
+                                <Button color="inherit" onClick={() => setUnfeatureOpen(false)}>Vazgeç</Button>
+                                <Button color="error" variant="contained" onClick={() => void handleRemoveFeatured()}>İptal et</Button>
+                            </DialogActions>
+                        </Dialog>
 
                          {/* Admin Actions */}
                          <Card elevation={0} sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>

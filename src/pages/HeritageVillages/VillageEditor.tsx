@@ -8,8 +8,9 @@ import { useSnackbar } from 'notistack';
 import { errorText } from '../../services/heritageReviewService';
 import {
   ACTION_LABEL, CONFIDENCE_LABEL, COUNTRIES, PRECISION_LABEL, countryLabel, emptyBody, heritageVillageService,
-  type FamilyOption, type GeoCandidate, type Precision, type VillageBody, type VillageCheck, type VillageDetail,
+  type FamilyOption, type GeoCandidate, type Precision, type VillageBody, type VillageCheck, type VillageContributions, type VillageDetail,
 } from '../../services/heritageVillageService';
+import ContributionsTab from './ContributionsTab';
 import GeocodeFinder from './GeocodeFinder';
 import PickMap, { type LatLng } from './PickMap';
 
@@ -25,7 +26,10 @@ const complete = (b: VillageBody) => b.officialName.trim().length >= 2 && b.prov
  * Köy ekleme / düzenleme penceresi. Yeni köyde önce bilgiler ve konum; kaydedince Çerkesçe ad, sülale ve geçmiş sekmeleri açılır.
  * Konum: haritaya tıkla, iğneyi sürükle ya da "Konumu bul" ile Google/OpenStreetMap'ten çek. Uyarılar kaydetmeden önce canlı gösterilir.
  */
-export default function VillageEditor({ villageId, onClose, onChanged }: { villageId: string | 'new'; onClose: () => void; onChanged: () => void }) {
+/** Sekmeler: 0 bilgiler, 1 kullanıcı katkıları, 2 Çerkesçe adlar, 3 sülaleler, 4 geçmiş. */
+export const CONTRIBUTIONS_TAB = 1;
+
+export default function VillageEditor({ villageId, onClose, onChanged, initialTab = 0 }: { villageId: string | 'new'; onClose: () => void; onChanged: () => void; initialTab?: number }) {
   const { enqueueSnackbar } = useSnackbar();
   const [id, setId] = useState<string | null>(villageId === 'new' ? null : villageId);
   const [detail, setDetail] = useState<VillageDetail | null>(null);
@@ -35,7 +39,8 @@ export default function VillageEditor({ villageId, onClose, onChanged }: { villa
   const [error, setError] = useState('');
   const [check, setCheck] = useState<VillageCheck | null>(null);
   const [focus, setFocus] = useState<LatLng | null>(null);
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(initialTab);
+  const [contrib, setContrib] = useState<VillageContributions | null>(null);
 
   const load = useCallback(async (target: string) => {
     setLoading(true);
@@ -46,7 +51,12 @@ export default function VillageEditor({ villageId, onClose, onChanged }: { villa
     } catch (e) { setError(errorText(e)); } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { if (id) void load(id); }, [id, load]);
+  const loadContrib = useCallback(async (target: string) => {
+    try { setContrib(await heritageVillageService.contributions(target)); } catch { setContrib(null); }
+  }, []);
+
+  useEffect(() => { if (id) { void load(id); void loadContrib(id); } }, [id, load, loadContrib]);
+  const contribCount = contrib ? contrib.pending.length + contrib.community.length + contrib.tasks.length : 0;
 
   const set = <K extends keyof VillageBody>(key: K, value: VillageBody[K]) => setBody((b) => ({ ...b, [key]: value, ...(key === 'latitude' || key === 'longitude' || key === 'officialName' ? { duplicateReviewed: false } : {}) }));
 
@@ -88,7 +98,7 @@ export default function VillageEditor({ villageId, onClose, onChanged }: { villa
       } else {
         const created = await heritageVillageService.create(body);
         enqueueSnackbar('Köy eklendi. Şimdi Çerkesçe ad ve sülale ekleyebilirsiniz.', { variant: 'success' });
-        setId(created.id); setTab(1);
+        setId(created.id); setTab(2);
       }
       onChanged();
     } catch (e) { setError(errorText(e)); } finally { setSaving(false); }
@@ -129,6 +139,7 @@ export default function VillageEditor({ villageId, onClose, onChanged }: { villa
           <>
             <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
               <Tab label="Bilgiler ve konum" />
+              <Tab disabled={!id} label={<Stack direction="row" spacing={1} alignItems="center"><span>Kullanıcı katkıları</span>{contribCount > 0 && <Chip size="small" color="warning" label={contribCount} />}</Stack>} />
               <Tab label="Çerkesçe adlar" disabled={!id} />
               <Tab label="Sülaleler" disabled={!id} />
               <Tab label="Geçmiş" disabled={!id} />
@@ -172,9 +183,10 @@ export default function VillageEditor({ villageId, onClose, onChanged }: { villa
                 </Stack>
               </Box>
             )}
-            {tab === 1 && id && detail && <NamesTab detail={detail} onChange={() => { void load(id); onChanged(); }} />}
-            {tab === 2 && id && detail && <FamiliesTab detail={detail} onChange={() => { void load(id); onChanged(); }} />}
-            {tab === 3 && detail && <LogTab detail={detail} />}
+            {tab === 1 && id && (contrib ? <ContributionsTab villageId={id} data={contrib} onChange={() => { void loadContrib(id); void load(id); onChanged(); }} /> : <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress size={24} /></Box>)}
+            {tab === 2 && id && detail && <NamesTab detail={detail} onChange={() => { void load(id); onChanged(); }} />}
+            {tab === 3 && id && detail && <FamiliesTab detail={detail} onChange={() => { void load(id); onChanged(); }} />}
+            {tab === 4 && detail && <LogTab detail={detail} />}
           </>
         )}
       </DialogContent>

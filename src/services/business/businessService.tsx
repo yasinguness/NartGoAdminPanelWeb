@@ -175,6 +175,7 @@ export const businessService = {
         const response = await api.get<ApiResponse<PageResponseDto<BusinessDto>>>('/businesses', {
             params: {
                 keyword: params.keyword,
+                status: params.status,
                 includeUnverified: params.includeUnverified || true,
                 includeInactive: params.includeInactive || true,
                 categoryId: params.categoryId,

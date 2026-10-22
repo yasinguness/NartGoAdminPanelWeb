@@ -2,7 +2,7 @@
  * Businesses — Premium Card-Based Redesign
  * Matching Events page pattern with glass cards, chip filters, stat cards.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Stack, Avatar, TextField, Chip, IconButton, Menu, MenuItem, ListItemIcon, ListItemText,
@@ -15,7 +15,7 @@ import {
   Favorite as FavoriteIcon, Delete as DeleteIcon,
   MoreVert as MoreIcon, LocationOn as LocationIcon,
   CheckCircle as CheckIcon,
-  Refresh as RefreshIcon,
+  Refresh as RefreshIcon, StarBorder as StarBorderIcon, EventRepeat as ExtendIcon, StarHalf as UnfeatureIcon,
 } from '@mui/icons-material';
 import { debounce } from 'lodash';
 import { useSnackbar } from 'notistack';
@@ -24,6 +24,8 @@ import { useBusinessStore } from '../../store/businesses/businessStore';
 import { useBusinessCategory } from '../../hooks/useBusinessCategory';
 import { BusinessDto, BusinessStatus } from '../../types/businesses/businessModel';
 import { PageContainer, PageHeader } from '../../components/Page';
+import { featuredAdminService, featuredErrorText, formatDate, type FeaturedList, type FeaturedItem } from '../../services/business/featuredAdminService';
+import FeatureDialog, { type FeatureTarget } from './FeatureDialog';
 
 // ─── PREMIUM STYLES ──────────────────────────────────────
 const glassCardSx = {
@@ -85,10 +87,16 @@ export default function Businesses() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Featured dialog
-  const [featuredOpen, setFeaturedOpen] = useState(false);
-  const [featuredBusiness, setFeaturedBusiness] = useState<BusinessDto | null>(null);
-  const [featuredDays, setFeaturedDays] = useState(30);
+  // Öne çıkarma: liste sunucudan (sayfadan bağımsız, süresi dolanlar hariç), yalnız genel öne çıkarma.
+  const [featured, setFeatured] = useState<FeaturedList | null>(null);
+  const [featureTarget, setFeatureTarget] = useState<FeatureTarget | null>(null);
+  const [unfeatureTarget, setUnfeatureTarget] = useState<{ id: string; name: string } | null>(null);
+  const loadFeatured = useCallback(() => {
+    featuredAdminService.list().then(setFeatured).catch((e) => enqueueSnackbar(featuredErrorText(e), { variant: 'error' }));
+  }, [enqueueSnackbar]);
+  useEffect(() => { loadFeatured(); }, [loadFeatured]);
+  const featuredById = useMemo(() => new Map((featured?.items ?? []).map((f) => [f.id, f])), [featured]);
+  const openFeature = (id: string, name: string) => setFeatureTarget({ id, name, activeUntil: featuredById.get(id)?.featuredEndDate ?? null });
 
   // Query
   const queryParams = useMemo(() => ({
@@ -97,7 +105,6 @@ export default function Businesses() {
     status: activeFilter === 'active' ? BusinessStatus.ACTIVE
       : activeFilter === 'inactive' ? BusinessStatus.INACTIVE
       : activeFilter === 'pending' ? BusinessStatus.PENDING : undefined,
-    featuredOnly: activeFilter === 'featured' || undefined,
     includeUnverified: true, includeInactive: true,
   }), [page, searchKeyword, selectedCategory, activeFilter]);
 
@@ -117,14 +124,13 @@ export default function Businesses() {
   const stats = useMemo(() => ({
     total: totalElements,
     verified: businesses.filter(b => b.verified).length,
-    featured: businesses.filter(b => b.globallyFeatured || b.locallyFeatured).length,
+    featured: featured?.count ?? 0,
     totalViews: businesses.reduce((sum, b) => sum + (b.viewCount || 0), 0),
-  }), [businesses, totalElements]);
+  }), [businesses, totalElements, featured]);
 
   // Filter by verified (client-side for current page)
   const filteredBusinesses = useMemo(() => {
     if (activeFilter === 'verified') return businesses.filter(b => b.verified);
-    if (activeFilter === 'featured') return businesses.filter(b => b.globallyFeatured || b.locallyFeatured);
     return businesses;
   }, [businesses, activeFilter]);
 
@@ -154,14 +160,16 @@ export default function Businesses() {
     setDeleteOpen(false); setDeletingId(null);
   };
 
-  const handleSetFeatured = async () => {
-    if (!featuredBusiness) return;
+  const afterFeatureChange = () => { loadFeatured(); resp.refetch(); };
+
+  const handleUnfeature = async () => {
+    if (!unfeatureTarget) return;
     try {
-      await businessStore.setBusinessAsGloballyFeatured(featuredBusiness.ownerId, featuredBusiness.id, featuredDays);
-      enqueueSnackbar('İşletme öne çıkan olarak ayarlandı', { variant: 'success' });
-      resp.refetch();
-    } catch { enqueueSnackbar('İşlem başarısız', { variant: 'error' }); }
-    setFeaturedOpen(false); setFeaturedBusiness(null);
+      await featuredAdminService.unfeature(unfeatureTarget.id);
+      enqueueSnackbar(`${unfeatureTarget.name}: öne çıkarma iptal edildi.`, { variant: 'success' });
+      afterFeatureChange();
+    } catch (e) { enqueueSnackbar(featuredErrorText(e), { variant: 'error' }); }
+    setUnfeatureTarget(null);
   };
 
   // ─── RENDER ───────────────────────────────────────
@@ -197,7 +205,7 @@ export default function Businesses() {
           {[
             { label: 'Toplam İşletme', value: stats.total, icon: <BusinessIcon />, color: '#1e6b3c' },
             { label: 'Doğrulanmış', value: stats.verified, icon: <VerifiedIcon />, color: '#3b82f6' },
-            { label: 'Öne Çıkan', value: stats.featured, icon: <StarIcon />, color: '#f59e0b' },
+            { label: featured?.endingSoon ? `Öne Çıkan · ${featured.endingSoon} tanesi 7 günde bitiyor` : 'Öne Çıkan', value: stats.featured, icon: <StarIcon />, color: '#f59e0b' },
             { label: 'Toplam Görüntülenme', value: stats.totalViews.toLocaleString('tr-TR'), icon: <ViewIcon />, color: '#8b5cf6' },
           ].map((stat, i) => (
             <Grid item xs={12} sm={6} md={3} key={i}>
@@ -270,6 +278,11 @@ export default function Businesses() {
         )}
 
         {/* ═══ BUSINESS LIST ═══ */}
+        {activeFilter === 'featured' ? (
+          <FeaturedPanel data={featured} onOpen={(id) => navigate(`/businesses/${id}`)}
+            onExtend={(f) => setFeatureTarget({ id: f.id, name: f.name, activeUntil: f.featuredEndDate })}
+            onCancel={(f) => setUnfeatureTarget({ id: f.id, name: f.name })} />
+        ) : (
         <Stack spacing={2}>
           {resp.isLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
@@ -295,7 +308,7 @@ export default function Businesses() {
                 <Box key={biz.id} sx={glassCardSx} onClick={() => navigate(`/businesses/${biz.id}`)}>
                   <Box sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', md: '64px 1.5fr 1fr 1.2fr 48px' },
+                    gridTemplateColumns: { xs: '1fr', md: '64px 1.5fr 1fr 1.2fr 84px' },
                     gap: 3, alignItems: 'center', p: 2.5,
                   }}>
                     {/* Avatar */}
@@ -370,10 +383,12 @@ export default function Businesses() {
                         variant="outlined"
                         sx={{ fontWeight: 700, fontSize: 10, height: 22 }}
                       />
-                      {(biz.globallyFeatured || biz.locallyFeatured) && (
-                        <Chip label="Öne Çıkan" size="small"
-                          sx={{ fontWeight: 700, fontSize: 10, height: 22, bgcolor: alpha('#f59e0b', 0.1), color: '#b45309', borderColor: alpha('#f59e0b', 0.3), border: '1px solid' }}
-                        />
+                      {featuredById.has(biz.id) && (
+                        <Tooltip title={`${formatDate(featuredById.get(biz.id)!.featuredEndDate)} tarihine kadar`}>
+                          <Chip icon={<StarIcon sx={{ fontSize: 14, color: '#b45309 !important' }} />} label={`Öne çıkan · ${remainingText(featuredById.get(biz.id)!)}`} size="small"
+                            sx={{ fontWeight: 700, fontSize: 10, height: 22, bgcolor: alpha('#f59e0b', 0.1), color: '#b45309', borderColor: alpha('#f59e0b', 0.3), border: '1px solid' }}
+                          />
+                        </Tooltip>
                       )}
                       {hasIncompleteProfile && (
                         <Chip label="Eksik Profil" size="small"
@@ -382,20 +397,28 @@ export default function Businesses() {
                       )}
                     </Stack>
 
-                    {/* Kebab Menu */}
+                    {/* Öne çıkar kısayolu + menü */}
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Tooltip title={featuredById.has(biz.id) ? 'Öne çıkarma süresini değiştir' : 'Öne çıkar'}>
+                      <IconButton size="small" onClick={(e) => { e.stopPropagation(); openFeature(biz.id, biz.name); }}>
+                        {featuredById.has(biz.id) ? <StarIcon fontSize="small" sx={{ color: '#f59e0b' }} /> : <StarBorderIcon fontSize="small" />}
+                      </IconButton>
+                    </Tooltip>
                     <IconButton size="small" onClick={(e) => handleMenuOpen(e, biz)}
                       sx={{ '&:hover': { bgcolor: alpha('#000', 0.04) } }}>
                       <MoreIcon fontSize="small" />
                     </IconButton>
+                    </Stack>
                   </Box>
                 </Box>
               );
             })
           )}
         </Stack>
+        )}
 
         {/* ═══ PAGINATION ═══ */}
-        {totalPages > 1 && (
+        {activeFilter !== 'featured' && totalPages > 1 && (
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 3, px: 1 }}>
             <Typography variant="caption" color="text.secondary" fontWeight={500}>
               {totalElements} işletme · Sayfa {page} / {totalPages}
@@ -418,10 +441,21 @@ export default function Businesses() {
           <ListItemIcon><CheckIcon fontSize="small" color={menuBusiness?.verified ? 'error' : 'success'} /></ListItemIcon>
           <ListItemText>{menuBusiness?.verified ? 'Doğrulamayı Kaldır' : 'Doğrula'}</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => { setFeaturedBusiness(menuBusiness); setFeaturedOpen(true); setAnchorEl(null); }}>
-          <ListItemIcon><StarIcon fontSize="small" sx={{ color: '#f59e0b' }} /></ListItemIcon>
-          <ListItemText>Öne Çıkar</ListItemText>
-        </MenuItem>
+        {menuBusiness && featuredById.has(menuBusiness.id) ? [
+          <MenuItem key="extend" onClick={() => { openFeature(menuBusiness.id, menuBusiness.name); setAnchorEl(null); }}>
+            <ListItemIcon><ExtendIcon fontSize="small" sx={{ color: '#f59e0b' }} /></ListItemIcon>
+            <ListItemText primary="Süreyi uzat / değiştir" secondary={`Bitiş: ${formatDate(featuredById.get(menuBusiness.id)!.featuredEndDate)}`} />
+          </MenuItem>,
+          <MenuItem key="cancel" onClick={() => { setUnfeatureTarget({ id: menuBusiness.id, name: menuBusiness.name }); setAnchorEl(null); }}>
+            <ListItemIcon><UnfeatureIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Öne çıkarmayı iptal et</ListItemText>
+          </MenuItem>,
+        ] : (
+          <MenuItem onClick={() => { if (menuBusiness) openFeature(menuBusiness.id, menuBusiness.name); setAnchorEl(null); }}>
+            <ListItemIcon><StarIcon fontSize="small" sx={{ color: '#f59e0b' }} /></ListItemIcon>
+            <ListItemText>Öne çıkar</ListItemText>
+          </MenuItem>
+        )}
         <Divider />
         <MenuItem onClick={() => { setDeletingId(menuBusiness?.id || null); setDeleteOpen(true); setAnchorEl(null); }}
           sx={{ color: 'error.main' }}>
@@ -447,28 +481,77 @@ export default function Businesses() {
         </DialogActions>
       </Dialog>
 
-      {/* ═══ FEATURED DIALOG ═══ */}
-      <Dialog open={featuredOpen} onClose={() => setFeaturedOpen(false)} maxWidth="xs" fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 700 }}>İşletmeyi Öne Çıkar</DialogTitle>
+      {/* ═══ ÖNE ÇIKARMA ═══ */}
+      <FeatureDialog target={featureTarget} onClose={() => setFeatureTarget(null)} onDone={afterFeatureChange} />
+      <Dialog open={Boolean(unfeatureTarget)} onClose={() => setUnfeatureTarget(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>Öne çıkarmayı iptal et</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {featuredBusiness?.name} işletmesini global olarak öne çıkarmak için süre belirleyin.
+          <Typography variant="body2" color="text.secondary">
+            {unfeatureTarget?.name} hemen öne çıkanlardan kalkar; kalan süre geri gelmez. İstersen sonra yeniden öne çıkarabilirsin.
           </Typography>
-          <TextField
-            fullWidth type="number" label="Süre (gün)" value={featuredDays}
-            onChange={(e) => setFeaturedDays(Number(e.target.value))}
-            helperText="İşletme bu süre boyunca öne çıkarılır"
-          />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setFeaturedOpen(false)} color="inherit">İptal</Button>
-          <Button onClick={handleSetFeatured} variant="contained"
-            sx={{ fontWeight: 700, bgcolor: '#f59e0b', '&:hover': { bgcolor: '#d97706' } }}>
-            Öne Çıkar
-          </Button>
+          <Button onClick={() => setUnfeatureTarget(null)} color="inherit">Vazgeç</Button>
+          <Button onClick={() => void handleUnfeature()} variant="contained" color="error" sx={{ fontWeight: 700 }}>İptal et</Button>
         </DialogActions>
       </Dialog>
+    </Box>
+  );
+}
+
+const remainingText = (f: FeaturedItem) =>
+  f.remainingDays == null ? 'süresiz' : f.remainingDays === 0 ? 'bugün bitiyor' : `${f.remainingDays} gün kaldı`;
+
+/** Öne çıkanlar sekmesi: bitişi en yakın önce; uzat ve iptal tek tıkla. */
+function FeaturedPanel({ data, onOpen, onExtend, onCancel }: {
+  data: FeaturedList | null; onOpen: (id: string) => void; onExtend: (f: FeaturedItem) => void; onCancel: (f: FeaturedItem) => void;
+}) {
+  if (!data) return <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center' }}>Yükleniyor…</Typography>;
+  if (data.items.length === 0) {
+    return (
+      <Box sx={{ py: 10, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+        <StarBorderIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+        <Typography variant="h6" fontWeight={700}>Şu an öne çıkan işletme yok</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>"Tümü" sekmesinde bir işletmenin yıldızına basarak öne çıkarabilirsin.</Typography>
+      </Box>
+    );
+  }
+  return (
+    <Box sx={{ bgcolor: 'background.paper', borderRadius: 3, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+      {data.items.map((f, i) => {
+        const total = f.featuredStartDate && f.featuredEndDate ? new Date(f.featuredEndDate).getTime() - new Date(f.featuredStartDate).getTime() : 0;
+        const left = f.featuredEndDate ? new Date(f.featuredEndDate).getTime() - Date.now() : 0;
+        const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((left / total) * 100))) : 100;
+        const soon = f.remainingDays != null && f.remainingDays <= 7;
+        return (
+          <Box key={f.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '48px 1.6fr 1.4fr 0.8fr auto' }, gap: 2, alignItems: 'center', px: 2.5, py: 2,
+            borderTop: i ? '1px solid' : 'none', borderColor: 'divider' }}>
+            <Avatar src={f.profileImageUrl ?? undefined} variant="rounded" sx={{ width: 48, height: 48, borderRadius: 2 }}>{f.name?.[0]}</Avatar>
+            <Box sx={{ cursor: 'pointer', minWidth: 0 }} onClick={() => onOpen(f.id)}>
+              <Typography fontWeight={700} noWrap>{f.name}</Typography>
+              <Typography variant="caption" color="text.secondary">{[f.categoryName, f.city].filter(Boolean).join(' · ') || '—'}{f.status && f.status !== 'ACTIVE' ? ' · pasif (öne çıkanlarda görünmez)' : ''}</Typography>
+            </Box>
+            <Box>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="caption" fontWeight={700} color={soon ? 'warning.dark' : 'text.primary'}>{remainingText(f)}</Typography>
+                <Typography variant="caption" color="text.secondary">{formatDate(f.featuredEndDate)}</Typography>
+              </Stack>
+              <Box sx={{ mt: 0.5, height: 6, borderRadius: 3, bgcolor: alpha('#f59e0b', 0.15), overflow: 'hidden' }}>
+                <Box sx={{ width: `${pct}%`, height: '100%', bgcolor: soon ? '#d97706' : '#f59e0b' }} />
+              </Box>
+              <Typography variant="caption" color="text.disabled">Başlangıç: {formatDate(f.featuredStartDate)}</Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{f.views.toLocaleString('tr-TR')} gösterim</Typography>
+              <Typography variant="caption" color="text.secondary">{f.clicks.toLocaleString('tr-TR')} tıklama</Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              <Button size="small" variant="outlined" startIcon={<ExtendIcon />} onClick={() => onExtend(f)} sx={{ textTransform: 'none', borderRadius: 2 }}>Süreyi uzat</Button>
+              <Button size="small" color="error" onClick={() => onCancel(f)} sx={{ textTransform: 'none', borderRadius: 2 }}>İptal et</Button>
+            </Stack>
+          </Box>
+        );
+      })}
     </Box>
   );
 }
