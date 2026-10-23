@@ -137,25 +137,18 @@ export default function HeritageLocations() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, il, visible.length]);
 
-  const current: QueueItem | undefined = items.find((q) => q.id === sel);
+  const [previews, setPreviews] = useState<Record<string, { key: string; data: ReviewDetail }>>({});
+  const baseCurrent: QueueItem | undefined = items.find((q) => q.id === sel);
+  const current: QueueItem | undefined = useMemo(() => {
+    const prev = sel ? previews[sel]?.data : undefined;
+    return baseCurrent && prev ? { ...baseCurrent, pointDistrict: prev.pointDistrict, recommendation: prev.recommendation } : baseCurrent;
+  }, [baseCurrent, previews, sel]);
   const baseDetail = sel ? details[sel] : undefined;
-  // Nokta sonradan konunca (ya da taşınınca) çıkan yakın tekrarlar sunucudan ayrıca sorulur; kontrollere eklenir.
-  const [movedNearby, setMovedNearby] = useState<Record<string, { key: string; items: Awaited<ReturnType<typeof heritageReviewService.nearbyAt>> }>>({});
-  const detail = useMemo(() => {
-    if (!baseDetail || !sel) return baseDetail;
-    const extra = movedNearby[sel]?.items.filter((d) => !baseDetail.checks.some((c) => c.key === `dup:${d.id}`)) ?? [];
-    if (!extra.length) return baseDetail;
-    return {
-      ...baseDetail,
-      checks: [...baseDetail.checks, ...extra.map((d) => ({
-        key: `dup:${d.id}`, mk: (d.distance <= 100 ? 'fail' : 'warn') as 'fail' | 'warn',
-        title: d.distance <= 100 ? `Aynı noktada ikinci kayıt: ${d.name} (${Math.round(d.distance)} m)` : `${d.name} ${meters(Math.round(d.distance))} uzakta`,
-        detail: d.distance <= 100 ? 'Büyük olasılıkla aynı köyün kopyası.' : 'Komşu köy olabilir. Uydu görünümünde iki köy dokusu var mı bak.',
-        options: [{ v: 'merge', label: 'Aynı köy, birleştir' }, { v: 'distinct', label: 'Farklı köy, ayrı tut' }],
-      }))],
-      nearby: [...baseDetail.nearby, ...extra.map((d) => ({ id: d.id, name: d.name, latitude: d.latitude, longitude: d.longitude, distance: d.distance }))],
-    };
-  }, [baseDetail, movedNearby, sel]);
+  // Nokta konulunca/taşınınca kontroller sunucudan yeniden hesaplanır (tek doğruluk kaynağı: onay kuralları ile aynı kod).
+  const pv = sel ? previews[sel]?.data : undefined;
+  const detail = useMemo(() => (baseDetail && pv
+    ? { ...baseDetail, checks: pv.checks, nearby: pv.nearby, boundaries: pv.boundaries, precision: pv.precision }
+    : baseDetail), [baseDetail, pv]);
   useEffect(() => {
     if (!sel) return;
     void fetchDetail(sel);
@@ -177,15 +170,20 @@ export default function HeritageLocations() {
   const areaProvince = (baseDetail?.province?.trim() || area.province.trim());
   const areaDistrict = (baseDetail?.district?.trim() || area.district.trim());
   useEffect(() => {
-    if (!sel || !moved || !areaProvince || !areaDistrict) return;
+    if (!sel || !moved) return;
     const key = `${moved.lat},${moved.lng},${areaProvince},${areaDistrict}`;
-    if (movedNearby[sel]?.key === key) return;
+    if (previews[sel]?.key === key) return;
     let live = true;
-    heritageReviewService.nearbyAt({ latitude: moved.lat, longitude: moved.lng, province: areaProvince, district: areaDistrict })
-      .then((items) => { if (live) setMovedNearby((cur) => ({ ...cur, [sel]: { key, items } })); })
-      .catch(() => { if (live) setMovedNearby((cur) => ({ ...cur, [sel]: { key, items: [] } })); });
+    heritageReviewService.preview(sel, { latitude: moved.lat, longitude: moved.lng, province: areaProvince, district: areaDistrict })
+      .then((data) => {
+        if (!live) return;
+        setPreviews((cur) => ({ ...cur, [sel]: { key, data } }));
+        // Kayıtta il/ilçe yoksa noktanın düştüğü ilçe alanlara yazılır (admin değiştirebilir).
+        if (!areaProvince && !areaDistrict && data.province && data.district) setArea({ province: data.province, district: data.district });
+      })
+      .catch(() => { /* kontrol alınamazsa onayda sunucu aynı kuralları yine uygular ve nedenini söyler */ });
     return () => { live = false; };
-  }, [sel, moved, areaProvince, areaDistrict, movedNearby]);
+  }, [sel, moved, areaProvince, areaDistrict, previews]);
   const point = moved ?? original;
   const st = sel ? status[sel] : undefined;
   const decided = Boolean(st && st.st !== 'skip');
