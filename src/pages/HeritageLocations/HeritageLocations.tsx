@@ -68,6 +68,8 @@ export default function HeritageLocations() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [moving, setMoving] = useState(false);
   const [finding, setFinding] = useState(false);
+  // Kayıtta il/ilçe yoksa (koordinatsız ya da eksik önerilmiş köy) onayla birlikte gönderilir.
+  const [area, setArea] = useState({ province: '', district: '' });
   const [satellite, setSatellite] = useState(false);
   const [rejOpen, setRejOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -140,7 +142,7 @@ export default function HeritageLocations() {
   useEffect(() => {
     if (!sel) return;
     void fetchDetail(sel);
-    setRejOpen(false); setMoreOpen(false); setMoving(false); setFinding(false); setCopied(false); setHistory(null);
+    setRejOpen(false); setMoreOpen(false); setMoving(false); setFinding(false); setArea({ province: '', district: '' }); setCopied(false); setHistory(null);
     const n = nextId(sel, status);
     if (n && n !== sel) void fetchDetail(n); // sıradakini önden yükle
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,10 +230,12 @@ export default function HeritageLocations() {
     } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); }
     finally { setBusy(false); }
   };
+  const missingArea = Boolean(detail && (!detail.province?.trim() || !detail.district?.trim()));
   const approve = (extra: Record<string, string> = {}) => decide({
     action: 'APPROVE',
     resolutions: { ...eff, ...extra },
     ...(moved ? { latitude: moved.lat, longitude: moved.lng } : {}),
+    ...(missingArea && area.province.trim() && area.district.trim() ? { province: area.province.trim(), district: area.district.trim() } : {}),
   }, 'ok');
   const ask = () => decide({ action: 'ASK_COMMUNITY', resolutions: eff }, 'ask');
   const reject = (reason: string) => decide({ action: 'REJECT', rejectReason: reason }, 'rej');
@@ -477,7 +481,12 @@ export default function HeritageLocations() {
                   </div>
                   {finding && (
                     <div style={{ marginTop: 12, textAlign: 'left' }}>
-                      <GeocodeFinder query={detail.name} province={detail.province} district={detail.district} onPick={(c) => { onMapPick({ lat: c.latitude, lng: c.longitude }); setFinding(false); }} />
+                      <GeocodeFinder query={detail.name} province={detail.province} district={detail.district} onPick={(c) => {
+                        onMapPick({ lat: c.latitude, lng: c.longitude });
+                        // Kayıtta il/ilçe yoksa bulunan yerin il/ilçesi önerilir (admin düzeltebilir).
+                        if (missingArea && c.province && c.district) setArea({ province: c.province, district: c.district });
+                        setFinding(false);
+                      }} />
                     </div>
                   )}
                 </div>
@@ -496,9 +505,19 @@ export default function HeritageLocations() {
                 <div className="pEyebrow"><span>{idx >= 0 ? `${idx + 1} / ${visible.length}` : ''}</span><span>{detail.type === 'village' ? 'Yeni köy kaydı' : detail.confidence ? `Kaynak güveni ${detail.confidence}` : 'Mevcut köy'}</span></div>
                 <h2 className="pName">{detail.name}</h2>
                 {detail.oldNames.length > 0 && <div className="ady serif">{detail.oldNames.join(' · ')}</div>}
-                <div className="pPlace">
-                  {detail.province} · {eff.ilce === 'point' && current.pointDistrict ? <><s>{detail.district}</s> → <b>{current.pointDistrict.district}</b></> : detail.district}
-                </div>
+                {missingArea ? (
+                  <div className="pPlace" style={{ display: 'grid', gap: 6 }}>
+                    <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>Kayıtta il ve ilçe yok. Yazın ya da boş bırakın: onaylanınca noktanın düştüğü ilçe kullanılır.</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input className="fsel" style={{ flex: 1, minWidth: 0 }} placeholder="İl" value={area.province} onChange={(e) => setArea((a) => ({ ...a, province: e.target.value }))} />
+                      <input className="fsel" style={{ flex: 1, minWidth: 0 }} placeholder="İlçe" value={area.district} onChange={(e) => setArea((a) => ({ ...a, district: e.target.value }))} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pPlace">
+                    {detail.province} · {eff.ilce === 'point' && current.pointDistrict ? <><s>{detail.district}</s> → <b>{current.pointDistrict.district}</b></> : detail.district}
+                  </div>
+                )}
                 <div className="tags">
                   {detail.groups && <span className="tag">{detail.groups}</span>}
                   {detail.families && <span className="tag">Sülaleler: {detail.families}</span>}

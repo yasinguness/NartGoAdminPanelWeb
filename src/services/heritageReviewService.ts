@@ -104,6 +104,9 @@ export interface DecisionBody {
   longitude?: number;
   rejectReason?: string;
   note?: string;
+  /** Kayıtta il/ilçe yoksa admin'in yazdığı; boşsa sunucu noktanın düştüğü ilçeyi kullanır. */
+  province?: string;
+  district?: string;
 }
 
 export interface DecisionResult {
