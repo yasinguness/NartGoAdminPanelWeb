@@ -209,7 +209,7 @@ export default function HeritageLocations() {
   const pickFix = (key: string, v: string) => {
     setResolution(key, v);
     if (v === 'move' || v === 'place') setMoving(true);
-    else if (key === 'loc' && v === 'hist') { setPoint(null); setMoving(false); }
+    else if (key === 'loc' && (v === 'hist' || v === 'district')) { setPoint(null); setMoving(false); }
   };
   const onMapPick = (p: LatLng) => {
     setPoint(p);
@@ -229,7 +229,8 @@ export default function HeritageLocations() {
     else if (eff.ilce === 'keep') it.push(`İlçe: ${current.district}`);
     if (eff.ilce === 'approx' || eff.precision === 'approx') it.push('Konum yaklaşık');
     if (eff.precision === 'exact') it.push('Konum kesin');
-    if (eff.loc === 'hist') it.push('Tarihî konum');
+    if (eff.loc === 'district' && !moved) it.push('Konum ilçe düzeyinde (haritada nokta olarak çizilmez)');
+    else if (eff.loc === 'hist') it.push('Tarihî konum');
     else if (moved && original) it.push(`Yeni konum, ${meters(distanceM(original, moved))}`);
     else if (moved) it.push('Yeni nokta');
     if (!it.length) it.push('Konum olduğu gibi');
@@ -368,7 +369,8 @@ export default function HeritageLocations() {
   if (decided) primary = { label: 'Sıradaki kayda geç', cls: 'btnP', dis: false, run: () => { const n = nextId(sel, status); if (n) setSel(n); } };
   else if (!detail) primary = { label: 'Onayla', cls: 'btnP', dis: true, run: () => undefined };
   else if (rec?.kind === 'ask' && unresolved.some((c) => c.key === 'loc')) primary = { label: 'Topluluğa sor', cls: 'btnP btnAsk', dis: false, why: "Konum seçersen bu düğme Onayla'ya döner.", run: () => void ask() };
-  else if (!point) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: 'Önce haritada köyün yerine nokta koy.', run: () => undefined };
+  else if (!point && eff.loc !== 'district') primary = { label: 'Onayla', cls: 'btnP', dis: true, why: 'Önce haritada köyün yerine nokta koy ya da "ilçe düzeyinde onayla" seç.', run: () => undefined };
+  else if (eff.loc === 'district' && !point && missingArea && !(area.province.trim() && area.district.trim())) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: 'İlçe düzeyinde onay için il ve ilçeyi yazın.', run: () => undefined };
   else if (unresolved.length) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: `Önce karar ver: ${[...new Set(why)].join(', ')}`, run: () => undefined };
   else primary = { label: 'Onayla', cls: 'btnP', dis: false, run: () => void approve() };
   primaryRef.current = () => { if (!primary.dis && !busy) primary.run(); };

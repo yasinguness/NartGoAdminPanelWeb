@@ -6,7 +6,7 @@ import { api } from './api';
  * Bekleyen konum katkıları ayrı: heritageReviewService (Köy Konumları masası).
  */
 
-export type Precision = 'EXACT' | 'APPROXIMATE' | 'HISTORICAL';
+export type Precision = 'EXACT' | 'APPROXIMATE' | 'HISTORICAL' | 'DISTRICT';
 export type VillageStatus = 'approved' | 'removed';
 
 export interface VillageRow {
@@ -231,7 +231,7 @@ export const CONFIDENCE_LABEL: Record<string, string> = {
   admin_verified: 'Admin teyitli', community_verified: 'Köylü teyitli', source_accepted: 'Kaynaktan kabul', user_corrected: 'Kullanıcı düzeltmesi', automatic: 'Otomatik (teyitsiz)',
 };
 
-export const PRECISION_LABEL: Record<Precision, string> = { EXACT: 'Kesin', APPROXIMATE: 'Yaklaşık', HISTORICAL: 'Tarihî (köy artık orada değil)' };
+export const PRECISION_LABEL: Record<Precision, string> = { EXACT: 'Kesin', APPROXIMATE: 'Yaklaşık', HISTORICAL: 'Tarihî (köy artık orada değil)', DISTRICT: 'İlçe düzeyi (yeri bilinmiyor, haritada nokta olarak çizilmez)' };
 
 export const ACTION_LABEL: Record<string, string> = {
   CREATE: 'Köy eklendi', UPDATE: 'Köy düzenlendi', REMOVE: 'Köy kaldırıldı', RESTORE: 'Köy geri alındı',

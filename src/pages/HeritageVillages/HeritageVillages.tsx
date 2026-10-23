@@ -103,6 +103,7 @@ export default function HeritageVillages() {
                 <TableCell>
                   <Chip size="small" variant="outlined" label={CONFIDENCE_LABEL[v.confidence] ?? v.confidence} color={v.confidence === 'admin_verified' || v.confidence === 'community_verified' ? 'success' : 'default'} />
                   {v.location_precision === 'HISTORICAL' && <Chip size="small" sx={{ ml: 0.5 }} label="Tarihî" />}
+                  {v.location_precision === 'DISTRICT' && <Chip size="small" color="info" variant="outlined" sx={{ ml: 0.5 }} label="İlçe düzeyi" />}
                 </TableCell>
                 <TableCell align="right">{v.family_count}</TableCell>
                 <TableCell>{v.merged_into ? <Chip size="small" label="Birleştirildi" /> : v.status === 'removed' ? <Chip size="small" color="warning" label="Kaldırıldı" /> : <Chip size="small" color="success" variant="outlined" label="Yayında" />}</TableCell>
