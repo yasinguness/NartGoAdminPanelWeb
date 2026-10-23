@@ -152,6 +152,11 @@ export const heritageReviewService = {
   async detail(id: string): Promise<ReviewDetail> {
     return unwrap(await api.get(`${ROOT}/review/${encodeURIComponent(id)}`));
   },
+  /** Köy olmayan ya da başka yere taşınan noktada yakındaki onaylı köyleri bulur (yakın tekrar sorusu için). */
+  async nearbyAt(body: { latitude: number; longitude: number; province: string; district: string }): Promise<{ id: string; name: string; distance: number; latitude: number; longitude: number }[]> {
+    const res = unwrap<{ duplicates?: { id: string; official_name: string; distance_m: number; latitude: number; longitude: number }[] }>(await api.post('/auth/heritage/locations/check', body));
+    return (res.duplicates ?? []).map((d) => ({ id: d.id, name: d.official_name, distance: d.distance_m, latitude: d.latitude, longitude: d.longitude }));
+  },
   async decide(id: string, body: DecisionBody): Promise<DecisionResult> {
     return unwrap(await api.post(`${ROOT}/${encodeURIComponent(id)}/decision`, body));
   },
