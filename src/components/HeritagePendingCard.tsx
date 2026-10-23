@@ -27,7 +27,7 @@ export default function HeritagePendingCard({ compact = false }: { compact?: boo
         <Typography fontWeight={700}>Ortak Hafıza'da bekleyenler</Typography>
         <Chip size="small" color="warning" label={total} />
         {!compact && data.communityPending > 0 && (
-          <Typography variant="caption" color="text.secondary">· {data.communityPending} topluluk kaydı köylü teyidi bekliyor (kendiliğinden kesinleşir)</Typography>
+          <Typography variant="caption" color="text.secondary">· {data.communityPending} topluluk kaydı köylü teyidi bekliyor (itiraz gelmezse 3 gün sonra kabul edilir)</Typography>
         )}
       </Stack>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>

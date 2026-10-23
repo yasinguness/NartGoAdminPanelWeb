@@ -165,7 +165,7 @@ export default function VillageEditor({ villageId, onClose, onChanged, initialTa
                     renderTags={(v, getTagProps) => v.map((o, i) => <Chip size="small" label={o} {...getTagProps({ index: i })} key={o} />)}
                     renderInput={(p) => <TextField {...p} label="Takma adlar / eski adlar" helperText="Yazıp Enter'a basın. Aramada bu adlarla da bulunur." />} />
                   <TextField select label="Konum hassasiyeti" value={body.precision} onChange={(e) => set('precision', e.target.value as Precision)}
-                    helperText={body.precision === 'HISTORICAL' ? 'Tarihî konum haritada görünmez; köy sayfasında yazıyla anılır.' : 'Bilinmiyorsa "Yaklaşık" bırakın.'}>
+                    helperText={body.precision === 'HISTORICAL' ? 'Tarihî konum haritada görünmez; köy sayfasında yazıyla anılır.' : body.precision === 'DISTRICT' ? 'Köyün yeri bilinmiyor. İlçe ya da bölge içinde bir nokta verin (Türkiye dışında "Konumu bul" ile bölgenin merkezi alınabilir). Haritada nokta olarak çizilmez, aramada bulunur.' : 'Bilinmiyorsa "Yaklaşık" bırakın.'}>
                     {(Object.keys(PRECISION_LABEL) as Precision[]).map((k) => <MenuItem key={k} value={k}>{PRECISION_LABEL[k]}</MenuItem>)}
                   </TextField>
                   <TextField label="Konum kaynağı notu" value={body.sourceNote} onChange={(e) => set('sourceNote', e.target.value)} multiline minRows={2}
