@@ -107,6 +107,8 @@ export interface DecisionBody {
   /** Kayıtta il/ilçe yoksa admin'in yazdığı; boşsa sunucu noktanın düştüğü ilçeyi kullanır. */
   province?: string;
   district?: string;
+  /** Türkiye dışındaki köy için ülke kodu (XK, SY...); verilince Türkiye sınır/ilçe kontrolü uygulanmaz. */
+  countryCode?: string;
 }
 
 export interface DecisionResult {

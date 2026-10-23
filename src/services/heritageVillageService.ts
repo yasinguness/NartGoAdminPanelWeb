@@ -47,6 +47,8 @@ export interface PendingSummary {
   locationQueue: number;
   instagramComments: number;
   decidableTasks: number;
+  /** Köylü oyunda olan öneri sayısı (yönetici işi sayılmaz). */
+  inVoting?: number;
 }
 
 export interface ContributionItem {
@@ -58,6 +60,17 @@ export interface ContributionItem {
   createdAt: string;
   contributor: string | null;
   contributorApproved: number;
+  /** Yalnız düzeltmelerde: hedef türü, hedefin bugünkü alanları ve doğru değerin eksik olup olmadığı. */
+  targetType?: string;
+  current?: Record<string, string>;
+  needsValue?: boolean;
+  /** Köylü oyunda mı (yöneticiye düşmemiş düzeltme/kaldırma), oy sayıları ve yöneticiye düşme nedeni. */
+  inVoting?: boolean;
+  votesYes?: number;
+  votesNo?: number;
+  escalationReason?: string | null;
+  contributorId?: string | null;
+  contributorTrusted?: boolean;
 }
 
 export interface CommunityItem {
@@ -199,14 +212,19 @@ export const heritageVillageService = {
   async removeFamily(id: string, linkId: string): Promise<void> {
     await api.delete(`${ROOT}/${id}/families/${linkId}`);
   },
+  /** Güvenilir katkıcı: trusted / untrusted elle, auto otomatik hesap. */
+  async setContributorTrust(userId: string, status: 'trusted' | 'untrusted' | 'auto'): Promise<{ trusted: boolean }> {
+    return unwrap(await api.post(`${ROOT}/contributors/${userId}/trust`, { status }));
+  },
   async pendingSummary(): Promise<PendingSummary> {
     return unwrap(await api.get(`${ROOT}/pending-summary`));
   },
   async contributions(id: string): Promise<VillageContributions> {
     return unwrap(await api.get(`${ROOT}/${id}/contributions`));
   },
-  async reviewContribution(id: string, contributionId: string, approve: boolean, note?: string): Promise<void> {
-    await api.post(`${ROOT}/${id}/contributions/${contributionId}`, { approve, note });
+  /** values: düzeltmede onaylayanın yazdığı doğru değer (ör. { name } ya da { narrative }). */
+  async reviewContribution(id: string, contributionId: string, approve: boolean, note?: string, values?: Record<string, string>): Promise<void> {
+    await api.post(`${ROOT}/${id}/contributions/${contributionId}`, { approve, note, values });
   },
   /** keep: doğru kabul edilir (teyitli sayılır); remove: kaldırılır. */
   async resolveCommunity(id: string, type: 'name' | 'family', itemId: string, action: 'keep' | 'remove'): Promise<void> {

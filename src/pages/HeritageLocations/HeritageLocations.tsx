@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSnackbar } from 'notistack';
 import './reviewDesk.css';
 import GeocodeFinder from '../HeritageVillages/GeocodeFinder';
+import { COUNTRIES } from '../../services/heritageVillageService';
 import ReviewMap, { SOURCE_COLOR, distanceM, satelliteConfigured, type LatLng } from './ReviewMap';
 import {
   errorText, heritageReviewService,
@@ -70,6 +71,8 @@ export default function HeritageLocations() {
   const [finding, setFinding] = useState(false);
   // Kayıtta il/ilçe yoksa (koordinatsız ya da eksik önerilmiş köy) onayla birlikte gönderilir.
   const [area, setArea] = useState({ province: '', district: '' });
+  // Yurt dışındaki köy ("Köy Türkiye dışında" seçilince): ülke kodu onayla gönderilir.
+  const [country, setCountry] = useState('');
   const [satellite, setSatellite] = useState(false);
   const [rejOpen, setRejOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -152,7 +155,7 @@ export default function HeritageLocations() {
   useEffect(() => {
     if (!sel) return;
     void fetchDetail(sel);
-    setRejOpen(false); setMoreOpen(false); setMoving(false); setFinding(false); setArea({ province: '', district: '' }); setCopied(false); setHistory(null);
+    setRejOpen(false); setMoreOpen(false); setMoving(false); setFinding(false); setArea({ province: '', district: '' }); setCountry(''); setCopied(false); setHistory(null);
     const n = nextId(sel, status);
     if (n && n !== sel) void fetchDetail(n); // sıradakini önden yükle
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,7 +194,12 @@ export default function HeritageLocations() {
   const unresolved = useMemo(() => (detail?.checks ?? []).filter((c) => {
     if (!c.key) return false;
     const v = eff[c.key];
-    return !v || ((v === 'move' || v === 'place') && !moved);
+    if (!v || ((v === 'move' || v === 'place') && !moved)) return true;
+    // Nokta değişince kontrol de değişebilir (ör. Türkiye dışı): önceki seçim yeni seçeneklerde yoksa yeniden karar gerekir.
+    const allowed = new Set(c.options.map((o) => o.v));
+    if (allowed.has('move')) allowed.add('place');
+    if (allowed.has('place')) allowed.add('move');
+    return c.options.length > 0 && !allowed.has(v);
   }), [detail, eff, moved]);
 
   const setResolution = (key: string, v: string | undefined) => {
@@ -264,6 +272,7 @@ export default function HeritageLocations() {
     resolutions: { ...eff, ...extra },
     ...(moved ? { latitude: moved.lat, longitude: moved.lng } : {}),
     ...(missingArea && area.province.trim() && area.district.trim() ? { province: area.province.trim(), district: area.district.trim() } : {}),
+    ...(eff.loc === 'abroad' && country ? { countryCode: country } : {}),
   }, 'ok');
   const ask = () => decide({ action: 'ASK_COMMUNITY', resolutions: eff }, 'ask');
   const reject = (reason: string) => decide({ action: 'REJECT', rejectReason: reason }, 'rej');
@@ -372,6 +381,7 @@ export default function HeritageLocations() {
   else if (!point && eff.loc !== 'district') primary = { label: 'Onayla', cls: 'btnP', dis: true, why: 'Önce haritada köyün yerine nokta koy ya da "ilçe düzeyinde onayla" seç.', run: () => undefined };
   else if (eff.loc === 'district' && !point && missingArea && !(area.province.trim() && area.district.trim())) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: 'İlçe düzeyinde onay için il ve ilçeyi yazın.', run: () => undefined };
   else if (unresolved.length) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: `Önce karar ver: ${[...new Set(why)].join(', ')}`, run: () => undefined };
+  else if (eff.loc === 'abroad' && !country) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: 'Köyün bulunduğu ülkeyi seçin.', run: () => undefined };
   else primary = { label: 'Onayla', cls: 'btnP', dis: false, run: () => void approve() };
   primaryRef.current = () => { if (!primary.dis && !busy) primary.run(); };
 
@@ -514,6 +524,7 @@ export default function HeritageLocations() {
                         onMapPick({ lat: c.latitude, lng: c.longitude });
                         // Kayıtta il/ilçe yoksa bulunan yerin il/ilçesi önerilir (admin düzeltebilir).
                         if (missingArea && c.province && c.district) setArea({ province: c.province, district: c.district });
+                        if (c.countryCode && c.countryCode !== 'TR') setCountry(c.countryCode);
                         setFinding(false);
                       }} />
                     </div>
@@ -534,6 +545,15 @@ export default function HeritageLocations() {
                 <div className="pEyebrow"><span>{idx >= 0 ? `${idx + 1} / ${visible.length}` : ''}</span><span>{detail.type === 'village' ? 'Yeni köy kaydı' : detail.confidence ? `Kaynak güveni ${detail.confidence}` : 'Mevcut köy'}</span></div>
                 <h2 className="pName">{detail.name}</h2>
                 {detail.oldNames.length > 0 && <div className="ady serif">{detail.oldNames.join(' · ')}</div>}
+                {eff.loc === 'abroad' && (
+                  <div className="pPlace" style={{ display: 'grid', gap: 6 }}>
+                    <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>Köy Türkiye dışında: ülkesini seçin. Türkiye sınır ve ilçe kontrolleri uygulanmaz.</span>
+                    <select className="fsel" value={country} onChange={(e) => setCountry(e.target.value)}>
+                      <option value="">Ülke seçin</option>
+                      {COUNTRIES.filter((c) => c.code !== 'TR').map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+                    </select>
+                  </div>
+                )}
                 {missingArea ? (
                   <div className="pPlace" style={{ display: 'grid', gap: 6 }}>
                     <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>Kayıtta il ve ilçe yok. Yazın ya da boş bırakın: onaylanınca noktanın düştüğü ilçe kullanılır.</span>

@@ -35,8 +35,8 @@ export default function ContributionsTab({ villageId, data, onChange }: { villag
       {data.pending.length > 0 && (
         <Section title="Onay bekleyen öneriler" hint="Onaylanan bilgi köy sayfasına girer; reddedilen yayına girmez. Not yazmak isteğe bağlı.">
           {data.pending.map((c) => (
-            <PendingCard key={c.id} item={c} busy={busy === c.id}
-              onDecide={(approve, note) => act(c.id, () => heritageVillageService.reviewContribution(villageId, c.id, approve, note), approve ? 'Onaylandı, köy sayfasına eklendi.' : 'Reddedildi.')} />
+            <PendingCard key={c.id} item={c} busy={busy === c.id} onTrustChanged={onChange}
+              onDecide={(approve, note, values) => act(c.id, () => heritageVillageService.reviewContribution(villageId, c.id, approve, note, values), approve ? 'Onaylandı, köy sayfasına eklendi.' : 'Reddedildi.')} />
           ))}
         </Section>
       )}
@@ -145,19 +145,37 @@ function Lines({ item }: { item: ContributionItem }) {
   );
 }
 
-function PendingCard({ item, busy, onDecide }: { item: ContributionItem; busy: boolean; onDecide: (approve: boolean, note?: string) => void }) {
+function PendingCard({ item, busy, onDecide, onTrustChanged }: { item: ContributionItem; busy: boolean; onDecide: (approve: boolean, note?: string, values?: Record<string, string>) => void; onTrustChanged?: () => void }) {
   const [note, setNote] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  // Düzeltme bildiriminde doğru değer yoksa onaylayan yazar (ad ya da tarihçe metni); bugünkü değerle başlar.
+  const field = item.type === 'correction' ? (item.targetType === 'name' ? 'name' : item.targetType === 'history' ? 'narrative' : null) : null;
+  const [value, setValue] = useState(field ? item.current?.[field] ?? '' : '');
+  const familyFix = item.type === 'correction' && item.targetType === 'family' && item.needsValue;
+  const unchanged = Boolean(field && item.needsValue && value.trim() === (item.current?.[field] ?? '').trim());
   return (
     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
       <Stack direction="row" spacing={1} alignItems="center">
         <Typography fontWeight={700} sx={{ flex: 1 }}>{item.title}</Typography>
         <Typography variant="caption" color="text.secondary">{fmt(item.createdAt)}</Typography>
       </Stack>
+      {item.inVoting && (
+        <Alert severity="info" sx={{ my: 1 }}>Köylü oyunda: {item.votesYes ?? 0} doğru · {item.votesNo ?? 0} yanlış. Köyün üyeleri karar verir; anlaşmazlık ya da 14 gün kararsızlıkta size düşer. İsterseniz şimdi karar verebilirsiniz.</Alert>
+      )}
+      {!item.inVoting && item.escalationReason && <Alert severity="warning" sx={{ my: 1 }}>Size düştü: {item.escalationReason}</Alert>}
       <Typography variant="caption" color="text.secondary">
+        {item.contributorTrusted && <Chip size="small" color="success" variant="outlined" label="Güvenilir katkıcı" sx={{ mr: 1 }} />}
         {item.contributor ?? 'Kullanıcı'}{item.contributorApproved ? ` · daha önce ${item.contributorApproved} katkısı onaylandı` : ' · ilk katkısı'}{item.source === 'app' ? ' · uygulamadan' : item.source === 'web' ? ' · webden' : ''}
       </Typography>
       <Lines item={item} />
+      {field && item.needsValue && !rejecting && (
+        <TextField size="small" fullWidth sx={{ mt: 1.5 }} multiline={field === 'narrative'} minRows={field === 'narrative' ? 3 : undefined}
+          label={field === 'name' ? 'Doğru ad' : 'Doğru tarihçe metni'} value={value} onChange={(e) => setValue(e.target.value)}
+          helperText="Bildirimde doğru değer yazılmamış. Gerekçeye göre doğru değeri yazıp onaylayın; onaylanınca köy sayfasındaki kayıt bununla değişir." />
+      )}
+      {familyFix && !rejecting && (
+        <Alert severity="info" sx={{ mt: 1.5 }}>Bildirimde doğru sülale seçilmemiş. Sülaleyi Sülale Atlası'ndan düzeltip bu bildirimi reddedin.</Alert>
+      )}
       {rejecting && (
         <TextField size="small" fullWidth sx={{ mt: 1.5 }} label="Ret nedeni (isteğe bağlı)" value={note} onChange={(e) => setNote(e.target.value)}
           placeholder="Örnek: kaynak yok, başka köyle karıştırılmış" />
@@ -165,8 +183,16 @@ function PendingCard({ item, busy, onDecide }: { item: ContributionItem; busy: b
       <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
         {!rejecting ? (
           <>
-            <Button size="small" variant="contained" disabled={busy} onClick={() => onDecide(true)}>Onayla</Button>
+            <Button size="small" variant="contained" disabled={busy || familyFix || unchanged || (field !== null && item.needsValue && !value.trim())}
+              title={unchanged ? 'Önce doğru değeri yazın.' : undefined}
+              onClick={() => onDecide(true, undefined, field && item.needsValue ? { [field]: value.trim() } : undefined)}>Onayla</Button>
             <Button size="small" color="error" disabled={busy} onClick={() => setRejecting(true)}>Reddet</Button>
+            {item.contributorId && (
+              <Button size="small" disabled={busy} sx={{ ml: 'auto' }}
+                onClick={() => { const next = item.contributorTrusted ? 'untrusted' : 'trusted'; void heritageVillageService.setContributorTrust(item.contributorId!, next).then(() => onTrustChanged?.()); }}>
+                {item.contributorTrusted ? 'Güvenilir katkıcılıktan çıkar' : 'Güvenilir katkıcı yap'}
+              </Button>
+            )}
           </>
         ) : (
           <>
