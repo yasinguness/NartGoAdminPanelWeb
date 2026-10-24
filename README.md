@@ -83,6 +83,13 @@ ve production build çalıştırır, ardından `dist/` dosyalarını `/var/www/a
 dizinine aktarır. Hedef dizine yazma yetkisi gerekir. Uygulama `/admin/` yolunda
 yayınlanır. Açık oturumların çalışmaya devam etmesi için eski asset dosyaları korunur.
 
+## CI/CD
+
+`.github/workflows/deploy.yml` zaten vardı: `master`'a her push'ta self-hosted
+bir runner üzerinde (sunucunun kendisi) build alıp `/var/www/admin/`'e
+kopyalıyor. `deploy.sh`'tan farklı olarak açık oturumların asset'lerini
+korumuyor, doğrudan `rm -rf` + `cp -r` yapıyor.
+
 ## Project Structure
 
 ```

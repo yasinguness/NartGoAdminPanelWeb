@@ -46,7 +46,14 @@ export interface MergeSide {
   villages: { name: string; province: string }[];
   spellings: string[];
 }
-export interface MergeItem { a: MergeSide; b: MergeSide; match: string; warning: string | null; sharedVillages: number; score: number }
+/** Köylü oyu: çiftin sorulduğu köy, durum ve oy sayıları (kişi yok). */
+export interface PairVillageVote { village: string; province: string; status: 'open' | 'same' | 'distinct' | 'disputed' | 'expired'; same: number; different: number }
+export interface MergeItem {
+  a: MergeSide; b: MergeSide; match: string; warning: string | null; sharedVillages: number; score: number;
+  community?: PairVillageVote[];
+  /** needsAdmin: köylüler ayrıştı ya da 30 günde karar çıkmadı; voting: köyde oylama sürüyor. */
+  communityState?: 'needsAdmin' | 'voting' | null;
+}
 
 export interface Candidate { id: number | string; name: string; race?: string; province?: string; district?: string }
 export interface IgComment {

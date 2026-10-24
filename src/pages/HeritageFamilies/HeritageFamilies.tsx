@@ -58,6 +58,11 @@ export default function HeritageFamilies() {
  * sorusunun karşılığı hiçbir ekranda yoktu. Burası o görünüm — soldan seç,
  * sağda köyleri kabileye göre gruplu gör.
  */
+/** Köydeki "aynı sülale mi?" sorusunun durumu. */
+const PAIR_STATUS: Record<string, string> = {
+  open: 'oylamada', same: 'köyde birleşti', distinct: 'farklı dendi', disputed: 'oylar ayrıştı', expired: '30 günde karar çıkmadı',
+};
+
 function FamiliesPanel() {
   const { enqueueSnackbar } = useSnackbar();
   const [q, setQ] = useState('');
@@ -582,7 +587,7 @@ function MergePanel() {
     <Stack spacing={2}>
       <CleanupBox onApplied={() => void load()} />
       <Alert severity="info">
-        {data.total.toLocaleString('tr-TR')} aday çift. Köyü olan kayıtlar önce gelir. Farklı kabile ya da halktaki benzer adlar önerilmez; yazım anahtarı birebir aynıysa uyarıyla gelir.
+        {data.total.toLocaleString('tr-TR')} aday çift. Aynı köydeki benzer sülaleleri önce o köyün üyeleri oylar (3 “aynı” köyde birleştirir, iki köy “aynı” derse katalog birleşir; 2 “farklı” ayırır). Köylülerin karar veremediği çiftler en üstte, oylaması süren çiftler en altta. Köyü olan kayıtlar önce gelir. Farklı kabile ya da halktaki benzer adlar önerilmez; yazım anahtarı birebir aynıysa uyarıyla gelir.
         <b> Aynı adı taşımak aynı soydan gelmek demek değildir</b>: emin değilsen “Farklı” de ya da atla.
       </Alert>
       {last && (
@@ -594,7 +599,14 @@ function MergePanel() {
             <Chip size="small" label={it.match} />
             {it.sharedVillages > 0 && <Chip size="small" color="success" variant="outlined" label={`${it.sharedVillages} ortak köy`} />}
             {it.warning && <Chip size="small" color="warning" label={it.warning} />}
+            {it.communityState === 'needsAdmin' && <Chip size="small" color="error" label="Köylüler karar veremedi" />}
+            {it.communityState === 'voting' && <Chip size="small" color="info" variant="outlined" label="Köyde oylamada" />}
           </Stack>
+          {!!it.community?.length && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {it.community.map((c) => `${c.village}${c.province ? ` (${c.province})` : ''}: ${PAIR_STATUS[c.status]} · ${c.same} aynı, ${c.different} farklı`).join(' · ')}
+            </Typography>
+          )}
           <Box sx={{ display: 'grid', gridTemplateColumns: { md: '1fr 1fr' }, gap: 2 }}>
             <Side s={it.a} />
             <Side s={it.b} />
