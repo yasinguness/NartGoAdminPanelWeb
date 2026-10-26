@@ -11,6 +11,8 @@ import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 import { nb, nbRadius, nbType } from '../../theme/nbBrand';
 import { useRole } from '../../hooks/useRole';
 import { formatDate } from './nbIntroMatch';
+import NbIntroFeedbackPanel, { feedbackSideBadge } from './NbIntroFeedbackPanel';
+import NbPill from '../../components/nartbusiness/ui/NbPill';
 
 const STATUSES: NbIntroductionStatus[] = ['INTRODUCED', 'MEETING_PENDING', 'MET', 'CLOSED_SUCCESS', 'CLOSED_NO_RESULT'];
 
@@ -26,11 +28,14 @@ export default function NbMemberIntroductionsTab({
   memberId,
   onIntroduce,
   refreshKey,
+  onStats,
 }: {
   memberId: string;
   onIntroduce: () => void;
   /** Yeni tanıştırma sonrası listeyi tazelemek için. */
   refreshKey?: number;
+  /** Sekme sayacı (açık tanıştırma) güncel kalsın. */
+  onStats?: (stats: { total: number; open: number; successful: number }) => void;
 }) {
   const navigate = useNavigate();
   const { isAdmin, hasRole } = useRole();
@@ -43,14 +48,21 @@ export default function NbMemberIntroductionsTab({
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  /** Sonuç takibi paneli açık olan satır; panel açıldığında kendi verisini çeker. */
+  const [openFeedback, setOpenFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    setItems(null);
+    // Liste boşaltılmıyor: tazeleme (ör. sonuç paneli durumu değiştirdi)
+    // açık paneli kapatıp ekranı yükleniyor göstergesine çevirmesin.
     setError(null);
     nbAdminService
       .listIntroductions({ memberId, page, size: 20 })
-      .then((r) => { if (active) { setItems(r.items); setPages(r.totalPages); setStats(r.stats); } })
+      .then((r) => {
+        if (!active) return;
+        setItems(r.items); setPages(r.totalPages); setStats(r.stats);
+        if (r.stats) onStats?.(r.stats);
+      })
       .catch((e) => {
         if (!active) return;
         setError(nbErrorMessage(e, 'Tanıştırmalar alınamadı.'));
@@ -136,6 +148,39 @@ export default function NbMemberIntroductionsTab({
                 <Box component="span" sx={{ ...nbType.label, color: nb.textFaint, mr: 1 }}>Bu üyenin gördüğü</Box>
                 {seen}
               </Typography>
+              {(() => {
+                const fb = row.feedback;
+                const mine = fb ? (isA ? fb.a : fb.b) : null;
+                const theirs = fb ? (isA ? fb.b : fb.a) : null;
+                const mineBadge = feedbackSideBadge(mine?.state ?? 'NOT_ASKED', mine?.answer);
+                const theirsBadge = feedbackSideBadge(theirs?.state ?? 'NOT_ASKED', theirs?.answer);
+                return (
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 1.25, rowGap: 0.75 }}>
+                    <Box component="span" sx={{ ...nbType.label, color: nb.textFaint }}>Sonuç</Box>
+                    <Typography component="span" sx={{ fontSize: 12, color: nb.textMuted }}>Bu üye</Typography>
+                    <NbPill label={mineBadge.label} tone={mineBadge.tone} />
+                    <Typography component="span" sx={{ fontSize: 12, color: nb.textMuted }}>Karşı taraf</Typography>
+                    <NbPill label={theirsBadge.label} tone={theirsBadge.tone} />
+                    {fb?.conflict && <NbPill label="Çelişki var" tone="warn" />}
+                    <Box sx={{ flex: 1 }} />
+                    <Button
+                      size="small"
+                      onClick={() => setOpenFeedback(openFeedback === row.id ? null : row.id)}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {openFeedback === row.id ? 'Sonuç takibini kapat' : 'Sonuç takibi'}
+                    </Button>
+                  </Stack>
+                );
+              })()}
+              {openFeedback === row.id && (
+                <NbIntroFeedbackPanel
+                  introId={row.id}
+                  focusMemberId={memberId}
+                  canManage={canManage}
+                  onChanged={() => setReload((v) => v + 1)}
+                />
+              )}
               <Stack direction="row" spacing={1} sx={{ mt: 1.25 }}>
                 <TextField
                   size="small"

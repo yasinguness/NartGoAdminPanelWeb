@@ -48,6 +48,9 @@ import {
 } from '../../components/nartbusiness/ui';
 import { nb, nbRadius } from '../../theme/nbBrand';
 import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
+import { useRole } from '../../hooks/useRole';
+import NbIntroFeedbackPanel, { feedbackSideBadge } from './NbIntroFeedbackPanel';
+import NbPill from '../../components/nartbusiness/ui/NbPill';
 
 /**
  * Dört aşama.
@@ -100,6 +103,11 @@ export default function NbIntroductions() {
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  // Sonuç takibi penceresi (üyeye sonuç sorusu).
+  const [feedbackTarget, setFeedbackTarget] = useState<NbIntroduction | null>(null);
+  const { isAdmin, hasRole } = useRole();
+  const canManage = isAdmin || hasRole('NB_ADMIN');
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -132,6 +140,9 @@ export default function NbIntroductions() {
     const open = items.filter((i) => !i.status.startsWith('CLOSED')).length;
     const won = items.filter((i) => i.status === 'CLOSED_SUCCESS').length;
     const closed = items.filter((i) => i.status.startsWith('CLOSED')).length;
+    // Üyeye soru gitmiş, cevap henüz gelmemiş taraf sayısı.
+    const awaiting = items.reduce((n, i) =>
+      n + (i.feedback ? [i.feedback.a, i.feedback.b].filter((x) => x.state === 'WAITING').length : 0), 0);
     const now = new Date();
     const thisMonth = items.filter((i) => {
       const d = new Date(i.createdAt);
@@ -139,6 +150,7 @@ export default function NbIntroductions() {
     }).length;
     return {
       open,
+      awaiting,
       thisMonth,
       won,
       // Oran ancak kapanmış kayıtlar üzerinden anlamlı: henüz sonuçlanmamış
@@ -205,6 +217,7 @@ export default function NbIntroductions() {
           <>
             <NbKpi label="AÇIK TANIŞTIRMA" value={stats.open} hint="sonuçlanmadı" tone={stats.open ? 'warn' : 'neutral'} />
             <NbKpi label="BU AY BAŞLAYAN" value={stats.thisMonth} />
+            <NbKpi label="CEVAP BEKLENEN" value={stats.awaiting} hint="sonuç sorusu gönderildi" tone={stats.awaiting ? 'warn' : 'neutral'} />
             <NbKpi label="İŞ BİRLİĞİNE DÖNEN" value={stats.won} tone="good" />
             <NbKpi
               label="SONUÇ ORANI"
@@ -305,6 +318,18 @@ export default function NbIntroductions() {
                       </Typography>
                     )}
 
+                    {/* Üyenin kendi verdiği sonuç cevabı; soru hiç gitmediyse gösterilmez. */}
+                    {row.feedback && (row.feedback.a.state !== 'NOT_ASKED' || row.feedback.b.state !== 'NOT_ASKED') && (
+                      <Stack direction="row" flexWrap="wrap" alignItems="center" sx={{ gap: 0.625, mt: 1 }}>
+                        {([['a', row.memberAName], ['b', row.memberBName]] as const).map(([k, name]) => {
+                          const side = row.feedback![k];
+                          const badge = feedbackSideBadge(side.state, side.answer);
+                          return <NbPill key={k} label={badge.label} tone={badge.tone} title={name} />;
+                        })}
+                        {row.feedback.conflict && <NbPill label="Çelişki" tone="warn" />}
+                      </Stack>
+                    )}
+
                     <Stack direction="row" alignItems="center" sx={{ gap: 1, mt: 1.25 }}>
                       {col.key === 'closed' && (
                         <Box
@@ -318,6 +343,13 @@ export default function NbIntroductions() {
                           {row.status === 'CLOSED_SUCCESS' ? 'iş birliği' : 'sonuçsuz'}
                         </Box>
                       )}
+                      <Button
+                        size="small"
+                        onClick={() => setFeedbackTarget(row)}
+                        sx={{ p: 0, minWidth: 0, fontSize: 11, textTransform: 'none', color: nb.textMuted }}
+                      >
+                        Sonuç takibi
+                      </Button>
                       <Typography sx={{ ml: 'auto', fontSize: 10.5, color: nb.textFaint }}>
                         {relativeDate(row.createdAt)}
                       </Typography>
@@ -431,6 +463,28 @@ export default function NbIntroductions() {
           >
             {editBusy ? 'Kaydediliyor…' : 'Kaydet'}
           </Button>
+        </Stack>
+      </Dialog>
+
+      <Dialog
+        open={!!feedbackTarget}
+        onClose={() => setFeedbackTarget(null)}
+        maxWidth={false}
+        PaperProps={{ sx: { width: 'min(640px, 100%)', bgcolor: nb.surface, borderRadius: '14px', m: 2.5 } }}
+      >
+        <Box sx={{ px: 2.75, pt: 2.25, pb: 1.75, borderBottom: nbDividerLine }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 600 }}>Sonuç takibi</Typography>
+          <Typography sx={{ fontSize: 12, color: nb.textMuted, mt: 0.375 }}>
+            {feedbackTarget?.memberAName} ↔ {feedbackTarget?.memberBName}
+          </Typography>
+        </Box>
+        <Box sx={{ px: 2.75, pb: 2.25 }}>
+          {feedbackTarget && (
+            <NbIntroFeedbackPanel introId={feedbackTarget.id} canManage={canManage} onChanged={() => void load()} />
+          )}
+        </Box>
+        <Stack direction="row" sx={{ px: 2.75, py: 1.5, borderTop: nbDividerLine }}>
+          <Button onClick={() => setFeedbackTarget(null)} sx={{ ml: 'auto', textTransform: 'none' }}>Kapat</Button>
         </Stack>
       </Dialog>
 

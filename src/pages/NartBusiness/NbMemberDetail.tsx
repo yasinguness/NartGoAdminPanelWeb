@@ -30,6 +30,7 @@ import {
   Typography,
   Menu,
   ListItemIcon,
+  ListSubheader,
   Divider,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -103,6 +104,7 @@ import NbMemberOpportunities from '../../components/nartbusiness/NbMemberOpportu
 import NbMemberSubscriptionCard from '../../components/nartbusiness/NbMemberSubscriptionCard';
 import NbMemberNotesPanel from '../../components/nartbusiness/NbMemberNotesPanel';
 import NbMemberIntroductionsTab from './NbMemberIntroductionsTab';
+import NbMemberActionRail, { type NbLastActive } from '../../components/nartbusiness/NbMemberActionRail';
 
 /**
  * Sprint 24 — Üye detay sayfası. Liste tablosundan satıra tıklayınca açılır.
@@ -119,21 +121,23 @@ import NbMemberIntroductionsTab from './NbMemberIntroductionsTab';
 /**
  * Detay sekmeleri.
  *
- * Dört sekme, sırası bilinçli: önce kim olduğu (Genel), sonra para ve süre
- * (Üyelik & Ödeme), sonra kanıt (Kimlik & Belgeler), en sonda ne yaptığı
- * (Aktivite). Yönetici en sık ilk ikisine bakar.
+ * Sıra kullanım sıklığına göre: önce kim olduğu (Genel), sonra üyeyle
+ * yapılan iş (Tanıştırmalar, Fırsatlar, Notlar), sonra para ve kanıt, en
+ * sonda ham kayıt (Aktivite). Bekleyen iş olan sekmede sayı görünür.
+ *
+ * "Faaliyet Özeti" ayrı sekmeydi ama içeriği Genel'deki kartın aynısıydı;
+ * Genel'e katıldı. Eski bağlantılar (`?tab=value`) Genel'i açar.
  */
-type DetailTab = 'general' | 'opportunities' | 'membership' | 'identity' | 'activity' | 'introductions' | 'value' | 'notes';
+type DetailTab = 'general' | 'introductions' | 'opportunities' | 'notes' | 'membership' | 'identity' | 'activity';
 
-const DETAIL_TABS: NbTabItem<DetailTab>[] = [
+const DETAIL_TAB_ORDER: { key: DetailTab; label: string }[] = [
   { key: 'general', label: 'Genel' },
+  { key: 'introductions', label: 'Tanıştırmalar' },
   { key: 'opportunities', label: 'Fırsatlar' },
+  { key: 'notes', label: 'Notlar & Görevler' },
   { key: 'membership', label: 'Üyelik & Ödeme' },
   { key: 'identity', label: 'Kimlik & Belgeler' },
   { key: 'activity', label: 'Aktivite' },
-  { key: 'introductions', label: 'Tanıştırmalar' },
-  { key: 'value', label: 'Faaliyet Özeti' },
-  { key: 'notes', label: 'Notlar & Görevler' },
 ];
 
 /**
@@ -148,6 +152,17 @@ const RESEND_TEMPLATE_KEY: Record<NbResendTemplate, string> = {
   APPROVED: 'nb-application-approved.html',
   NEEDS_INFO: 'nb-needs-info.html',
   PARTNER_WELCOME: 'nb-partner-welcome.html',
+};
+
+/** "İşlemler" menüsündeki grup başlığı. */
+const menuGroup = {
+  fontSize: 10,
+  fontWeight: 600,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase' as const,
+  lineHeight: '28px',
+  color: nb.textFaint,
+  bgcolor: 'transparent',
 };
 
 export default function NbMemberDetail() {
@@ -178,7 +193,17 @@ export default function NbMemberDetail() {
    * o bağlantılar hep "Genel"de açılırdı.
    */
   const requestedTab = searchParams.get('tab');
-  const tab: DetailTab = DETAIL_TABS.find((item) => item.key === requestedTab)?.key ?? 'general';
+  const tab: DetailTab = DETAIL_TAB_ORDER.find((item) => item.key === requestedTab)?.key ?? 'general';
+  /** Sekme sayaçları: açık tanıştırma ve açık görev. Bilinmiyorsa sayı gösterilmez. */
+  const [openIntroCount, setOpenIntroCount] = useState<number | undefined>();
+  const [openTaskCount, setOpenTaskCount] = useState<number | undefined>();
+  /** Notlar sekmesi değişince sağ paneldeki görev listesi tazelensin. */
+  const [notesRefresh, setNotesRefresh] = useState(0);
+  const [lastActive, setLastActive] = useState<NbLastActive>(null);
+  const detailTabs: NbTabItem<DetailTab>[] = DETAIL_TAB_ORDER.map((t) => ({
+    ...t,
+    count: t.key === 'introductions' ? openIntroCount : t.key === 'notes' ? openTaskCount : undefined,
+  }));
   const setTab = (value: DetailTab) => {
     const next = new URLSearchParams(searchParams);
     if (value === 'general') next.delete('tab');
@@ -389,6 +414,16 @@ export default function NbMemberDetail() {
       setMember(m);
       // İşletme görüntülenme sayıları (mobil/web) — best-effort.
       nbAdminService.memberViewStats(memberId).then(setViewStats).catch(() => setViewStats(null));
+      // Sekme sayacı ve uygulama kullanımı — best-effort; alınamazsa gösterilmez.
+      nbAdminService.listIntroductions({ memberId, page: 0, size: 1 })
+        .then((r) => setOpenIntroCount(r.stats?.open))
+        .catch(() => setOpenIntroCount(undefined));
+      nbAdminService.memberEngagement()
+        .then((list) => {
+          const row = list?.activityDataAvailable ? list.rows.find((r) => r.memberId === memberId) : undefined;
+          setLastActive(row ? (row.lastActiveAt ? { kind: 'at', at: row.lastActiveAt } : { kind: 'never' }) : null);
+        })
+        .catch(() => setLastActive(null));
       if (m) {
         let userFetchError: string | null = null;
         const fetchPromises: [Promise<any>, Promise<any>, Promise<any>, Promise<any>, Promise<any>] = [
@@ -695,6 +730,21 @@ export default function NbMemberDetail() {
   }, [member]);
 
 
+  const openEmail = () => {
+    if (!member) return;
+    setResendTemplate(
+      member.status === 'NEEDS_INFO' ? 'NEEDS_INFO' : member.status === 'SUBMITTED' ? 'RECEIVED' : 'APPROVED',
+    );
+    setResendOpen(true);
+  };
+
+  const openPush = () => {
+    setPushTitle('');
+    setPushMessage('');
+    setPushError(null);
+    setPushOpen(true);
+  };
+
   if (loading) {
     return (
       <Box p={3} display="flex" justifyContent="center">
@@ -816,7 +866,7 @@ export default function NbMemberDetail() {
             </Button>
           </>
         }
-        tabs={<NbTabs items={DETAIL_TABS} value={tab} onChange={setTab} />}
+        tabs={<NbTabs items={detailTabs} value={tab} onChange={setTab} />}
       />
 
       <Menu
@@ -825,8 +875,24 @@ export default function NbMemberDetail() {
         onClose={() => setMoreAnchor(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { minWidth: 230, borderRadius: '10px' } } }}
+        slotProps={{ paper: { sx: { minWidth: 250, borderRadius: '10px' } } }}
       >
+        {/* Gruplu menü: düz bir listede "şifre e-postası" ile "deneme ver"
+            yan yana duruyordu ve hangi işin hangi alana ait olduğu okunmuyordu. */}
+        <ListSubheader sx={{ ...menuGroup }}>İletişim</ListSubheader>
+        <MenuItem onClick={() => { setMoreAnchor(null); openEmail(); }}>
+          <ListItemIcon><EmailOutlinedIcon fontSize="small" /></ListItemIcon>
+          Hazır e-posta gönder
+        </MenuItem>
+        <MenuItem onClick={() => { setMoreAnchor(null); openPush(); }}>
+          <ListItemIcon><NotificationsActiveOutlinedIcon fontSize="small" /></ListItemIcon>
+          Uygulama bildirimi gönder
+        </MenuItem>
+        <MenuItem onClick={() => { setMoreAnchor(null); setTab('notes'); }}>
+          <ListItemIcon><AssignmentIcon fontSize="small" /></ListItemIcon>
+          Görev ekle
+        </MenuItem>
+        <ListSubheader sx={{ ...menuGroup }}>Profil</ListSubheader>
         <MenuItem
           onClick={() => {
             setMoreAnchor(null);
@@ -836,34 +902,7 @@ export default function NbMemberDetail() {
           <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
           İşletmeyi düzenle
         </MenuItem>
-        <MenuItem
-          onClick={() => {
-            setMoreAnchor(null);
-            setResendTemplate(
-              member.status === 'NEEDS_INFO'
-                ? 'NEEDS_INFO'
-                : member.status === 'SUBMITTED'
-                  ? 'RECEIVED'
-                  : 'APPROVED',
-            );
-            setResendOpen(true);
-          }}
-        >
-          <ListItemIcon><EmailOutlinedIcon fontSize="small" /></ListItemIcon>
-          Mail gönder
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            setMoreAnchor(null);
-            setPushTitle('');
-            setPushMessage('');
-            setPushError(null);
-            setPushOpen(true);
-          }}
-        >
-          <ListItemIcon><NotificationsActiveOutlinedIcon fontSize="small" /></ListItemIcon>
-          Push gönder
-        </MenuItem>
+        <ListSubheader sx={{ ...menuGroup }}>Üyelik</ListSubheader>
         {member.status === 'APPROVED_PENDING_PAYMENT' && !member.trialUsed && (
           <MenuItem
             disabled={trialBusy}
@@ -905,7 +944,7 @@ export default function NbMemberDetail() {
               : 'Deneme teklif edilmesin (doğrudan ödeme)'}
           </MenuItem>
         )}
-        <Divider />
+        <ListSubheader sx={{ ...menuGroup }}>Hesap</ListSubheader>
         <MenuItem
           disabled={pwBusy}
           onClick={() => {
@@ -928,12 +967,8 @@ export default function NbMemberDetail() {
 
           {tab === 'general' && (
             <>
-          <NbSectionPaper title="İşletme takibi" hint="Bu işletmeye ulaştırılan fırsatları ve sonuçlarını tek yerden takip edin.">
-            <Stack direction="row" flexWrap="wrap" sx={{ gap: 1 }}>
-              <Button variant="contained" onClick={() => setTab('opportunities')}>Fırsatları ve ihaleleri incele</Button>
-              <Button variant="outlined" onClick={() => setTab('introductions')}>Tanıştırma geçmişi</Button>
-              <Button variant="outlined" onClick={() => setTab('notes')}>Notlar ve görevler</Button>
-            </Stack>
+          {/* Sekmelere giden üç düğme vardı; sekmeler zaten üstte. Kart kaldı. */}
+          <NbSectionPaper title="Faaliyet özeti" hint="Bu işletmeye ulaştırılan fırsatlar, tanıştırmalar ve sonuçları.">
             <NbMemberValueCard key={`${member.memberId}-${introRefresh}`} memberId={member.memberId} />
           </NbSectionPaper>
           <NbSectionPaper title="Şirket Bilgisi">
@@ -1328,15 +1363,9 @@ export default function NbMemberDetail() {
             />
           )}
 
-          {tab === 'value' && member && (
-            <NbSectionPaper title="Faaliyet özeti">
-              <NbMemberValueCard key={`${member.memberId}-${introRefresh}`} memberId={member.memberId} />
-            </NbSectionPaper>
-          )}
-
           {tab === 'notes' && member && (
             <NbSectionPaper title="Notlar ve görevler">
-              <NbMemberNotesPanel memberId={member.memberId} />
+              <NbMemberNotesPanel memberId={member.memberId} onChanged={() => setNotesRefresh((v) => v + 1)} />
             </NbSectionPaper>
           )}
 
@@ -1346,6 +1375,7 @@ export default function NbMemberDetail() {
               memberId={member.memberId}
               onIntroduce={() => setIntroOpen(true)}
               refreshKey={introRefresh}
+              onStats={(s) => setOpenIntroCount(s.open)}
             />
           )}
 
@@ -1420,6 +1450,20 @@ export default function NbMemberDetail() {
 
         {/* Sağ panel — aciliyet sırası: dönem (para ve süre), tamlık, hareketler. */}
         <Stack sx={{ ...(nbColumn(1, 300) as object), gap: 1.75, position: 'sticky', top: 150 }}>
+          <NbMemberActionRail
+            memberId={member.memberId}
+            contactName={userName}
+            phone={user?.phone?.trim() || member.phoneNumber || member.submittedPhone}
+            email={user?.email}
+            lastActive={lastActive}
+            whatsAppText={`${userName ? `Sayın ${userName}, iyi günler.` : 'İyi günler.'} NartBusiness'tan Yasin Güneş.`}
+            onEmail={openEmail}
+            onPush={openPush}
+            onOpenNotes={() => setTab('notes')}
+            onToast={(message) => setUndo({ message })}
+            refreshKey={notesRefresh}
+            onOpenTasks={setOpenTaskCount}
+          />
           {currentPeriod ? (
             <NbPeriodCard
               title={`${TIER_LABEL[currentPeriod.tier]} ${currentPeriod.durationMonths ? `${currentPeriod.durationMonths} ay` : 'üyelik'} · ${formatMoney(currentPeriod.fee, currentPeriod.currency)}`}

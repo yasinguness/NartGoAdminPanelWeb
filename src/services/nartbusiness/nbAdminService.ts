@@ -1833,6 +1833,91 @@ export interface NbIntroduction {
   adminNote?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Sonuç sorusu özeti. Yalnız liste cevaplarında dolu. */
+  feedback?: NbIntroFeedbackSummary | null;
+}
+
+// ── Tanıştırma sonuç sorusu (docs/plan/nb-tanistirma-geri-bildirim.md) ──
+
+export type NbFeedbackAnswer = 'WON' | 'NO_RESULT' | 'UNDECIDED';
+
+export const NB_FEEDBACK_ANSWER_LABEL: Record<NbFeedbackAnswer, string> = {
+  WON: 'İş birliği sağlandı',
+  NO_RESULT: 'Sonuç alınmadı',
+  UNDECIDED: 'Henüz netleşmedi',
+};
+
+/** Bir tarafın soru durumu: sorulmadı, cevap bekleniyor, cevapladı, süre doldu. */
+export type NbFeedbackSideState = 'NOT_ASKED' | 'WAITING' | 'ANSWERED' | 'NO_ANSWER';
+
+export interface NbIntroFeedbackSummary {
+  a: { state: NbFeedbackSideState; answer: NbFeedbackAnswer | null };
+  b: { state: NbFeedbackSideState; answer: NbFeedbackAnswer | null };
+  /** Taraflar ya da taraf ile kayıtlı durum birbirini tutmuyor. */
+  conflict: boolean;
+}
+
+export interface NbIntroFeedbackRow {
+  id: string;
+  channel: 'EMAIL' | 'WHATSAPP' | 'ADMIN';
+  askedAt: string;
+  remindedAt?: string | null;
+  answer?: NbFeedbackAnswer | null;
+  note?: string | null;
+  answeredAt?: string | null;
+  answerChannel?: 'EMAIL_LINK' | 'WHATSAPP' | 'APP' | 'ADMIN' | null;
+  closesAt: string;
+  closed: boolean;
+  /** Hatırlatmanın açılacağı an; null = gönderilemez. */
+  remindAvailableAt?: string | null;
+}
+
+export interface NbIntroFeedbackSide {
+  memberId: string;
+  companyName?: string | null;
+  sendable: boolean;
+  blockReason?: string | null;
+  feedback?: NbIntroFeedbackRow | null;
+}
+
+export interface NbIntroFeedbackView {
+  introductionId: string;
+  status: NbIntroductionStatus;
+  introducedAt: string;
+  /** "Sonuç sorulabilir" ipucu (tanıştırma + 30 gün). */
+  suggestedAskAt?: string | null;
+  conflict: boolean;
+  sides: NbIntroFeedbackSide[];
+}
+
+export interface NbIntroFeedbackSendResult {
+  view: NbIntroFeedbackView;
+  results: { memberId: string; sent: boolean; error?: string | null }[];
+}
+
+async function introFeedback(introId: string): Promise<NbIntroFeedbackView> {
+  const res = await api.get<any>(`/nb/admin/introductions/${introId}/feedback`);
+  return unwrap<NbIntroFeedbackView>(res.data) as NbIntroFeedbackView;
+}
+
+/** Seçili taraflara sonuç sorusu e-postası. Taraf başına sonuç döner. */
+async function sendIntroFeedback(introId: string, memberIds: string[]): Promise<NbIntroFeedbackSendResult> {
+  const res = await api.post<any>(`/nb/admin/introductions/${introId}/feedback/send`, { memberIds });
+  return unwrap<NbIntroFeedbackSendResult>(res.data) as NbIntroFeedbackSendResult;
+}
+
+async function remindIntroFeedback(introId: string, memberId: string): Promise<NbIntroFeedbackView> {
+  const res = await api.post<any>(`/nb/admin/introductions/${introId}/feedback/remind`, { memberId });
+  return unwrap<NbIntroFeedbackView>(res.data) as NbIntroFeedbackView;
+}
+
+/** Admin cevabı üyeden kendisi aldı (telefon, yüz yüze) ve işliyor. */
+async function recordIntroFeedback(
+  introId: string,
+  body: { memberId: string; answer: NbFeedbackAnswer; note?: string },
+): Promise<NbIntroFeedbackView> {
+  const res = await api.post<any>(`/nb/admin/introductions/${introId}/feedback/record`, body);
+  return unwrap<NbIntroFeedbackView>(res.data) as NbIntroFeedbackView;
 }
 
 /**
@@ -2361,6 +2446,10 @@ export const nbAdminService = {
   dismissIntroductionSuggestion,
   restoreIntroductionSuggestion,
   updateIntroduction,
+  introFeedback,
+  sendIntroFeedback,
+  remindIntroFeedback,
+  recordIntroFeedback,
   // Deneme
   grantTrial,
   extendTrial,
