@@ -158,27 +158,33 @@ export default function NbDecisionBoardPage() {
           {/* ── 2. Sonuçlanan iş ──────────────────────────────────────── */}
           <NbPanel
             title="Ürün para kazandırıyor mu"
-            hint="Yönlendirmelerin sonucu. Kazanılan iş sıfıra yakınsa sorun fiyat değildir ve hiçbir fiyat kurgusu onu çözmez."
+            hint="Kapanan iş: kazanılan ihale ile üyenin ya da sizin 'iş çıktı' olarak kaydettiğiniz tanıştırmaların toplamı. Sıfıra yakınsa sorun fiyat değildir ve hiçbir fiyat kurgusu onu çözmez."
             icon={<WonIcon sx={{ fontSize: 18, color: nb.gold }} />}
           >
             <Grid container spacing={2}>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={12} md={4}>
                 <NbStatCard
-                  label="Kazanılan iş"
-                  value={num(data.referralsWon)}
+                  label="Kapanan iş"
+                  value={num(data.closedDeals)}
                   caption="Bir tanesi bu tartışmayı kökünden değiştirir"
-                  tone={data.referralsWon > 0 ? 'good' : 'warning'}
+                  tone={data.closedDeals > 0 ? 'good' : 'warning'}
                   emphasize
                 />
               </Grid>
-              <Grid item xs={4} md={3}>
-                <NbStatCard label="Teklif verdi" value={num(data.referralsBid)} />
+              <Grid item xs={6} md={4}>
+                <NbStatCard label="Kazanılan ihale" value={num(data.referralsWon)} caption="İhale yönlendirmesinden" />
               </Grid>
-              <Grid item xs={4} md={3}>
-                <NbStatCard label="İlgilendi" value={num(data.referralsInterested)} />
+              <Grid item xs={6} md={4}>
+                <NbStatCard label="İş çıkan tanıştırma" value={num(data.introductionsWon)} caption={`${num(data.introductionsMet)} tanıştırma görüşmeye döndü`} />
               </Grid>
-              <Grid item xs={4} md={3}>
-                <NbStatCard label="Reddetti" value={num(data.referralsDeclined)} />
+              <Grid item xs={4} md={4}>
+                <NbStatCard label="İhaleye teklif verdi" value={num(data.referralsBid)} />
+              </Grid>
+              <Grid item xs={4} md={4}>
+                <NbStatCard label="İhaleyle ilgilendi" value={num(data.referralsInterested)} />
+              </Grid>
+              <Grid item xs={4} md={4}>
+                <NbStatCard label="İhaleyi reddetti" value={num(data.referralsDeclined)} />
               </Grid>
             </Grid>
             <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
@@ -188,6 +194,13 @@ export default function NbDecisionBoardPage() {
                 sx={{ textTransform: 'none', fontWeight: 600, color: nb.navy }}
               >
                 Yönlendirmeleri aç
+              </Button>
+              <Button
+                size="small"
+                onClick={() => navigate('/nartbusiness/introductions')}
+                sx={{ textTransform: 'none', fontWeight: 600, color: nb.navy }}
+              >
+                Tanıştırmaları aç
               </Button>
             </Stack>
           </NbPanel>

@@ -394,6 +394,12 @@ export interface NbDecisionBoard {
   referralsBid: number;
   referralsWon: number;
   referralsDeclined: number;
+  /** Tanıştırmadan görüşmeye dönen (görüşüldü + iş çıktı). */
+  introductionsMet: number;
+  /** Tanıştırmadan somut iş çıkan. */
+  introductionsWon: number;
+  /** Kapanan iş: kazanılan ihale + iş çıkan tanıştırma. */
+  closedDeals: number;
   fullAccessMembers: number;
   silenceThresholdDays: number;
   silentMembers: number | null;

@@ -3,9 +3,24 @@ import { api } from '../api';
 /**
  * NartStore hareketleri (NartStore arka ucu `/v1/commerce/admin/store-analytics/*`). Panelin API kökü `/api/v1`,
  * mağaza arka ucu aynı ağ geçidinde `/v1/commerce` altında; kök yalnız bu istekler için değiştirilir.
+ *
+ * Adres her zaman MUTLAK olmalı: kök göreliyse (`.env.local`: `/api/v1`) kırpınca boş kalıyordu, axios da
+ * göreli `/v1/commerce/...` yolunu kendi baseURL'inin önüne ekleyip `/api/v1/v1/commerce/...` (404) üretiyordu.
+ * Göreli kökte: geliştirmede aynı köken (Vite `/v1/commerce` proxy'si), derlemede ağ geçidi
+ * (`VITE_COMMERCE_ORIGIN`, varsayılan api.nartgo.net; CORS `*.nartgo.net` kabul ediyor).
  */
-const API_ROOT = (import.meta.env.VITE_API_BASE_URL || 'https://api.nartgo.net/api/v1').replace(/\/api\/v1\/?$/, '');
-const COMMERCE = `${API_ROOT}/v1/commerce/admin/store-analytics`;
+export function commerceOrigin(apiBase: string, dev: boolean, origin: string, commerceEnv?: string): string {
+  const root = apiBase.trim().replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+  if (/^https?:\/\//.test(root)) return root;
+  if (dev) return origin.replace(/\/+$/, '');
+  return (commerceEnv || 'https://api.nartgo.net').replace(/\/+$/, '');
+}
+const COMMERCE = `${commerceOrigin(
+  import.meta.env.VITE_API_BASE_URL || 'https://api.nartgo.net/api/v1',
+  import.meta.env.DEV,
+  typeof window !== 'undefined' ? window.location.origin : '',
+  import.meta.env.VITE_COMMERCE_ORIGIN,
+)}/v1/commerce/admin/store-analytics`;
 
 export type EventGroup = 'all' | 'cart' | 'clicks' | 'search' | 'checkout' | 'errors' | 'auth' | 'pages';
 

@@ -153,7 +153,8 @@ export default function NbNeedIntakes() {
             <Chip size="small" color={row.revoked ? 'default' : (statusColor[row.status] || 'default')}
               variant={row.revoked ? 'outlined' : 'filled'}
               label={row.revoked ? 'Bağlantılar iptal edildi' : labels[row.status]} />
-            {expired && <Chip size="small" variant="outlined" label="Form süresi dolmuş" />}
+            {row.origin==='MEMBER_HOME' && <Chip size="small" color="info" variant="outlined" label="Üye ana sayfadan gönderdi" />}
+            {expired && row.origin!=='MEMBER_HOME' && <Chip size="small" variant="outlined" label="Form süresi dolmuş" />}
             {row.contactQuoteIds.length>0 && <Chip color={row.contactPending ? 'warning' : 'success'}
               variant={row.contactPending ? 'filled' : 'outlined'} size="small"
               label={row.contactPending ? `${row.contactQuoteIds.length} görüşme isteği` : 'Görüşmeler takip edildi'} />}

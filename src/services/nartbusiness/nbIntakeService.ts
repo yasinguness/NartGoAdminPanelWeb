@@ -5,7 +5,9 @@ export interface IntakeItem { type: 'REQUEST' | 'OFFER'; title: string; descript
 export interface IntakeRow { id: string; memberId: string; memberLabel?: string; assignedTo: string;
   status: IntakeStatus; createdAt: string; expiresAt: string; submittedAt?: string;
   reviewedAt?: string; reviewedBy?: string; revoked: boolean; items?: IntakeItem[];
-  listingIds: string[]; reviewNote?: string; contactQuoteIds: string[]; contactPending: boolean; contactNote?: string; }
+  listingIds: string[]; reviewNote?: string; contactQuoteIds: string[]; contactPending: boolean; contactNote?: string;
+  /** ADMIN_LINK: admin bağlantısıyla; MEMBER_HOME: üye ana sayfadan kendisi gönderdi. */
+  origin?: 'ADMIN_LINK' | 'MEMBER_HOME'; }
 export interface IntakeLink { id: string; url: string; expiresAt: string; }
 export interface IntakeContact { id: string; supplierMemberId: string; supplierCompanyName?: string;
   supplierDisplayName?: string; price: number; currency: string; }

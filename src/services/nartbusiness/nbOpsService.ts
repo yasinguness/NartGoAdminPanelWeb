@@ -165,7 +165,10 @@ export interface NbTrialPlaybookSettings {
 
 export interface NbDigestSettings {
   enabled: boolean;
+  /** Varsayılan aylık; haftalıkta dayOfWeek, aylıkta dayOfMonth kullanılır. */
+  cadence: 'MONTHLY' | 'WEEKLY';
   dayOfWeek: number;
+  dayOfMonth: number;
   tenders: number;
   members: number;
   listings: number;
@@ -265,6 +268,22 @@ export const NB_SUBSCRIPTION_STATUS_LABEL: Record<NbSubscriptionStatus, string> 
 
 export const NB_INTERVAL_LABEL: Record<NbBillingInterval, string> = { MONTHLY: 'Aylık (eski)', QUARTERLY: '3 ay', SEMIANNUAL: '6 ay', YEARLY: '12 ay' };
 
+/** Üyenin açtığı, admin onayı bekleyen havale talebi. */
+export interface NbBankTransferRow {
+  periodId: string;
+  memberId: string;
+  companyName: string | null;
+  memberStatus: string | null;
+  code: string;
+  planId: string | null;
+  planName: string | null;
+  durationMonths: number;
+  amount: number;
+  currency: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
 export interface NbTermPurchase { id: string; memberId: string; memberName: string; durationMonths: number; fee: number; currency: string; status: string; startsAt: string; endsAt: string }
 
 export interface NbBillingPlan {
@@ -342,10 +361,13 @@ export interface NbDigest {
 }
 
 export interface NbDigestWeek {
+  /** Dönemin ilk günü: aylıkta ayın 1'i, haftalıkta pazartesi. */
   weekStart: string;
   enabled: boolean;
   dayOfWeek: number;
   members: NbDigest[];
+  monthly: boolean;
+  dayOfMonth: number;
 }
 
 // ── Dönüşüm panosu ───────────────────────────────────────────────────────
@@ -437,6 +459,14 @@ export const nbOpsService = {
       (await api.get('/nb/admin/tenders/referrals', { params: { memberId, page: 0, size } })).data,
     );
     return page?.content ?? [];
+  },
+
+  // Havale/EFT talepleri (docs/plan/nb-odeme-kolaylastirma.md)
+  async bankTransfers(): Promise<NbBankTransferRow[]> {
+    return unwrap<NbBankTransferRow[]>((await api.get('/nb/admin/billing/bank-transfers')).data) ?? [];
+  },
+  async confirmBankTransfer(periodId: string, reference: string): Promise<void> {
+    await api.post(`/nb/admin/billing/bank-transfers/${periodId}/confirm`, { reference });
   },
 
   // Abonelik planları ve abonelikler

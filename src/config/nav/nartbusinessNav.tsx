@@ -100,7 +100,7 @@ export const nartbusinessNavSections: NavSection[] = [
             { text: 'İlanlar (Talep/Arz)', icon: <ListingIcon />, path: '/nartbusiness/listings', allowedRoles: NB_MODERATE },
             { text: 'İhaleler', icon: <TenderIcon />, path: '/nartbusiness/tenders', allowedRoles: NB_MANAGE },
             { text: 'Haftalık İhale Seçkisi', icon: <ShortlistIcon />, path: '/nartbusiness/weekly-shortlist', allowedRoles: NB_MANAGE },
-            { text: 'Haftalık Bülten', icon: <DigestIcon />, path: '/nartbusiness/weekly-digest', allowedRoles: NB_MANAGE },
+            { text: 'Bülten', icon: <DigestIcon />, path: '/nartbusiness/weekly-digest', allowedRoles: NB_MANAGE },
             { text: 'Pozisyon İlanları', icon: <JobIcon />, path: '/nartbusiness/jobs', allowedRoles: NB_MODERATE },
             { text: 'Tanıştırmalar', icon: <IntroductionIcon />, path: '/nartbusiness/introductions', allowedRoles: NB_MANAGE },
             // Üç ayrı yönlendirme var ve üçü farklı iş: ihale bildirimlerinin

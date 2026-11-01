@@ -52,11 +52,34 @@ function relative(ts?: string | null): string {
   return `${Math.floor(hours / 24)} gün önce`;
 }
 
+/** Mesaj istekleri istatistiği (content-service, docs/plan/nartgo-mesaj-istekleri.md). */
+interface MessageRequestStats {
+  days: number;
+  created: number;
+  accepted: number;
+  declined: number;
+  pending: number;
+  /** Kabul yolu: BUTTON (kabul düğmesi), REPLY (yanıt yazarak), MATCH (NartLive eşleşmesi), UNKNOWN (ölçüm öncesi) */
+  acceptedVia?: Record<string, number>;
+  frequentlyDeclined: { email: string; declines: number }[];
+}
+
+const ACCEPTED_VIA_LABEL: Record<string, string> = {
+  BUTTON: 'kabul düğmesiyle',
+  REPLY: 'yanıt yazarak',
+  MATCH: 'NartLive eşleşmesiyle',
+  UNKNOWN: 'ölçüm öncesi',
+};
+
+const pct = (n: number, total: number) => (total > 0 ? `%${Math.round((n / total) * 100)}` : '—');
+
 export default function NartLiveUsers() {
   const [rows, setRows] = useState<AdminUserLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  // İstatistik ek bilgi: alınamazsa harita ve liste yine gösterilir.
+  const [requestStats, setRequestStats] = useState<MessageRequestStats | null>(null);
 
   const mapDivRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -80,6 +103,10 @@ export default function NartLiveUsers() {
 
   useEffect(() => {
     void load();
+    api
+      .get<any>('/content/admin/nartlive/message-requests/stats', { params: { days: 30 } })
+      .then((res) => setRequestStats(res.data?.data ?? null))
+      .catch(() => setRequestStats(null));
   }, [load]);
 
   // Harita init — bir kez.
@@ -186,6 +213,43 @@ export default function NartLiveUsers() {
         <Chip label={`Herkese açık: ${publicCount}`} />
         <Chip label={`İz kapalı: ${traceOffCount}`} />
       </Stack>
+
+      {requestStats && (
+        <Paper variant="outlined" sx={{ mb: 2, p: 1.5 }}>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+            Mesaj istekleri (son {requestStats.days} gün)
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Chip size="small" label={`Gönderilen: ${requestStats.created}`} />
+            <Chip size="small" color="success" variant="outlined"
+              label={`Kabul: ${requestStats.accepted} (${pct(requestStats.accepted, requestStats.created)})`} />
+            <Chip size="small" color="warning" variant="outlined"
+              label={`Silinen: ${requestStats.declined} (${pct(requestStats.declined, requestStats.created)})`} />
+            <Chip size="small" variant="outlined" label={`Bekleyen: ${requestStats.pending}`} />
+          </Stack>
+          {requestStats.accepted > 0 && requestStats.acceptedVia && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Kabul edilenler:{' '}
+              {Object.entries(requestStats.acceptedVia)
+                .filter(([, n]) => n > 0)
+                .map(([k, n]) => `${n} ${ACCEPTED_VIA_LABEL[k] ?? k}`)
+                .join(' · ')}
+            </Typography>
+          )}
+          {requestStats.frequentlyDeclined.length > 0 && (
+            <Box sx={{ mt: 1.5 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                İstekleri son 30 günde 3 ve üzeri kez silinen hesaplar (günlük istek sınırı 2'ye indi):
+              </Typography>
+              {requestStats.frequentlyDeclined.map((s) => (
+                <Typography key={s.email} variant="body2" sx={{ fontFamily: 'monospace' }}>
+                  {s.email} · {s.declines} silinme
+                </Typography>
+              ))}
+            </Box>
+          )}
+        </Paper>
+      )}
 
       <Paper variant="outlined" sx={{ mb: 2, overflow: 'hidden' }}>
         <div ref={mapDivRef} style={{ height: 420, width: '100%' }} />

@@ -116,7 +116,7 @@ export default function NbWeeklyDigest() {
   };
 
   const sendWeek = async () => {
-    if (!window.confirm(`Bu hafta e-posta almamış ve ihalesi olan ${counts.withItems - counts.email} üyeye bülten e-postası gönderilsin mi?`)) return;
+    if (!window.confirm(`${week?.monthly === false ? 'Bu hafta' : 'Bu ay'} e-posta almamış ve ihalesi olan ${counts.withItems - counts.email} üyeye bülten e-postası gönderilsin mi?`)) return;
     setBusy('all');
     try {
       const r = await nbOpsService.digestSendWeek();
@@ -135,13 +135,16 @@ export default function NbWeeklyDigest() {
     <Box>
       <NbPageHeader
         crumb="NartBusiness · Ticaret & Fırsatlar"
-        title="Haftalık Bülten"
+        title={week?.monthly === false ? 'Haftalık Bülten' : 'Aylık Bülten'}
         subtitle={
           week
-            ? `${new Date(week.weekStart).toLocaleDateString('tr-TR')} haftası. Otomatik e-posta: ${
-                week.enabled ? `her ${WEEKDAYS[week.dayOfWeek - 1]} 09:00` : 'kapalı'
+            ? `${week.monthly
+                ? new Date(week.weekStart).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
+                : `${new Date(week.weekStart).toLocaleDateString('tr-TR')} haftası`}. Otomatik e-posta: ${
+                !week.enabled ? 'kapalı'
+                  : week.monthly ? `her ayın ${week.dayOfMonth}. günü 09:00` : `her ${WEEKDAYS[week.dayOfWeek - 1]} 09:00`
               } (Operasyon Ayarları).`
-            : 'Her üyeye haftada bir kez gönderilen kişiselleştirilmiş bülten.'
+            : 'Her üyeye gönderilen kişiselleştirilmiş bülten.'
         }
         kpis={
           <>

@@ -32,6 +32,15 @@ export default defineConfig(({ mode }) => {
     ],
     server: {
       proxy: {
+        // NartStore arka ucu ağ geçidinde /v1/commerce altında (storeActivityService).
+        '/v1/commerce': {
+          target: env.VITE_API_PROXY_TARGET || 'https://api.nartgo.net',
+          changeOrigin: true,
+          secure: false,
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => proxyReq.removeHeader('origin'));
+          },
+        },
         '/api': {
           target: env.VITE_API_PROXY_TARGET || 'https://api.nartgo.net',
           changeOrigin: true,

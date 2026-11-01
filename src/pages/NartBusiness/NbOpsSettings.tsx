@@ -29,7 +29,7 @@ interface FieldDef {
   key: string;
   label: string;
   help: string;
-  type?: 'number' | 'bool' | 'weekday' | 'date';
+  type?: 'number' | 'bool' | 'weekday' | 'date' | 'cadence';
 }
 
 const GROUPS: { group: NbSettingsGroup; title: string; intro: string; fields: FieldDef[] }[] = [
@@ -61,11 +61,13 @@ const GROUPS: { group: NbSettingsGroup; title: string; intro: string; fields: Fi
   },
   {
     group: 'digest',
-    title: 'Haftalık bülten',
-    intro: 'Üyelere haftada bir gönderilen kişiselleştirilmiş bültenin içeriği.',
+    title: 'Bülten',
+    intro: 'Üyelere gönderilen kişiselleştirilmiş bülten. Ağda haftada birkaç hareket varken aylık gönderim önerilir; haftalık bülten çoğu hafta boş kalır.',
     fields: [
-      { key: 'enabled', label: 'Haftalık bülten etkin', help: '', type: 'bool' },
-      { key: 'dayOfWeek', label: 'Gönderim günü', help: '', type: 'weekday' },
+      { key: 'enabled', label: 'Bülten etkin', help: '', type: 'bool' },
+      { key: 'cadence', label: 'Gönderim sıklığı', help: '', type: 'cadence' },
+      { key: 'dayOfMonth', label: 'Aylık gönderim günü (ayın 1-28. günü)', help: 'Aylık bültende kullanılır.' },
+      { key: 'dayOfWeek', label: 'Haftalık gönderim günü', help: '', type: 'weekday' },
       { key: 'tenders', label: 'İhale sayısı', help: 'Bültende yer alacak en fazla ihale sayısı.' },
       { key: 'members', label: 'Firma önerisi sayısı', help: 'Bültende önerilecek üye firma sayısı.' },
       { key: 'listings', label: 'Talep sayısı', help: 'Üyenin sektörüyle eşleşen açık talepler.' },
@@ -165,6 +167,21 @@ function GroupForm({
                 error={!!errors[f.key]}
                 helperText={errors[f.key] || ' '}
               />
+            );
+          }
+          if (f.type === 'cadence') {
+            return (
+              <TextField
+                key={f.key}
+                select
+                size="small"
+                label={f.label}
+                value={String(v ?? 'MONTHLY')}
+                onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
+              >
+                <MenuItem value="MONTHLY">Ayda bir</MenuItem>
+                <MenuItem value="WEEKLY">Haftada bir</MenuItem>
+              </TextField>
             );
           }
           if (f.type === 'weekday') {
