@@ -29,6 +29,7 @@ const Businesses = lazy(() => import('./pages/Businesses/Businesses'));
 const BusinessDetails = lazy(() => import('./pages/Businesses/BusinessDetails'));
 const BusinessCreate = lazy(() => import('./pages/Businesses/BusinessCreate'));
 const BusinessClaims = lazy(() => import('./pages/Businesses/BusinessClaims'));
+const BusinessPromotions = lazy(() => import('./pages/Businesses/BusinessPromotions'));
 const BusinessCategories = lazy(() => import('./pages/BusinessCategories/BusinessCategories'));
 const FeaturedStories = lazy(() => import('./pages/FeaturedStories/FeaturedStories'));
 const UserCards = lazy(() => import('./pages/UserCards/UserCards'));
@@ -216,6 +217,7 @@ function App() {
                 <Route path="businesses/new" element={<BusinessCreate />} />
                 <Route path="businesses/:id" element={<BusinessDetails />} />
                 <Route path="business-claims" element={<BusinessClaims />} />
+                <Route path="businesses/promotions" element={<BusinessPromotions />} />
                 <Route path="business-categories" element={<BusinessCategories />} />
                 <Route path="featured-stories" element={<FeaturedStories />} />
                 <Route path="user-cards" element={<UserCards />} />

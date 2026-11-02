@@ -99,6 +99,7 @@ export const nartgoNavSections: NavSection[] = [
         items: [
             { text: 'İşletmeler', icon: <BusinessIcon />, path: '/businesses' },
             { text: 'İşletme Talepleri', icon: <FactCheckIcon />, path: '/business-claims' },
+            { text: 'Ücretli Öne Çıkarma', icon: <StarIcon />, path: '/businesses/promotions' },
             { text: 'İşletme Kategorileri', icon: <CategoryIcon />, path: '/business-categories' },
             { text: 'Öne Çıkan Hikayeler', icon: <StarIcon />, path: '/featured-stories' },
             { text: 'Üye Kartları', icon: <BadgeIcon />, path: '/user-cards' },

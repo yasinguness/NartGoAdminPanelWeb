@@ -30,7 +30,26 @@ const TYPE_FILTERS = [
   { key: 'cron', label: 'Cron' },
   { key: 'fixedRate', label: 'Fixed Rate' },
   { key: 'fixedDelay', label: 'Fixed Delay' },
+  { key: 'ERROR', label: 'Son çalışması hatalı' },
 ];
+
+const STATUS_STYLE: Record<string, { label: string; color: string }> = {
+  SUCCESS: { label: 'Başarılı', color: '#16a34a' },
+  ERROR: { label: 'Hata', color: '#dc2626' },
+  RUNNING: { label: 'Çalışıyor', color: '#2563eb' },
+  NEVER: { label: 'Çalışmadı', color: '#64748b' },
+};
+
+function formatWhen(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const diff = Date.now() - d.getTime();
+  if (diff < 60_000) return 'az önce';
+  if (diff < 3_600_000) return `${Math.round(diff / 60_000)} dk önce`;
+  if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)} sa önce`;
+  return d.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
 
 function formatInterval(ms?: number): string {
   if (!ms) return '—';
@@ -57,15 +76,15 @@ export default function JobMonitor() {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [search, setSearch] = useState('');
 
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
-
   const services = data?.services || [];
 
   const filteredServices = useMemo(() => {
     const q = search.trim().toLowerCase();
     return services.map(svc => {
       const filterJobs = (jobs: ScheduledJob[], type: string) => {
-        if (typeFilter !== 'ALL' && typeFilter !== type) return [];
+        if (typeFilter === 'ERROR') {
+          jobs = jobs.filter(j => j.lastStatus === 'ERROR');
+        } else if (typeFilter !== 'ALL' && typeFilter !== type) return [];
         if (!q) return jobs;
         return jobs.filter(j => (j.runnable || '').toLowerCase().includes(q));
       };
@@ -88,6 +107,8 @@ export default function JobMonitor() {
     if (diff < 3_600_000) return `${Math.round(diff / 60_000)}dk önce`;
     return new Date(dataUpdatedAt).toLocaleTimeString('tr-TR');
   }, [dataUpdatedAt]);
+
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   const downServices = services.filter(s => s.status !== 'up').length;
 
@@ -162,7 +183,7 @@ export default function JobMonitor() {
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <StatCard label="Toplam Job" value={data?.totalJobs ?? 0} color="#C9A227" loading={isLoading} />
           <StatCard label="Aktif Servis" value={`${data?.activeServices ?? 0} / ${services.length}`} color="#22c55e" loading={isLoading} />
-          <StatCard label="Cron Jobs" value={services.reduce((s, v) => s + (v.cron?.length || 0), 0)} color="#3b82f6" loading={isLoading} />
+          <StatCard label="Son çalışması hatalı" value={data?.failingJobs ?? 0} color={(data?.failingJobs ?? 0) > 0 ? '#dc2626' : '#22c55e'} loading={isLoading} />
           <StatCard label="Rate/Delay Jobs" value={services.reduce((s, v) => s + (v.fixedRate?.length || 0) + (v.fixedDelay?.length || 0), 0)} color="#8b5cf6" loading={isLoading} />
         </Grid>
 
@@ -260,7 +281,7 @@ function ServiceAccordion({ service }: { service: ServiceJobs & { visibleJobCoun
 
   return (
     <Accordion
-      defaultExpanded={false}
+      defaultExpanded={(service.failingJobs ?? 0) > 0}
       sx={{
         bgcolor: '#FFFFFF',
         border: '1px solid rgba(201,162,39,0.12)',
@@ -277,6 +298,9 @@ function ServiceAccordion({ service }: { service: ServiceJobs & { visibleJobCoun
           </Typography>
           {service.status !== 'up' && (
             <Chip label="DOWN" size="small" sx={{ bgcolor: 'rgba(239,68,68,0.15)', color: '#ef4444', fontSize: 9, fontWeight: 800, height: 18 }} />
+          )}
+          {(service.failingJobs ?? 0) > 0 && (
+            <Chip label={`${service.failingJobs} iş hatalı`} size="small" sx={{ bgcolor: 'rgba(220,38,38,0.12)', color: '#dc2626', fontSize: 10, fontWeight: 800, height: 20 }} />
           )}
           <Box sx={{ flex: 1 }} />
           <Stack direction="row" spacing={1.5}>
@@ -310,6 +334,7 @@ function ServiceAccordion({ service }: { service: ServiceJobs & { visibleJobCoun
                 <HeaderCell>Tip</HeaderCell>
                 <HeaderCell>Method</HeaderCell>
                 <HeaderCell>Expression / Interval</HeaderCell>
+                <HeaderCell>Son çalışma</HeaderCell>
                 <HeaderCell align="right">İlk Gecikme</HeaderCell>
               </TableRow>
             </TableHead>
@@ -335,6 +360,9 @@ function ServiceAccordion({ service }: { service: ServiceJobs & { visibleJobCoun
                   <TableCell sx={{ fontSize: 11, fontFamily: 'monospace', color: '#C9A227' }}>
                     {j.expression ? j.expression : formatInterval(j.intervalMs)}
                   </TableCell>
+                  <TableCell sx={{ fontSize: 11, maxWidth: 380 }}>
+                    <LastRun job={j} />
+                  </TableCell>
                   <TableCell align="right" sx={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(30,41,59,0.55)' }}>
                     {formatInterval(j.initialDelayMs)}
                   </TableCell>
@@ -345,6 +373,35 @@ function ServiceAccordion({ service }: { service: ServiceJobs & { visibleJobCoun
         )}
       </AccordionDetails>
     </Accordion>
+  );
+}
+
+function LastRun({ job }: { job: ScheduledJob }) {
+  if (!job.lastStatus) {
+    return <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.45)' }}>Kayıt yok</Typography>;
+  }
+  const st = STATUS_STYLE[job.lastStatus] || { label: job.lastStatus, color: '#64748b' };
+  return (
+    <Stack spacing={0.25}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Chip label={st.label} size="small" sx={{ bgcolor: `${st.color}1f`, color: st.color, fontSize: 10, fontWeight: 700, height: 18 }} />
+        <Typography sx={{ fontSize: 11, color: 'rgba(30,41,59,0.70)' }}>
+          {formatWhen(job.lastFinishedAt)}
+          {job.lastDurationMs != null ? ` · ${formatInterval(job.lastDurationMs)}` : ''}
+          {job.failures ? ` · ${job.failures}/${job.runs} hata` : ''}
+        </Typography>
+      </Stack>
+      {job.lastStatus === 'ERROR' && job.lastError && (
+        <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#dc2626', wordBreak: 'break-word' }}>
+          {job.lastError}
+        </Typography>
+      )}
+      {job.lastStatus === 'ERROR' && job.lastSuccessAt && (
+        <Typography sx={{ fontSize: 10, color: 'rgba(30,41,59,0.55)' }}>
+          Son başarılı: {formatWhen(job.lastSuccessAt)}
+        </Typography>
+      )}
+    </Stack>
   );
 }
 

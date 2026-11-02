@@ -118,6 +118,7 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   // ── İşletme Yönetimi (admin) ──
   { path: '/businesses', roles: ADMIN_ONLY, description: 'İşletmeler' },
   { path: '/business-claims', roles: ADMIN_ONLY, description: 'İşletme talepleri' },
+  { path: '/businesses/promotions', roles: ADMIN_ONLY, description: 'Ücretli öne çıkarma' },
   { path: '/business-categories', roles: ADMIN_ONLY, description: 'İşletme kategorileri' },
   { path: '/nartstore/activity', roles: ADMIN_ONLY, description: 'NartStore hareketleri: sepet, tıklama, arama, hata, sipariş' },
   { path: '/nartstore-interest', roles: ADMIN_ONLY, description: 'NartStore satıcı başvuruları ve ilgi listesi' },

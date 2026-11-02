@@ -61,7 +61,8 @@ interface MessageRequestStats {
   pending: number;
   /** Kabul yolu: BUTTON (kabul düğmesi), REPLY (yanıt yazarak), MATCH (NartLive eşleşmesi), UNKNOWN (ölçüm öncesi) */
   acceptedVia?: Record<string, number>;
-  frequentlyDeclined: { email: string; declines: number }[];
+  /** ref: MCP'de görünen kısa kimlik (u_7f3a9c); e-posta yalnız admin panelinde. */
+  frequentlyDeclined: { email?: string; ref?: string; declines: number }[];
 }
 
 const ACCEPTED_VIA_LABEL: Record<string, string> = {
@@ -242,8 +243,8 @@ export default function NartLiveUsers() {
                 İstekleri son 30 günde 3 ve üzeri kez silinen hesaplar (günlük istek sınırı 2'ye indi):
               </Typography>
               {requestStats.frequentlyDeclined.map((s) => (
-                <Typography key={s.email} variant="body2" sx={{ fontFamily: 'monospace' }}>
-                  {s.email} · {s.declines} silinme
+                <Typography key={s.ref ?? s.email} variant="body2" sx={{ fontFamily: 'monospace' }}>
+                  {s.email ?? '—'} · {s.ref} · {s.declines} silinme
                 </Typography>
               ))}
             </Box>

@@ -6,6 +6,8 @@ import { businessClaimService } from '../../services/business/businessClaimServi
 import { featuredAdminService, formatDate, type FeaturedList } from '../../services/business/featuredAdminService';
 import { storeActivityService, type Overview } from '../../services/nartstore/storeActivityService';
 import { heritageVillageService, type PendingSummary } from '../../services/heritageVillageService';
+import { api } from '../../services/api';
+import { jobMonitorService } from '../../services/jobMonitor/jobMonitorService';
 
 /**
  * Panel ana sayfası › "Bugün ilgilenmen gerekenler". Her kart kendi verisini ayrı çeker; biri hata verirse ya da
@@ -17,6 +19,9 @@ export default function AttentionPanel() {
   const [featured, setFeatured] = useState<FeaturedList | null>(null);
   const [store, setStore] = useState<Overview | null>(null);
   const [heritage, setHeritage] = useState<PendingSummary | null>(null);
+  const [frequentlyDeclined, setFrequentlyDeclined] = useState<number | null>(null);
+  const [promotions, setPromotions] = useState<{ refundNeeded: number; paidLast7Days: number } | null>(null);
+  const [jobs, setJobs] = useState<{ failing: number; down: number } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -26,6 +31,15 @@ export default function AttentionPanel() {
       featuredAdminService.list().then(setFeatured),
       storeActivityService.overview(1).then(setStore),
       heritageVillageService.pendingSummary().then(setHeritage),
+      api.get<any>('/content/admin/nartlive/message-requests/stats', { params: { days: 30 } })
+        .then((r) => setFrequentlyDeclined(r.data?.data?.frequentlyDeclined?.length ?? 0)),
+      api.get<any>('/businesses/admin/promotions').then((r) => {
+        const d = r.data?.data;
+        if (d) setPromotions({ refundNeeded: d.refundNeeded ?? 0, paidLast7Days: d.paidLast7Days ?? 0 });
+      }),
+      jobMonitorService.getJobs().then((d) => {
+        if (d) setJobs({ failing: d.failingJobs ?? 0, down: d.services.filter((s) => s.status !== 'up').length });
+      }),
     ]).finally(() => setLoaded(true));
   }, []);
 
@@ -62,6 +76,28 @@ export default function AttentionPanel() {
     if (soon.length)
       cards.push(<AttentionCard key="featured" title="Öne çıkarma" items={[{ n: soon.length, label: `işletmenin öne çıkarması 7 gün içinde bitiyor`, to: '/businesses?filter=featured' }]}
         footer={soon.slice(0, 3).map((f) => `${f.name} (${formatDate(f.featuredEndDate)})`).join(' · ')} />);
+  }
+
+  if (frequentlyDeclined) {
+    cards.push(<AttentionCard key="msgreq" title="Mesaj istekleri" items={[{
+      n: frequentlyDeclined, label: 'hesabın istekleri son 30 günde 3 ve üzeri kez silindi (günlük sınırı 2\'ye indi)', to: '/nartlive/users', tone: 'error',
+    }]} />);
+  }
+
+  if (promotions) {
+    const items = [
+      { n: promotions.refundNeeded, label: 'öne çıkarma ödemesi alındı ama başlatılamadı, iade bekliyor', to: '/businesses/promotions', tone: 'error' as const },
+      { n: promotions.paidLast7Days, label: 'ücretli öne çıkarma satın alındı (son 7 gün)', to: '/businesses/promotions', tone: 'success' as const },
+    ].filter((i) => i.n > 0);
+    if (items.length) cards.push(<AttentionCard key="promotions" title="Ücretli öne çıkarma" items={items} />);
+  }
+
+  if (jobs) {
+    const items = [
+      { n: jobs.failing, label: 'zamanlı işin son çalışması hatayla bitti', to: '/ops/jobs', tone: 'error' as const },
+      { n: jobs.down, label: 'servisin zamanlı iş listesi okunamadı (servis kapalı olabilir)', to: '/ops/jobs', tone: 'error' as const },
+    ].filter((i) => i.n > 0);
+    if (items.length) cards.push(<AttentionCard key="jobs" title="Zamanlı işler" items={items} />);
   }
 
   if (heritage) {
