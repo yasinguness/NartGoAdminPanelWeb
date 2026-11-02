@@ -85,6 +85,7 @@ export default function BusinessPromotions() {
           <Chip label={`Son 7 gün satış: ${data.paidLast7Days}`} />
           <Chip label={`Son 30 gün gelir: ${tl(data.revenueLast30Days)}`} />
           <Chip color={data.refundNeeded ? 'error' : 'default'} label={`İade bekleyen: ${data.refundNeeded}`} />
+          <Chip label={`Uygulamada "haber ver" diyen sahip: ${data.interestCount ?? 0}`} />
         </Stack>
       )}
 

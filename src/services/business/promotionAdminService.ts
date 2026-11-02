@@ -37,6 +37,8 @@ export interface PromotionOverview {
   paidLast7Days: number;
   revenueLast30Days: number;
   refundNeeded: number;
+  /** Uygulamadaki "Öne çıkarma çok yakında, haber ver" kaydı (işletme sahibi). */
+  interestCount?: number;
   purchases: PromotionPurchase[];
   byProvince: ProvinceResult[];
 }
