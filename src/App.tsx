@@ -24,6 +24,10 @@ import { getLandingPath } from './config/workspaces';
 const WorkspaceSelect = lazy(() => import('./pages/WorkspaceSelect'));
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import InstagramCandidates from './pages/Events/InstagramCandidates';
+import InstagramAnalytics from './pages/InstagramAnalytics/InstagramAnalytics';
+import EditorsDesk from './pages/EditorsDesk/EditorsDesk';
+import InstagramQueue from './pages/EditorsDesk/InstagramQueue';
+import { useParams as useParams360 } from 'react-router-dom';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 const Businesses = lazy(() => import('./pages/Businesses/Businesses'));
 const BusinessDetails = lazy(() => import('./pages/Businesses/BusinessDetails'));
@@ -94,7 +98,6 @@ const ActiveSessions = lazy(() => import('./pages/ActiveSessions/ActiveSessions'
 const AnomalyDetector = lazy(() => import('./pages/AnomalyDetector/AnomalyDetector'));
 const FraudDetection = lazy(() => import('./pages/FraudDetection/FraudDetection'));
 const ChurnRisk = lazy(() => import('./pages/ChurnRisk/ChurnRisk'));
-const User360 = lazy(() => import('./pages/User360/User360'));
 const InactiveUsers = lazy(() => import('./pages/EngagementAnalytics/InactiveUsers'));
 const LoginFrequency = lazy(() => import('./pages/EngagementAnalytics/LoginFrequency'));
 const ProductAnalytics = lazy(() => import('./pages/EngagementAnalytics/ProductAnalytics'));
@@ -212,7 +215,10 @@ function App() {
                 <Route path="heritage/villages" element={<HeritageVillages />} />
                 <Route path="heritage/families" element={<HeritageFamilies />} />
                 <Route path="users/:id" element={<UserDetails />} />
-                <Route path="users/:id/360" element={<User360 />} />
+                {/* 360° ayrı bir sayfaydı ve içeriğinin dördü kullanıcı
+                    detayında zaten vardı; benzersiz olan ticari özet oraya
+                    taşındı. Rota korunuyor ki eski yer imleri kırılmasın. */}
+                <Route path="users/:id/360" element={<User360Redirect />} />
                 <Route path="businesses" element={<Businesses />} />
                 <Route path="businesses/new" element={<BusinessCreate />} />
                 <Route path="businesses/:id" element={<BusinessDetails />} />
@@ -239,6 +245,9 @@ function App() {
                 <Route path="event-operations/:eventId" element={<EventOperations />} />
                 <Route path="event-categories" element={<EventCategories />} />
                 <Route path="events/instagram-candidates" element={<InstagramCandidates />} />
+                <Route path="instagram-analytics" element={<InstagramAnalytics />} />
+                <Route path="editors-desk" element={<EditorsDesk />} />
+                <Route path="instagram-queue" element={<InstagramQueue />} />
                 <Route path="event/raffle-live" element={<RaffleLivePage />} />
                 <Route path="event-creation" element={<TicketCreationPage />} />
                 <Route path="event-creation/:eventId" element={<TicketCreationPage />} />
@@ -317,6 +326,12 @@ function EventDetailRedirect() {
   const { id } = useParams<{ id: string }>();
   if (!id) return <Navigate to="/events" replace />;
   return <Navigate to={`/event-console/${id}`} replace />;
+}
+
+/** Eski 360° adresini kullanıcı detayına taşır. */
+function User360Redirect() {
+  const { id } = useParams360<{ id: string }>();
+  return <Navigate to={id ? `/users/${id}` : '/users'} replace />;
 }
 
 /**

@@ -152,6 +152,8 @@ function LayoutShell({ workspace, canSwitch }: LayoutShellProps) {
     }, [canAccess, isAdmin, roles, workspace.nav]);
 
     const isZenMode = location.pathname.includes('seat-map') && new URLSearchParams(location.search).get('zen') === 'true';
+    // Kendi tam ekran düzenini taşıyan sayfalar: kenar boşluğu ve genişlik sınırı yok.
+    const fullBleed = ['seat-map', 'heritage/locations', 'editors-desk'].some((p) => location.pathname.includes(p));
 
     const currentPageTitle = useMemo(() => {
         for (const s of workspace.nav) {
@@ -653,11 +655,11 @@ function LayoutShell({ workspace, canSwitch }: LayoutShellProps) {
                 component="main"
                 sx={{
                     flexGrow: 1,
-                    p: (location.pathname.includes('seat-map') || location.pathname.includes('heritage/locations')) ? 0 : 3,
+                    p: fullBleed ? 0 : 3,
                     width: isZenMode ? '100vw' : { sm: `calc(100% - ${DRAWER_W}px)` },
                     minHeight: isZenMode ? '100vh' : 'calc(100vh - 56px)',
                     mt: isZenMode ? 0 : '64px',
-                    maxWidth: (location.pathname.includes('seat-map') || location.pathname.includes('heritage/locations')) ? 'none' : '1600px',
+                    maxWidth: fullBleed ? 'none' : '1600px',
                     overflowX: 'hidden',
                 }}
             >

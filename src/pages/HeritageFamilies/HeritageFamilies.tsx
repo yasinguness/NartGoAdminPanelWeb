@@ -7,7 +7,7 @@ import { useSnackbar } from 'notistack';
 import { errorText } from '../../services/heritageReviewService';
 import {
   familyAtlasService, parseCommentFile,
-  type CleanupReport, type IgComment, type NameSuggestion, type TrustItem, type ImportReport, type FamilyDetail, type FamilyListItem, type VillageDetail, type MergeItem, type MergeSide, type MemberLinksReport, type ProfileCleanupReport, type VillageHit,
+  type CleanupReport, type CrossRaceMergeReport, type IgComment, type NameSuggestion, type TrustItem, type ImportReport, type FamilyDetail, type FamilyListItem, type VillageDetail, type MergeItem, type MergeSide, type MemberLinksReport, type ProfileCleanupReport, type VillageHit,
 } from '../../services/familyAtlasService';
 
 /**
@@ -586,6 +586,7 @@ function MergePanel() {
   return (
     <Stack spacing={2}>
       <CleanupBox onApplied={() => void load()} />
+      <CrossRaceMergeBox onApplied={() => void load()} />
       <Alert severity="info">
         {data.total.toLocaleString('tr-TR')} aday çift. Aynı köydeki benzer sülaleleri önce o köyün üyeleri oylar (3 “aynı” köyde birleştirir, iki köy “aynı” derse katalog birleşir; 2 “farklı” ayırır). Köylülerin karar veremediği çiftler en üstte, oylaması süren çiftler en altta. Köyü olan kayıtlar önce gelir. Farklı kabile ya da halktaki benzer adlar önerilmez; yazım anahtarı birebir aynıysa uyarıyla gelir.
         <b> Aynı adı taşımak aynı soydan gelmek demek değildir</b>: emin değilsen “Farklı” de ya da atla.
@@ -923,6 +924,51 @@ function CleanupBox({ onApplied }: { onApplied: () => void }) {
           <ListBlock title="Birleşecekler" rows={r.merges.map((x) => `${x.name} (${x.race}) · kalan #${x.keep} (${x.keepLinks} köy), katılan #${x.gone} (${x.goneLinks} köy)`)} />
           <ListBlock title="Hem adige hem abhaz altında (birleştirilmez)" rows={r.crossRaceForModerator.map((x) => `${x.name} · ${x.families.map((f) => `#${f.id} ${f.race} (${f.links} köy)`).join(', ')}`)} />
           <ListBlock title="Kabilesi farklı, birleştirilmedi" rows={r.skippedDifferentTribe.map((x) => `${x.name} · ${x.reason}`)} />
+        </Box>
+      )}
+    </Paper>
+  );
+}
+
+/**
+ * İki halklı boş ikizler: toplu içe aktarma bir adı adige ve abhaz için ayrı
+ * açmış, kayıtlardan yalnız biri köy ya da üye almış. Boş olanlar dolu kayda
+ * katılır. Otomatik temizlik iki halklı adlara bilerek dokunmuyor; bu kutu yalnız
+ * tek tarafı dolu olanları ele alır, iki tarafı da dolu olanlar masada kalır.
+ */
+function CrossRaceMergeBox({ onApplied }: { onApplied: () => void }) {
+  const { enqueueSnackbar } = useSnackbar();
+  const [r, setR] = useState<CrossRaceMergeReport | null>(null);
+  const [busy, setBusy] = useState(false);
+  const dry = async () => { setBusy(true); try { setR(await familyAtlasService.crossRaceMergeDryRun()); } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); } finally { setBusy(false); } };
+  const apply = async () => {
+    if (!r || !window.confirm(`${r.groups} gruptaki ${r.pairs} boş kayıt, dolu ikizine katılacak. Her biri ayrı karar olarak yazılır ve geri alınabilir. Devam edilsin mi?`)) return;
+    setBusy(true);
+    try {
+      const x = await familyAtlasService.crossRaceMergeApply();
+      enqueueSnackbar(`${x.merged ?? 0} birleştirme uygulandı${x.failed ? `, ${x.failed} başarısız` : ''}.`, { variant: x.failed ? 'warning' : 'success' });
+      setR(null); onApplied();
+    } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); } finally { setBusy(false); }
+  };
+  return (
+    <Paper variant="outlined" sx={{ p: 2.5 }}>
+      <Typography fontWeight={700}>İki halklı boş ikizler</Typography>
+      <Typography color="text.secondary" sx={{ mt: 0.5, mb: 1.5 }}>
+        Aynı ad birden çok halk altında açılmış ama yalnız bir kaydın köyü ya da üyesi var (ör. Şeucen adige 34 köy, abhaz boş). Boş kayıtlar dolu olana katılır.
+        İki tarafında da köy ya da üye olan adlara, halk adlarına ve “farklı” denmiş çiftlere dokunulmaz.
+      </Typography>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Button variant="outlined" disabled={busy} onClick={() => void dry()}>Kuru çalıştır</Button>
+        <Button variant="contained" disabled={busy || !r || r.pairs === 0} onClick={() => void apply()}>Uygula</Button>
+        {busy && <CircularProgress size={22} />}
+      </Stack>
+      {r && (
+        <Box sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
+            <Stat n={r.groups} t="grup" />
+            <Stat n={r.pairs} t="katılacak boş kayıt" />
+          </Stack>
+          <ListBlock title="Katılacaklar" rows={r.rows.map((x) => `${x.gone.name} (${x.gone.race || '—'}) #${x.gone.id} → ${x.keep.name} (${x.keep.race}, ${x.keep.villages} köy) #${x.keep.id}`)} />
         </Box>
       )}
     </Paper>

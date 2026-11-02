@@ -79,6 +79,13 @@ import { userService } from '../../services/user/userService';
 import { adminNotificationService } from '../../services/notification/adminNotificationService';
 import { adminAuditService } from '../../services/admin/adminAuditService';
 import type { AdminAuditLogEntry } from '../../types/admin/adminAuditLog';
+import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import type { NbMember } from '../../services/nartbusiness/nbTypes';
+import { TIER_LABEL, STATUS_LABEL } from '../../utils/nbDisplay';
+import LtvCard from '../User360/components/LtvCard';
+import OrdersList from '../User360/components/OrdersList';
+import { user360Service } from '../../services/user360/user360Service';
+import type { UserOrdersSummary } from '../../services/user360/user360Types';
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -88,6 +95,111 @@ interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
   value: number;
+}
+
+/**
+ * Halk kodlarının okunur karşılıkları. Kod değeri sunucuya gider, ekranda
+ * bu sözlükten gelen ad görünür.
+ */
+const RACE_LABELS: Record<string, string> = {
+  ADIGE: 'Adige (Çerkes)',
+  ABHAZ: 'Abhaz / Abaza',
+  CECEN: 'Çeçen',
+  DAGISTAN: 'Dağıstan',
+  KARACAY: 'Karaçay',
+  OSSET: 'Oset',
+  KURUMSAL: 'Kurumsal',
+  OTHER: 'Diğer',
+};
+
+const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  INDIVIDUAL: 'Bireysel',
+  CORPORATE: 'Kurumsal',
+  BUSINESS: 'İşletme',
+  ASSOCIATION: 'Dernek',
+};
+
+/**
+ * Kullanıcının NartBusiness üyeliği.
+ *
+ * İki dünya birbirini tanımıyordu: NartGo kullanıcı detayından üyenin NB
+ * kaydına, NB üye detayından da kullanıcıya gidilemiyordu. Admin tarafında
+ * "bu kişi üye mi?" sorusunun karşılığı yoktu.
+ *
+ * Doğrudan kullanıcı kimliğiyle sorgulayan bir uç olmadığı için e-posta
+ * üzerinden aranıyor (sunucu taraflı arama e-postayı da kapsıyor) ve dönen
+ * kayıtlar userId ile doğrulanıyor — aynı e-postayı taşıyan başka bir kayıt
+ * yanlışlıkla eşleşmesin.
+ */
+function NbMembershipCard({ userId, email }: { userId: string; email?: string }) {
+  const navigate = useNavigate();
+  const [member, setMember] = useState<NbMember | null>(null);
+  const [state, setState] = useState<'loading' | 'none' | 'ok' | 'error'>('loading');
+
+  useEffect(() => {
+    if (!email) { setState('none'); return; }
+    let alive = true;
+    nbAdminService.listMembers({ q: email, size: 10 })
+      .then((page) => {
+        if (!alive) return;
+        const hit = (page?.content ?? []).find((m) => m.userId === userId) ?? null;
+        setMember(hit);
+        setState(hit ? 'ok' : 'none');
+      })
+      .catch(() => { if (alive) setState('error'); });
+    return () => { alive = false; };
+  }, [userId, email]);
+
+  if (state === 'loading') return <CircularProgress size={20} />;
+  if (state === 'error') return <Typography variant="body2" color="text.secondary">Üyelik bilgisi alınamadı.</Typography>;
+  if (state === 'none' || !member) {
+    return <Typography variant="body2" color="text.secondary">Bu kullanıcının NartBusiness üyeliği yok.</Typography>;
+  }
+
+  return (
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }} useFlexGap>
+      <Chip size="small" color="primary" label={TIER_LABEL[member.tier] ?? member.tier} />
+      <Chip size="small" variant="outlined" label={STATUS_LABEL[member.status] ?? member.status} />
+      {member.companyName && <Typography variant="body2">{member.companyName}</Typography>}
+      {member.city && <Typography variant="caption" color="text.secondary">{member.city}</Typography>}
+      <Box sx={{ flex: 1 }} />
+      <Button size="small" onClick={() => navigate(`/nartbusiness/members/${member.memberId}`)}>
+        Üye kaydını aç
+      </Button>
+    </Stack>
+  );
+}
+
+/**
+ * "Profil eksik" bayrağının açıklaması.
+ *
+ * Sunucu bayrağı set ediyor ama hangi alanın eksik olduğunu söylemiyor;
+ * burada panelin görebildiği alanlar üzerinden listeleniyor. Liste boşsa
+ * eksiklik panelin görmediği bir alanda demektir — bunu "aşağıdaki boş
+ * alanlar" diye anlatmak yanlış olurdu.
+ */
+function IncompleteProfileNotice({ user }: { user: UserDTO }) {
+  const missing = [
+    !user.race && 'halk',
+    !user.family && 'sülale',
+    !user.hometownVillage && 'memleket köyü',
+    !user.gsmNo && 'telefon',
+    !user.birthDate && 'doğum tarihi',
+    !user.job && 'meslek',
+  ].filter(Boolean) as string[];
+
+  return (
+    <Alert severity="warning" sx={{ mb: 3 }}>
+      {missing.length > 0 ? (
+        <>Bu profil eksik işaretli. Panelden görünen boş alanlar: <b>{missing.join(', ')}</b>.</>
+      ) : (
+        <>
+          Bu profil eksik işaretli, ancak panelden görünen alanların hepsi dolu.
+          Eksiklik burada gösterilmeyen bir alanda olabilir.
+        </>
+      )}
+    </Alert>
+  );
 }
 
 function TabPanel({ children, value, index, ...other }: TabPanelProps) {
@@ -318,8 +430,27 @@ export default function UserDetails() {
     }
   }, [id]);
 
+  /**
+   * Sipariş ve ticari değer özeti.
+   *
+   * Bu sekme "E-ticaret entegrasyonu tamamlandığında burada listelenecektir"
+   * diyen bir yer tutucuydu; oysa aynı veri 360° sayfasında zaten gösteriliyordu.
+   * İki sayfa yerine tek sayfa: veri buraya taşındı.
+   */
+  const [ordersSummary, setOrdersSummary] = useState<UserOrdersSummary | null>(null);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  const fetchOrders = useCallback(async (email?: string) => {
+    if (!email) return;
+    setOrdersLoading(true);
+    try { setOrdersSummary(await user360Service.getOrdersSummaryByEmail(email)); }
+    catch { /* özet alınamazsa kart boş durumunu gösterir */ }
+    finally { setOrdersLoading(false); }
+  }, []);
+
   const handleTabChange = (_: React.SyntheticEvent, val: number) => {
     setTabValue(val);
+    if (val === 2 && !ordersSummary) void fetchOrders(user?.email);
     if (val === 1) {
       if (logs.length === 0) fetchLogs(0);
       if (!sessionSummary && sessions.length === 0) fetchSessions(0);
@@ -493,13 +624,7 @@ export default function UserDetails() {
             </Stack>
           ) : (
             <Stack direction="row" spacing={1}>
-              <Button
-                variant="outlined"
-                onClick={() => navigate(`/users/${user.id}/360`)}
-                sx={{ borderColor: '#C9A227', color: '#C9A227', fontWeight: 700, '&:hover': { borderColor: '#C9A227', bgcolor: 'rgba(201,162,39,0.08)' } }}
-              >
-                360° Bakış
-              </Button>
+              
               <Button variant="contained" startIcon={<EditIcon />} onClick={() => setEditing(true)}>
                 Kullanıcıyı Düzenle
               </Button>
@@ -612,6 +737,10 @@ export default function UserDetails() {
           {/* ─── Tab 0: Profile & Info ─── */}
           <TabPanel value={tabValue} index={0}>
             <Box sx={{ px: 3 }}>
+              {/* Sunucu bu bayrağı set ediyor ama hiçbir yerde gösterilmiyordu;
+                  oysa "neyi eksik?" sorusunun sorulacağı yer burası. */}
+              {user.profileIncomplete && <IncompleteProfileNotice user={user} />}
+
               <PageSection title="Kişisel Bilgiler">
                 <FormGrid>
                   <TextField label="Ad" fullWidth value={formData?.firstName ?? ''} onChange={e => setFormData(p => p ? { ...p, firstName: e.target.value } : null)} disabled={!editing} />
@@ -641,6 +770,82 @@ export default function UserDetails() {
                   </TextField>
                 </FormGrid>
               </PageSection>
+              <Divider sx={{ my: 4 }} />
+
+              {/* Kimlik: bu platformun tanımlayıcı alanları. Halk, sülale ve
+                  memleket köyü hiçbir ekranda görünmüyordu; oysa Sülale Atlası
+                  ve Ortak Hafıza doğrudan bu alanlardan besleniyor. */}
+              <PageSection title="Kimlik ve Köken">
+                <FormGrid>
+                  <TextField
+                    label="Halk"
+                    select
+                    fullWidth
+                    value={formData?.race ?? ''}
+                    onChange={e => setFormData(p => p ? { ...p, race: (e.target.value || undefined) as UserDTO['race'] } : null)}
+                    disabled={!editing}
+                  >
+                    <MenuItem value="">Belirtilmemiş</MenuItem>
+                    {Object.entries(RACE_LABELS).map(([val, label]) => (
+                      <MenuItem key={val} value={val}>{label}</MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    label="Sülale"
+                    fullWidth
+                    value={formData?.family ?? ''}
+                    onChange={e => setFormData(p => p ? { ...p, family: e.target.value } : null)}
+                    disabled={!editing}
+                    helperText="Serbest metin. Katalog bağı Sülale Atlası'ndan kurulur."
+                  />
+                  <TextField
+                    label="Memleket köyü"
+                    fullWidth
+                    value={formData?.hometownVillage ?? ''}
+                    onChange={e => setFormData(p => p ? { ...p, hometownVillage: e.target.value } : null)}
+                    disabled={!editing}
+                  />
+                  <TextField
+                    label="Meslek"
+                    fullWidth
+                    value={formData?.job ?? ''}
+                    onChange={e => setFormData(p => p ? { ...p, job: e.target.value } : null)}
+                    disabled={!editing}
+                  />
+                </FormGrid>
+              </PageSection>
+
+              <Divider sx={{ my: 4 }} />
+              <PageSection title="Hesap Türü">
+                <FormGrid>
+                  <TextField
+                    label="Hesap türü"
+                    select
+                    fullWidth
+                    value={formData?.accountType ?? ''}
+                    onChange={e => setFormData(p => p ? { ...p, accountType: e.target.value as UserDTO['accountType'] } : null)}
+                    disabled={!editing}
+                  >
+                    {Object.entries(ACCOUNT_TYPE_LABELS).map(([val, label]) => (
+                      <MenuItem key={val} value={val}>{label}</MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    label="Firma adı"
+                    fullWidth
+                    value={formData?.companyName ?? ''}
+                    onChange={e => setFormData(p => p ? { ...p, companyName: e.target.value } : null)}
+                    disabled={!editing}
+                  />
+                </FormGrid>
+              </PageSection>
+
+              <Divider sx={{ my: 4 }} />
+              {/* İlişkili veri: bu kullanıcının diğer modüllerdeki karşılığı. */}
+              <PageSection title="NartBusiness Üyeliği">
+                <NbMembershipCard userId={user.id} email={user.email} />
+              </PageSection>
+
               <Divider sx={{ my: 4 }} />
               <PageSection title="Konum Bilgileri">
                 <FormGrid>
@@ -1090,10 +1295,15 @@ export default function UserDetails() {
 
           {/* ─── Tab 2: Orders (placeholder) ─── */}
           <TabPanel value={tabValue} index={2}>
-            <Box sx={{ px: 3, py: 5, textAlign: 'center' }}>
-              <OrdersIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-              <Typography variant="h6" color="text.secondary">Henüz sipariş kaydı bulunmuyor</Typography>
-              <Typography variant="body2" color="text.disabled">E-ticaret entegrasyonu tamamlandığında burada listelenecektir.</Typography>
+            <Box sx={{ px: 3 }}>
+              <Stack spacing={3}>
+                <LtvCard data={ordersSummary} loading={ordersLoading} />
+                <OrdersList
+                  rows={ordersSummary?.recentOrders}
+                  currency={ordersSummary?.currency}
+                  loading={ordersLoading}
+                />
+              </Stack>
             </Box>
           </TabPanel>
 

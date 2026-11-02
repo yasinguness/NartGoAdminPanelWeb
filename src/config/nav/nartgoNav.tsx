@@ -17,6 +17,8 @@ import {
     Settings as SettingsIcon,
     Event as EventIcon,
     CameraAlt as InstagramIcon,
+    EditNote as EditorsDeskIcon,
+    Send as SendIcon,
     EventNote as EventCategoryIcon,
     HomeWork,
     Feed as FeedIcon,
@@ -70,6 +72,9 @@ export const nartgoNavSections: NavSection[] = [
         items: [
             { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
             { text: 'İçerik Toplama', icon: <CloudSyncIcon />, path: '/content/ingest' },
+            { text: 'Instagram Analizi', icon: <InstagramIcon />, path: '/instagram-analytics', allowedRoles: ['ADMIN'] },
+            { text: "Editor's Desk", icon: <EditorsDeskIcon />, path: '/editors-desk', allowedRoles: ['ADMIN', 'EDITOR'] },
+            { text: 'Instagram Kuyruğu', icon: <SendIcon />, path: '/instagram-queue', allowedRoles: ['ADMIN', 'EDITOR'] },
         ],
     },
     {

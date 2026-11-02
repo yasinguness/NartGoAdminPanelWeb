@@ -201,6 +201,24 @@ export interface MemberLinksReport {
  * eşler. Tek adaya oturanlar bağlanır; birden çok adaya uyanlar ve boş /
  * yer tutucu değerler ayrı sayılır, insan kararına bırakılır.
  */
+/**
+ * Farklı halklarda aynı anahtarlı sülaleler. Kaynak: GET/POST .../cross-race-merge
+ * Yalnız bir kaydın köyü ya da üyesi olan gruplar; boş ikizler ona katılır.
+ */
+export interface CrossRaceMergeReport {
+  dryRun: boolean;
+  groups: number;
+  pairs: number;
+  merged?: number;
+  failed?: number;
+  rows: {
+    keep: { id: number; name: string; race: string; villages: number };
+    gone: { id: number; name: string; race: string };
+    status?: 'merged' | 'failed';
+    error?: string;
+  }[];
+}
+
 export interface ProfileCleanupReport {
   dryRun: boolean;
   scanned: number;
@@ -336,6 +354,15 @@ export const familyAtlasService = {
   /** Aynı hesabı uygula: bağlar açılır, yükselir, düşer ya da geri çekilir. */
   async memberLinksApply(): Promise<MemberLinksReport> {
     return unwrap(await api.post(`${ROOT}/member-links`));
+  },
+
+  /** İki halkta açılmış, biri boş sülale ikizleri — rapor, yazma yok. */
+  async crossRaceMergeDryRun(): Promise<CrossRaceMergeReport> {
+    return unwrap(await api.get(`${ROOT}/cross-race-merge/dry-run`));
+  },
+  /** Aynı planı uygula: her çift ayrı birleştirme kararı olarak yazılır, geri alınabilir. */
+  async crossRaceMergeApply(): Promise<CrossRaceMergeReport> {
+    return unwrap(await api.post(`${ROOT}/cross-race-merge`));
   },
 
   /** Profil sülale adlarını katalogla eşle — rapor, yazma yok. */
