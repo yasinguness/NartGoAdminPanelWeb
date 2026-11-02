@@ -131,6 +131,13 @@ export default function BusinessPromotions() {
           hint={endingSoon.length ? 'yenileme konuşulabilir' : 'yakında biten yok'} />
         <StatTile label="Son 30 gün geliri" value={tl(data?.revenueLast30Days ?? 0, '0 ₺')}
           hint={revenueHint || 'kayıt yok'} />
+        {/* Sunucu 2 Kasım 2026'da ekledi: teklif ekranında "ilgileniyorum" diyen
+            ama henüz satın almayan işletmeler. Fiyat/konum tartışmasının
+            dayanağı olduğu için kutulara girdi. */}
+        {data?.interestCount != null && (
+          <StatTile label="İlgilenen işletme" value={String(data.interestCount)}
+            hint="teklif gördü, henüz satın almadı" />
+        )}
       </Stack>
 
       <Paper variant="outlined" sx={{ borderRadius: 2.5, overflow: 'hidden' }}>

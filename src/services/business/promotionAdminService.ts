@@ -71,23 +71,44 @@ export interface PromotionOffer {
   current: { purchaseId: string; scope: PromotionScope; endsAt: string; remainingDays: number } | null;
 }
 
-/** `missing(BusinessEntity)` sunucudaki dört eksik. */
-export type PromotionMissing = 'PHOTO' | 'CATEGORY' | 'CITY' | 'INACTIVE';
+/**
+ * `missing(BusinessEntity)` sunucudaki uygunluk eksikleri.
+ *
+ * Liste sunucuda büyüyebilir — nitekim OWNERSHIP 2 Kasım 2026'da eklendi ve
+ * panel onu tanımadığı için eksik hiç görünmüyordu: dört çip yeşil kalırken
+ * "öne çıkarılamaz" uyarısı çıkıyordu. Bu yüzden tip artık açık uçlu ve
+ * arayüz tanımadığı kodu da yazıyor (bkz. `CheckChips`).
+ */
+export type PromotionMissing = 'PHOTO' | 'CATEGORY' | 'CITY' | 'INACTIVE' | 'OWNERSHIP' | (string & {});
 
 /** Eksiklerin admin'e görünen karşılığı; sunucudaki `missingMessage` ile aynı anlam. */
-export const MISSING_LABEL: Record<PromotionMissing, string> = {
+export const MISSING_LABEL: Record<string, string> = {
   PHOTO: 'Fotoğraf yok',
   CATEGORY: 'Kategori seçilmemiş',
   CITY: 'İl çözümlenemedi',
   INACTIVE: 'İşletme yayında değil',
+  OWNERSHIP: 'Sahiplik doğrulanmamış',
 };
 
 /** Eksik yoksa gösterilen olumlu kontroller. */
-export const CHECK_LABEL: Record<PromotionMissing, string> = {
+export const CHECK_LABEL: Record<string, string> = {
   PHOTO: 'Fotoğraf',
   CATEGORY: 'Kategori',
   CITY: 'İl',
   INACTIVE: 'Yayında',
+  OWNERSHIP: 'Sahiplik',
+};
+
+/** Panelin tanıdığı kontroller; sunucu bunun dışında bir kod dönerse ham hâliyle gösterilir. */
+export const KNOWN_CHECKS = ['PHOTO', 'CATEGORY', 'CITY', 'INACTIVE', 'OWNERSHIP'] as const;
+
+/** Eksiği gidermenin yeri — admin'e "nereye gideyim" demek için. */
+export const MISSING_FIX: Record<string, { text: string; to?: string }> = {
+  OWNERSHIP: { text: 'Sahiplenme talebi onaylanmalı', to: '/business-claims' },
+  PHOTO: { text: 'İşletme kaydına fotoğraf ya da logo eklenmeli' },
+  CATEGORY: { text: 'İşletmeye kategori seçilmeli' },
+  CITY: { text: "Adreste Türkiye'deki il doğru yazılmalı" },
+  INACTIVE: { text: 'İşletme yayına alınmalı' },
 };
 
 const ROOT = '/businesses/admin/promotions';
