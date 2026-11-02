@@ -129,6 +129,10 @@ export default function InstagramAnalytics() {
     queryKey: ['instagram-insights', refresh],
     queryFn: () => instagramInsightsService.insights(refresh > 0),
     staleTime: 10 * 60_000,
+    // Önbellek boşken çekim uzun sürüyor. Varsayılan 3 denemeyle her hata
+    // üç kez tekrarlanıyor ve sayfa dakikalarca "yükleniyor"da kalıyordu;
+    // tek deneme yeterli, kullanıcı yenile tuşuyla tekrar isteyebilir.
+    retry: false,
   });
 
   const a = useMemo(() => {
@@ -165,12 +169,17 @@ export default function InstagramAnalytics() {
     return [...a.P].sort((x, y) => (sort === 'timestamp' ? y.timestamp.localeCompare(x.timestamp) : y[sort] - x[sort]));
   }, [a, sort]);
 
-  const errMsg = (error as any)?.response?.data?.message as string | undefined;
+  // 504'te sunucudan gövde gelmiyor; genel "alınamadı" yerine ne olduğunu yaz.
+  const errStatus = (error as any)?.response?.status as number | undefined;
+  const errMsg = ((error as any)?.response?.data?.message as string | undefined)
+    ?? (errStatus === 504 || (error as any)?.code === 'ECONNABORTED'
+      ? "Instagram'dan çekme süresi aşıldı. Veri önbellekte yokken bu çağrı uzun sürebiliyor; yenile tuşuyla tekrar dene."
+      : undefined);
   const gained = (data?.dailyFollows ?? []).reduce((s, p) => s + p.value, 0);
 
   return (
     <AdminShell
-      title="Instagram Analizi"
+      title="Instagram Hesap Analizi"
       subtitle={data ? `@${data.account.username} · ${full(data.account.followers)} takipçi · ${data.posts.length} paylaşım` : 'Paylaşım performansı, en iyi saatler ve kitle'}
       icon={<InstagramIcon sx={{ fontSize: 26 }} />}
       label="İçerik • Yalnızca Admin"

@@ -155,10 +155,10 @@ export default function InactiveUsers() {
 
   return (
     <AdminShell
-      title="İnaktif Kullanıcılar"
+      title="Uzun Süre Giriş Yapmayanlar"
       subtitle="Belirli süredir giriş yapmamış kullanıcılar · retention kampanyası"
       icon={<PersonOffIcon sx={{ fontSize: 26 }} />}
-      label="Kullanıcı Etkileşimi • Yalnızca Admin"
+      label="Kullanım Analitiği • Yalnızca Admin"
       isFetching={isFetching}
       lastUpdatedAt={dataUpdatedAt}
       onRefresh={() => refetch()}

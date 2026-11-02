@@ -1,80 +1,136 @@
 /**
  * NartGo workspace navigasyonu.
  *
- * Layout.tsx'ten olduğu gibi taşındı; NartBusiness bölümü buradan çıkarılıp
- * kendi workspace'ine (nartbusinessNav.tsx) alındı. Etkinlik, bilet, finans
- * ve platform yönetimi bu listede kalır.
+ * Layout.tsx'ten taşındı; NartBusiness bölümü kendi workspace'ine
+ * (nartbusinessNav.tsx) alındı.
+ *
+ * Bölüm başlıkları ve öğe adları, içeriğe göre yeniden adlandırıldı. Önceki
+ * listede başlık ile içerik birkaç yerde birbirini tutmuyordu:
+ *
+ *  - "Kullanıcılar" bölümünde köyler, köy konumları, sülale atlası ve dernekler
+ *    vardı; hiçbiri kullanıcı kaydı değil. Köy/sülale kendi bölümüne alındı
+ *    ("Ortak Hafıza"), dernekler kullanıcı bölümünde kaldı çünkü ASSOCIATION
+ *    rolünün tek erişimi orası.
+ *  - "Bildirim & İçerik Moderasyonu" başlığının altında hiç moderasyon yoktu;
+ *    yedi öğenin tamamı bildirim ve e-posta gönderimiydi. Video akışı
+ *    moderasyonu ise içerik bölümüne taşındı.
+ *  - "Sistem" bölümünde oyunlaştırma ve çekiliş duruyordu; bunlar ürün
+ *    özelliği, altyapı ayarı değil.
+ *  - "Alt Bayiler" sayfanın kendi başlığıyla çelişiyordu ("Alt Üye İşyeri" —
+ *    iyzico terimi). "Audit Log" tek İngilizce öğeydi; NartBusiness tarafında
+ *    aynı şey "İşlem Kayıtları" diye geçiyor.
+ *  - "Mutabakat" ile "Ödeme & Mutabakat Detayı" menüde ayırt edilemiyordu.
+ *    İlki sağlayıcı–veritabanı uyuşmazlıklarını (takılı, mükerrer, drift)
+ *    listeler, ikincisi hesap defteri ve düzeltmelerdir; adlar buna göre.
+ *
+ * Rol filtreleri birebir korundu: taşınan her öğe, taşındığı bölümün başlık
+ * kısıtı daha geniş olduğunda kendi `allowedRoles` değerini aldı (ör. video
+ * akışı ROLE_ROUTE_MAP'te ADMIN_ONLY, bölüm ise EDITOR'a açık). Yol (`path`)
+ * değerlerine dokunulmadı — RBAC eşlemesi ve rozet sayaçları yola bakar.
  */
 
 import {
     Dashboard as DashboardIcon,
-    Devices as DevicesIcon,
-    Notifications as NotificationsIcon,
-    EmailOutlined as EmailIcon,
-    People as PeopleIcon,
-    Business as BusinessIcon,
-    Category as CategoryIcon,
-    Settings as SettingsIcon,
+    Insights as ExecutiveIcon,
     Event as EventIcon,
+    EventAvailable as EventCreateIcon,
+    ConfirmationNumber as TicketIcon,
+    EventSeat as EventSeatIcon,
+    EventNote as EventCategoryIcon,
     CameraAlt as InstagramIcon,
+    Article as ArticleIcon,
+    CloudSync as CloudSyncIcon,
     EditNote as EditorsDeskIcon,
     Send as SendIcon,
-    EventNote as EventCategoryIcon,
-    HomeWork,
+    QueryStats as QueryStatsIcon,
     Feed as FeedIcon,
+    TrendingUp as TrendingUpIcon,
+    AccountBalanceWallet as WalletIcon,
+    Payments as PayoutIcon,
+    AssignmentReturn as RefundIcon,
+    CompareArrows as MismatchIcon,
+    ReceiptLong as LedgerIcon,
+    AccountBalance as AccountBalanceIcon,
+    Storefront as StorefrontIcon,
+    Inventory2 as SellerIcon,
+    Business as BusinessIcon,
+    FactCheck as FactCheckIcon,
+    Star as StarIcon,
+    Category as CategoryIcon,
+    AutoAwesome as FeaturedStoryIcon,
+    People as PeopleIcon,
+    History as HistoryIcon,
+    Badge as BadgeIcon,
+    Map as MapIcon,
+    HomeWork as AssociationIcon,
+    Cottage as VillageIcon,
+    Place as PlaceIcon,
+    Diversity3 as FamilyIcon,
+    Notifications as NotificationsIcon,
+    Schedule as ScheduleIcon,
+    Drafts as DraftsIcon,
+    EmailOutlined as EmailIcon,
+    MarkEmailRead as EmailLogIcon,
+    Campaign as CampaignIcon,
+    LocalActivity as LocalActivityIcon,
+    Groups as GroupsIcon,
+    Discount as CouponIcon,
+    CardGiftcard as ReferralIcon,
+    FilterAlt as FunnelIcon,
+    Timeline as CohortIcon,
+    TrendingDown as ChurnIcon,
+    PersonOff as PersonOffIcon,
+    BarChart as BarChartIcon,
+    AdminPanelSettings as RbacIcon,
+    VpnKey as SessionIcon,
+    Shield as ShieldIcon,
+    Gavel as FraudIcon,
+    SupportAgent as SupportIcon,
+    Autorenew as JobIcon,
+    ReportProblem as DlqIcon,
     EmojiEvents as EmojiEventsIcon,
     Casino as CasinoIcon,
     LiveTv as LiveTvIcon,
-    FactCheck as FactCheckIcon,
-    AccountBalance as AccountBalanceIcon,
-    TrendingUp as TrendingUpIcon,
-    SupportAgent as SupportIcon,
-    LocalActivity as LocalActivityIcon,
-    ConfirmationNumber as TicketIcon,
-    Campaign as CampaignIcon,
-    Star as StarIcon,
     ToggleOn as ToggleOnIcon,
-    Badge as BadgeIcon,
-    Storefront as StorefrontIcon,
-    EventSeat as EventSeatIcon,
-    Article as ArticleIcon,
-    CloudSync as CloudSyncIcon,
+    Devices as DevicesIcon,
     ManageSearch as AuditIcon,
-    Insights as ExecutiveIcon,
-    PersonOff as PersonOffIcon,
-    BarChart as BarChartIcon,
+    Analytics as AnalyticsIcon,
+    Settings as SettingsIcon,
 } from '@mui/icons-material';
 import type { NavSection } from './types';
 
 export const nartgoNavSections: NavSection[] = [
     {
-        title: 'Genel',
+        title: 'Genel Bakış',
         items: [
             { text: 'Kontrol Paneli', icon: <DashboardIcon />, path: '/dashboard' },
-            { text: 'Stratejik Panel', icon: <ExecutiveIcon />, path: '/executive', allowedRoles: ['ADMIN'] },
+            { text: 'Yönetici Özeti', icon: <ExecutiveIcon />, path: '/executive', allowedRoles: ['ADMIN'] },
         ],
     },
     {
-        title: 'Etkinlik Yönetimi',
+        title: 'Etkinlik & Bilet',
         allowedRoles: ['ADMIN', 'EVENT_ORGANIZATOR'],
         items: [
             { text: 'Etkinlikler', icon: <EventIcon />, path: '/events' },
-            { text: 'Etkinlik Oluştur', icon: <TicketIcon />, path: '/event-creation' },
+            { text: 'Yeni Etkinlik Oluştur', icon: <EventCreateIcon />, path: '/event-creation' },
             { text: 'Bilet Yönetimi', icon: <TicketIcon />, path: '/tickets' },
-            { text: 'Salon Planları', icon: <EventSeatIcon />, path: '/seat-templates' },
+            { text: 'Salon & Koltuk Planları', icon: <EventSeatIcon />, path: '/seat-templates' },
             { text: 'Etkinlik Kategorileri', icon: <EventCategoryIcon />, path: '/event-categories', allowedRoles: ['ADMIN'] },
-            { text: 'Instagram Adayları', icon: <InstagramIcon />, path: '/events/instagram-candidates', allowedRoles: ['ADMIN'] },
+            { text: "Instagram'dan Etkinlik Adayları", icon: <InstagramIcon />, path: '/events/instagram-candidates', allowedRoles: ['ADMIN'] },
         ],
     },
     {
-        title: 'İçerik',
+        title: 'İçerik & Yayın',
         allowedRoles: ['ADMIN', 'EDITOR'],
         items: [
-            { text: 'İçerik & Makaleler', icon: <ArticleIcon />, path: '/content' },
-            { text: 'İçerik Toplama', icon: <CloudSyncIcon />, path: '/content/ingest' },
-            { text: 'Instagram Analizi', icon: <InstagramIcon />, path: '/instagram-analytics', allowedRoles: ['ADMIN'] },
+            { text: 'Makaleler & İçerikler', icon: <ArticleIcon />, path: '/content' },
+            { text: 'Dış Kaynaktan İçerik Çek', icon: <CloudSyncIcon />, path: '/content/ingest' },
             { text: "Editor's Desk", icon: <EditorsDeskIcon />, path: '/editors-desk', allowedRoles: ['ADMIN', 'EDITOR'] },
-            { text: 'Instagram Kuyruğu', icon: <SendIcon />, path: '/instagram-queue', allowedRoles: ['ADMIN', 'EDITOR'] },
+            { text: 'Instagram Paylaşım Kuyruğu', icon: <SendIcon />, path: '/instagram-queue', allowedRoles: ['ADMIN', 'EDITOR'] },
+            { text: 'Instagram Hesap Analizi', icon: <QueryStatsIcon />, path: '/instagram-analytics', allowedRoles: ['ADMIN'] },
+            // ROLE_ROUTE_MAP'te ADMIN_ONLY; bölüm EDITOR'a açık olduğu için
+            // öğe seviyesinde kısıtlı kalmalı, yoksa editör 403 alır.
+            { text: 'Video Akışı Moderasyonu', icon: <FeedIcon />, path: '/feeds', allowedRoles: ['ADMIN'] },
         ],
     },
     {
@@ -82,113 +138,131 @@ export const nartgoNavSections: NavSection[] = [
         allowedRoles: ['ADMIN', 'EVENT_ORGANIZATOR'],
         items: [
             { text: 'Satış Özeti', icon: <TrendingUpIcon />, path: '/sales-command' },
-            { text: 'Gelir & Gider Raporu', icon: <AccountBalanceIcon />, path: '/finance/overview', allowedRoles: ['ADMIN'] },
-            { text: 'Mutabakat', icon: <AccountBalanceIcon />, path: '/finance/reconciliation', allowedRoles: ['ADMIN'] },
-            { text: 'Organizatör Ödemeleri', icon: <AccountBalanceIcon />, path: '/finance/payouts', allowedRoles: ['ADMIN'] },
-            { text: 'İadeler', icon: <AccountBalanceIcon />, path: '/finance/refunds', allowedRoles: ['ADMIN'] },
-            { text: 'Ödeme & Mutabakat Detayı', icon: <AccountBalanceIcon />, path: '/settlement-finance', allowedRoles: ['ADMIN'] },
-            { text: 'Alt Bayiler', icon: <AccountBalanceIcon />, path: '/sub-merchants', allowedRoles: ['ADMIN'] },
+            { text: 'Gelir & Gider Raporu', icon: <WalletIcon />, path: '/finance/overview', allowedRoles: ['ADMIN'] },
+            { text: 'Organizatör Ödemeleri', icon: <PayoutIcon />, path: '/finance/payouts', allowedRoles: ['ADMIN'] },
+            { text: 'İade İşlemleri', icon: <RefundIcon />, path: '/finance/refunds', allowedRoles: ['ADMIN'] },
+            { text: 'Ödeme Uyuşmazlıkları', icon: <MismatchIcon />, path: '/finance/reconciliation', allowedRoles: ['ADMIN'] },
+            { text: 'Hesap Defteri & Düzeltmeler', icon: <LedgerIcon />, path: '/settlement-finance', allowedRoles: ['ADMIN'] },
+            { text: 'Alt Üye İşyerleri (iyzico)', icon: <AccountBalanceIcon />, path: '/sub-merchants', allowedRoles: ['ADMIN'] },
         ],
     },
     {
         title: 'NartStore',
         allowedRoles: ['ADMIN'],
         items: [
-            { text: 'Hareketler', icon: <StorefrontIcon />, path: '/nartstore/activity' },
-            { text: 'NartStore Başvuruları', icon: <StorefrontIcon />, path: '/nartstore-interest' },
+            { text: 'Mağaza Hareketleri', icon: <StorefrontIcon />, path: '/nartstore/activity' },
+            { text: 'Satıcı Başvuruları', icon: <SellerIcon />, path: '/nartstore-interest' },
         ],
     },
     {
-        title: 'İşletme Yönetimi',
+        title: 'İşletme Rehberi',
         allowedRoles: ['ADMIN'],
         items: [
             { text: 'İşletmeler', icon: <BusinessIcon />, path: '/businesses' },
-            { text: 'İşletme Talepleri', icon: <FactCheckIcon />, path: '/business-claims' },
+            { text: 'Sahiplenme Talepleri', icon: <FactCheckIcon />, path: '/business-claims' },
             { text: 'Ücretli Öne Çıkarma', icon: <StarIcon />, path: '/businesses/promotions' },
             { text: 'İşletme Kategorileri', icon: <CategoryIcon />, path: '/business-categories' },
-            { text: 'Öne Çıkan Hikayeler', icon: <StarIcon />, path: '/featured-stories' },
-            { text: 'Üye Kartları', icon: <BadgeIcon />, path: '/user-cards' },
-            { text: 'Özellik Görünürlüğü', icon: <ToggleOnIcon />, path: '/feature-flags' },
+            { text: 'Öne Çıkan Hikâyeler', icon: <FeaturedStoryIcon />, path: '/featured-stories' },
         ],
     },
     {
-        title: 'Kullanıcılar',
+        title: 'Kullanıcılar & Dernekler',
         allowedRoles: ['ADMIN', 'ASSOCIATION'],
         items: [
             { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/users', allowedRoles: ['ADMIN'] },
-            { text: 'Kullanıcı Aktivitesi', icon: <PeopleIcon />, path: '/user-activity', allowedRoles: ['ADMIN'] },
-            { text: 'NartLive Haritası', icon: <PeopleIcon />, path: '/nartlive/users', allowedRoles: ['ADMIN'] },
-            { text: 'Köyler', icon: <AccountBalanceIcon />, path: '/heritage/villages', allowedRoles: ['ADMIN'] },
-            { text: 'Köy Konumları', icon: <AccountBalanceIcon />, path: '/heritage/locations', allowedRoles: ['ADMIN'] },
-            { text: 'Sülale Atlası', icon: <AccountBalanceIcon />, path: '/heritage/families', allowedRoles: ['ADMIN'] },
-            { text: 'Dernekler', icon: <HomeWork />, path: '/associations' },
+            { text: 'Kullanıcı Hareketleri', icon: <HistoryIcon />, path: '/user-activity', allowedRoles: ['ADMIN'] },
+            { text: 'Üye Kartları', icon: <BadgeIcon />, path: '/user-cards', allowedRoles: ['ADMIN'] },
+            { text: 'NartLive Konum Haritası', icon: <MapIcon />, path: '/nartlive/users', allowedRoles: ['ADMIN'] },
+            { text: 'Dernekler', icon: <AssociationIcon />, path: '/associations' },
         ],
     },
     {
-        title: 'Bildirim & İçerik Moderasyonu',
+        // Köy ve sülale kayıtları; panelin başka yerlerinde de (ana sayfadaki
+        // "Bugün ilgilenmen gerekenler" kartı) bu ad kullanılıyor.
+        title: 'Ortak Hafıza · Köy & Sülale',
         allowedRoles: ['ADMIN'],
         items: [
-            { text: 'Bildirimler', icon: <NotificationsIcon />, path: '/notifications' },
-            { text: 'Hazır Mail Gönder', icon: <EmailIcon />, path: '/manual-email' },
+            { text: 'Köy Kayıtları', icon: <VillageIcon />, path: '/heritage/villages' },
+            { text: 'Köy Konum İncelemesi', icon: <PlaceIcon />, path: '/heritage/locations' },
+            { text: 'Sülale Atlası', icon: <FamilyIcon />, path: '/heritage/families' },
+        ],
+    },
+    {
+        title: 'Bildirim & E-posta',
+        allowedRoles: ['ADMIN'],
+        items: [
+            { text: 'Push Bildirimleri', icon: <NotificationsIcon />, path: '/notifications' },
+            { text: 'Otomatik Bildirim Takvimi', icon: <ScheduleIcon />, path: '/notification-calendar' },
+            { text: 'Şablonla E-posta Gönder', icon: <DraftsIcon />, path: '/manual-email' },
             { text: 'E-posta Şablonları', icon: <EmailIcon />, path: '/email-templates' },
-            { text: 'E-posta Logları', icon: <EmailIcon />, path: '/email-logs' },
-            { text: 'Bildirim Takvimi', icon: <NotificationsIcon />, path: '/notification-calendar' },
-            { text: 'Video Akışı', icon: <FeedIcon />, path: '/feeds' },
+            { text: 'E-posta Gönderim Kayıtları', icon: <EmailLogIcon />, path: '/email-logs' },
             { text: 'Bültenler', icon: <CampaignIcon />, path: '/bulletins' },
-            { text: 'Kampanya Motoru', icon: <LocalActivityIcon />, path: '/campaign-engine' },
+            { text: 'Kampanya & Promosyon Kuralları', icon: <LocalActivityIcon />, path: '/campaign-engine' },
         ],
     },
     {
-        title: 'Büyüme & Pazarlama',
+        // Yapılan işler: kitle tanımla, kupon ver, davet programını işlet.
+        title: 'Büyüme & Kampanyalar',
         allowedRoles: ['ADMIN'],
         items: [
-            { text: 'Kullanıcı Grupları', icon: <PeopleIcon />, path: '/growth/segments' },
-            { text: 'Kullanıcı Tutunma', icon: <TrendingUpIcon />, path: '/growth/cohorts' },
-            { text: 'Dönüşüm Hunisi', icon: <TrendingUpIcon />, path: '/growth/funnel' },
-            { text: 'Kuponlar', icon: <LocalActivityIcon />, path: '/growth/coupons' },
-            { text: 'Davet Programı', icon: <PeopleIcon />, path: '/growth/referrals' },
-            { text: 'Kayıp Riski', icon: <TrendingUpIcon />, path: '/growth/churn' },
+            { text: 'Kullanıcı Grupları (Segment)', icon: <GroupsIcon />, path: '/growth/segments' },
+            { text: 'Kuponlar', icon: <CouponIcon />, path: '/growth/coupons' },
+            { text: 'Davet Programı', icon: <ReferralIcon />, path: '/growth/referrals' },
         ],
     },
     {
-        title: 'Güvenlik',
+        // Okunan işler. Eskiden bu altı ekran "Büyüme & Pazarlama" ile
+        // "Kullanıcı Etkileşimi" arasında bölünmüştü; ikisi de aynı soruyu
+        // soruyordu, bu yüzden hangi raporun nerede olduğu kestirilemiyordu.
+        title: 'Kullanım & Tutunma Analitiği',
         allowedRoles: ['ADMIN'],
         items: [
-            { text: 'Yetki Matrisi', icon: <AuditIcon />, path: '/security/rbac' },
-            { text: 'Aktif Oturumlar', icon: <DevicesIcon />, path: '/security/sessions' },
-            { text: 'Şüpheli Davranış', icon: <AuditIcon />, path: '/security/anomalies' },
-            { text: 'Dolandırıcılık Tespiti', icon: <AuditIcon />, path: '/security/fraud' },
-        ],
-    },
-    {
-        title: 'Kullanıcı Etkileşimi',
-        allowedRoles: ['ADMIN'],
-        items: [
-            { text: 'İnaktif Kullanıcılar', icon: <PersonOffIcon />, path: '/engagement/inactive-users' },
-            { text: 'Login Sıklığı', icon: <TrendingUpIcon />, path: '/engagement/login-frequency' },
+            { text: 'Dönüşüm Hunisi', icon: <FunnelIcon />, path: '/growth/funnel' },
+            { text: 'Kullanıcı Tutunma (Kohort)', icon: <CohortIcon />, path: '/growth/cohorts' },
+            { text: 'Kayıp Riski Taşıyanlar', icon: <ChurnIcon />, path: '/growth/churn' },
+            { text: 'Uzun Süre Giriş Yapmayanlar', icon: <PersonOffIcon />, path: '/engagement/inactive-users' },
+            { text: 'Giriş Sıklığı', icon: <TrendingUpIcon />, path: '/engagement/login-frequency' },
             { text: 'Ürün Kullanım Analitiği', icon: <BarChartIcon />, path: '/engagement/product-analytics' },
         ],
     },
     {
-        title: 'Operasyonlar',
+        title: 'Güvenlik & Risk',
         allowedRoles: ['ADMIN'],
         items: [
-            { text: 'Müşteri Destek', icon: <SupportIcon />, path: '/customer-support' },
-            { text: 'Başarısız Mesajlar', icon: <AuditIcon />, path: '/ops/dlq' },
-            { text: 'Zamanlanmış Görevler', icon: <AuditIcon />, path: '/ops/jobs' },
+            { text: 'Rol & Yetki Matrisi', icon: <RbacIcon />, path: '/security/rbac' },
+            { text: 'Aktif Oturumlar', icon: <SessionIcon />, path: '/security/sessions' },
+            { text: 'Şüpheli Hareket Tespiti', icon: <ShieldIcon />, path: '/security/anomalies' },
+            { text: 'Dolandırıcılık Tespiti', icon: <FraudIcon />, path: '/security/fraud' },
+        ],
+    },
+    {
+        title: 'Operasyon & Destek',
+        allowedRoles: ['ADMIN'],
+        items: [
+            { text: 'Müşteri Destek Talepleri', icon: <SupportIcon />, path: '/customer-support' },
+            { text: 'Zamanlanmış Görevler', icon: <JobIcon />, path: '/ops/jobs' },
+            { text: 'İşlenemeyen Mesajlar (DLQ)', icon: <DlqIcon />, path: '/ops/dlq' },
+        ],
+    },
+    {
+        // Ürün özellikleri; altyapı ayarı değil, bu yüzden "Sistem"den çıktı.
+        title: 'Oyunlaştırma & Çekiliş',
+        allowedRoles: ['ADMIN'],
+        items: [
+            { text: 'Puan & Rozet Ayarları', icon: <EmojiEventsIcon />, path: '/gamification' },
+            { text: 'Çekiliş Yönetimi', icon: <CasinoIcon />, path: '/raffle' },
+            { text: 'Çekiliş Yayın Ekranı', icon: <LiveTvIcon />, path: '/event/raffle-live' },
         ],
     },
     {
         title: 'Sistem',
         allowedRoles: ['ADMIN'],
         items: [
-            { text: 'Cihazlar', icon: <DevicesIcon />, path: '/devices' },
-            { text: 'Oyunlaştırma', icon: <EmojiEventsIcon />, path: '/gamification' },
-            { text: 'Çekiliş', icon: <CasinoIcon />, path: '/raffle' },
-            { text: 'Audit Log', icon: <AuditIcon />, path: '/audit-log' },
-            { text: 'Panel Analitik', icon: <TrendingUpIcon />, path: '/analytics' },
+            { text: 'Özellik Açma / Kapama', icon: <ToggleOnIcon />, path: '/feature-flags' },
+            { text: 'Kayıtlı Cihazlar', icon: <DevicesIcon />, path: '/devices' },
+            { text: 'Panel İşlem Geçmişi', icon: <AuditIcon />, path: '/audit-log' },
+            { text: 'Panel Kullanım Analitiği', icon: <AnalyticsIcon />, path: '/analytics' },
             { text: 'Ayarlar', icon: <SettingsIcon />, path: '/settings' },
-            { text: 'Çekiliş Ekranı', icon: <LiveTvIcon />, path: '/event/raffle-live' },
         ],
     },
 ];

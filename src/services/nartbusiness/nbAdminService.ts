@@ -166,9 +166,9 @@ function unwrap<T>(body: any): T | null {
 // Dashboard
 // ============================================================
 
-async function getDashboardStats(): Promise<NbDashboardStats | null> {
+async function getDashboardStats(opts?: Record<string, unknown>): Promise<NbDashboardStats | null> {
   try {
-    const res = await api.get<any>('/nb/admin/dashboard/stats');
+    const res = await api.get<any>('/nb/admin/dashboard/stats', opts);
     return unwrap<NbDashboardStats>(res.data);
   } catch (err: any) {
     const code = err?.response?.status;
@@ -1379,10 +1379,11 @@ export interface NbAttention {
  * Panonun eyleme dönük verisi: süresi dolan/dolacak üyelikler ve bekleyen
  * kuyruk sayıları. Sayı yerine SATIR döner; pano her satıra aksiyon koyabilsin.
  */
-async function getDashboardAttention(withinDays = 7): Promise<NbAttention | null> {
+async function getDashboardAttention(withinDays = 7, opts?: Record<string, unknown>): Promise<NbAttention | null> {
   try {
     const res = await api.get<any>('/nb/admin/dashboard/attention', {
       params: { withinDays },
+      ...opts,
     });
     return unwrap<NbAttention>(res.data);
   } catch {

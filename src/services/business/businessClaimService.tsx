@@ -16,10 +16,11 @@ export interface BusinessClaimListParams {
 export const businessClaimService = {
   getClaims: async (
     params: BusinessClaimListParams,
+    opts?: Record<string, unknown>,
   ): Promise<PageResponseDto<BusinessClaimResponse>> => {
     const response = await api.get<ApiResponse<PageResponseDto<BusinessClaimResponse>>>(
       '/businesses/admin/claims',
-      { params },
+      { params, ...opts },
     );
     return response.data.data;
   },

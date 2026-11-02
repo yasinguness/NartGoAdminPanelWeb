@@ -114,7 +114,7 @@ export default function SeatTemplateList() {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
-          <Typography variant="h5" fontWeight={700}>Salon Planları</Typography>
+          <Typography variant="h5" fontWeight={700}>Salon &amp; Koltuk Planları</Typography>
           <Typography variant="body2" color="text.secondary">
             Kayıtlı salon planı şablonlarını yönetin
           </Typography>

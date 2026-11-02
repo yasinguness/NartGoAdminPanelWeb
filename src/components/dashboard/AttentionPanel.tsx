@@ -1,152 +1,193 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Chip, Paper, Stack, Typography } from '@mui/material';
+import ArrowIcon from '@mui/icons-material/ArrowForward';
 import { nbAdminService, type NbAttention } from '../../services/nartbusiness/nbAdminService';
 import { businessClaimService } from '../../services/business/businessClaimService';
-import { featuredAdminService, formatDate, type FeaturedList } from '../../services/business/featuredAdminService';
+import { featuredAdminService, type FeaturedList } from '../../services/business/featuredAdminService';
 import { storeActivityService, type Overview } from '../../services/nartstore/storeActivityService';
 import { heritageVillageService, type PendingSummary } from '../../services/heritageVillageService';
 import { api } from '../../services/api';
 import { jobMonitorService } from '../../services/jobMonitor/jobMonitorService';
 
 /**
- * Panel ana sayfası › "Bugün ilgilenmen gerekenler". Her kart kendi verisini ayrı çeker; biri hata verirse ya da
- * yapılacak iş yoksa yalnız o kart görünmez. Sayılar sunucudan gelir, burada tahmin yürütülmez.
+ * "Dikkat isteyenler" — panelin açılışta cevapladığı tek soru: bugün neye
+ * bakmalıyım.
+ *
+ * Eskiden bu veriler sekiz ayrı kartta, her kart kendi başlığıyla duruyordu;
+ * kartlar arası önem sırası yoktu, yani ekranın solundaki 164 kayıtlık bir
+ * öneri yığını sağdaki 4 kişilik ödeme hatasıyla aynı ağırlıkta görünüyordu.
+ * Artık hepsi tek listede ve aciliyete göre sıralı: önce parayı/kullanıcıyı
+ * doğrudan etkileyenler, sonra bugünün işleri, en sonda birikenler.
+ *
+ * Her satır kendi ucundan besleniyor; biri hata verirse yalnız o satır düşer.
+ * `skipAuthRedirect`: bunlar süs sayaçlar, 401'leri oturumu kapatmamalı.
  */
+const PANEL_REQ: Record<string, unknown> = { skipAuthRedirect: true };
+
+/** Aciliyet: düşük sayı önce gelir. */
+type Urgency = 'critical' | 'today' | 'week';
+
+const URGENCY_RANK: Record<Urgency, number> = { critical: 0, today: 1, week: 2 };
+const URGENCY_LABEL: Record<Urgency, string> = { critical: 'Kritik', today: 'Bugün', week: 'Bu hafta' };
+const URGENCY_COLOR: Record<Urgency, string> = { critical: '#b3261e', today: '#8a6100', week: '#5f6368' };
+
+interface Item {
+  key: string;
+  n: number;
+  title: string;
+  /** Satırın ikinci satırı: neden önemli ya da ne yapılabilir. */
+  hint?: string;
+  urgency: Urgency;
+  to: string;
+}
+
 export default function AttentionPanel() {
-  const [nb, setNb] = useState<NbAttention | null>(null);
-  const [claims, setClaims] = useState<number | null>(null);
-  const [featured, setFeatured] = useState<FeaturedList | null>(null);
-  const [store, setStore] = useState<Overview | null>(null);
-  const [heritage, setHeritage] = useState<PendingSummary | null>(null);
-  const [frequentlyDeclined, setFrequentlyDeclined] = useState<number | null>(null);
-  const [promotions, setPromotions] = useState<{ refundNeeded: number; paidLast7Days: number } | null>(null);
-  const [jobs, setJobs] = useState<{ failing: number; down: number } | null>(null);
+  const [items, setItems] = useState<Item[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    const out: Item[] = [];
+    const push = (i: Item) => { if (i.n > 0) out.push(i); };
+
     Promise.allSettled([
-      nbAdminService.getDashboardAttention(7).then(setNb),
-      businessClaimService.getClaims({ status: 'PENDING', page: 0, size: 1 }).then((p) => setClaims(p?.totalElements ?? 0)),
-      featuredAdminService.list().then(setFeatured),
-      storeActivityService.overview(1).then(setStore),
-      heritageVillageService.pendingSummary().then(setHeritage),
-      api.get<any>('/content/admin/nartlive/message-requests/stats', { params: { days: 30 } })
-        .then((r) => setFrequentlyDeclined(r.data?.data?.frequentlyDeclined?.length ?? 0)),
-      api.get<any>('/businesses/admin/promotions').then((r) => {
+      storeActivityService.overview(1, PANEL_REQ).then((store: Overview) => {
+        const failed = store.orders.find((o) => o.status === 'FAILED')?.count ?? 0;
+        push({ key: 'store-failed', n: failed, title: "NartStore'da ödemesi başarısız sipariş",
+          hint: 'bugün', urgency: 'critical', to: '/nartstore/activity' });
+        push({ key: 'store-errors', n: store.totals.peopleWithErrors,
+          title: 'Mağazada hata alan kullanıcı', hint: 'bugün', urgency: 'critical', to: '/nartstore/activity' });
+        const pending = store.orders.find((o) => o.status === 'PENDING')?.count ?? 0;
+        push({ key: 'store-pending', n: pending, title: 'Sipariş ödeme bekliyor',
+          hint: 'bugün', urgency: 'today', to: '/nartstore/activity' });
+      }),
+
+      api.get<any>('/content/admin/nartlive/message-requests/stats', { params: { days: 30 }, ...PANEL_REQ })
+        .then((r) => push({
+          key: 'msgreq', n: r.data?.data?.frequentlyDeclined?.length ?? 0,
+          title: 'İstekleri sık silinen hesap',
+          hint: 'son 30 günde 3+ kez silindi, günlük sınırı 2’ye indi',
+          urgency: 'critical', to: '/nartlive/users',
+        })),
+
+      api.get<any>('/businesses/admin/promotions', PANEL_REQ).then((r) => {
         const d = r.data?.data;
-        if (d) setPromotions({ refundNeeded: d.refundNeeded ?? 0, paidLast7Days: d.paidLast7Days ?? 0 });
+        push({ key: 'promo-refund', n: d?.refundNeeded ?? 0,
+          title: 'Öne çıkarma ödemesi iade bekliyor',
+          hint: 'ödeme alındı ama yayına alınamadı', urgency: 'critical', to: '/businesses/promotions' });
       }),
-      jobMonitorService.getJobs().then((d) => {
-        if (d) setJobs({ failing: d.failingJobs ?? 0, down: d.services.filter((s) => s.status !== 'up').length });
+
+      jobMonitorService.getJobs(PANEL_REQ).then((d) => {
+        if (!d) return;
+        push({ key: 'jobs-failing', n: d.failingJobs ?? 0,
+          title: 'Zamanlı işin son çalışması hatayla bitti', urgency: 'critical', to: '/ops/jobs' });
+        push({ key: 'jobs-down', n: (d.services ?? []).filter((s) => s.status !== 'up').length,
+          title: 'Servisin iş listesi okunamadı', hint: 'servis kapalı olabilir',
+          urgency: 'critical', to: '/ops/jobs' });
       }),
-    ]).finally(() => setLoaded(true));
+
+      nbAdminService.getDashboardAttention(7, PANEL_REQ).then((nb: NbAttention | null) => {
+        if (!nb) return;
+        push({ key: 'nb-submitted', n: nb.submitted, title: 'NartBusiness başvurusu karar bekliyor',
+          urgency: 'today', to: '/nartbusiness/decision-board' });
+        push({ key: 'nb-info', n: nb.needsInfo, title: 'Başvuruda eksik bilgi bekleniyor',
+          urgency: 'today', to: '/nartbusiness/decision-board' });
+        const overdue = nb.deadlines.filter((d) => (d.daysLeft ?? 0) < 0).length;
+        push({ key: 'nb-deadline', n: nb.deadlines.length,
+          title: `NartBusiness üyeliği ${nb.withinDays} gün içinde bitiyor`,
+          hint: overdue ? `${overdue} tanesi gecikmiş` : 'hatırlatma gönderilebilir',
+          urgency: overdue ? 'today' : 'week', to: '/nartbusiness/trial-center' });
+        push({ key: 'nb-expired', n: nb.approvedExpired, title: 'Onaylı ama ödeme süresi geçmiş üyelik',
+          urgency: 'today', to: '/nartbusiness/trial-center' });
+      }),
+
+      businessClaimService.getClaims({ status: 'PENDING', page: 0, size: 1 }, PANEL_REQ).then((p) =>
+        push({ key: 'claims', n: p?.totalElements ?? 0, title: 'İşletme sahiplenme talebi',
+          urgency: 'today', to: '/business-claims' })),
+
+      heritageVillageService.pendingSummary(PANEL_REQ).then((h: PendingSummary | null) => {
+        if (!h) return;
+        push({ key: 'h-disputed', n: h.communityDisputed, title: 'Ortak Hafıza’da tartışmalı kayıt',
+          hint: 'itiraz edildi', urgency: 'today', to: '/heritage/families?tab=4' });
+        push({ key: 'h-decidable', n: h.decidableTasks, title: 'Karara hazır köy sorusu',
+          urgency: 'today', to: '/heritage/villages?pending=1' });
+        push({ key: 'h-location', n: h.locationQueue, title: 'Köy konumu incelemesi',
+          urgency: 'today', to: '/heritage/locations' });
+        push({ key: 'h-village', n: h.villageContributions, title: 'Köy bilgisi önerisi',
+          urgency: 'week', to: '/heritage/villages?pending=1' });
+        push({ key: 'h-family', n: h.familySuggestions, title: 'Yeni sülale önerisi',
+          urgency: 'week', to: '/heritage/families?tab=3' });
+        push({ key: 'h-ig', n: h.instagramComments, title: 'Instagram yorumu içe aktarılmayı bekliyor',
+          hint: 'toplu işlenebilir', urgency: 'week', to: '/heritage/families?tab=2' });
+      }),
+
+      featuredAdminService.list(PANEL_REQ).then((f: FeaturedList) => {
+        const soon = f.items.filter((x) => x.remainingDays != null && x.remainingDays <= 7);
+        push({ key: 'featured', n: soon.length, title: 'İşletmenin öne çıkarması 7 gün içinde bitiyor',
+          hint: 'yenileme konuşulabilir', urgency: 'week', to: '/businesses?filter=featured' });
+      }),
+    ]).finally(() => {
+      out.sort((a, b) => URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency] || b.n - a.n);
+      setItems(out);
+      setLoaded(true);
+    });
   }, []);
 
-  const cards: ReactNode[] = [];
-
-  if (nb) {
-    const overdue = nb.deadlines.filter((d) => (d.daysLeft ?? 0) < 0).length;
-    const items = [
-      { n: nb.submitted, label: 'başvuru karar bekliyor', to: '/nartbusiness/decision-board' },
-      { n: nb.needsInfo, label: 'başvuruda eksik bilgi bekleniyor', to: '/nartbusiness/decision-board' },
-      { n: nb.deadlines.length, label: `üyeliğin süresi ${nb.withinDays} gün içinde doluyor${overdue ? ` (${overdue} gecikmiş)` : ''}`, to: '/nartbusiness/trial-center' },
-      { n: nb.approvedExpired, label: 'onaylı ama ödeme süresi geçmiş', to: '/nartbusiness/trial-center' },
-    ].filter((i) => i.n > 0);
-    if (items.length) cards.push(<AttentionCard key="nb" title="NartBusiness" items={items} />);
-  }
-
-  if (claims) cards.push(<AttentionCard key="claims" title="İşletme sahiplenme" items={[{ n: claims, label: 'talep inceleme bekliyor', to: '/business-claims' }]} />);
-
-  if (store) {
-    const failed = store.orders.find((o) => o.status === 'FAILED')?.count ?? 0;
-    const pending = store.orders.find((o) => o.status === 'PENDING')?.count ?? 0;
-    const paid = store.orders.find((o) => o.status === 'PAID');
-    const items = [
-      { n: failed, label: 'ödeme başarısız (bugün)', to: '/nartstore/activity', tone: 'error' as const },
-      { n: store.totals.peopleWithErrors, label: 'kişi mağazada hata aldı (bugün)', to: '/nartstore/activity', tone: 'error' as const },
-      { n: pending, label: 'sipariş ödeme bekliyor', to: '/nartstore/activity' },
-      { n: paid?.count ?? 0, label: `sipariş ödendi · ${Math.round(paid?.total ?? 0).toLocaleString('tr-TR')} ₺`, to: '/nartstore/activity', tone: 'success' as const },
-    ].filter((i) => i.n > 0);
-    if (items.length) cards.push(<AttentionCard key="store" title="NartStore · bugün" items={items} />);
-  }
-
-  if (featured) {
-    const soon = featured.items.filter((f) => f.remainingDays != null && f.remainingDays <= 7);
-    if (soon.length)
-      cards.push(<AttentionCard key="featured" title="Öne çıkarma" items={[{ n: soon.length, label: `işletmenin öne çıkarması 7 gün içinde bitiyor`, to: '/businesses?filter=featured' }]}
-        footer={soon.slice(0, 3).map((f) => `${f.name} (${formatDate(f.featuredEndDate)})`).join(' · ')} />);
-  }
-
-  if (frequentlyDeclined) {
-    cards.push(<AttentionCard key="msgreq" title="Mesaj istekleri" items={[{
-      n: frequentlyDeclined, label: 'hesabın istekleri son 30 günde 3 ve üzeri kez silindi (günlük sınırı 2\'ye indi)', to: '/nartlive/users', tone: 'error',
-    }]} />);
-  }
-
-  if (promotions) {
-    const items = [
-      { n: promotions.refundNeeded, label: 'öne çıkarma ödemesi alındı ama başlatılamadı, iade bekliyor', to: '/businesses/promotions', tone: 'error' as const },
-      { n: promotions.paidLast7Days, label: 'ücretli öne çıkarma satın alındı (son 7 gün)', to: '/businesses/promotions', tone: 'success' as const },
-    ].filter((i) => i.n > 0);
-    if (items.length) cards.push(<AttentionCard key="promotions" title="Ücretli öne çıkarma" items={items} />);
-  }
-
-  if (jobs) {
-    const items = [
-      { n: jobs.failing, label: 'zamanlı işin son çalışması hatayla bitti', to: '/ops/jobs', tone: 'error' as const },
-      { n: jobs.down, label: 'servisin zamanlı iş listesi okunamadı (servis kapalı olabilir)', to: '/ops/jobs', tone: 'error' as const },
-    ].filter((i) => i.n > 0);
-    if (items.length) cards.push(<AttentionCard key="jobs" title="Zamanlı işler" items={items} />);
-  }
-
-  if (heritage) {
-    const items = [
-      { n: heritage.villageContributions, label: 'köy bilgisi önerisi', to: '/heritage/villages?pending=1' },
-      { n: heritage.familySuggestions, label: 'yeni sülale önerisi', to: '/heritage/families?tab=3' },
-      { n: heritage.communityDisputed, label: 'tartışmalı kayıt', to: '/heritage/families?tab=4' },
-      { n: heritage.decidableTasks, label: 'karara hazır köy sorusu', to: '/heritage/villages?pending=1' },
-      { n: heritage.locationQueue, label: 'konum incelemesi', to: '/heritage/locations' },
-      { n: heritage.instagramComments, label: 'Instagram yorumu', to: '/heritage/families?tab=2' },
-    ].filter((i) => i.n > 0);
-    if (items.length) cards.push(<AttentionCard key="heritage" title="Ortak Hafıza" items={items} />);
-  }
-
   if (!loaded) return null;
+
   return (
-    <Box sx={{ mb: 3 }}>
-      <Typography variant="subtitle2" fontWeight={700} color="text.secondary" mb={1.5} sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: 11 }}>
-        Bugün ilgilenmen gerekenler
-      </Typography>
-      {cards.length === 0 ? (
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-          <Typography color="text.secondary">Bekleyen iş yok: başvuru, talep, öneri ve mağaza hatası görünmüyor.</Typography>
-        </Paper>
+    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', height: '100%' }}>
+      <Stack direction="row" alignItems="baseline" sx={{ px: 2.5, pt: 2, pb: 1.5 }}>
+        <Typography fontWeight={700} sx={{ flex: 1 }}>Dikkat isteyenler</Typography>
+        <Typography variant="caption" color="text.secondary">Önem sırasına göre</Typography>
+      </Stack>
+      {items.length === 0 ? (
+        <Box sx={{ px: 2.5, pb: 2.5 }}>
+          <Typography variant="body2" color="text.secondary">
+            Bekleyen iş yok: başvuru, talep, öneri ve mağaza hatası görünmüyor.
+          </Typography>
+        </Box>
       ) : (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' }, gap: 2 }}>{cards}</Box>
+        <Box>{items.map((i) => <AttentionRow key={i.key} item={i} />)}</Box>
       )}
-    </Box>
+    </Paper>
   );
 }
 
-type Item = { n: number; label: string; to: string; tone?: 'error' | 'success' };
-
-function AttentionCard({ title, items, footer }: { title: string; items: Item[]; footer?: string }) {
+function AttentionRow({ item }: { item: Item }) {
   const navigate = useNavigate();
+  const go = () => navigate(item.to);
   return (
-    <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-      <Typography fontWeight={700} sx={{ mb: 1 }}>{title}</Typography>
-      <Stack spacing={0.75}>
-        {items.map((i) => (
-          <Box key={i.label} onClick={() => navigate(i.to)} role="link" tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter') navigate(i.to); }}
-            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', borderRadius: 1.5, px: 1, py: 0.5, '&:hover': { bgcolor: 'action.hover' } }}>
-            <Chip size="small" label={i.n} color={i.tone === 'error' ? 'error' : i.tone === 'success' ? 'success' : 'warning'} sx={{ minWidth: 36, fontWeight: 700 }} />
-            <Typography variant="body2">{i.label}</Typography>
-          </Box>
-        ))}
+    <Stack
+      direction="row" alignItems="center" spacing={1.75}
+      onClick={go} role="link" tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter') go(); }}
+      sx={{
+        px: 2.5, py: 1.25, cursor: 'pointer', borderTop: 1, borderColor: 'divider',
+        '&:hover': { bgcolor: 'action.hover' },
+        '&:hover .go': { opacity: 1 },
+      }}
+    >
+      <Chip
+        label={item.n.toLocaleString('tr-TR')}
+        size="small"
+        sx={{
+          minWidth: 44, fontWeight: 700, borderRadius: 1.5,
+          bgcolor: item.urgency === 'critical' ? '#fdeceb' : item.urgency === 'today' ? '#fdf4e3' : 'action.hover',
+          color: URGENCY_COLOR[item.urgency],
+        }}
+      />
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="body2" fontWeight={600} noWrap>{item.title}</Typography>
+        <Typography variant="caption" sx={{ color: URGENCY_COLOR[item.urgency] }}>
+          {URGENCY_LABEL[item.urgency]}{item.hint ? ` · ${item.hint}` : ''}
+        </Typography>
+      </Box>
+      <Stack direction="row" spacing={0.5} alignItems="center" className="go"
+        sx={{ opacity: 0.35, transition: 'opacity .15s' }}>
+        <Typography variant="caption" fontWeight={600}>Aç</Typography>
+        <ArrowIcon sx={{ fontSize: 14 }} />
       </Stack>
-      {footer && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>{footer}</Typography>}
-    </Paper>
+    </Stack>
   );
 }

@@ -75,7 +75,7 @@ export default function Reconciliation() {
               <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 0.5 }}>
                 <LockIcon sx={{ fontSize: 16, color: '#C9A227' }} />
                 <Typography sx={{ fontSize: 10, letterSpacing: 2, fontWeight: 800, color: '#C9A227', textTransform: 'uppercase' }}>
-                  Reconciliation • Yalnızca Admin
+                  Mutabakat • Yalnızca Admin
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={2} alignItems="center">
@@ -88,7 +88,7 @@ export default function Reconciliation() {
                 </Box>
                 <Box>
                   <Typography sx={{ fontFamily: 'inherit', fontStyle: 'normal', fontSize: { xs: 28, md: 38 }, fontWeight: 700, lineHeight: 1, color: '#1E293B' }}>
-                    Mutabakat Paneli
+                    Ödeme Uyuşmazlıkları
                   </Typography>
                   <Typography sx={{ mt: 0.5, fontSize: 13, color: 'rgba(30,41,59,0.70)' }}>
                     Iyzico ↔ iç DB — takılı ödemeler, provider-DB tutarsızlıkları, mükerrer işlemler

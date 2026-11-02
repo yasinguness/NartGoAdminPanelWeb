@@ -28,8 +28,8 @@ const unwrap = <T,>(response: { data: unknown }): T => {
 };
 
 export const featuredAdminService = {
-  async list(): Promise<FeaturedList> {
-    return unwrap(await api.get(ROOT));
+  async list(opts?: Record<string, unknown>): Promise<FeaturedList> {
+    return unwrap(await api.get(ROOT, opts));
   },
   /** days ya da endDate (yyyy-MM-dd). extend: hâlâ öne çıkan kayıtta süre mevcut bitişe eklenir. */
   async feature(id: string, opts: { days?: number; endDate?: string; extend?: boolean }): Promise<FeaturedItem> {

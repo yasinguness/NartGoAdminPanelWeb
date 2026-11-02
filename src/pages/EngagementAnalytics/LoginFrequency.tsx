@@ -71,10 +71,10 @@ export default function LoginFrequency() {
 
   return (
     <AdminShell
-      title="Login Sıklığı"
+      title="Giriş Sıklığı"
       subtitle="En aktif kullanıcılar · son X gün içinde kaç kez giriş yapmış"
       icon={<TrendingUpIcon sx={{ fontSize: 26 }} />}
-      label="Kullanıcı Etkileşimi • Yalnızca Admin"
+      label="Kullanım Analitiği • Yalnızca Admin"
       isFetching={isFetching}
       lastUpdatedAt={dataUpdatedAt}
       onRefresh={() => refetch()}

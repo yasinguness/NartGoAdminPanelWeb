@@ -216,8 +216,8 @@ export const heritageVillageService = {
   async setContributorTrust(userId: string, status: 'trusted' | 'untrusted' | 'auto'): Promise<{ trusted: boolean }> {
     return unwrap(await api.post(`${ROOT}/contributors/${userId}/trust`, { status }));
   },
-  async pendingSummary(): Promise<PendingSummary> {
-    return unwrap(await api.get(`${ROOT}/pending-summary`));
+  async pendingSummary(opts?: Record<string, unknown>): Promise<PendingSummary> {
+    return unwrap(await api.get(`${ROOT}/pending-summary`, opts));
   },
   async contributions(id: string): Promise<VillageContributions> {
     return unwrap(await api.get(`${ROOT}/${id}/contributions`));

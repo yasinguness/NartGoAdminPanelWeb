@@ -93,17 +93,24 @@ const validatePositiveLimit = (name: string, value?: number): number | undefined
   return value;
 };
 
+/**
+ * Dizi dönen uçlarda `?? []`: backend `{"success":true,"data":null}` gönderdiğinde
+ * (kayıt yoksa olabiliyor) bu metotlar tip imzasına rağmen `null` dönüyordu.
+ * Kontrol paneli dönen değeri doğrudan state'e yazıp `alerts.filter(...)`
+ * çağırdığı için tüm sayfa "Cannot read properties of null" ile düşüyordu —
+ * yani tek bir boş yanıt admin'in açılış ekranını komple boşaltıyordu.
+ */
 export const adminLoginStatsService = {
-  getOverview: async (query?: LoginStatsDateRangeQuery): Promise<LoginStatsOverviewDto> => {
+  getOverview: async (query?: LoginStatsDateRangeQuery, opts?: Record<string, unknown>): Promise<LoginStatsOverviewDto> => {
     const params = validateDateRange(query);
-    const response = await api.get<ApiResponse<LoginStatsOverviewDto>>(`${LOGIN_STATS_BASE_PATH}/overview`, { params });
+    const response = await api.get<ApiResponse<LoginStatsOverviewDto>>(`${LOGIN_STATS_BASE_PATH}/overview`, { params, ...opts });
     return response.data.data;
   },
 
   getDailyTrend: async (query?: LoginStatsDateRangeQuery): Promise<DailyLoginStatsDto[]> => {
     const params = validateDateRange(query);
     const response = await api.get<ApiResponse<DailyLoginStatsDto[]>>(`${LOGIN_STATS_BASE_PATH}/daily`, { params });
-    return response.data.data;
+    return response.data.data ?? [];
   },
 
   getFailureReasons: async (query?: FailureReasonStatsQuery): Promise<FailureReasonStatsDto[]> => {
@@ -113,7 +120,7 @@ export const adminLoginStatsService = {
     };
 
     const response = await api.get<ApiResponse<FailureReasonStatsDto[]>>(`${LOGIN_STATS_BASE_PATH}/failure-reasons`, { params });
-    return response.data.data;
+    return response.data.data ?? [];
   },
 
   getUserLoginStats: async (userId: string, query?: UserLoginStatsQuery): Promise<UserLoginStatsDto> => {
@@ -138,7 +145,7 @@ export const adminLoginStatsService = {
     };
 
     const response = await api.get<ApiResponse<RecentLoginLogDto[]>>(`${LOGIN_STATS_BASE_PATH}/recent`, { params });
-    return response.data.data;
+    return response.data.data ?? [];
   },
 
   getRecentUsers: async (query?: RecentLoginStatsQuery): Promise<PageResponseDto<RecentLoggedInUserDto>> => {
@@ -175,7 +182,7 @@ export const adminLoginStatsService = {
     };
 
     const response = await api.get<ApiResponse<RiskTopUserDto[]>>(`${LOGIN_STATS_BASE_PATH}/risk/top-users`, { params });
-    return response.data.data;
+    return response.data.data ?? [];
   },
 
   getRiskTopIps: async (query?: RiskListQuery): Promise<RiskTopIpDto[]> => {
@@ -185,7 +192,7 @@ export const adminLoginStatsService = {
     };
 
     const response = await api.get<ApiResponse<RiskTopIpDto[]>>(`${LOGIN_STATS_BASE_PATH}/risk/top-ips`, { params });
-    return response.data.data;
+    return response.data.data ?? [];
   },
 
   getGeoSummary: async (query?: LoginStatsDateRangeQuery): Promise<GeoSummaryDto> => {
@@ -207,7 +214,7 @@ export const adminLoginStatsService = {
     };
 
     const response = await api.get<ApiResponse<AnomalySpikeDto[]>>(`${LOGIN_STATS_BASE_PATH}/anomaly/spikes`, { params });
-    return response.data.data;
+    return response.data.data ?? [];
   },
 
   getLatencySummary: async (query?: LoginStatsDateRangeQuery): Promise<LatencySummaryDto> => {
@@ -219,7 +226,7 @@ export const adminLoginStatsService = {
   getActiveAlerts: async (query?: LoginStatsDateRangeQuery): Promise<ActiveAlertDto[]> => {
     const params = validateDateRange(query);
     const response = await api.get<ApiResponse<ActiveAlertDto[]>>(`${LOGIN_STATS_BASE_PATH}/alerts/active`, { params });
-    return response.data.data;
+    return response.data.data ?? [];
   },
 
   getAuditTimeline: async (query?: AuditTimelineQuery): Promise<AuditTimelineEventDto[]> => {
@@ -230,11 +237,11 @@ export const adminLoginStatsService = {
     };
 
     const response = await api.get<ApiResponse<AuditTimelineEventDto[]>>(`${LOGIN_STATS_BASE_PATH}/audit/timeline`, { params });
-    return response.data.data;
+    return response.data.data ?? [];
   },
 
-  getEngagementOverview: async (): Promise<EngagementOverviewDto> => {
-    const response = await api.get<ApiResponse<EngagementOverviewDto>>(`${LOGIN_STATS_BASE_PATH}/engagement/overview`);
+  getEngagementOverview: async (opts?: Record<string, unknown>): Promise<EngagementOverviewDto> => {
+    const response = await api.get<ApiResponse<EngagementOverviewDto>>(`${LOGIN_STATS_BASE_PATH}/engagement/overview`, opts);
     return response.data.data;
   },
 
@@ -245,12 +252,12 @@ export const adminLoginStatsService = {
       source: query?.source,
     };
     const response = await api.get<ApiResponse<TopLoginUserDto[]>>(`${LOGIN_STATS_BASE_PATH}/engagement/top-weekly-users`, { params });
-    return response.data.data;
+    return response.data.data ?? [];
   },
 
   getWeeklyEngagement: async (query?: LoginStatsDateRangeQuery): Promise<WeeklyActiveStatsDto[]> => {
     const params = validateDateRange(query);
     const response = await api.get<ApiResponse<WeeklyActiveStatsDto[]>>(`${LOGIN_STATS_BASE_PATH}/engagement/weekly`, { params });
-    return response.data.data;
+    return response.data.data ?? [];
   },
 };

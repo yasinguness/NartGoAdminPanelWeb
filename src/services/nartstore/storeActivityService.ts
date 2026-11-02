@@ -75,8 +75,8 @@ export interface StoreOrder {
 }
 
 export const storeActivityService = {
-  async overview(days: number): Promise<Overview> {
-    return (await api.get(`${COMMERCE}/overview`, { params: { days } })).data;
+  async overview(days: number, opts?: Record<string, unknown>): Promise<Overview> {
+    return (await api.get(`${COMMERCE}/overview`, { params: { days }, ...opts })).data;
   },
   async events(params: { group?: EventGroup; userId?: string; q?: string; platform?: Platform; days: number; page: number; size?: number }): Promise<{ total: number; page: number; size: number; items: StoreEvent[] }> {
     const { group, platform, ...rest } = params;

@@ -1,177 +1,182 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert, Box, Button, Checkbox, Chip, FormControlLabel, MenuItem, Paper, Stack, Table, TableBody, TableCell,
-  TableHead, TableRow, TextField, Typography,
-} from '@mui/material';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Badge, Box, Button, Paper, Stack, Tab, Tabs, Typography } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import { PageContainer } from '../../components/Page';
 import {
-  promotionAdminService, SCOPE_LABEL, type PromotionOverview, type PromotionScope,
+  promotionAdminService, type PromotionOverview, type PromotionPurchase,
 } from '../../services/business/promotionAdminService';
+import { StatTile, daysUntil, isLive, tl } from './promotions/shared';
+import RequestsTab from './promotions/RequestsTab';
+import LiveTab from './promotions/LiveTab';
+import PricingTab from './promotions/PricingTab';
+import TrialDrawer from './promotions/TrialDrawer';
 
 /**
- * Admin › İşletmeler › Ücretli öne çıkarma. Fiyatlar ve il başına yer sınırı burada girilir;
- * fiyatı boş seçenek satışa kapalıdır. Görüntülenme ve tıklama dürüst ölçümdür: giriş yapmış
- * kişi başına günde bir, işletme sahibi sayılmaz. docs/plan/nartgo-isletme-one-cikar.md
+ * Admin › İşletme Rehberi › Ücretli Öne Çıkarma.
+ *
+ * Üç sekme, tek sayfa: bekleyen işler → yayındakiler → fiyat ve kurallar.
+ * Üstteki dört kutu her sekmede sabit durur; hepsi `adminOverview`'dan
+ * türetilir, ayrı bir sayım ucu yoktur.
+ *
+ * Yayın/bitiş hesapları burada yapılıyor çünkü sunucu "şu an yayında" diye bir
+ * liste döndürmüyor: son 100 satın almayı veriyor, yayında olup olmadığı
+ * durum + tarih aralığından çıkıyor.
  */
-const PRICE_ROWS: { key: string; label: string }[] = [
-  { key: 'CITY_7', label: 'İl · 7 gün' }, { key: 'CITY_30', label: 'İl · 30 gün' },
-  { key: 'REGION_7', label: 'Bölge · 7 gün' }, { key: 'REGION_30', label: 'Bölge · 30 gün' },
-  { key: 'COUNTRY_7', label: 'Tüm Türkiye · 7 gün' }, { key: 'COUNTRY_30', label: 'Tüm Türkiye · 30 gün' },
-  { key: 'STORY_7', label: 'Hikâye eki · 7 gün' }, { key: 'STORY_30', label: 'Hikâye eki · 30 gün' },
-];
-const STATUS: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'default' }> = {
-  ACTIVE: { label: 'Ödendi', color: 'success' },
-  PENDING: { label: 'Ödeme bekliyor', color: 'default' },
-  FAILED: { label: 'Tamamlanmadı', color: 'default' },
-  REFUND_NEEDED: { label: 'İade bekliyor', color: 'error' },
-};
-const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString('tr-TR') : '—');
-const tl = (n: number | null | undefined) => (n == null ? '—' : `${Number(n).toLocaleString('tr-TR')} ₺`);
-
 export default function BusinessPromotions() {
   const [data, setData] = useState<PromotionOverview | null>(null);
-  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [tab, setTab] = useState(0);
+  const [drawer, setDrawer] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [grant, setGrant] = useState({ businessId: '', scope: 'CITY' as PromotionScope, days: 30, includeStory: false, overrideSlot: false, note: 'NartBusiness üyesi · ilk ay deneme' });
 
   const load = useCallback(async () => {
     try {
-      const d = await promotionAdminService.overview();
-      setData(d);
-      setDraft(Object.fromEntries(Object.entries(d.settings).map(([k, v]) => [k, v == null ? '' : String(v)])));
+      setData(await promotionAdminService.overview());
     } catch (e: any) {
       setMessage({ type: 'error', text: e?.response?.data?.message || 'Veriler yüklenemedi.' });
     }
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  const save = async () => {
-    const changes: Record<string, number | null> = {};
-    for (const [k, v] of Object.entries(draft)) changes[k] = v.trim() === '' ? null : Number(v.replace(',', '.'));
+  const purchases = data?.purchases ?? [];
+
+  const live = useMemo(
+    () => purchases.filter((p) => isLive(p))
+      .sort((a, b) => (daysUntil(a.endsAt) ?? 0) - (daysUntil(b.endsAt) ?? 0)),
+    [purchases],
+  );
+
+  /** Admin kararı bekleyenler: iade gerekenler önce, sonra tamamlanmamış ödemeler. */
+  const pending = useMemo(() => {
+    const rank = (p: PromotionPurchase) => (p.status === 'REFUND_NEEDED' ? 0 : 1);
+    return purchases
+      .filter((p) => p.status === 'REFUND_NEEDED' || p.status === 'FAILED')
+      .sort((a, b) => rank(a) - rank(b) || b.createdAt.localeCompare(a.createdAt));
+  }, [purchases]);
+
+  const endingSoon = useMemo(
+    () => live.filter((p) => { const d = daysUntil(p.endsAt); return d != null && d <= 7; }),
+    [live],
+  );
+
+  const scopeBreakdown = useMemo(() => {
+    const n = { CITY: 0, REGION: 0, COUNTRY: 0 } as Record<string, number>;
+    live.forEach((p) => { n[p.scope] += 1; });
+    return [
+      n.CITY ? `${n.CITY} il` : null,
+      n.REGION ? `${n.REGION} bölge` : null,
+      n.COUNTRY ? `${n.COUNTRY} Türkiye` : null,
+    ].filter(Boolean).join(' · ');
+  }, [live]);
+
+  const revenueHint = useMemo(() => {
+    const paid = purchases.filter((p) => p.status === 'ACTIVE' && !p.trial).length;
+    const trial = purchases.filter((p) => p.trial).length;
+    return [paid ? `${paid} satış` : null, trial ? `${trial} deneme` : null].filter(Boolean).join(' · ');
+  }, [purchases]);
+
+  const oldestPendingHint = useMemo(() => {
+    if (pending.length === 0) return 'bekleyen iş yok';
+    const oldest = pending.reduce((a, b) => (a.createdAt < b.createdAt ? a : b));
+    const d = daysUntil(oldest.createdAt);
+    return d != null && d < 0 ? `en eskisi ${Math.abs(d)} gündür bekliyor` : 'bugün geldi';
+  }, [pending]);
+
+  const saveSettings = async (changes: Record<string, number | null>) => {
+    setSaving(true);
     try {
       await promotionAdminService.updateSettings(changes);
-      setMessage({ type: 'success', text: 'Ayarlar kaydedildi.' });
-      void load();
-    } catch (e: any) {
-      setMessage({ type: 'error', text: e?.response?.data?.message || 'Ayarlar kaydedilemedi.' });
-    }
-  };
-
-  const doGrant = async () => {
-    try {
-      await promotionAdminService.grant({ ...grant, businessId: grant.businessId.trim() });
-      setMessage({ type: 'success', text: 'Ücretsiz öne çıkarma tanımlandı ve başladı.' });
-      void load();
-    } catch (e: any) {
-      setMessage({ type: 'error', text: e?.response?.data?.message || 'Tanımlanamadı.' });
-    }
-  };
-
-  const refunded = async (id: string) => {
-    if (!window.confirm('İadeyi iyzico panelinden yaptınız mı? Kayıt "iade edildi" olarak kapatılacak.')) return;
-    try {
-      await promotionAdminService.markRefunded(id);
-      void load();
+      setMessage({ type: 'success', text: 'Kaydedildi.' });
+      await load();
     } catch (e: any) {
       setMessage({ type: 'error', text: e?.response?.data?.message || 'Kaydedilemedi.' });
-    }
+    } finally { setSaving(false); }
+  };
+
+  const markRefunded = async (id: string) => {
+    setBusyId(id);
+    try {
+      await promotionAdminService.markRefunded(id);
+      setMessage({ type: 'success', text: 'Kayıt iade edildi olarak kapatıldı.' });
+      await load();
+    } catch (e: any) {
+      setMessage({ type: 'error', text: e?.response?.data?.message || 'Kaydedilemedi.' });
+    } finally { setBusyId(null); }
   };
 
   return (
-    <PageContainer title="Ücretli öne çıkarma">
-      {message && <Alert severity={message.type} sx={{ mb: 2 }} onClose={() => setMessage(null)}>{message.text}</Alert>}
-      {data && (
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-          <Chip label={`Son 7 gün satış: ${data.paidLast7Days}`} />
-          <Chip label={`Son 30 gün gelir: ${tl(data.revenueLast30Days)}`} />
-          <Chip color={data.refundNeeded ? 'error' : 'default'} label={`İade bekleyen: ${data.refundNeeded}`} />
-          <Chip label={`Uygulamada "haber ver" diyen sahip: ${data.interestCount ?? 0}`} />
-        </Stack>
-      )}
-
-      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-        <Typography fontWeight={700}>Fiyatlar ve yer sınırı</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Boş bırakılan seçenek satışa kapalıdır. Yer sınırı: bir ilde aynı anda en fazla kaç işletme sponsorlu gösterilir.
-        </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
-          {PRICE_ROWS.map((r) => (
-            <TextField key={r.key} size="small" label={`${r.label} (₺)`} value={draft[r.key] ?? ''}
-              onChange={(e) => setDraft({ ...draft, [r.key]: e.target.value })} inputProps={{ inputMode: 'decimal' }} />
-          ))}
-          <TextField size="small" label="İl başına yer sınırı" value={draft.CITY_SLOT_LIMIT ?? ''}
-            onChange={(e) => setDraft({ ...draft, CITY_SLOT_LIMIT: e.target.value })} helperText="Boşsa 3" inputProps={{ inputMode: 'numeric' }} />
-          <TextField size="small" label="Aynı anda en fazla hikâye eki" value={draft.STORY_SLOT_LIMIT ?? ''}
-            onChange={(e) => setDraft({ ...draft, STORY_SLOT_LIMIT: e.target.value })}
-            helperText="Boşsa 3. Birden fazlaysa her kişiye günde biri gösterilir." inputProps={{ inputMode: 'numeric' }} />
+    <PageContainer>
+      <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'flex-start' }} spacing={2} sx={{ mb: 3 }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="caption" color="text.secondary"
+            sx={{ textTransform: 'uppercase', letterSpacing: 1, fontSize: 11, fontWeight: 700 }}>
+            İşletme Rehberi
+          </Typography>
+          <Typography sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1.2 }}>Ücretli Öne Çıkarma</Typography>
         </Box>
-        <Button variant="contained" sx={{ mt: 2 }} onClick={save}>Kaydet</Button>
-      </Paper>
+        <Button variant="outlined" startIcon={<AddIcon />}
+          onClick={(e) => { (e.currentTarget as HTMLElement).blur(); setDrawer(true); }}>
+          Deneme tanımla
+        </Button>
+      </Stack>
 
-      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-        <Typography fontWeight={700}>Ücretsiz öne çıkarma tanımla (deneme)</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Ör. NartBusiness üyelerine ilk ay. Ödeme alınmaz, gerçek görüntülenme ve tıklama verisi toplanır.
-        </Typography>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
-          <TextField size="small" label="İşletme kimliği (UUID)" value={grant.businessId} sx={{ minWidth: 320 }}
-            onChange={(e) => setGrant({ ...grant, businessId: e.target.value })} />
-          <TextField size="small" select label="Kapsam" value={grant.scope} onChange={(e) => setGrant({ ...grant, scope: e.target.value as PromotionScope })}>
-            {(Object.keys(SCOPE_LABEL) as PromotionScope[]).map((s) => <MenuItem key={s} value={s}>{SCOPE_LABEL[s]}</MenuItem>)}
-          </TextField>
-          <TextField size="small" type="number" label="Gün" value={grant.days} sx={{ width: 100 }}
-            onChange={(e) => setGrant({ ...grant, days: Number(e.target.value) })} />
-          <TextField size="small" label="Not" value={grant.note} sx={{ minWidth: 240 }} onChange={(e) => setGrant({ ...grant, note: e.target.value })} />
-          <FormControlLabel control={<Checkbox checked={grant.includeStory} onChange={(e) => setGrant({ ...grant, includeStory: e.target.checked })} />} label="Hikâye" />
-          <FormControlLabel control={<Checkbox checked={grant.overrideSlot} onChange={(e) => setGrant({ ...grant, overrideSlot: e.target.checked })} />} label="Yer sınırını aş" />
-          <Button variant="outlined" onClick={doGrant} disabled={!grant.businessId.trim()}>Tanımla</Button>
-        </Stack>
-      </Paper>
+      {message && <Alert severity={message.type} sx={{ mb: 2 }} onClose={() => setMessage(null)}>{message.text}</Alert>}
 
-      {data && data.byProvince.length > 0 && (
-        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-          <Typography fontWeight={700} sx={{ mb: 1 }}>İl bazında gerçek sonuç (son 90 gün)</Typography>
-          <Table size="small">
-            <TableHead><TableRow><TableCell>İl</TableCell><TableCell align="right">Öne çıkarma</TableCell><TableCell align="right">Ort. görüntülenme</TableCell><TableCell align="right">Ort. tıklama</TableCell></TableRow></TableHead>
-            <TableBody>
-              {data.byProvince.map((p) => (
-                <TableRow key={p.province}><TableCell sx={{ textTransform: 'capitalize' }}>{p.province}</TableCell>
-                  <TableCell align="right">{p.promotions}</TableCell><TableCell align="right">{p.avgViews}</TableCell><TableCell align="right">{p.avgClicks}</TableCell></TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Paper>
-      )}
+      <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
+        <StatTile label="Bekleyen iş" value={String(pending.length)} hint={oldestPendingHint}
+          tone={pending.length ? 'warn' : undefined} active={pending.length > 0} />
+        <StatTile label="Şu an yayında" value={String(live.length)} hint={scopeBreakdown || 'kapsam yok'} />
+        <StatTile label="7 gün içinde bitecek" value={String(endingSoon.length)}
+          hint={endingSoon.length ? 'yenileme konuşulabilir' : 'yakında biten yok'} />
+        <StatTile label="Son 30 gün geliri" value={tl(data?.revenueLast30Days ?? 0, '0 ₺')}
+          hint={revenueHint || 'kayıt yok'} />
+      </Stack>
 
-      {data && (
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography fontWeight={700} sx={{ mb: 1 }}>Son satın almalar</Typography>
-          <Box sx={{ overflowX: 'auto' }}>
-            <Table size="small">
-              <TableHead><TableRow>
-                <TableCell>İşletme</TableCell><TableCell>Kapsam</TableCell><TableCell>Süre</TableCell><TableCell align="right">Tutar</TableCell>
-                <TableCell>Durum</TableCell><TableCell>Yayın</TableCell><TableCell align="right">Görüntülenme</TableCell><TableCell align="right">Tıklama</TableCell><TableCell>Not</TableCell><TableCell />
-              </TableRow></TableHead>
-              <TableBody>
-                {data.purchases.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>{p.businessName ?? p.businessId}<Typography variant="caption" display="block" color="text.secondary">{p.grantedBy ? `Deneme · ${p.grantedBy}` : p.buyerEmail}</Typography></TableCell>
-                    <TableCell>{SCOPE_LABEL[p.scope]}{p.province ? ` · ${p.province}` : ''}{p.includeStory ? ' + hikâye' : ''}</TableCell>
-                    <TableCell>{p.days} gün</TableCell>
-                    <TableCell align="right">{tl(p.amount)}</TableCell>
-                    <TableCell><Chip size="small" color={STATUS[p.status]?.color} label={STATUS[p.status]?.label ?? p.status} /></TableCell>
-                    <TableCell>{fmtDate(p.startsAt)} – {fmtDate(p.endsAt)}</TableCell>
-                    <TableCell align="right">{p.views}</TableCell>
-                    <TableCell align="right">{p.clicks}</TableCell>
-                    <TableCell sx={{ maxWidth: 240 }}><Typography variant="caption">{p.note}</Typography></TableCell>
-                    <TableCell>{p.status === 'REFUND_NEEDED' && <Button size="small" onClick={() => refunded(p.id)}>İade edildi</Button>}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      <Paper variant="outlined" sx={{ borderRadius: 2.5, overflow: 'hidden' }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ px: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+          <Tab sx={{ textTransform: 'none', fontWeight: 600 }} label={
+            <Badge badgeContent={pending.length} color="warning" sx={{ '& .MuiBadge-badge': { right: -14, top: 2 } }}>
+              <span>Bekleyen işler</span>
+            </Badge>
+          } />
+          <Tab sx={{ textTransform: 'none', fontWeight: 600 }} label={`Yayında ${live.length}`} />
+          <Tab sx={{ textTransform: 'none', fontWeight: 600 }} label="Fiyatlar ve kurallar" />
+        </Tabs>
+
+        {tab === 0 && <Box sx={{ pt: 2 }}><RequestsTab rows={pending} onRefunded={markRefunded} busyId={busyId} /></Box>}
+        {tab === 1 && <Box sx={{ pt: 1 }}><LiveTab rows={live} /></Box>}
+        {tab === 2 && (
+          <Box sx={{ px: 2.5, pb: 1 }}>
+            <PricingTab settings={data?.settings ?? {}} onSave={saveSettings} saving={saving} />
           </Box>
+        )}
+      </Paper>
+
+      {data && data.byProvince.length > 0 && tab === 1 && (
+        <Paper variant="outlined" sx={{ borderRadius: 2.5, mt: 2.5, p: 2.5 }}>
+          <Typography fontWeight={700} sx={{ mb: 0.5 }}>İl bazında gerçek sonuç (son 90 gün)</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Satış konuşmasının dayanağı: bu ilde öne çıkan işletmeler ortalama ne aldı.
+          </Typography>
+          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+            {data.byProvince.slice(0, 8).map((p) => (
+              <Paper key={p.province} variant="outlined" sx={{ px: 2, py: 1.25, borderRadius: 2, minWidth: 150 }}>
+                <Typography variant="body2" fontWeight={600} sx={{ textTransform: 'capitalize' }}>
+                  {p.province}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {p.promotions} öne çıkarma · ort. {p.avgViews.toLocaleString('tr-TR')} görüntülenme
+                  {' · '}{p.avgClicks} tıklama
+                </Typography>
+              </Paper>
+            ))}
+          </Stack>
         </Paper>
       )}
+
+      <TrialDrawer open={drawer} onClose={() => setDrawer(false)}
+        onDone={(text) => { setMessage({ type: 'success', text }); void load(); }} />
     </PageContainer>
   );
 }

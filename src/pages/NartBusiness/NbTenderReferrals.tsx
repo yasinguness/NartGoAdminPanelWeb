@@ -189,7 +189,7 @@ export default function NbTenderReferrals() {
     <Box>
       <NbPageHeader
         crumb="NartBusiness · Ticaret & Fırsatlar"
-        title="Yönlendirmeler"
+        title="İhale Yönlendirmeleri"
         subtitle="Gönderdiğin her bildirimin sonucu burada. Amaç bildirim sayısı değil, teklife dönüşen oran."
         kpis={
           <>

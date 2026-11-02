@@ -7,9 +7,9 @@ function unwrap<T>(body: any): T | null {
   return body as T;
 }
 
-async function getJobs(): Promise<JobMonitorResponse | null> {
+async function getJobs(opts?: Record<string, unknown>): Promise<JobMonitorResponse | null> {
   try {
-    const res = await api.get<any>('/admin/ops/jobs');
+    const res = await api.get<any>('/admin/ops/jobs', opts);
     return unwrap<JobMonitorResponse>(res.data);
   } catch (err: any) {
     const code = err?.response?.status;

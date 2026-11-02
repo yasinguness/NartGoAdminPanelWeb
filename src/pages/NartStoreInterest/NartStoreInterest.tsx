@@ -30,7 +30,7 @@ export default function NartStoreInterest() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Typography variant="h5" fontWeight={700}>NartStore</Typography>
+      <Typography variant="h5" fontWeight={700}>NartStore · Satıcı Başvuruları</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
         Satıcı başvuruları ve açılış bildirimini bekleyenler.
       </Typography>

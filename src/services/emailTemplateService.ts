@@ -123,8 +123,8 @@ export const emailTemplateService = {
     product?: string;
     page?: number;
     size?: number;
-  } = {}): Promise<EmailLogPage> {
-    const res = await api.get<EmailLogPage>('/notifications/admin/email-templates/logs', { params });
+  } = {}, opts?: Record<string, unknown>): Promise<EmailLogPage> {
+    const res = await api.get<EmailLogPage>('/notifications/admin/email-templates/logs', { params, ...opts });
     return res.data;
   },
 

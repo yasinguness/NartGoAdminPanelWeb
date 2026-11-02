@@ -146,7 +146,7 @@ export default function ProductAnalytics() {
       title="Ürün Kullanım Analitiği"
       subtitle="Mobile SDK event'lerinden türetilen kullanım insightları"
       icon={<InsightsIcon sx={{ fontSize: 26 }} />}
-      label="Kullanıcı Etkileşimi • Yalnızca Admin"
+      label="Kullanım Analitiği • Yalnızca Admin"
       isFetching={anyFetching}
       lastUpdatedAt={lastUpdated || null}
       onRefresh={() => {

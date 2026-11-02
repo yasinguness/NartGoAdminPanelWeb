@@ -87,7 +87,7 @@ export default function SubMerchants() {
   return (
     <PageContainer>
       <PageHeader
-        title="Alt Üye İşyeri"
+        title="Alt Üye İşyerleri"
         subtitle="Liste, durum yönetimi ve Iyzico operasyonları tek modülde."
         breadcrumbs={[
           { label: 'Kontrol Paneli', href: '/dashboard' },

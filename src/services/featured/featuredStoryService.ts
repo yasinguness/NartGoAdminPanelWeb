@@ -61,8 +61,8 @@ export class FeaturedStoryService {
     return FeaturedStoryService.instance;
   }
 
-  async list(): Promise<FeaturedStoryPlacement[]> {
-    const response = await api.get<ApiEnvelope<FeaturedStoryPlacement[]>>(this.baseUrl);
+  async list(opts?: Record<string, unknown>): Promise<FeaturedStoryPlacement[]> {
+    const response = await api.get<ApiEnvelope<FeaturedStoryPlacement[]>>(this.baseUrl, opts);
     return response.data.data ?? [];
   }
 

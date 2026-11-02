@@ -27,7 +27,7 @@ export default function ExecutiveDashboard() {
 
   return (
     <AdminShell
-      title="Stratejik Kontrol Paneli"
+      title="Yönetici Özeti"
       subtitle={`Merhaba ${userName} — platformun nabzı 30 saniyede.`}
       icon={<TrendingUpIcon sx={{ fontSize: 26 }} />}
       label="Stratejik Panel • Yalnızca Admin"

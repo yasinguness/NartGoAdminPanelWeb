@@ -197,7 +197,7 @@ export default function GamificationSettings() {
       {saving && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1300, height: 3 }} />}
 
       <PageHeader
-        title="Oyunlaştırma Ayarları"
+        title="Puan & Rozet Ayarları"
         subtitle={`"${selectedKey}" konfigürasyonu üzerinde düzenleme yapıyorsunuz`}
         breadcrumbs={[{ label: 'Panel', href: '/dashboard' }, { label: 'Oyunlaştırma' }]}
         actions={

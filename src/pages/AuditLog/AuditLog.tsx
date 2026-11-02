@@ -160,7 +160,7 @@ export default function AuditLog() {
     return (
         <PageContainer>
             <PageHeader
-                title="Audit Log"
+                title="Panel İşlem Geçmişi"
                 subtitle="Admin panel işlem geçmişi — kim, ne zaman, ne yaptı"
                 breadcrumbs={[{ label: 'Kontrol Paneli', href: '/dashboard' }, { label: 'Audit Log' }]}
             />

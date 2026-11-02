@@ -25,6 +25,7 @@ import {
     QuestionAnswer as QuestionsIcon,
     Newspaper as NewsIcon,
     FormatQuote as TestimonialIcon,
+    Assignment as NeedIcon,
     Storefront as ListingIcon,
     Gavel as TenderIcon,
     WorkOutline as JobIcon,
@@ -96,7 +97,7 @@ export const nartbusinessNavSections: NavSection[] = [
     {
         title: 'Ticaret & Fırsatlar',
         items: [
-            { text: 'İhtiyaç Formları', icon: <ListingIcon />, path: '/nartbusiness/need-intakes', allowedRoles: NB_MANAGE },
+            { text: 'İhtiyaç Formları', icon: <NeedIcon />, path: '/nartbusiness/need-intakes', allowedRoles: NB_MANAGE },
             { text: 'İlanlar (Talep/Arz)', icon: <ListingIcon />, path: '/nartbusiness/listings', allowedRoles: NB_MODERATE },
             { text: 'İhaleler', icon: <TenderIcon />, path: '/nartbusiness/tenders', allowedRoles: NB_MANAGE },
             { text: 'Haftalık İhale Seçkisi', icon: <ShortlistIcon />, path: '/nartbusiness/weekly-shortlist', allowedRoles: NB_MANAGE },
@@ -127,7 +128,7 @@ export const nartbusinessNavSections: NavSection[] = [
         title: 'Analitik & Sistem',
         items: [
             { text: 'Paylaşım Analitikleri', icon: <ShareIcon />, path: '/nartbusiness/share-analytics', allowedRoles: NB_MANAGE },
-            { text: 'Embedding & Matching', icon: <EmbeddingIcon />, path: '/nartbusiness/embedding-jobs', allowedRoles: NB_MANAGE },
+            { text: 'Eşleştirme İşleri (AI)', icon: <EmbeddingIcon />, path: '/nartbusiness/embedding-jobs', allowedRoles: NB_MANAGE },
             { text: 'İşlem Kayıtları', icon: <AuditIcon />, path: '/nartbusiness/audit', allowedRoles: NB_MANAGE },
             { text: 'E-posta Kayıtları', icon: <EmailIcon />, path: '/nartbusiness/email-logs', allowedRoles: NB_MANAGE },
             { text: 'Giriş Kayıtları', icon: <LoginIcon />, path: '/nartbusiness/login-logs', allowedRoles: NB_MANAGE },

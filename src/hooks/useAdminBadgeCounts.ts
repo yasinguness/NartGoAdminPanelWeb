@@ -47,6 +47,18 @@ function unwrap(body: any): any {
   return body;
 }
 
+/**
+ * Rozet sayaçları süstür: kaç iş beklediğini gösterir, oturumun kaderini
+ * belirlemez. Bu yüzden her istek `skipAuthRedirect` ile gider.
+ *
+ * Önceden gitmiyordu ve sonuç ağırdı: bu uçlardan herhangi biri 401 dönünce
+ * global interceptor token'ı silip kullanıcıyı login'e atıyordu. `safe()`
+ * hatayı yutuyor olsa da interceptor ondan önce çalıştığı için oturum çoktan
+ * kapanmış oluyordu. Sayaç 60 saniyede bir yenilendiğinden, servislerden biri
+ * yeniden başladığında herkes tekrar tekrar dışarı atılıyordu.
+ */
+const BADGE_REQ: Record<string, unknown> = { skipAuthRedirect: true };
+
 async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();
@@ -59,7 +71,7 @@ async function fetchCounts(): Promise<AdminBadgeCounts> {
   const [stats, moderation, opinions, news, claims, emailFailed, tasksToday, heritage] = await Promise.all([
     // Üyelik dashboard istatistikleri — verification + members badge'lerini besler.
     safe(async () => {
-      const s: any = await nbAdminService.getDashboardStats();
+      const s: any = await nbAdminService.getDashboardStats(BADGE_REQ);
       return {
         pendingVerification: Number(s?.pendingVerification ?? 0),
         paymentPending: Number(s?.paymentPending ?? 0),
@@ -67,42 +79,42 @@ async function fetchCounts(): Promise<AdminBadgeCounts> {
     }, { pendingVerification: 0, paymentPending: 0 }),
     // Topluluk şikayet moderasyonu — açık (OPEN) kayıtlar
     safe(async () => {
-      const res = await api.get<any>('/nb/admin/community/reports', { params: { limit: 100 } });
+      const res = await api.get<any>('/nb/admin/community/reports', { params: { limit: 100 }, ...BADGE_REQ });
       const list = unwrap(res.data);
       if (!Array.isArray(list)) return 0;
       return list.filter((r: any) => (r?.status ?? 'OPEN') === 'OPEN').length;
     }, 0),
     // Üye görüşleri — onay bekleyen
     safe(async () => {
-      const res = await api.get<any>('/nb/market/admin/opinions/pending', { params: { limit: 100 } });
+      const res = await api.get<any>('/nb/market/admin/opinions/pending', { params: { limit: 100 }, ...BADGE_REQ });
       const list = unwrap(res.data);
       return Array.isArray(list) ? list.length : 0;
     }, 0),
     // Piyasa haberleri — onay bekleyen (hibrit moderasyon)
     safe(async () => {
-      const res = await api.get<any>('/nb/market/admin/news/pending', { params: { limit: 100 } });
+      const res = await api.get<any>('/nb/market/admin/news/pending', { params: { limit: 100 }, ...BADGE_REQ });
       const list = unwrap(res.data);
       return Array.isArray(list) ? list.length : 0;
     }, 0),
     // İşletme talepleri — PENDING toplam (size=1 ile sadece sayım)
     safe(async () => {
-      const res = await api.get<any>('/businesses/admin/claims', { params: { status: 'PENDING', page: 0, size: 1 } });
+      const res = await api.get<any>('/businesses/admin/claims', { params: { status: 'PENDING', page: 0, size: 1 }, ...BADGE_REQ });
       const body = unwrap(res.data);
       return Number(body?.totalElements ?? body?.total ?? 0);
     }, 0),
     // Başarısız e-postalar
     safe(async () => {
-      const page = await emailTemplateService.logs({ status: 'FAILED', page: 0, size: 1 });
+      const page = await emailTemplateService.logs({ status: 'FAILED', page: 0, size: 1 }, BADGE_REQ);
       return Number(page?.totalElements ?? 0);
     }, 0),
     // Deneme Merkezi — bugün vadesi gelen ya da geçmiş açık görevler
     safe(async () => {
-      const res = await api.get<unknown>('/nb/admin/tasks', { params: { scope: 'today' } });
+      const res = await api.get<unknown>('/nb/admin/tasks', { params: { scope: 'today' }, ...BADGE_REQ });
       const list = unwrap(res.data);
       return Array.isArray(list) ? list.length : 0;
     }, 0),
     // Köy ve sülale: yönetici kararı bekleyen işler (köylü teyidi bekleyenler sayılmaz, kendiliğinden kesinleşir)
-    safe(() => heritageVillageService.pendingSummary(), null),
+    safe(() => heritageVillageService.pendingSummary(BADGE_REQ), null),
   ]);
 
   return {
