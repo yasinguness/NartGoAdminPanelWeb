@@ -71,6 +71,24 @@ export const businessService = {
         return response.data;
     },
 
+    /**
+     * İşletmeyi günceller (`PUT /businesses/{id}`, multipart).
+     *
+     * İki ayrıntı sunucunun beklentisinden geliyor:
+     *
+     *  - `business` parçası **Blob** olarak ve `application/json` tipiyle
+     *    gider. Düz metin olarak eklenince parçanın içerik tipi text/plain
+     *    olur ve sunucudaki `@RequestPart("business") BusinessDto`
+     *    dönüştürülemez.
+     *  - Gövde **tam** DTO olmalı. Sunucu `@Valid BusinessDto` doğruluyor,
+     *    yalnız değişen alanlar gönderilince ad/kategori/adres gibi zorunlu
+     *    alanlar boş görünür. Bu yüzden önce mevcut kayıt okunup üzerine
+     *    değişiklik bindiriliyor.
+     *
+     * `Content-Type` başlığı da açıkça veriliyor: `api` örneğinin varsayılanı
+     * application/json ve axios o başlıkla FormData'yı JSON'a çevirip gövdeyi
+     * `{"business":{}}` hâline getiriyor.
+     */
     updateUserBusiness: async (
         _userId: string,
         businessId: string,
@@ -79,8 +97,12 @@ export const businessService = {
         coverImage?: File,
         galleryImages?: File[]
     ) => {
+        const currentRes = await api.get<ApiResponse<BusinessDto>>(`/businesses/${businessId}`);
+        const current = (currentRes.data?.data ?? currentRes.data) as BusinessDto;
+        const merged: BusinessDto = { ...current, ...businessData };
+
         const formData = new FormData();
-        formData.append('business', JSON.stringify(businessData));
+        formData.append('business', new Blob([JSON.stringify(merged)], { type: 'application/json' }));
         if (profileImage) formData.append('profileImage', profileImage);
         if (coverImage) formData.append('coverImage', coverImage);
         if (galleryImages) {
@@ -101,7 +123,12 @@ export const businessService = {
         return response.data;
     },
 
-    // Update specific business fields without file uploads
+    /**
+     * KULLANILMIYOR — `PATCH /businesses/{id}` sunucuda yok. Controller'da
+     * yalnız `/{id}/status`, `/{id}/verify`, `/{id}/featured` var, bu çağrı
+     * 405 döner. Alan güncellemesi için `updateUserBusiness` kullanılmalı.
+     * @deprecated
+     */
     updateBusinessFields: async (businessId: string, businessData: Partial<BusinessDto>) => {
         // Ensure we're sending a complete business object with all fields
         const response = await api.patch<ApiResponse<BusinessDto>>(

@@ -126,19 +126,50 @@ Türkiye alan bir işletme de ilin sınırından yer kaplıyor.
 Panel bugün bu gerçeği yazıyor ("Yer sınırı tek ve ortaktır…") ve satış
 durumunu fiyattan türetiyor (fiyat yoksa satışa kapalı).
 
-Ayrı sınır/anahtar istenirse `PromotionSettings.allKeys()` genişletilmeli —
+**Karar (3 Kasım 2026):** ayrı sınır + kişi başı üst sınır. Yani "Tüm Türkiye"
+kapsamı artık ilin sınırından yer kaplamayacak, kendi stoğu olacak; buna ek
+olarak **bir kullanıcının aynı anda gördüğü sponsorlu kart sayısı** için bir üst
+sınır gelecek. İkincisi olmazsa kalabalık bir ilde kullanıcı 3 il + 2 ülke = 5
+sponsorlu kart görebilir; asıl korunması gereken şey akışın kalitesi, kapsam
+başına stok değil.
+
+Gereken anahtarlar — `PromotionSettings.allKeys()` genişletilmeli, çünkü
 şu an bilinmeyen anahtar `IllegalArgumentException` ile reddediliyor, yani
 panel bunları kaydedemez:
 
 - `REGION_SLOT_LIMIT`, `COUNTRY_SLOT_LIMIT`
 - `CITY_ENABLED`, `REGION_ENABLED`, `COUNTRY_ENABLED`, `STORY_ENABLED` (0/1)
-- `COUNTRY_COUNTS_AGAINST_CITY` (0/1) — "Tüm Türkiye il sınırına sayılsın mı"
+- `VIEWER_SPONSORED_CAP` — bir kullanıcıya aynı anda gösterilecek en fazla
+  sponsorlu kart (önerilen 3). Kapsam sınırlarının toplamından bağımsız.
+
+`COUNTRY_COUNTS_AGAINST_CITY` gerekmiyor: karar "hayır" olduğu için davranış
+sabit. `slot()` kapsam ayrımı yapacak şekilde güncellenmeli ve sponsorlu kart
+seçimi (`sponsoredFor`) üst sınırı uygulamalı — yalnız anahtarı kabul etmek
+yetmez, yoksa panel sunucunun uygulamadığı bir sınırı gösterir.
 
 Ayrıca `slot()` bu anahtarlara göre kapsam ayrımı yapacak şekilde
 güncellenmeli; yalnız anahtarı kabul etmek yetmez, yoksa panel sunucunun
 uygulamadığı bir sınırı gösterir.
 
 ---
+
+## Deploy durumu (3 Kasım 2026, 07:30)
+
+Çalışan imajların içine bakarak doğrulandı:
+
+| Parça | Durum |
+|---|---|
+| gateway `@EnableReactiveMethodSecurity` | canlı |
+| gateway Instagram rotası (75 sn) | canlı |
+| base-service `ResponseStatusException` handler | canlı (business-service imajında) |
+| `OWNERSHIP` uygunluk kontrolü | canlı |
+| `interestCount` | canlı |
+| `settingChanges` | **yok** — hiçbir imajda ve `/opt` altındaki hiçbir kaynakta geçmiyor |
+| Kayıt hunisi ucu | **yok** |
+| Ortak Hafıza özeti ucu | **yok** |
+
+Panel üçünü de çağırıyor; uç yoksa kart görünmüyor, servis yayına girince
+kendiliğinden açılıyor.
 
 ## 5. Ayar değişiklik geçmişi (isteğe bağlı)
 

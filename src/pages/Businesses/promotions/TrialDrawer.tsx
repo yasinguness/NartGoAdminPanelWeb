@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert, Autocomplete, Box, Button, Checkbox, CircularProgress, Divider, Drawer, FormControlLabel,
-  IconButton, Link, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography,
+  IconButton, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { Link as RouterLink } from 'react-router-dom';
 import { businessService } from '../../../services/business/businessService';
 import type { BusinessDto } from '../../../types/businesses/businessModel';
 import {
-  promotionAdminService, MISSING_FIX, MISSING_LABEL, SCOPES, SCOPE_LABEL,
+  promotionAdminService, regionLabel, SCOPES, SCOPE_LABEL,
   type PromotionOffer, type PromotionScope,
 } from '../../../services/business/promotionAdminService';
+import EligibilityFixer from './EligibilityFixer';
 import { CheckChips, TONE, fmtDate, locative } from './shared';
 
 /** Sunucu 1-90 gün kabul ediyor (`grant`); panelde üç hazır süre. */
@@ -48,6 +48,16 @@ export default function TrialDrawer({ open, onClose, onDone }: {
 
   useEffect(() => { if (open) reset(); }, [open, reset]);
 
+  /** Uygunluk ve yer durumunu sunucudan tazele. */
+  const refreshOffer = useCallback(async () => {
+    if (!business) return;
+    try {
+      setOffer(await promotionAdminService.offerFor(business.id));
+    } catch {
+      setOffer(null);
+    }
+  }, [business]);
+
   // İşletme seçildiğinde uygunluk ve yer durumunu çek.
   useEffect(() => {
     if (!business) { setOffer(null); return; }
@@ -66,7 +76,17 @@ export default function TrialDrawer({ open, onClose, onDone }: {
     return d.toISOString();
   }, [days]);
 
-  const slotFull = !!offer && !offer.slot.available;
+  /**
+   * Seçilen kapsamın yer durumu.
+   *
+   * Sunucu 3 Kasım 2026'dan beri kapsam başına ayrı yer tutuyor ve `slots`
+   * alanını döndürüyor; eski `slot` alanı il yeri olarak kalıyor. Panel
+   * kapsamı değiştirince doğru sayıyı göstermeli — yoksa "Bölge" seçiliyken
+   * ilin doluluğu gösterilir ve admin yanlış karar verir.
+   */
+  const activeSlot = offer ? (offer.slots?.[scope] ?? offer.slot) : null;
+  const scopedSlots = !!offer?.slots;
+  const slotFull = !!activeSlot && !activeSlot.available;
   const storyFull = !!offer && !offer.storySlot.available;
   const blockedByEligibility = !!offer && !offer.eligibility.ok;
   const canSubmit = !!business && note.trim().length > 0 && !blockedByEligibility
@@ -115,7 +135,7 @@ export default function TrialDrawer({ open, onClose, onDone }: {
               <Paper variant="outlined" sx={{ mt: 1.5, p: 1.5, borderRadius: 2, borderColor: TONE.goBg, bgcolor: '#fbfcfb' }}>
                 <Typography variant="body2" fontWeight={600}>{offer.businessName}</Typography>
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                  {[offer.city, offer.region].filter(Boolean).join(' · ') || 'konum yok'}
+                  {[offer.city, regionLabel(offer.region)].filter(Boolean).join(' · ') || 'konum yok'}
                 </Typography>
                 <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
                   <CheckChips missing={offer.eligibility.missing} />
@@ -129,31 +149,11 @@ export default function TrialDrawer({ open, onClose, onDone }: {
               </Paper>
             )}
             {blockedByEligibility && offer && (
-              <Alert severity="warning" sx={{ mt: 1.5 }}>
-                <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
-                  Bu işletme öne çıkarılamaz. Sunucu da reddeder.
-                </Typography>
-                {/* Sebebi tek tek yaz: "yukarıdaki eksikler" demek, eksik hangi
-                    çipte olduğu görünmediğinde hiçbir şey söylemiyordu. */}
-                <Stack component="ul" sx={{ pl: 2.25, m: 0 }} spacing={0.25}>
-                  {offer.eligibility.missing.map((m) => {
-                    const fix = MISSING_FIX[m];
-                    return (
-                      <li key={m}>
-                        <Typography variant="body2" component="span">
-                          {MISSING_LABEL[m] ?? m}
-                          {fix ? ` — ${fix.text}` : ''}
-                        </Typography>
-                        {fix?.to && (
-                          <Link component={RouterLink} to={fix.to} variant="body2" sx={{ ml: 0.75 }}>
-                            aç
-                          </Link>
-                        )}
-                      </li>
-                    );
-                  })}
-                </Stack>
-              </Alert>
+              <EligibilityFixer
+                businessId={offer.businessId}
+                missing={offer.eligibility.missing}
+                onFixed={refreshOffer}
+              />
             )}
           </Box>
 
@@ -167,6 +167,11 @@ export default function TrialDrawer({ open, onClose, onDone }: {
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
+            {activeSlot && (
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+                {scopeWhere(scope, offer!, scopedSlots)} {activeSlot.used}/{activeSlot.limit} yer dolu.
+              </Typography>
+            )}
           </Box>
 
           <Box>
@@ -208,15 +213,15 @@ export default function TrialDrawer({ open, onClose, onDone }: {
               helperText="Kayıtta görünür, zorunlu." />
           </Box>
 
-          {slotFull && offer && (
+          {slotFull && offer && activeSlot && (
             <Paper variant="outlined"
               sx={{ p: 1.75, borderRadius: 2, bgcolor: TONE.warnBg, borderColor: TONE.warnBorder }}>
               <Typography variant="body2" fontWeight={700} sx={{ color: TONE.warn }}>
-                {offer.city ? locative(offer.city) : 'Bu ilde'} {offer.slot.used}/{offer.slot.limit} yer dolu.
+                {scopeWhere(scope, offer, scopedSlots)} {activeSlot.used}/{activeSlot.limit} yer dolu.
               </Typography>
               <Typography variant="caption" sx={{ color: TONE.warn, display: 'block', mt: 0.25 }}>
                 Deneme başlarsa ücretli satın alma için yer kalmaz.
-                {offer.slot.nextFreeAt ? ` İlk boşalma: ${fmtDate(offer.slot.nextFreeAt)}.` : ''}
+                {activeSlot.nextFreeAt ? ` İlk boşalma: ${fmtDate(activeSlot.nextFreeAt)}.` : ''}
               </Typography>
               <FormControlLabel sx={{ mt: 0.5 }}
                 control={<Checkbox size="small" checked={overrideSlot}
@@ -291,4 +296,17 @@ function BusinessPicker({ value, onChange }: {
       )}
     />
   );
+}
+
+/**
+ * Yer sayısının hangi alana ait olduğunu söyle: "Samsun'da", "Karadeniz'de",
+ * "Tüm Türkiye'de". Sunucu kapsam ayrımını desteklemiyorsa sayı her zaman ilin
+ * yeridir, o yüzden kapsamdan bağımsız olarak il yazılır.
+ */
+function scopeWhere(scope: PromotionScope, offer: PromotionOffer, scoped: boolean): string {
+  if (!scoped) return offer.city ? locative(offer.city) : 'Bu ilde';
+  if (scope === 'COUNTRY') return "Tüm Türkiye'de";
+  const region = regionLabel(offer.region);
+  if (scope === 'REGION') return region ? locative(region) : 'Bu bölgede';
+  return offer.city ? locative(offer.city) : 'Bu ilde';
 }

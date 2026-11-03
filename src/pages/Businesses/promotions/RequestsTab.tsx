@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Box, Button, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography,
+  Alert, Box, Button, Collapse, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography,
 } from '@mui/material';
+import BuildIcon from '@mui/icons-material/BuildOutlined';
+import EligibilityFixer from './EligibilityFixer';
 import {
   promotionAdminService, SCOPE_LABEL,
   type PromotionOffer, type PromotionPurchase,
@@ -81,17 +83,21 @@ function RequestRow({ p, onRefunded, busy }: {
   p: PromotionPurchase; onRefunded: (id: string) => void; busy: boolean;
 }) {
   const [offer, setOffer] = useState<PromotionOffer | null>(null);
+  const [fixing, setFixing] = useState(false);
 
-  // Kontroller sütunu: işletmenin uygunluğu ve ilin doluluğu.
-  useEffect(() => {
-    let alive = true;
-    promotionAdminService.offerFor(p.businessId)
-      .then((o) => { if (alive) setOffer(o); })
-      .catch(() => { /* kontroller gösterilemez; satır yine de çalışır */ });
-    return () => { alive = false; };
+  const loadOffer = useCallback(async () => {
+    try {
+      setOffer(await promotionAdminService.offerFor(p.businessId));
+    } catch {
+      /* kontroller gösterilemez; satır yine de çalışır */
+    }
   }, [p.businessId]);
 
+  // Kontroller sütunu: işletmenin uygunluğu ve ilin doluluğu.
+  useEffect(() => { void loadOffer(); }, [loadOffer]);
+
   const refundNeeded = p.status === 'REFUND_NEEDED';
+  const missing = offer?.eligibility.missing ?? [];
 
   return (
     <TableRow sx={{ bgcolor: refundNeeded ? TONE.warnBg : undefined }}>
@@ -113,7 +119,7 @@ function RequestRow({ p, onRefunded, busy }: {
         </Typography>
       </TableCell>
       <TableCell align="right" sx={{ verticalAlign: 'top', whiteSpace: 'nowrap' }}>{tl(p.amount)}</TableCell>
-      <TableCell sx={{ verticalAlign: 'top', maxWidth: 340 }}>
+      <TableCell sx={{ verticalAlign: 'top', maxWidth: 420, minWidth: 300, whiteSpace: 'normal' }}>
         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
           {offer ? (
             <>
@@ -128,6 +134,19 @@ function RequestRow({ p, onRefunded, busy }: {
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
             {p.note}
           </Typography>
+        )}
+        {/* Eksiği burada da görünce burada çözebilmeli; aksi hâlde admin
+            işletmeyi başka sayfada bulup düzeltip geri dönmek zorunda. */}
+        {missing.length > 0 && (
+          <>
+            <Button size="small" startIcon={<BuildIcon sx={{ fontSize: 15 }} />}
+              onClick={() => setFixing((v) => !v)} sx={{ mt: 0.5, px: 0.5 }}>
+              {fixing ? 'Düzeltmeyi kapat' : `${missing.length} eksiği düzelt`}
+            </Button>
+            <Collapse in={fixing} unmountOnExit>
+              <EligibilityFixer businessId={p.businessId} missing={missing} onFixed={loadOffer} />
+            </Collapse>
+          </>
         )}
       </TableCell>
       <TableCell align="right" sx={{ verticalAlign: 'top', whiteSpace: 'nowrap' }}>

@@ -155,7 +155,8 @@ export default function BusinessPromotions() {
         {tab === 1 && <Box sx={{ pt: 1 }}><LiveTab rows={live} /></Box>}
         {tab === 2 && (
           <Box sx={{ px: 2.5, pb: 1 }}>
-            <PricingTab settings={data?.settings ?? {}} onSave={saveSettings} saving={saving} />
+            <PricingTab settings={data?.settings ?? {}} changes={data?.settingChanges}
+              onSave={saveSettings} saving={saving} />
           </Box>
         )}
       </Paper>

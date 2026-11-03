@@ -45,6 +45,14 @@ export interface BusinessDto {
     website?: string;
     socialMedia?: SocialMediaDto[];
 
+    /**
+     * Sahiplik durumu. Sunucu `BaseBusinessDto.claimStatus` olarak listede de
+     * döndürüyordu ama panel tipinde tanımlı olmadığı için göz ardı ediliyordu.
+     * `verified` alanıyla karıştırılmamalı: o yönetici rozeti, bu sahiplik.
+     * APPROVED olmayan işletme ücretli öne çıkarmaya giremiyor.
+     */
+    claimStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
     // Business features
     hasSubscriptionSystem: boolean;
     priceRange?: string;

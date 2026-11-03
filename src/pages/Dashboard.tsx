@@ -15,6 +15,11 @@ import type { ActiveAlertDto, EngagementOverviewDto } from '../types/security/lo
 import type { PlatformHealthKpi, RevenueKpi } from '../services/executive/executiveTypes';
 import AttentionPanel from '../components/dashboard/AttentionPanel';
 import AudienceHealth from '../components/dashboard/AudienceHealth';
+import OnboardingFunnelCard from '../components/dashboard/OnboardingFunnelCard';
+import HeritageStatsCard from '../components/dashboard/HeritageStatsCard';
+import {
+  dashboardStatsService, type HeritageAdminStats, type OnboardingFunnel,
+} from '../services/dashboardStatsService';
 
 /**
  * Kontrol paneli.
@@ -63,6 +68,8 @@ export default function Dashboard() {
   const [revenue, setRevenue] = useState<RevenueKpi | null>(null);
   const [health, setHealth] = useState<PlatformHealthKpi | null>(null);
   const [alerts, setAlerts] = useState<ActiveAlertDto[]>([]);
+  const [funnel, setFunnel] = useState<OnboardingFunnel | null>(null);
+  const [heritage, setHeritage] = useState<HeritageAdminStats | null>(null);
   const [dismissed, setDismissed] = useState<string[]>([]);
 
   const unwrap = (body: any) => (body && typeof body === 'object' && 'data' in body ? body.data : body);
@@ -84,6 +91,10 @@ export default function Dashboard() {
       executiveService.getOperational?.()
         .then((o) => setUpcoming(o?.upcomingEvents72h ?? null)).catch(() => null),
       adminLoginStatsService.getActiveAlerts().then((a) => setAlerts(a ?? [])).catch(() => null),
+      // Bu iki uç yayına alınmadan 404 dönüyor; servis hatayı yutup null
+      // döndürüyor, kart da görünmüyor. Yayına girince kendiliğinden açılırlar.
+      dashboardStatsService.onboardingFunnel(30).then(setFunnel),
+      dashboardStatsService.heritageStats().then(setHeritage),
     ]);
   }, []);
 
@@ -177,6 +188,17 @@ export default function Dashboard() {
         <Tile label="Gelir · son 30 gün" value={tl(revenue?.gmvMonth?.value)}
           hint="bilet · mağaza · öne çıkarma" onClick={() => navigate('/finance/overview')} />
       </Box>
+
+      {(funnel || heritage) && (
+        <Box sx={{
+          display: 'grid', gap: 2.5, mb: 3,
+          gridTemplateColumns: { xs: '1fr', lg: funnel && heritage ? 'repeat(2, minmax(0, 1fr))' : '1fr' },
+          alignItems: 'start',
+        }}>
+          {funnel && <OnboardingFunnelCard data={funnel} />}
+          {heritage && <HeritageStatsCard data={heritage} />}
+        </Box>
+      )}
 
       <Typography variant="caption" color="text.secondary">
         Kişi bazlı listeler (son girişler, en aktif kullanıcılar) Kullanım ve Tutunma Analitiği

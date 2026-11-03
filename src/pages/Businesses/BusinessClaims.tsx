@@ -19,6 +19,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
+import { useSearchParams } from 'react-router-dom';
 import { DataTable, DataTableColumn, StatusChip } from '../../components/Data';
 import { BulkActionBar } from '../../components/Actions';
 import { FilterBar, FilterSelect } from '../../components/Filter';
@@ -58,8 +59,16 @@ const initialReviewState: ReviewDialogState = {
 export default function BusinessClaims() {
   const { enqueueSnackbar } = useSnackbar();
 
+  // ?status=APPROVED ile gelinebiliyor: İşletmeler sayfasındaki "Sahibi
+  // doğrulanmış" kutusu buraya yönlendiriyor, çünkü sunucu-taraflı doğru
+  // liste yalnız burada var.
+  const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<BusinessClaimStatus | ''>('PENDING');
+  const [statusFilter, setStatusFilter] = useState<BusinessClaimStatus | ''>(() => {
+    const s = (searchParams.get('status') || '').toUpperCase();
+    return (['PENDING', 'APPROVED', 'REJECTED'] as const).includes(s as never)
+      ? (s as BusinessClaimStatus) : 'PENDING';
+  });
   const [selectedClaim, setSelectedClaim] = useState<BusinessClaimResponse | null>(null);
 
   const [reviewDialog, setReviewDialog] = useState<ReviewDialogState>(initialReviewState);

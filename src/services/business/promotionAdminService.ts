@@ -39,6 +39,8 @@ export interface PromotionOverview {
   refundNeeded: number;
   /** Uygulamadaki "Öne çıkarma çok yakında, haber ver" kaydı (işletme sahibi). */
   interestCount?: number;
+  /** Ayar başına son değişiklik. Şekli sunucuda teyit edilmedi; bkz. `normalizeSettingChanges`. */
+  settingChanges?: unknown;
   purchases: PromotionPurchase[];
   byProvince: ProvinceResult[];
 }
@@ -58,6 +60,12 @@ export interface PromotionSlot {
  * sunucudan okuyoruz — işletmeyi seçtiğimiz anda.
  */
 export interface PromotionOffer {
+  /**
+   * Kapsam başına yer durumu (3 Kasım 2026). Eski `slot` alanı il yeri olarak
+   * duruyor; mobil uygulama bozulmasın diye sunucu ikisini birden döndürüyor.
+   * Sunucu güncellenmeden önce bu alan gelmez, o yüzden opsiyonel.
+   */
+  slots?: Partial<Record<PromotionScope, PromotionSlot>>;
   businessId: string;
   businessName: string;
   city: string | null;
@@ -152,5 +160,103 @@ export const priceKey = (scope: PromotionScope, days: 7 | 30) => `${scope}_${day
 export const storyKey = (days: 7 | 30) => `STORY_${days}`;
 export const CITY_SLOT_LIMIT = 'CITY_SLOT_LIMIT';
 export const STORY_SLOT_LIMIT = 'STORY_SLOT_LIMIT';
+export const REGION_SLOT_LIMIT = 'REGION_SLOT_LIMIT';
+export const COUNTRY_SLOT_LIMIT = 'COUNTRY_SLOT_LIMIT';
+/** Bir kullanıcıya aynı anda gösterilecek en fazla sponsorlu kart. */
+export const VIEWER_SPONSORED_CAP = 'VIEWER_SPONSORED_CAP';
+
+/** Kapsamın kendi yer sınırı anahtarı. */
+export const slotLimitKey = (scope: PromotionScope) =>
+  ({ CITY: CITY_SLOT_LIMIT, REGION: REGION_SLOT_LIMIT, COUNTRY: COUNTRY_SLOT_LIMIT }[scope]);
+
+/** Satış açık/kapalı bayrağı (0/1). Girilmemişse açık sayılır. */
+export const enabledKey = (scope: PromotionScope | 'STORY') => `${scope}_ENABLED`;
+
+/**
+ * Sunucu kapsam başına sınır ve satış bayraklarını destekliyor mu?
+ *
+ * `PromotionSettings.values()` tüm bilinen anahtarları (değeri boş olsa da)
+ * döndürdüğü için anahtarın varlığı yeteneğin kendisidir. Bu tespit şart:
+ * sunucu güncellenmeden yeni anahtar gönderilirse `update()` bilinmeyen
+ * anahtarı `IllegalArgumentException` ile reddediyor ve admin "Bilinmeyen
+ * ayar" hatası alıyor. Panel bu yüzden desteklenmeyen anahtarı hiç göndermez;
+ * sunucu yayına girince kendiliğinden açılır.
+ */
+export function supportsScopeSlots(settings: Record<string, unknown>): boolean {
+  return REGION_SLOT_LIMIT in settings && COUNTRY_SLOT_LIMIT in settings;
+}
+
+export function supportsEnabledFlags(settings: Record<string, unknown>): boolean {
+  return enabledKey('CITY') in settings;
+}
+
+export function supportsViewerCap(settings: Record<string, unknown>): boolean {
+  return VIEWER_SPONSORED_CAP in settings;
+}
 /** Sunucudaki varsayılanlar (`PromotionSettings`). */
 export const DEFAULT_SLOT_LIMIT = 3;
+
+/** Ayar başına son değişiklik — panelin kullandığı sade biçim. */
+export interface SettingChange { key: string; at: string | null; by: string | null }
+
+/**
+ * `settingChanges` alanını çözümle.
+ *
+ * Bu alanın tam JSON şekli sunucu tarafında teyit edilemedi (sözleşme
+ * belgesinde yalnız "updatedAt/updatedBy eklensin" yazıyordu, somut biçim
+ * yoktu). Tek bir şekle bahse girip yanlış alan okumaktansa iki makul biçimi
+ * de tanıyoruz: anahtara göre nesne ya da kayıt dizisi. Hiçbiri tutmazsa boş
+ * dizi döner ve kart hiç görünmez — yanlış veri göstermektense göstermemek.
+ */
+export function normalizeSettingChanges(raw: unknown): SettingChange[] {
+  if (!raw || typeof raw !== 'object') return [];
+  const pick = (o: Record<string, unknown> | null | undefined) => ({
+    at: (o?.updatedAt ?? o?.changedAt ?? o?.at ?? null) as string | null,
+    by: (o?.updatedBy ?? o?.changedBy ?? o?.by ?? o?.actor ?? null) as string | null,
+  });
+
+  const rows: SettingChange[] = Array.isArray(raw)
+    ? (raw as Array<Record<string, unknown>>).map((e) => ({
+        key: String(e?.key ?? e?.setting ?? ''), ...pick(e),
+      }))
+    : Object.entries(raw as Record<string, unknown>).map(([key, v]) => ({
+        key,
+        ...pick(typeof v === 'object' ? (v as Record<string, unknown>) : null),
+      }));
+
+  return rows
+    .filter((r) => r.key && (r.at || r.by))
+    .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')));
+}
+
+/** Ayar anahtarının okunabilir adı: `REGION_30` → "Bölge · 30 gün". */
+export function settingLabel(key: string): string {
+  if (key === CITY_SLOT_LIMIT) return 'İl başına yer sınırı';
+  if (key === STORY_SLOT_LIMIT) return 'Hikâye eki yer sınırı';
+  const m = /^(CITY|REGION|COUNTRY|STORY)_(\d+)$/.exec(key);
+  if (!m) return key;
+  const base = m[1] === 'STORY' ? 'Hikâye eki' : SCOPE_LABEL[m[1] as PromotionScope];
+  return `${base} · ${m[2]} gün`;
+}
+
+/**
+ * Bölge kodlarının Türkçe karşılığı.
+ *
+ * Kodlar ASCII (`IC_ANADOLU`, `KARADENIZ`), bu yüzden harf dönüşümüyle doğru
+ * ad üretilemez: Türkçe küçültme ASCII `I` harfini `ı` yapıyor ve "Karadenız"
+ * çıkıyor; "İç Anadolu" ile "Doğu Anadolu" ise hiçbir dönüşümle elde edilemez.
+ * Sunucudaki `TurkeyProvinces.Region` ile birebir.
+ */
+export const REGION_LABEL: Record<string, string> = {
+  MARMARA: 'Marmara',
+  EGE: 'Ege',
+  AKDENIZ: 'Akdeniz',
+  IC_ANADOLU: 'İç Anadolu',
+  KARADENIZ: 'Karadeniz',
+  DOGU_ANADOLU: 'Doğu Anadolu',
+  GUNEYDOGU: 'Güneydoğu Anadolu',
+};
+
+/** Bilinmeyen kod gelirse kodun kendisi döner; uydurma ad üretilmez. */
+export const regionLabel = (code?: string | null) =>
+  (code ? REGION_LABEL[code] ?? code : null);

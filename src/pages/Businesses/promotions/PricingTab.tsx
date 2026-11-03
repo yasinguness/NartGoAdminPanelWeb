@@ -6,9 +6,11 @@ import {
 } from '@mui/material';
 import {
   CITY_SLOT_LIMIT, DEFAULT_SLOT_LIMIT, SCOPES, SCOPE_HINT, SCOPE_LABEL, STORY_SLOT_LIMIT,
-  priceKey, storyKey, type PromotionScope,
+  VIEWER_SPONSORED_CAP, enabledKey, normalizeSettingChanges, priceKey, settingLabel,
+  slotLimitKey, storyKey, supportsEnabledFlags, supportsScopeSlots, supportsViewerCap,
+  type PromotionScope,
 } from '../../../services/business/promotionAdminService';
-import { SectionCard, TONE, tl } from './shared';
+import { SectionCard, TONE, fmtDateShort, tl } from './shared';
 
 type Settings = Record<string, number | null>;
 
@@ -34,11 +36,14 @@ function dailyNote(p7: number | null, p30: number | null): string | null {
  * sıfır/boş olanı null sayıyor). Bu yüzden anahtar kapatıldığında fiyatlar
  * siliniyor ve kullanıcıya bunun geri alınamayacağı söyleniyor.
  */
-export default function PricingTab({ settings, onSave, saving }: {
+export default function PricingTab({ settings, changes, onSave, saving }: {
   settings: Settings;
-  onSave: (changes: Settings) => Promise<void>;
+  /** Sunucudan gelen ham `settingChanges`; şekli belirsiz olduğu için çözümleniyor. */
+  changes?: unknown;
+  onSave: (c: Settings) => Promise<void>;
   saving: boolean;
 }) {
+  const history = useMemo(() => normalizeSettingChanges(changes), [changes]);
   const [editScopes, setEditScopes] = useState(false);
   const [editStory, setEditStory] = useState(false);
   const [confirmOff, setConfirmOff] = useState<PromotionScope | 'STORY' | null>(null);
@@ -46,18 +51,48 @@ export default function PricingTab({ settings, onSave, saving }: {
   const citySlot = settings[CITY_SLOT_LIMIT] ?? DEFAULT_SLOT_LIMIT;
   const storySlot = settings[STORY_SLOT_LIMIT] ?? DEFAULT_SLOT_LIMIT;
 
-  const scopeOpen = (s: PromotionScope) =>
+  // Sunucu kapsam başına sınırı/bayrağı destekliyor mu (anahtarın varlığından).
+  const hasScopeSlots = supportsScopeSlots(settings);
+  const hasFlags = supportsEnabledFlags(settings);
+  const hasCap = supportsViewerCap(settings);
+
+  const slotOf = (s: PromotionScope) =>
+    (hasScopeSlots ? settings[slotLimitKey(s)] : settings[CITY_SLOT_LIMIT]) ?? DEFAULT_SLOT_LIMIT;
+
+  /** Bayrak girilmemişse açık sayılır; 0 ise fiyat girilse de satışa kapalı. */
+  const flagOn = (k: string) => settings[k] !== 0;
+
+  const hasPrice = (s: PromotionScope) =>
     num(settings[priceKey(s, 7)]) != null || num(settings[priceKey(s, 30)]) != null;
-  const storyOpen = num(settings[storyKey(7)]) != null || num(settings[storyKey(30)]) != null;
+  const scopeOpen = (s: PromotionScope) =>
+    hasPrice(s) && (!hasFlags || flagOn(enabledKey(s)));
+  const storyHasPrice = num(settings[storyKey(7)]) != null || num(settings[storyKey(30)]) != null;
+  const storyOpen = storyHasPrice && (!hasFlags || flagOn(enabledKey('STORY')));
 
   const anyOpen = useMemo(() => SCOPES.some(scopeOpen) || storyOpen, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /**
+   * Satışa kapat.
+   *
+   * Sunucu `*_ENABLED` bayrağını destekliyorsa fiyatlar yerinde kalır, sadece
+   * bayrak 0 olur — kapatıp açmak artık fiyatları kaybettirmiyor. Desteklemeyen
+   * sürümde tek yol fiyatı boşaltmak; o durumda onay soruluyor.
+   */
   const closeScope = async (s: PromotionScope | 'STORY') => {
-    const changes: Settings = s === 'STORY'
-      ? { [storyKey(7)]: null, [storyKey(30)]: null }
-      : { [priceKey(s, 7)]: null, [priceKey(s, 30)]: null };
+    const changes: Settings = hasFlags
+      ? { [enabledKey(s)]: 0 }
+      : s === 'STORY'
+        ? { [storyKey(7)]: null, [storyKey(30)]: null }
+        : { [priceKey(s, 7)]: null, [priceKey(s, 30)]: null };
     await onSave(changes);
     setConfirmOff(null);
+  };
+
+  /** Bayrağı tekrar aç; fiyat yoksa düzenleme diyaloğuna yönlendir. */
+  const openScope = async (s: PromotionScope | 'STORY') => {
+    const priced = s === 'STORY' ? storyHasPrice : hasPrice(s);
+    if (hasFlags && priced) { await onSave({ [enabledKey(s)]: 1 }); return; }
+    if (s === 'STORY') setEditStory(true); else setEditScopes(true);
   };
 
   return (
@@ -71,7 +106,10 @@ export default function PricingTab({ settings, onSave, saving }: {
       <SectionCard
         title="Kapsamlar"
         description="İşletmenin kartı hangi kullanıcılara öne çıkarılır."
-        action={<Button variant="outlined" size="small" onClick={() => setEditScopes(true)}>Düzenle</Button>}
+        action={<Button variant="outlined" size="small"
+          onClick={(e) => { (e.currentTarget as HTMLElement).blur(); setEditScopes(true); }}>
+          Düzenle
+        </Button>}
         dense
       >
         <Box sx={{ overflowX: 'auto' }}>
@@ -105,12 +143,26 @@ export default function PricingTab({ settings, onSave, saving }: {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">Her ilde aynı anda {citySlot}</Typography>
+                      <Typography variant="body2">
+                        {hasScopeSlots
+                          ? { CITY: `Her ilde aynı anda ${slotOf('CITY')}`,
+                              REGION: `Her bölgede aynı anda ${slotOf('REGION')}`,
+                              COUNTRY: `Aynı anda ${slotOf('COUNTRY')}` }[s]
+                          : `Her ilde aynı anda ${citySlot}`}
+                      </Typography>
+                      {hasFlags && hasPrice(s) && !flagOn(enabledKey(s)) && (
+                        <Typography variant="caption" sx={{ color: TONE.warn }}>
+                          Fiyat duruyor, satış kapalı
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell align="right">
                       <Switch
                         checked={open}
-                        onChange={() => (open ? setConfirmOff(s) : setEditScopes(true))}
+                        onChange={(e) => {
+                          (e.currentTarget as HTMLElement).blur();
+                          if (open) setConfirmOff(s); else void openScope(s);
+                        }}
                         color="success"
                       />
                     </TableCell>
@@ -122,8 +174,17 @@ export default function PricingTab({ settings, onSave, saving }: {
         </Box>
         <Box sx={{ px: 2.5, py: 1.5, bgcolor: 'action.hover' }}>
           <Typography variant="caption" color="text.secondary">
-            Yer sınırı tek ve ortaktır: bir ilde aynı anda en fazla {citySlot} işletme sponsorlu görünür,
-            kapsamı ne olursa olsun. Tüm Türkiye alan bir işletme de bulunduğu ilin sınırından yer kaplar.
+            {hasScopeSlots ? (
+              <>
+                Her kapsamın kendi yeri var; Tüm Türkiye alan bir işletme ilin sınırından yer kaplamaz.
+                {hasCap && ` Bir kullanıcıya aynı anda en fazla ${settings[VIEWER_SPONSORED_CAP] ?? DEFAULT_SLOT_LIMIT} sponsorlu kart gösterilir.`}
+              </>
+            ) : (
+              <>
+                Yer sınırı tek ve ortaktır: bir ilde aynı anda en fazla {citySlot} işletme sponsorlu görünür,
+                kapsamı ne olursa olsun. Tüm Türkiye alan bir işletme de bulunduğu ilin sınırından yer kaplar.
+              </>
+            )}
           </Typography>
         </Box>
       </SectionCard>
@@ -131,7 +192,10 @@ export default function PricingTab({ settings, onSave, saving }: {
       <SectionCard
         title="Ek ürünler"
         description="Bir kapsama ek olarak satılır, tek başına alınamaz."
-        action={<Button variant="outlined" size="small" onClick={() => setEditStory(true)}>Düzenle</Button>}
+        action={<Button variant="outlined" size="small"
+          onClick={(e) => { (e.currentTarget as HTMLElement).blur(); setEditStory(true); }}>
+          Düzenle
+        </Button>}
         dense
       >
         <Divider />
@@ -148,7 +212,10 @@ export default function PricingTab({ settings, onSave, saving }: {
             <Figure label="30 gün" value={tl(num(settings[storyKey(30)]), 'kapalı')} />
             <Figure label="Yer sınırı" value={`Aynı anda ${storySlot}`} />
             <Switch checked={storyOpen} color="success"
-              onChange={() => (storyOpen ? setConfirmOff('STORY') : setEditStory(true))} />
+              onChange={(e) => {
+                (e.currentTarget as HTMLElement).blur();
+                if (storyOpen) setConfirmOff('STORY'); else void openScope('STORY');
+              }} />
           </Stack>
         </Stack>
       </SectionCard>
@@ -167,8 +234,27 @@ export default function PricingTab({ settings, onSave, saving }: {
           body="Ücretli ve deneme kayıtlar kullanıcıya 'Sponsorlu' etiketiyle gösterilir." last />
       </SectionCard>
 
+      {history.length > 0 && (
+        <SectionCard title="Son değişiklikler"
+          description="Her ayarın en son kim tarafından ne zaman değiştirildiği. Eski değer saklanmadığı için gösterilemiyor."
+          dense>
+          <Divider />
+          {history.slice(0, 8).map((h) => (
+            <Stack key={h.key} direction="row" spacing={2} alignItems="baseline"
+              sx={{ px: 2.5, py: 1.25, borderBottom: 1, borderColor: 'divider' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ minWidth: 90 }}>
+                {fmtDateShort(h.at)}
+              </Typography>
+              <Typography variant="body2" sx={{ flex: 1 }}>{settingLabel(h.key)}</Typography>
+              <Typography variant="caption" color="text.secondary">{h.by ?? '—'}</Typography>
+            </Stack>
+          ))}
+        </SectionCard>
+      )}
+
       <ScopePricesDialog
         open={editScopes} settings={settings} saving={saving}
+        hasScopeSlots={hasScopeSlots} hasCap={hasCap}
         onClose={() => setEditScopes(false)}
         onSave={async (c) => { await onSave(c); setEditScopes(false); }}
       />
@@ -183,8 +269,10 @@ export default function PricingTab({ settings, onSave, saving }: {
         <DialogContent>
           <Typography variant="body2">
             {confirmOff === 'STORY' ? 'Hikâye eki' : confirmOff && SCOPE_LABEL[confirmOff]} satışa kapatılacak.
-            Sunucuda ayrı bir açık/kapalı bayrağı yok: <b>fiyatlar silinir</b>, tekrar açarken yeniden girmen gerekir.
-            Yayındaki kayıtlar süreleri dolana kadar devam eder.
+            {hasFlags
+              ? ' Fiyatlar yerinde kalır, istediğinde aynı fiyatlarla tekrar açabilirsin.'
+              : ' Sunucuda ayrı bir açık/kapalı bayrağı yok: fiyatlar silinir, tekrar açarken yeniden girmen gerekir.'}
+            {' '}Yayındaki kayıtlar süreleri dolana kadar devam eder.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -233,24 +321,37 @@ function toChange(v: string): number | null {
   return t === '' ? null : Number(t.replace(',', '.'));
 }
 
-function ScopePricesDialog({ open, settings, saving, onClose, onSave }: {
+function ScopePricesDialog({ open, settings, saving, hasScopeSlots, hasCap, onClose, onSave }: {
   open: boolean; settings: Settings; saving: boolean;
+  hasScopeSlots: boolean; hasCap: boolean;
   onClose: () => void; onSave: (c: Settings) => Promise<void>;
 }) {
+  // Yalnız sunucunun tanıdığı anahtarlar düzenlenir; tanımadığı anahtar
+  // gönderilirse `update()` "Bilinmeyen ayar" ile reddeder.
+  const limitKeys = hasScopeSlots
+    ? SCOPES.map((x) => slotLimitKey(x))
+    : [CITY_SLOT_LIMIT];
+  const extraKeys = hasCap ? [VIEWER_SPONSORED_CAP] : [];
+
   const initial = () => {
     const d: Record<string, string> = {};
     SCOPES.forEach((s) => {
       d[priceKey(s, 7)] = settings[priceKey(s, 7)] == null ? '' : String(settings[priceKey(s, 7)]);
       d[priceKey(s, 30)] = settings[priceKey(s, 30)] == null ? '' : String(settings[priceKey(s, 30)]);
     });
-    d[CITY_SLOT_LIMIT] = settings[CITY_SLOT_LIMIT] == null ? '' : String(settings[CITY_SLOT_LIMIT]);
+    [...limitKeys, ...extraKeys].forEach((k) => {
+      d[k] = settings[k] == null ? '' : String(settings[k]);
+    });
     return d;
   };
   const [draft, setDraft] = useState<Record<string, string>>(initial);
 
   const invalid = SCOPES.some((s) => priceError(draft[priceKey(s, 7)] ?? '') || priceError(draft[priceKey(s, 30)] ?? ''));
-  const slotRaw = (draft[CITY_SLOT_LIMIT] ?? '').trim();
-  const slotInvalid = slotRaw !== '' && !(Number(slotRaw) >= 1 && Number(slotRaw) <= 100);
+  const limitBad = (k: string) => {
+    const v = (draft[k] ?? '').trim();
+    return v !== '' && !(Number(v) >= 1 && Number(v) <= 100);
+  };
+  const slotInvalid = [...limitKeys, ...extraKeys].some(limitBad);
 
   const submit = async () => {
     const changes: Settings = {};
@@ -258,7 +359,7 @@ function ScopePricesDialog({ open, settings, saving, onClose, onSave }: {
       changes[priceKey(s, 7)] = toChange(draft[priceKey(s, 7)] ?? '');
       changes[priceKey(s, 30)] = toChange(draft[priceKey(s, 30)] ?? '');
     });
-    changes[CITY_SLOT_LIMIT] = toChange(slotRaw);
+    [...limitKeys, ...extraKeys].forEach((k) => { changes[k] = toChange((draft[k] ?? '').trim()); });
     await onSave(changes);
   };
 
@@ -290,11 +391,31 @@ function ScopePricesDialog({ open, settings, saving, onClose, onSave }: {
             </Box>
           ))}
           <Divider />
-          <TextField size="small" label="İl başına yer sınırı" sx={{ width: 260 }}
-            value={draft[CITY_SLOT_LIMIT] ?? ''} error={slotInvalid}
-            onChange={(e) => set(CITY_SLOT_LIMIT, e.target.value)}
-            helperText={`1–100 arası. Boşsa ${DEFAULT_SLOT_LIMIT}. Tüm kapsamlar için ortak.`}
-            inputProps={{ inputMode: 'numeric' }} />
+          <Typography variant="body2" fontWeight={600}>Yer sınırı</Typography>
+          <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+            {limitKeys.map((k) => (
+              <TextField key={k} size="small" sx={{ width: 190 }}
+                label={hasScopeSlots
+                  ? `${SCOPE_LABEL[SCOPES.find((x) => slotLimitKey(x) === k) as PromotionScope]} yeri`
+                  : 'İl başına yer sınırı'}
+                value={draft[k] ?? ''} error={limitBad(k)}
+                onChange={(e) => set(k, e.target.value)}
+                inputProps={{ inputMode: 'numeric' }} />
+            ))}
+          </Stack>
+          <Typography variant="caption" color="text.secondary">
+            1–100 arası. Boşsa {DEFAULT_SLOT_LIMIT}.
+            {hasScopeSlots
+              ? ' Her kapsam kendi yerini kullanır.'
+              : ' Tüm kapsamlar için ortak.'}
+          </Typography>
+          {hasCap && (
+            <TextField size="small" sx={{ width: 300 }} label="Kişi başına en fazla sponsorlu kart"
+              value={draft[VIEWER_SPONSORED_CAP] ?? ''} error={limitBad(VIEWER_SPONSORED_CAP)}
+              onChange={(e) => set(VIEWER_SPONSORED_CAP, e.target.value)}
+              helperText={`Bir kullanıcı akışta aynı anda en fazla kaç sponsorlu kart görür. Boşsa ${DEFAULT_SLOT_LIMIT}.`}
+              inputProps={{ inputMode: 'numeric' }} />
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>

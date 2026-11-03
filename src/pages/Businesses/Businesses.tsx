@@ -12,6 +12,7 @@ import {
 import {
   Add as AddIcon, Search as SearchIcon, Business as BusinessIcon,
   Verified as VerifiedIcon, Star as StarIcon, Visibility as ViewIcon,
+  AssignmentTurnedIn as OwnerIcon, HourglassEmpty as OwnerPendingIcon,
   Favorite as FavoriteIcon, Delete as DeleteIcon,
   MoreVert as MoreIcon, LocationOn as LocationIcon,
   CheckCircle as CheckIcon,
@@ -24,6 +25,7 @@ import { useBusinessStore } from '../../store/businesses/businessStore';
 import { useBusinessCategory } from '../../hooks/useBusinessCategory';
 import { BusinessDto, BusinessStatus } from '../../types/businesses/businessModel';
 import { PageContainer, PageHeader } from '../../components/Page';
+import { businessClaimService } from '../../services/business/businessClaimService';
 import { featuredAdminService, featuredErrorText, formatDate, type FeaturedList, type FeaturedItem } from '../../services/business/featuredAdminService';
 import FeatureDialog, { type FeatureTarget } from './FeatureDialog';
 
@@ -62,7 +64,7 @@ const FILTERS: { id: FilterKey; label: string }[] = [
   { id: 'active', label: 'Aktif' },
   { id: 'inactive', label: 'Pasif' },
   { id: 'pending', label: 'Beklemede' },
-  { id: 'verified', label: 'Doğrulanmış' },
+  { id: 'verified', label: 'Rozetli' },
   { id: 'featured', label: 'Öne Çıkan' },
 ];
 
@@ -102,6 +104,22 @@ export default function Businesses() {
   useEffect(() => { loadFeatured(); }, [loadFeatured]);
   const featuredById = useMemo(() => new Map((featured?.items ?? []).map((f) => [f.id, f])), [featured]);
   const openFeature = (id: string, name: string) => setFeatureTarget({ id, name, activeUntil: featuredById.get(id)?.featuredEndDate ?? null });
+
+  /**
+   * Sahipliği doğrulanmış işletme sayısı.
+   *
+   * İşletme listeleme ucunda `claimStatus` filtresi yok (BusinessSearchDTO'da
+   * böyle bir alan bulunmuyor), bu yüzden açık sayfadaki 12 kaydı saymak
+   * yanıltıcı olurdu: "Toplam 340" ile yan yana duran sayfa-yerel bir sayı
+   * global sanılır. Doğru toplam onaylı sahiplenme taleplerinden geliyor;
+   * kutuya tıklayınca da o listeye gidiliyor.
+   */
+  const [approvedClaims, setApprovedClaims] = useState<number | null>(null);
+  useEffect(() => {
+    businessClaimService.getClaims({ status: 'APPROVED', page: 0, size: 1 })
+      .then((p) => setApprovedClaims(p?.totalElements ?? 0))
+      .catch(() => setApprovedClaims(null));
+  }, []);
 
   // Query
   const queryParams = useMemo(() => ({
@@ -209,12 +227,20 @@ export default function Businesses() {
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {[
             { label: 'Toplam İşletme', value: stats.total, icon: <BusinessIcon />, color: '#1e6b3c' },
-            { label: 'Doğrulanmış', value: stats.verified, icon: <VerifiedIcon />, color: '#3b82f6' },
+            { label: 'Rozetli', value: stats.verified, icon: <VerifiedIcon />, color: '#3b82f6' },
+            { label: 'Sahibi doğrulanmış', value: approvedClaims ?? '—', icon: <OwnerIcon />, color: '#1f8a4c',
+              to: '/business-claims?status=APPROVED' },
             { label: featured?.endingSoon ? `Öne Çıkan · ${featured.endingSoon} tanesi 7 günde bitiyor` : 'Öne Çıkan', value: stats.featured, icon: <StarIcon />, color: '#f59e0b' },
             { label: 'Toplam Görüntülenme', value: stats.totalViews.toLocaleString('tr-TR'), icon: <ViewIcon />, color: '#8b5cf6' },
           ].map((stat, i) => (
             <Grid item xs={12} sm={6} md={3} key={i}>
-              <Box sx={statCardSx(stat.color)}>
+              <Box
+                sx={{ ...statCardSx(stat.color), cursor: stat.to ? 'pointer' : 'default' }}
+                onClick={stat.to ? () => navigate(stat.to!) : undefined}
+                role={stat.to ? 'link' : undefined}
+                tabIndex={stat.to ? 0 : undefined}
+                onKeyDown={stat.to ? (e) => { if (e.key === 'Enter') navigate(stat.to!); } : undefined}
+              >
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                   <Box>
                     <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing={1}>
@@ -332,8 +358,20 @@ export default function Businesses() {
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Typography variant="subtitle1" fontWeight={800} noWrap>{biz.name}</Typography>
                         {biz.verified && (
-                          <Tooltip title="Doğrulanmış İşletme">
+                          <Tooltip title="Yönetici rozeti verilmiş">
                             <VerifiedIcon sx={{ fontSize: 16, color: '#3b82f6' }} />
+                          </Tooltip>
+                        )}
+                        {/* Sahiplik rozetten ayrı bir durum: onaylı değilse
+                            işletme ücretli öne çıkarmaya giremiyor. */}
+                        {biz.claimStatus === 'APPROVED' && (
+                          <Tooltip title="Sahipliği doğrulanmış — öne çıkarmaya uygun">
+                            <OwnerIcon sx={{ fontSize: 16, color: '#1f8a4c' }} />
+                          </Tooltip>
+                        )}
+                        {biz.claimStatus === 'PENDING' && (
+                          <Tooltip title="Sahiplenme talebi onay bekliyor">
+                            <OwnerPendingIcon sx={{ fontSize: 16, color: '#c99a2e' }} />
                           </Tooltip>
                         )}
                       </Stack>
