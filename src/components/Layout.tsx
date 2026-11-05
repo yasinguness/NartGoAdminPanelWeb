@@ -153,7 +153,7 @@ function LayoutShell({ workspace, canSwitch }: LayoutShellProps) {
 
     const isZenMode = location.pathname.includes('seat-map') && new URLSearchParams(location.search).get('zen') === 'true';
     // Kendi tam ekran düzenini taşıyan sayfalar: kenar boşluğu ve genişlik sınırı yok.
-    const fullBleed = ['seat-map', 'heritage/locations', 'editors-desk'].some((p) => location.pathname.includes(p));
+    const fullBleed = ['seat-map', 'heritage/locations', 'editors-desk', 'editor-masasi'].some((p) => location.pathname.includes(p));
 
     const currentPageTitle = useMemo(() => {
         for (const s of workspace.nav) {

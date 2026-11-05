@@ -2,7 +2,7 @@
  * Instagram Analizi — @nartgo hesabının paylaşım performansı, en iyi paylaşım
  * saatleri ve takipçi kitlesi.
  *
- * Endpoint: GET /events/admin/instagram/insights?refresh=
+ * Endpoint: GET /content/admin/desk/instagram/insights?refresh= (Editör Masası › Hesap sekmesi)
  */
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -55,6 +55,34 @@ function bestSlots(heat: IgInsights['heat'], d: number, n = 2) {
   const out: [number, number][] = [];
   for (const s of c) { if (out.every(o => Math.abs(o[0] - s[0]) >= 3)) out.push(s); if (out.length === n) break; }
   return out;
+}
+
+/**
+ * Gece kaydından uzun dönem erişim ve takipçi (Instagram yalnız son ~30 günü verir; kayıt bunu aşar).
+ * Kayıt 28 günden kısaysa gösterilmez: o süreyi yukarıdaki canlı grafik zaten kapsıyor.
+ */
+function LongTrend({ history }: { history: IgInsights['history'] }) {
+  if (history.length <= 28) return null;
+  const withFollowers = history.filter(h => h.followers != null);
+  const first = withFollowers[0], last = withFollowers[withFollowers.length - 1];
+  return (
+    <Section title={`Uzun dönem · ${history.length} gün (gece kaydı)`}>
+      {first && last && first !== last && (
+        <Typography sx={{ fontSize: 13.5, mb: 1.5 }}>
+          Takipçi {first.date.split('-').reverse().join('.')} tarihinde <b>{full(first.followers)}</b>, {last.date.split('-').reverse().join('.')} tarihinde <b>{full(last.followers)}</b>.
+        </Typography>
+      )}
+      <ResponsiveContainer width="100%" height={180}>
+        <AreaChart data={history} margin={{ top: 5, right: 8, left: -8, bottom: 0 }}>
+          <CartesianGrid stroke={darkAdmin.border.subtle} vertical={false} />
+          <XAxis dataKey="date" tickFormatter={(d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}`} tick={{ fontSize: 10 }} minTickGap={32} />
+          <YAxis tickFormatter={short} tick={{ fontSize: 10 }} width={48} />
+          <ChartTooltip formatter={(v: number) => [full(v), 'Erişim']} labelFormatter={(d: string) => d.split('-').reverse().join('.')} />
+          <Area type="monotone" dataKey="reach" stroke={GREEN} strokeWidth={2} fill={GREEN} fillOpacity={0.12} connectNulls />
+        </AreaChart>
+      </ResponsiveContainer>
+    </Section>
+  );
 }
 
 function Section({ title, children, sx }: { title: string; children: React.ReactNode; sx?: object }) {
@@ -182,7 +210,7 @@ export default function InstagramAnalytics() {
       title="Instagram Hesap Analizi"
       subtitle={data ? `@${data.account.username} · ${full(data.account.followers)} takipçi · ${data.posts.length} paylaşım` : 'Paylaşım performansı, en iyi saatler ve kitle'}
       icon={<InstagramIcon sx={{ fontSize: 26 }} />}
-      label="İçerik • Yalnızca Admin"
+      label="İçerik"
       isFetching={isFetching}
       lastUpdatedAt={dataUpdatedAt}
       onRefresh={() => (refresh === 0 ? setRefresh(1) : refetch())}
@@ -215,6 +243,8 @@ export default function InstagramAnalytics() {
               </Grid>
             ))}
           </Grid>
+
+          <LongTrend history={data.history ?? []} />
 
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>

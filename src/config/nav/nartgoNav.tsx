@@ -41,8 +41,6 @@ import {
     Article as ArticleIcon,
     CloudSync as CloudSyncIcon,
     EditNote as EditorsDeskIcon,
-    Send as SendIcon,
-    QueryStats as QueryStatsIcon,
     Feed as FeedIcon,
     TrendingUp as TrendingUpIcon,
     AccountBalanceWallet as WalletIcon,
@@ -125,9 +123,8 @@ export const nartgoNavSections: NavSection[] = [
         items: [
             { text: 'Makaleler & İçerikler', icon: <ArticleIcon />, path: '/content' },
             { text: 'Dış Kaynaktan İçerik Çek', icon: <CloudSyncIcon />, path: '/content/ingest' },
-            { text: "Editor's Desk", icon: <EditorsDeskIcon />, path: '/editors-desk', allowedRoles: ['ADMIN', 'EDITOR'] },
-            { text: 'Instagram Paylaşım Kuyruğu', icon: <SendIcon />, path: '/instagram-queue', allowedRoles: ['ADMIN', 'EDITOR'] },
-            { text: 'Instagram Hesap Analizi', icon: <QueryStatsIcon />, path: '/instagram-analytics', allowedRoles: ['ADMIN'] },
+            // Editör Masası: Desk + Instagram paylaşım kuyruğu + performans + hesap analizi (sekmeli tek sayfa).
+            { text: 'Editör Masası', icon: <EditorsDeskIcon />, path: '/editor-masasi', allowedRoles: ['ADMIN', 'EDITOR'] },
             // ROLE_ROUTE_MAP'te ADMIN_ONLY; bölüm EDITOR'a açık olduğu için
             // öğe seviyesinde kısıtlı kalmalı, yoksa editör 403 alır.
             { text: 'Video Akışı Moderasyonu', icon: <FeedIcon />, path: '/feeds', allowedRoles: ['ADMIN'] },

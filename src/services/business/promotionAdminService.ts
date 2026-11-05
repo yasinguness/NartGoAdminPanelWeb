@@ -138,6 +138,14 @@ export const promotionAdminService = {
   async grant(body: { businessId: string; scope: PromotionScope; days: number; includeStory: boolean; overrideSlot: boolean; note?: string }): Promise<PromotionPurchase> {
     return unwrap(await api.post(`${ROOT}/grant`, body));
   },
+  /** Denemeyi düzenle: süre başlangıçtan gün olarak (1-90), hikâye eki, not. Ücretli kayıtta sunucu reddeder. */
+  async updateTrial(id: string, body: { days?: number; includeStory?: boolean; note?: string }): Promise<PromotionPurchase> {
+    return unwrap(await api.put(`${ROOT}/${id}/trial`, body));
+  },
+  /** Denemeyi kaldır: sıradaysa silinir, yayındaysa bugün biter (görüntülenme kaydı kalır). */
+  async removeTrial(id: string): Promise<{ removed: boolean; deleted?: boolean }> {
+    return unwrap(await api.delete(`${ROOT}/${id}/trial`));
+  },
   /** Seçilen işletmenin uygunluğu ve yer durumu (deneme panelinde kullanılır). */
   async offerFor(businessId: string): Promise<PromotionOffer> {
     return unwrap(await api.get(`/businesses/${businessId}/promotion`));

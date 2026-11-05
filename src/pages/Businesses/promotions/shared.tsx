@@ -73,20 +73,25 @@ export const titleCase = (s: string) =>
   s.replace(/\S+/g, (w) => w.charAt(0).toLocaleUpperCase('tr') + w.slice(1).toLocaleLowerCase('tr'));
 
 /** Üst şeritteki dört kutu. */
-export function StatTile({ label, value, hint, tone, active }: {
-  label: string; value: string; hint?: string; tone?: 'warn'; active?: boolean;
+export function StatTile({ label, value, hint, tone, active, onClick }: {
+  label: string; value: string; hint?: string; tone?: 'warn'; active?: boolean; onClick?: () => void;
 }) {
   return (
     <Paper
       variant="outlined"
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
       sx={{
-        px: 2.5, py: 2, flex: '1 1 200px', minWidth: 190, borderRadius: 2.5,
+        px: 2.5, py: 2, minWidth: 0, borderRadius: 2.5,
         borderColor: active ? TONE.warnBorder : 'divider',
         bgcolor: active ? TONE.warnBg : 'background.paper',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'border-color .15s',
+        '&:hover': onClick ? { borderColor: active ? TONE.warn : 'text.secondary' } : undefined,
       }}
     >
       <Typography variant="caption" color="text.secondary">{label}</Typography>
-      <Typography sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1.15, mt: 0.25 }}>{value}</Typography>
+      <Typography sx={{ fontSize: { xs: 24, md: 30 }, fontWeight: 700, lineHeight: 1.15, mt: 0.25, whiteSpace: 'nowrap' }}>{value}</Typography>
       {hint && (
         <Typography variant="caption" sx={{ color: tone === 'warn' ? TONE.warn : 'text.secondary' }}>
           {hint}

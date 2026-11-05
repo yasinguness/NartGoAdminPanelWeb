@@ -20,6 +20,7 @@ import AdminShell from '../../components/AdminShell';
 import { darkAdmin } from '../../theme/darkAdmin';
 import { useRole } from '../../hooks/useRole';
 import { deskInstagramService, type IgPackage, type IgPackageState } from '../../services/content/deskInstagramService';
+import { instagramInsightsService } from '../../services/events/instagramInsightsService';
 
 const STATE: Record<IgPackageState, { label: string; color: 'default' | 'info' | 'warning' | 'success' | 'error' }> = {
   READY: { label: 'Hazır', color: 'default' },
@@ -110,6 +111,34 @@ function PackageCard({ p, canPublish, enabled, onAction }: {
         )}
       </Stack>
     </Paper>
+  );
+}
+
+/**
+ * Zamanlama penceresi: seçilen gün için önerilen 3 saat (takipçilerin çevrimiçi yoğunluğundan; Hesap sekmesindeki
+ * "en iyi paylaşım saati" ile aynı kural). Tıklanınca saat alanına yazılır.
+ */
+function SuggestedTimes({ value, onPick }: { value: string; onPick: (v: string) => void }) {
+  const date = value.slice(0, 10);
+  const q = useQuery({
+    queryKey: ['ig-suggested-times', date],
+    queryFn: () => instagramInsightsService.suggestedTimes(date),
+    enabled: /^\d{4}-\d{2}-\d{2}$/.test(date),
+    staleTime: 30 * 60 * 1000,
+  });
+  if (q.isLoading) return <Skeleton width={220} sx={{ mt: 1 }} />;
+  if (!q.data?.length) return null;
+  return (
+    <Box sx={{ mt: 1.5 }}>
+      <Typography sx={{ fontSize: 12.5, color: darkAdmin.text.secondary, mb: 0.75 }}>Bu gün için önerilen saatler</Typography>
+      <Stack direction="row" spacing={1}>
+        {q.data.map(t => {
+          const v = `${date}T${String(t.hour).padStart(2, '0')}:00`;
+          return <Chip key={t.hour} label={`${String(t.hour).padStart(2, '0')}:00`} color={value === v ? 'primary' : 'default'}
+            onClick={() => onPick(v)} variant={value === v ? 'filled' : 'outlined'} />;
+        })}
+      </Stack>
+    </Box>
   );
 }
 
@@ -210,6 +239,7 @@ export default function InstagramQueue() {
                 <>
                   <TextField type="datetime-local" fullWidth value={at} onChange={e => setAt(e.target.value)} sx={{ mt: 1 }}
                     helperText="Sunucu bu saatte (en geç bir dakika içinde) paylaşır." />
+                  <SuggestedTimes value={at} onPick={setAt} />
                 </>
               )}
               {dialog.kind === 'delete' && <Typography sx={{ fontSize: 14 }}>Görseller sunucudan silinir. Desk'teki gönderi etkilenmez.</Typography>}

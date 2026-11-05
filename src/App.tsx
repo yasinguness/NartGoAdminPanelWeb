@@ -24,9 +24,7 @@ import { getLandingPath } from './config/workspaces';
 const WorkspaceSelect = lazy(() => import('./pages/WorkspaceSelect'));
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import InstagramCandidates from './pages/Events/InstagramCandidates';
-import InstagramAnalytics from './pages/InstagramAnalytics/InstagramAnalytics';
-import EditorsDesk from './pages/EditorsDesk/EditorsDesk';
-import InstagramQueue from './pages/EditorsDesk/InstagramQueue';
+import EditorMasasi from './pages/EditorMasasi/EditorMasasi';
 import { useParams as useParams360 } from 'react-router-dom';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 const Businesses = lazy(() => import('./pages/Businesses/Businesses'));
@@ -245,9 +243,11 @@ function App() {
                 <Route path="event-operations/:eventId" element={<EventOperations />} />
                 <Route path="event-categories" element={<EventCategories />} />
                 <Route path="events/instagram-candidates" element={<InstagramCandidates />} />
-                <Route path="instagram-analytics" element={<InstagramAnalytics />} />
-                <Route path="editors-desk" element={<EditorsDesk />} />
-                <Route path="instagram-queue" element={<InstagramQueue />} />
+                <Route path="editor-masasi" element={<EditorMasasi />} />
+                {/* Eski adresler Editör Masası sekmelerine (yer imleri, bildirim bağlantıları). */}
+                <Route path="editors-desk" element={<Navigate to="/editor-masasi?tab=plan" replace />} />
+                <Route path="instagram-queue" element={<Navigate to="/editor-masasi?tab=paylasim" replace />} />
+                <Route path="instagram-analytics" element={<Navigate to="/editor-masasi?tab=hesap" replace />} />
                 <Route path="event/raffle-live" element={<RaffleLivePage />} />
                 <Route path="event-creation" element={<TicketCreationPage />} />
                 <Route path="event-creation/:eventId" element={<TicketCreationPage />} />

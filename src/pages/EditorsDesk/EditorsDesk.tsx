@@ -13,7 +13,8 @@ import { handleUnauthorized } from '../../services/authEvents';
 
 const BAR = 40;
 
-export default function EditorsDesk() {
+/** height: Editör Masası'nda sekme şeridi düşülerek verilir. */
+export default function EditorsDesk({ height = 'calc(100vh - 64px)' }: { height?: string }) {
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function EditorsDesk() {
   };
 
   return (
-    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ height: BAR, px: 2, display: 'flex', alignItems: 'center', gap: 1, borderBottom: 1, borderColor: 'divider' }}>
         <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>Editor's Desk</Typography>
         <Button size="small" startIcon={<DownloadIcon />} onClick={exportAll} disabled={exporting}>
