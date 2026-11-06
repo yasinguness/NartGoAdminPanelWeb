@@ -47,6 +47,8 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
 import LockResetIcon from '@mui/icons-material/LockReset';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import NbMemberHardDeleteDialog from './NbMemberHardDeleteDialog';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -344,6 +346,9 @@ export default function NbMemberDetail() {
   };
 
   const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
+  // Kalıcı silme (çift ya da test kaydı). Satır menüsü tasarım geçişinde kalkınca seçenek
+  // panelden kaybolmuştu (cd96ee8); artık üye sayfasının "Hesap" grubunda.
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(searchParams.get('edit') === 'business');
   // Manuel ödeme onayı (havale/EFT veya elle tahsilat) — status =
   // APPROVED_PENDING_PAYMENT olan her üyede gösterilir; üyeyi ACTIVE'e taşır.
@@ -758,7 +763,11 @@ export default function NbMemberDetail() {
       <Box sx={{ maxWidth: 1400 }}>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/nartbusiness/members')}
+          // Listeden geldiyse gerçek geri: liste aynı sayfa/arama/kaydırma yerinden açılır.
+          // Yeni sekmede açıldıysa geçmiş yok, listeye gider.
+          onClick={() =>
+            (window.history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate('/nartbusiness/members')
+          }
         >
           Üye listesine dön
         </Button>
@@ -777,7 +786,7 @@ export default function NbMemberDetail() {
         title={member.companyName ?? 'Şirket bilgisi eksik'}
         avatarInitial={userInitial}
         subtitle={
-          [userName, user?.email, member.city, identityLine].filter(Boolean).join(' · ') || undefined
+          [userName, user?.email ?? member.email, member.city, identityLine].filter(Boolean).join(' · ') || undefined
         }
         adornment={
           <>
@@ -955,7 +964,27 @@ export default function NbMemberDetail() {
           <ListItemIcon><LockResetIcon fontSize="small" /></ListItemIcon>
           {pwBusy ? 'Gönderiliyor…' : 'Şifre belirleme e-postası'}
         </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMoreAnchor(null);
+            setDeleteOpen(true);
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon><DeleteForeverIcon fontSize="small" color="error" /></ListItemIcon>
+          Kalıcı olarak sil…
+        </MenuItem>
       </Menu>
+
+      <NbMemberHardDeleteDialog
+        open={deleteOpen}
+        member={member}
+        onClose={() => setDeleteOpen(false)}
+        onDeleted={() => {
+          setDeleteOpen(false);
+          navigate('/nartbusiness/members');
+        }}
+      />
 
       {/* İki kolon: solda sekme içeriği, sağda sabit panel.
           Uzun dikey kart yığını yerine bu kalıp — on kartı alt alta dizmek
@@ -1091,10 +1120,10 @@ export default function NbMemberDetail() {
               emptyLabel="Ad-soyad eksik"
             />
             <ContactRow
-              label="Email"
-              value={user?.email}
-              emptyLabel="Email yok"
-              href={user?.email ? `mailto:${user.email}` : undefined}
+              label="E-posta"
+              value={user?.email ?? member.email}
+              emptyLabel="E-posta yok"
+              href={(user?.email ?? member.email) ? `mailto:${user?.email ?? member.email}` : undefined}
               copyable
             />
             <PhoneRow

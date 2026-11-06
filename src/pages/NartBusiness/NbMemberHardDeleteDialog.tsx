@@ -7,6 +7,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Chip,
   Stack,
   TextField,
   Typography,
@@ -17,6 +18,11 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
 import type { NbMember } from '../../services/nartbusiness/nbTypes';
 import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
+
+const DUPLICATE_REASONS = [
+  { label: 'Çift kayıt', note: 'Çift kayıt: aynı işletmenin başka bir üyelik kaydı var; bu kopya silindi.' },
+  { label: 'Test kaydı', note: 'Test kaydı: deneme amacıyla açılmıştı, gerçek bir işletmeye ait değil.' },
+];
 
 interface Props {
   open: boolean;
@@ -65,7 +71,7 @@ export default function NbMemberHardDeleteDialog({ open, member, onClose, onDele
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth fullScreen={fullScreen}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
         <DeleteForeverIcon />
-        Hard Delete — Kalıcı Silme
+        Kalıcı olarak sil
       </DialogTitle>
 
       <DialogContent>
@@ -75,11 +81,18 @@ export default function NbMemberHardDeleteDialog({ open, member, onClose, onDele
               Bu işlem geri alınamaz.
             </Typography>
             <Typography variant="body2">
-              <b>{companyName}</b> üyesine ait tüm veriler kalıcı olarak silinir:
-              üyelik kaydı, dönemler, paket satın alımları ve dizin profili.
-              Keycloak hesabı silinmez.
+              <b>{companyName}</b> NartBusiness'tan tamamen kalkar: üyelik kaydı, dönemler,
+              paket satın alımları ve işletme profili silinir; kişinin NartBusiness erişimi
+              kapanır. NartGo hesabı silinmez.
             </Typography>
           </Alert>
+
+          {/* Çift kayıtlar en sık neden: gerekçe tek dokunuşla (en az 30 karakter kuralı korunur). */}
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {DUPLICATE_REASONS.map((r) => (
+              <Chip key={r.label} label={r.label} onClick={() => setNote(r.note)} variant={note === r.note ? 'filled' : 'outlined'} />
+            ))}
+          </Stack>
 
           <TextField
             label="Silme gerekçesi *"
@@ -93,9 +106,9 @@ export default function NbMemberHardDeleteDialog({ open, member, onClose, onDele
             helperText={
               note.trim().length > 0 && !noteValid
                 ? `En az 30 karakter gerekli (şu an: ${note.trim().length})`
-                : 'Audit log\'a kalıcı yazılır.'
+                : 'Kritik olay kaydına kalıcı yazılır.'
             }
-            placeholder="Neden siliniyor? (örn. 'Test verisi, migration hatası, kullanıcı talebi')"
+            placeholder="Neden siliniyor? (örn. çift kayıt, test kaydı, kullanıcı talebi)"
           />
 
           {error && <Alert severity="error">{error}</Alert>}

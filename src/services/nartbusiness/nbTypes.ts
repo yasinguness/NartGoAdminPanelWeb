@@ -177,6 +177,8 @@ export interface NbMember {
   /** Basvuru formundan gelen telefon (phoneCode + gsmNo birlesik). Backend
    *  MemberView'da bu adla gonderiyor; `phoneNumber` DEGIL. */
   submittedPhone?: string;
+  /** NartGo hesabındaki e-posta (admin listesi ve detayında dolu; 2026-11-06). */
+  email?: string;
   tier: MembershipTier;
   /** Üye tipi: BUSINESS (işletme) | PROFESSIONAL (kurumda karar verici). */
   memberType?: 'BUSINESS' | 'PROFESSIONAL';

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   Accordion,
   AccordionDetails,
@@ -80,7 +81,6 @@ import { nb, nbRadius, URGENCY_STYLE, urgencyOf } from '../../theme/nbBrand';
 import type { NbBulkAction, NbBulkResult } from '../../services/nartbusiness/nbAdminService';
 import NbCreateMemberDialog from './NbCreateMemberDialog';
 import NbMemberActionDialog from './NbMemberActionDialog';
-import NbMemberHardDeleteDialog from './NbMemberHardDeleteDialog';
 import NbBulkHistoryDialog from './NbBulkHistoryDialog';
 import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 
@@ -93,6 +93,8 @@ import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
  * üye zaten bekleyen işi olan üyedir.
  */
 type QuickFilter = 'all' | 'task' | 'payment' | 'incomplete' | 'trial' | 'kurucu';
+
+const MEMBERS_SCROLL_KEY = 'nb_members_scroll';
 
 /**
  * TRIAL üyenin kalan deneme süresi — status badge altına gösterilir.
@@ -145,15 +147,18 @@ const ROW_GRID = '32px minmax(0,2.4fr) 104px minmax(0,1.5fr) 104px 150px 40px';
  * Satırın tamamı detaya gider; checkbox ve buton kendi tıklamalarını yutar,
  * yoksa seçim yapmak isteyen kişi detay sayfasına düşerdi.
  */
+/** Üye sayfasının adresi; satır ve "yeni sekmede aç" aynı adresi kullanır. */
+const memberHref = (m: NbMember) => `/nartbusiness/members/${m.memberId}`;
+
 function MemberRow({
   member,
-  onClick,
+  onOpen,
   onTask,
   selected,
   onToggleSelect,
 }: {
   member: NbMember;
-  onClick: () => void;
+  onOpen: () => void;
   onTask: (task: NbMemberTask) => void;
   selected: boolean;
   onToggleSelect: () => void;
@@ -170,12 +175,21 @@ function MemberRow({
     [member.memberType === 'PROFESSIONAL' ? member.personJobTitle : member.city, identityLine]
       .filter(Boolean)
       .join(' · ') || 'Profil bilgisi yok';
+  const href = memberHref(member);
+  // Cmd/Ctrl + tıklama ve orta tuş yeni sekmede açar (tarayıcının bağlantı davranışı).
+  const openNewTab = () => window.open(href, '_blank', 'noopener');
 
   const trial = member.status === 'TRIAL' ? trialRemaining(member.trialEndsAt) : null;
 
   return (
     <Box
-      onClick={onClick}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey) openNewTab();
+        else onOpen();
+      }}
+      onAuxClick={(e) => {
+        if (e.button === 1) openNewTab();
+      }}
       sx={{
         ...(nbGrid(ROW_GRID) as object),
         px: 2,
@@ -233,7 +247,18 @@ function MemberRow({
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Stack direction="row" alignItems="center" sx={{ gap: 0.75, minWidth: 0 }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }} noWrap>
+            {/* Gerçek bağlantı: sağ tık "yeni sekmede aç" da çalışsın. */}
+            <Typography
+              component={RouterLink}
+              to={href}
+              onClick={(e: React.MouseEvent) => {
+                // Satırın kendi tıklaması yönetir (aynı sekme / yeni sekme); çift gezinme olmasın.
+                if (!e.metaKey && !e.ctrlKey) e.preventDefault();
+                else e.stopPropagation();
+              }}
+              sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: 'inherit', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+              noWrap
+            >
               {member.companyName ?? 'Şirket bilgisi eksik'}
             </Typography>
             {/* Doğrulanmış işareti kendi kolonunu hak etmiyordu: taşıdığı
@@ -244,7 +269,11 @@ function MemberRow({
               </Tooltip>
             )}
           </Stack>
-          <Typography sx={{ fontSize: 11, color: nb.textFaint, mt: 0.25 }} noWrap>
+          {/* Başvuranın e-postası her durumda görünür (onaylı üyede de). */}
+          <Typography sx={{ fontSize: 11, color: nb.textMuted, mt: 0.25 }} noWrap>
+            {member.email ?? 'E-posta bilinmiyor'}
+          </Typography>
+          <Typography sx={{ fontSize: 11, color: nb.textFaint }} noWrap>
             {meta}
           </Typography>
         </Box>
@@ -329,9 +358,21 @@ function MemberRow({
         )}
       </Box>
 
-      <Typography sx={{ color: '#b6b0a2', textAlign: 'right', fontSize: 15, lineHeight: 1 }}>
-        ›
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
+        <Tooltip title="Yeni sekmede aç" arrow>
+          <IconButton
+            size="small"
+            component="a"
+            href={href}
+            target="_blank"
+            rel="noopener"
+            aria-label={`${member.companyName ?? 'Üye'} yeni sekmede aç`}
+            sx={{ color: '#b6b0a2', '&:hover': { color: nb.green } }}
+          >
+            <OpenInNewIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
     </Box>
   );
 }
@@ -491,21 +532,30 @@ export default function NbMembers() {
   const [data, setData] = useState<PagedResult<NbMember> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
+  // Sayfa, arama ve hızlı süzgeç de adreste (2026-11-06): üyeye girip geri gelince
+  // liste aynı sayfa, aynı arama ve aynı kaydırma yerinden devam eder.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [page, setPage] = useState(() => Math.max(0, Number(searchParams.get('p') ?? 1) - 1) || 0);
   // Durum süzgeci URL'den okunur ve URL'e yazılır.
   //
   // Panodaki "Üyelere git" butonları /members?status=NEEDS_INFO gibi
   // adreslere yönlendiriyordu ama ekran parametreyi okumuyordu: buton
   // süzülmemiş listeye düşürüyor, admin aradığını bulamıyordu. Aynı zamanda
   // süzülmüş bir listeyi paylaşmayı/yer imine eklemeyi mümkün kılıyor.
-  const [searchParams, setSearchParams] = useSearchParams();
   const [status, setStatus] = useState<NbMemberStatus | ''>(
     () => (searchParams.get('status') as NbMemberStatus | null) ?? '',
   );
   const [tier, setTier] = useState<MembershipTier | ''>('');
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
+  const [debouncedSearch, setDebouncedSearch] = useState(() => (searchParams.get('q') ?? '').trim().toLowerCase());
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>(() => {
+    const f = searchParams.get('f');
+    return f && QUICK_FILTERS.some((q) => q.value === f) ? (f as QuickFilter) : 'all';
+  });
+  // İlk açılışta adresten gelen durumu sıfırlayan etkiler çalışmasın. Bayrak değil son
+  // değer tutulur: geliştirmedeki çift çalıştırma da "değişiklik" sayılmaz.
+  const lastQuick = useRef<QuickFilter | null>(null);
+  const lastSearch = useRef(debouncedSearch);
 
   // ── Toplu işlem ────────────────────────────────────────────────────────
   // KAFSİAD gibi toplu kayıtlarda aynı işlemi 39 üyeye tek tek uygulamak
@@ -538,7 +588,6 @@ export default function NbMembers() {
   const [tierPrices, setTierPrices] = useState<Record<string, number> | null>(null);
   /** Yazma işlemi sonrası 10 sn'lik geri-al kutusu. */
   const [undo, setUndo] = useState<NbUndoState | null>(null);
-  const [deleteMember, setDeleteMember] = useState<NbMember | null>(null);
 
   // Search debounce
   useEffect(() => {
@@ -560,6 +609,16 @@ export default function NbMembers() {
   // Çip → sunucu süzgeci. "Aksiyon bekleyen" ve "eksik profil" sunucuda
   // karşılığı olmayan türetilmiş kümeler; onlar gelen sayfada süzülür.
   useEffect(() => {
+    if (lastQuick.current === quickFilter) return;
+    const first = lastQuick.current === null;
+    lastQuick.current = quickFilter;
+    if (first) {
+      // Adresten gelen süzgeç ve sayfa korunur; yalnız çipin sunucu karşılığı kurulur.
+      if (quickFilter === 'payment') setStatus('APPROVED_PENDING_PAYMENT');
+      else if (quickFilter === 'trial') setStatus('TRIAL');
+      else if (quickFilter === 'kurucu') setTier('KURUCU');
+      return;
+    }
     if (quickFilter === 'payment') {
       setStatus('APPROVED_PENDING_PAYMENT');
       setTier('');
@@ -617,18 +676,48 @@ export default function NbMembers() {
   // Yeni aramanın sonucu 1. sayfadan başlar; kullanıcı 3. sayfadayken arayıp
   // boş sonuç görmesin.
   useEffect(() => {
+    if (lastSearch.current === debouncedSearch) return;
+    lastSearch.current = debouncedSearch;
     setPage(0);
   }, [debouncedSearch]);
 
   // Süzgeç değişince adresi güncelle (geçmişi kirletmeden).
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
-    if (status) next.set('status', status);
-    else next.delete('status');
+    const put = (k: string, v: string | null) => (v ? next.set(k, v) : next.delete(k));
+    put('status', status || null);
+    put('p', page > 0 ? String(page + 1) : null);
+    put('q', debouncedSearch || null);
+    put('f', quickFilter !== 'all' ? quickFilter : null);
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
-  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [status, page, debouncedSearch, quickFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Kaydırma yeri: geri gelince liste kaldığı yerden açılır (oturum boyunca, bu sekmede).
+  const scrollRestored = useRef(false);
+  useEffect(() => {
+    const save = () => {
+      try {
+        sessionStorage.setItem(MEMBERS_SCROLL_KEY, String(window.scrollY));
+      } catch {
+        /* özel pencere: yer hatırlanmaz */
+      }
+    };
+    window.addEventListener('scroll', save, { passive: true });
+    return () => window.removeEventListener('scroll', save);
+  }, []);
+  useEffect(() => {
+    if (scrollRestored.current || !data) return;
+    scrollRestored.current = true;
+    let y = 0;
+    try {
+      y = Number(sessionStorage.getItem(MEMBERS_SCROLL_KEY) ?? 0);
+    } catch {
+      y = 0;
+    }
+    if (y > 0) requestAnimationFrame(() => window.scrollTo(0, y));
+  }, [data]);
 
   // Filtre/sayfa değişince seçim düşer — görünmeyen üyeye işlem uygulanmasın.
   useEffect(() => {
@@ -930,7 +1019,7 @@ export default function NbMembers() {
               <MemberRow
                 key={m.memberId}
                 member={m}
-                onClick={() => navigate(`/nartbusiness/members/${m.memberId}`)}
+                onOpen={() => navigate(memberHref(m))}
                 onTask={(task) => runTask(m, task)}
                 selected={selectedIds.has(m.memberId)}
                 onToggleSelect={() => toggleSelect(m.memberId)}
@@ -1184,15 +1273,6 @@ export default function NbMembers() {
         }}
       />
 
-      <NbMemberHardDeleteDialog
-        open={!!deleteMember}
-        member={deleteMember}
-        onClose={() => setDeleteMember(null)}
-        onDeleted={() => {
-          setDeleteMember(null);
-          load();
-        }}
-      />
       {/* Kalıcı "başarılı" şeridi yok: her yazma işlemi 10 sn'lik geri-al
           kutusu bırakır, süre dolunca işlem kalıcı sayılır. */}
       <NbUndoToast state={undo} onClose={() => setUndo(null)} />
