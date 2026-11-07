@@ -6,6 +6,7 @@ import { nbAdminService, type NbAttention } from '../../services/nartbusiness/nb
 import { businessClaimService } from '../../services/business/businessClaimService';
 import { featuredAdminService, type FeaturedList } from '../../services/business/featuredAdminService';
 import { storeActivityService, type Overview } from '../../services/nartstore/storeActivityService';
+import { sellerOutreachService } from '../../services/nartstore/sellerOutreachService';
 import { heritageVillageService, type PendingSummary } from '../../services/heritageVillageService';
 import { api } from '../../services/api';
 import { jobMonitorService } from '../../services/jobMonitor/jobMonitorService';
@@ -60,6 +61,14 @@ export default function AttentionPanel() {
         const pending = store.orders.find((o) => o.status === 'PENDING')?.count ?? 0;
         push({ key: 'store-pending', n: pending, title: 'Sipariş ödeme bekliyor',
           hint: 'bugün', urgency: 'today', to: '/nartstore/activity' });
+      }),
+
+      // Satıcı daveti: WhatsApp'ta yanıt veren ya da ilgilenen firma takip bekliyor.
+      sellerOutreachService.summary(PANEL_REQ).then((s) => {
+        push({ key: 'outreach-interested', n: s.byStatus.INTERESTED, title: 'Mağaza açmakla ilgilenen firma',
+          hint: 'satış koşullarını gönderin, ilk ürünlerde yardım edin', urgency: 'today', to: '/nartstore/outreach' });
+        push({ key: 'outreach-replied', n: s.byStatus.REPLIED, title: 'Davete yanıt veren firma',
+          hint: 'yanıtı okuyup durumunu güncelleyin', urgency: 'today', to: '/nartstore/outreach' });
       }),
 
       api.get<any>('/content/admin/nartlive/message-requests/stats', { params: { days: 30 }, ...PANEL_REQ })

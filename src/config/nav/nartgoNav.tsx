@@ -51,6 +51,8 @@ import {
     AccountBalance as AccountBalanceIcon,
     Storefront as StorefrontIcon,
     Inventory2 as SellerIcon,
+    WhatsApp as WhatsAppNavIcon,
+    LocalOffer as CampaignOfferIcon,
     Business as BusinessIcon,
     FactCheck as FactCheckIcon,
     Star as StarIcon,
@@ -149,6 +151,8 @@ export const nartgoNavSections: NavSection[] = [
         items: [
             { text: 'Mağaza Hareketleri', icon: <StorefrontIcon />, path: '/nartstore/activity' },
             { text: 'Satıcı Başvuruları', icon: <SellerIcon />, path: '/nartstore-interest' },
+            { text: 'Satıcı Daveti', icon: <WhatsAppNavIcon />, path: '/nartstore/outreach' },
+            { text: 'Kampanyalar', icon: <CampaignOfferIcon />, path: '/nartstore/campaigns' },
         ],
     },
     {
