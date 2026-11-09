@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSnackbar } from 'notistack';
+import { useRole } from '../../hooks/useRole';
 import './reviewDesk.css';
 import GeocodeFinder from '../HeritageVillages/GeocodeFinder';
 import { COUNTRIES } from '../../services/heritageVillageService';
@@ -55,6 +56,8 @@ const Ext = () => (
 
 export default function HeritageLocations() {
   const { enqueueSnackbar } = useSnackbar();
+  // Toplu işler (ilçe düzeltme, kaynaktan toplu kabul) yalnız yöneticide; Köy Editörü tek kayıt karar verir.
+  const { isAdmin } = useRole();
   const [queue, setQueue] = useState<QueueResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ReviewTab>('all');
@@ -307,9 +310,9 @@ export default function HeritageLocations() {
 
   // Toplu ilçe düzeltme
   useEffect(() => {
-    if (filter !== 'dist' || bulk.items) return;
+    if (!isAdmin || filter !== 'dist' || bulk.items) return;
     heritageReviewService.bulkDistrictPreview().then((items) => setBulk((b) => ({ ...b, items }))).catch(() => setBulk((b) => ({ ...b, items: [] })));
-  }, [filter, bulk.items]);
+  }, [isAdmin, filter, bulk.items]);
   const bulkIds = (bulk.items ?? []).filter((b) => !status[b.id]).map((b) => b.id);
   const applyBulk = async () => {
     if (!bulkIds.length || busy) return;
@@ -412,7 +415,7 @@ export default function HeritageLocations() {
             <span className="progFill" style={{ width: `${total ? (queue.decided / total) * 100 : 0}%` }} />
             <span className="progSess" style={{ width: `${total ? (sessCount / total) * 100 : 0}%` }} />
           </div>
-          <button type="button" className="report mono" onClick={() => void openReport()} title="İl, ilçe, ad ve koordinatı tam yüksek güvenli kayıtları haritaya al">Kaynaktan toplu kabul</button>
+          {isAdmin && <button type="button" className="report mono" onClick={() => void openReport()} title="İl, ilçe, ad ve koordinatı tam yüksek güvenli kayıtları haritaya al">Kaynaktan toplu kabul</button>}
         </div>
       </header>
 
@@ -438,7 +441,7 @@ export default function HeritageLocations() {
 
       <div className="body">
         <nav className="queue" aria-label="İnceleme kuyruğu">
-          {filter === 'dist' && (bulk.items?.length ?? 0) > 0 && (
+          {isAdmin && filter === 'dist' && (bulk.items?.length ?? 0) > 0 && (
             <div className="bulk">
               <div className="bulkT"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2f7a46" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6" /></svg>Toplu düzeltme önerisi</div>
               <div className="bulkD">Tek sorunu ilçe adı olan ve noktası tek bir ilçenin içinde kalan kayıtlar birlikte düzeltilip onaylanabilir.</div>

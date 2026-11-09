@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useSnackbar } from 'notistack';
+import { useRole } from '../../hooks/useRole';
 import { errorText } from '../../services/heritageReviewService';
 import {
   ACTION_LABEL, CONFIDENCE_LABEL, COUNTRIES, PRECISION_LABEL, countryLabel, emptyBody, heritageVillageService,
@@ -30,6 +31,8 @@ const complete = (b: VillageBody) => b.officialName.trim().length >= 2 && b.prov
 export const CONTRIBUTIONS_TAB = 1;
 
 export default function VillageEditor({ villageId, onClose, onChanged, initialTab = 0 }: { villageId: string | 'new'; onClose: () => void; onChanged: () => void; initialTab?: number }) {
+  // Köyü kaldırma / geri alma yöneticide; Köy Editörü düzenler ve yeni köy ekler.
+  const { isAdmin } = useRole();
   const { enqueueSnackbar } = useSnackbar();
   const [id, setId] = useState<string | null>(villageId === 'new' ? null : villageId);
   const [detail, setDetail] = useState<VillageDetail | null>(null);
@@ -191,7 +194,7 @@ export default function VillageEditor({ villageId, onClose, onChanged, initialTa
         )}
       </DialogContent>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 2 }}>
-        {detail && (
+        {detail && isAdmin && (
           <Button color={removed ? 'primary' : 'error'} onClick={() => void removeOrRestore()} disabled={saving}>{removed ? 'Geri al' : 'Köyü kaldır'}</Button>
         )}
         <Box sx={{ flex: 1 }} />

@@ -100,6 +100,40 @@ export const EVENT_LABEL: Record<string, string> = {
 
 export const ERROR_TYPES = new Set(['client_error', 'api_error', 'add_to_cart_failed', 'order_failed']);
 
+/**
+ * Hata olayının türü: 4xx yanıt iş kuralı reddidir (ör. satıcının kendi ürününü sepete eklemesi),
+ * durum kodu yoksa istek sunucuya ulaşmamıştır (kullanıcının bağlantısı ya da zaman aşımı).
+ * Sunucu tarafı aynı ayrımla sayar (analytics-admin.service realErrorSql): 4xx hata sayılmaz.
+ */
+export type ErrorKind = 'rejected' | 'network' | 'server' | 'client' | null;
+
+export const errorKind = (eventType: string, status: unknown): ErrorKind => {
+  if (!ERROR_TYPES.has(eventType)) return null;
+  if (eventType === 'client_error') return 'client';
+  if (eventType === 'order_failed') return 'server';
+  const st = Number(status ?? 0) || 0;
+  if (st >= 400 && st < 500) return 'rejected';
+  if (st === 0) return 'network';
+  return 'server';
+};
+
+const KIND_LABEL: Record<Exclude<ErrorKind, null>, string> = {
+  rejected: 'İşlem reddedildi',
+  network: 'Bağlantı sorunu',
+  server: 'Sunucu hatası',
+  client: 'Sayfa hatası',
+};
+
+export const eventLabel = (eventType: string, status?: unknown) => {
+  const kind = errorKind(eventType, status);
+  if (eventType === 'add_to_cart_failed') return kind === 'rejected' ? 'Sepete eklenemedi (kural)' : EVENT_LABEL[eventType];
+  if (eventType === 'order_failed') return EVENT_LABEL[eventType];
+  return kind ? KIND_LABEL[kind] : EVENT_LABEL[eventType] ?? eventType;
+};
+
+export const kindColor = (kind: ErrorKind): 'error' | 'warning' | 'default' =>
+  kind === 'rejected' ? 'warning' : kind === 'network' ? 'default' : 'error';
+
 export const PAYMENT_LABEL: Record<string, string> = { PAID: 'Ödendi', PENDING: 'Ödeme bekliyor', FAILED: 'Ödeme başarısız', REFUNDED: 'İade edildi' };
 
 export const errorText = (e: unknown) => {

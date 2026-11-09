@@ -181,7 +181,7 @@ export const nartgoNavSections: NavSection[] = [
         // Köy ve sülale kayıtları; panelin başka yerlerinde de (ana sayfadaki
         // "Bugün ilgilenmen gerekenler" kartı) bu ad kullanılıyor.
         title: 'Ortak Hafıza · Köy & Sülale',
-        allowedRoles: ['ADMIN'],
+        allowedRoles: ['ADMIN', 'NART_VILLAGE_EDITOR'],
         items: [
             { text: 'Köy Kayıtları', icon: <VillageIcon />, path: '/heritage/villages' },
             { text: 'Köy Konum İncelemesi', icon: <PlaceIcon />, path: '/heritage/locations' },

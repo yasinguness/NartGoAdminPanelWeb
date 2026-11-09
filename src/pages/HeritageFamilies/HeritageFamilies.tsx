@@ -4,6 +4,7 @@ import {
   MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography,
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
+import { useRole } from '../../hooks/useRole';
 import { errorText } from '../../services/heritageReviewService';
 import {
   familyAtlasService, parseCommentFile,
@@ -19,6 +20,8 @@ const SITE = 'https://nartgo.net/harita/sulale/';
 const RACES = [['adige', 'Çerkes (Adige)'], ['abhaz', 'Abhaz / Abaza'], ['cecen', 'Çeçen'], ['oset', 'Oset'], ['dagistan', 'Dağıstan'], ['karacay', 'Karaçay']];
 
 export default function HeritageFamilies() {
+  // Köy Editörü: kaynak listesi içe aktarma sekmesi gizli (sekme sırası değişmesin diye yalnız görünmez).
+  const { isAdmin } = useRole();
   // ?tab=: panel ana sayfasındaki "bekleyenler" kartı doğrudan ilgili sekmeye götürür.
   const [tab, setTab] = useState(() => Math.min(4, Math.max(0, Number(new URLSearchParams(window.location.search).get('tab')) || 0)));
   return (
@@ -31,7 +34,7 @@ export default function HeritageFamilies() {
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Tab label="Sülaleler" />
         <Tab label="Köyler" />
-        <Tab label="Kaynak listesi" />
+        <Tab label="Kaynak listesi" sx={isAdmin ? undefined : { display: 'none' }} />
         <Tab label="Birleştirme" />
         <Tab label="Instagram yorumları" />
         <Tab label="Yeni ad önerileri" />
@@ -39,7 +42,7 @@ export default function HeritageFamilies() {
       </Tabs>
       {tab === 0 && <FamiliesPanel />}
       {tab === 1 && <VillagesPanel />}
-      {tab === 2 && <ImportPanel />}
+      {tab === 2 && isAdmin && <ImportPanel />}
       {tab === 3 && <MergePanel />}
       {tab === 4 && <InstagramPanel />}
       {tab === 5 && <SuggestionPanel />}
@@ -559,6 +562,8 @@ function ListBlock({ title, rows }: { title: string; rows: string[] }) {
 
 function MergePanel() {
   const { enqueueSnackbar } = useSnackbar();
+  // Toplu temizlik ve halklar arası birleştirme yöneticide; editör aynı halk içinde tek tek birleştirir.
+  const { isAdmin } = useRole();
   const [data, setData] = useState<{ total: number; items: MergeItem[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<{ id: string; summary: string } | null>(null);
@@ -585,8 +590,8 @@ function MergePanel() {
   if (!data) return <CircularProgress />;
   return (
     <Stack spacing={2}>
-      <CleanupBox onApplied={() => void load()} />
-      <CrossRaceMergeBox onApplied={() => void load()} />
+      {isAdmin && <CleanupBox onApplied={() => void load()} />}
+      {isAdmin && <CrossRaceMergeBox onApplied={() => void load()} />}
       <Alert severity="info">
         {data.total.toLocaleString('tr-TR')} aday çift. Aynı köydeki benzer sülaleleri önce o köyün üyeleri oylar (3 “aynı” köyde birleştirir, iki köy “aynı” derse katalog birleşir; 2 “farklı” ayırır). Köylülerin karar veremediği çiftler en üstte, oylaması süren çiftler en altta. Köyü olan kayıtlar önce gelir. Farklı kabile ya da halktaki benzer adlar önerilmez; yazım anahtarı birebir aynıysa uyarıyla gelir.
         <b> Aynı adı taşımak aynı soydan gelmek demek değildir</b>: emin değilsen “Farklı” de ya da atla.
@@ -613,9 +618,12 @@ function MergePanel() {
             <Side s={it.b} />
           </Box>
           <Divider sx={{ my: 1.5 }} />
+          {!isAdmin && !sameRace(it) && (
+            <Alert severity="warning" sx={{ mb: 1 }}>Halk bilgisi farklı ({it.a.race || 'boş'} / {it.b.race || 'boş'}). Bu iki kaydı yalnız yönetici birleştirebilir; “Farklı sülale” diyebilir ya da atlayabilirsiniz.</Alert>
+          )}
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Button size="small" variant="contained" disabled={busy} onClick={() => void decide(it, 'merge', it.a.id)}>Aynı sülale · “{it.a.name}” kalsın</Button>
-            <Button size="small" variant="outlined" disabled={busy} onClick={() => void decide(it, 'merge', it.b.id)}>Aynı sülale · “{it.b.name}” kalsın</Button>
+            <Button size="small" variant="contained" disabled={busy || (!isAdmin && !sameRace(it))} onClick={() => void decide(it, 'merge', it.a.id)}>Aynı sülale · “{it.a.name}” kalsın</Button>
+            <Button size="small" variant="outlined" disabled={busy || (!isAdmin && !sameRace(it))} onClick={() => void decide(it, 'merge', it.b.id)}>Aynı sülale · “{it.b.name}” kalsın</Button>
             <Button size="small" color="inherit" variant="outlined" disabled={busy} onClick={() => void decide(it, 'distinct')}>Farklı sülale</Button>
           </Stack>
         </Paper>
@@ -998,8 +1006,14 @@ function Side({ s }: { s: MergeSide }) {
 
 // ── Instagram yorumları ─────────────────────────────────────────────
 
+/** Sunucudaki editör kuralıyla aynı (HeritageFamilyAtlasService.decide): biri boş, diğeri doluysa farklı sayılır. */
+const raceKey = (r?: string | null) => (r ?? '').trim().toLocaleLowerCase('tr') || '-';
+const sameRace = (it: MergeItem) => raceKey(it.a.race) === raceKey(it.b.race);
+
 function InstagramPanel() {
   const { enqueueSnackbar } = useSnackbar();
+  // Yorum dosyası içe aktarma yöneticide; editör gelen yorumları sülaleye bağlar ya da yok sayar.
+  const { isAdmin } = useRole();
   const [status, setStatus] = useState<'pending' | 'used' | 'ignored'>('pending');
   const [data, setData] = useState<{ items: IgComment[]; counts: Record<string, number> } | null>(null);
   const [media, setMedia] = useState('DemZBirDmdb');
@@ -1021,7 +1035,7 @@ function InstagramPanel() {
 
   return (
     <Stack spacing={2}>
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
+      {isAdmin && <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Typography fontWeight={700}>Yorumları içe aktar</Typography>
         <Typography color="text.secondary" sx={{ mt: 0.5, mb: 1.5 }}>
           CSV (sütunlar: <code>id,text,timestamp</code>) ya da JSON yüklenebilir. Yorum yazanın kullanıcı adı, profili ve fotoğrafı hiçbir yere kaydedilmez; dosyada olsa da okunmaz. Aynı yorum iki kez eklenmez. Açık sayfada kaynak “Instagram yorumu · gönderi tarihi” yazar.
@@ -1031,7 +1045,7 @@ function InstagramPanel() {
           <TextField size="small" type="date" label="Gönderi tarihi" value={postedOn} onChange={(e) => setPostedOn(e.target.value)} InputLabelProps={{ shrink: true }} />
           <Button variant="outlined" component="label">Dosya seç (CSV / JSON)<input hidden type="file" accept=".csv,text/csv,application/json,.json" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); e.target.value = ''; }} /></Button>
         </Stack>
-      </Paper>
+      </Paper>}
       <Tabs value={status} onChange={(_, v) => setStatus(v)}>
         <Tab value="pending" label={`Bekleyen ${data?.counts.pending ?? ''}`} />
         <Tab value="used" label={`Bağlanan ${data?.counts.used ?? ''}`} />
@@ -1247,6 +1261,8 @@ function CommentCard({ c, onDone }: { c: IgComment; onDone: () => void }) {
 
 /** Profildeki seçicide listede olmayan ad. Öneren tutulmaz; aynı ad + köy kaç kez önerildi görünür. */
 function SuggestionPanel() {
+  // Profil eşleştirme ve köy bağlarını yeniden hesaplama toplu iş; yöneticide.
+  const { isAdmin } = useRole();
   const { enqueueSnackbar } = useSnackbar();
   const [rows, setRows] = useState<NameSuggestion[] | null>(null);
   const load = useCallback(async () => {
@@ -1262,8 +1278,8 @@ function SuggestionPanel() {
     <Stack spacing={2}>
       {/* Profil eşleştirme bu kuyruğu besler: "öneri" sonucu buraya düşer.
           Kuyruğu işleyen kişi aracı da burada bulsun. */}
-      <ProfileMatchBox onApplied={() => void load()} />
-      <MemberLinksBox onApplied={() => void load()} />
+      {isAdmin && <ProfileMatchBox onApplied={() => void load()} />}
+      {isAdmin && <MemberLinksBox onApplied={() => void load()} />}
       <Alert severity="info">Üyeler sülale seçerken listede olmayan bir ad yazınca buraya düşer; profile serbest metin yazılmaz. Mevcut bir sülalenin yazımıysa bağla, gerçekten yeni bir sülaleyse ekle. Köy belirtildiyse bağ o köye “Topluluk katkısı” olarak eklenir.</Alert>
       {rows.length === 0 && <Typography color="text.secondary">Bekleyen öneri yok.</Typography>}
       {rows.map((s) => <SuggestionCard key={s.id} s={s} onResolve={resolve} />)}

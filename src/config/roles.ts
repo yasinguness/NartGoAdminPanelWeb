@@ -34,6 +34,8 @@ export const ROLES = {
   NB_ADMIN: 'NB_ADMIN',
   NB_CO_ADMIN: 'NB_CO_ADMIN',
   NB_COMMITTEE: 'NB_COMMITTEE',
+  // Köy Editörü (Keycloak: nart_village_editor). Yalnız Ortak Hafıza ekranları; bkz. docs/plan/nartgo-koy-editoru.md
+  NART_VILLAGE_EDITOR: 'NART_VILLAGE_EDITOR',
 } as const;
 
 export type Role = typeof ROLES[keyof typeof ROLES];
@@ -61,11 +63,14 @@ export const CONTENT: Role[] = [ROLES.ADMIN, ROLES.EDITOR];
 export const RAFFLE: Role[] = [ROLES.ADMIN, ROLES.EVENT_ORGANIZATOR, ROLES.ROLE_RAFFLE_ADMIN, ROLES.RAFFLE_MODERATOR];
 /** NartBusiness yönetimi — admin + tüm NB rolleri. Granular yetkiyi backend @PreAuthorize uygular. */
 export const NB: Role[] = [ROLES.ADMIN, ROLES.NB_ADMIN, ROLES.NB_CO_ADMIN, ROLES.NB_COMMITTEE];
+/** Ortak Hafıza (köy, konum, sülale). Toplu ve tehlikeli işler sayfa içinde yalnız ADMIN'e; sunucu HeritageRoles ile aynı. */
+export const HERITAGE: Role[] = [ROLES.ADMIN, ROLES.NART_VILLAGE_EDITOR];
 export const AUTHENTICATED: Role[] = [
   ROLES.ADMIN, ROLES.EVENT_ORGANIZATOR, ROLES.EDITOR, ROLES.ASSOCIATION,
   ROLES.CHECK_IN_STAFF, ROLES.RAFFLE_MODERATOR, ROLES.ROLE_BUSINESS,
   ROLES.ROLE_RAFFLE_ADMIN, ROLES.STORE_ADMIN,
   ROLES.NB_ADMIN, ROLES.NB_CO_ADMIN, ROLES.NB_COMMITTEE,
+  ROLES.NART_VILLAGE_EDITOR,
 ];
 
 // ─── Path → Rol eşlemesi ─────────────────────────────────────
@@ -130,9 +135,9 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
 
   // ── Kullanıcılar ──
   { path: '/users', roles: ADMIN_ONLY, description: 'Kullanıcı yönetimi' },
-  { path: '/heritage/villages', roles: ADMIN_ONLY, description: 'Köy yönetimi: ekle, düzenle, kaldır, ad ve sülale' },
-  { path: '/heritage/locations', roles: ADMIN_ONLY, description: 'Köy konumu inceleme kuyruğu' },
-  { path: '/heritage/families', roles: ADMIN_ONLY, description: 'Sülale atlası: içe aktarma, birleştirme, Instagram yorumları' },
+  { path: '/heritage/villages', roles: HERITAGE, description: 'Köy yönetimi: ekle, düzenle, kaldır, ad ve sülale' },
+  { path: '/heritage/locations', roles: HERITAGE, description: 'Köy konumu inceleme kuyruğu' },
+  { path: '/heritage/families', roles: HERITAGE, description: 'Sülale atlası: içe aktarma, birleştirme, Instagram yorumları' },
   { path: '/users/360', roles: ADMIN_ONLY, description: 'User 360\u00b0 destek g\u00f6r\u00fcn\u00fcm\u00fc' },
   { path: '/associations', roles: [ROLES.ADMIN, ROLES.ASSOCIATION], description: 'Dernekler' },
 
@@ -250,6 +255,7 @@ export function getDefaultPath(roles: string[]): string {
   if (hasOrganizerRole(n)) return '/events';
   if (n.includes(ROLES.EDITOR)) return '/content';
   if (n.includes(ROLES.ASSOCIATION)) return '/associations';
+  if (n.includes(ROLES.NART_VILLAGE_EDITOR)) return '/heritage/locations';
   // Yalnızca NB rolü olan kullanıcı /dashboard'a giremez → NB dashboard'a indir.
   if (isNbOnlyRole(n)) return '/nartbusiness/dashboard';
   return '/dashboard';
@@ -278,6 +284,7 @@ export function getFallbackPath(roles: string[]): string {
   if (hasOrganizerRole(n)) return '/events';
   if (n.includes(ROLES.EDITOR)) return '/content';
   if (n.includes(ROLES.ASSOCIATION)) return '/associations';
+  if (n.includes(ROLES.NART_VILLAGE_EDITOR)) return '/heritage/locations';
   if (isNbOnlyRole(n)) return '/nartbusiness/dashboard';
   return '/dashboard';
 }

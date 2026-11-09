@@ -36,6 +36,8 @@ export function useRole() {
     const isEditor = roles.includes(ROLES.EDITOR);
     const isOrganizer = hasOrganizerRole(roles);
     const isAssociation = roles.includes(ROLES.ASSOCIATION);
+    /** Köy Editörü: Ortak Hafıza'da tek kayıt kararları; toplu işler yöneticide. */
+    const isVillageEditor = roles.includes(ROLES.NART_VILLAGE_EDITOR);
 
     const normalizeIdentity = (value?: string | null) => (value || '').trim().toLowerCase();
 
@@ -45,6 +47,7 @@ export function useRole() {
       isEditor,
       isOrganizer,
       isAssociation,
+      isVillageEditor,
       isEditorOnly: isEditor && !isAdmin && !isOrganizer,
 
       /** Kullanıcı bu path'e erişebilir mi? */

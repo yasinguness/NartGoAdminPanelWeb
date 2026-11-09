@@ -6,7 +6,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import {
-  ERROR_TYPES, EVENT_LABEL, PAYMENT_LABEL, deviceLabel, errorText, storeActivityService,
+  ERROR_TYPES, PAYMENT_LABEL, deviceLabel, errorKind, errorText, eventLabel, kindColor, storeActivityService,
   type EventGroup, type Overview, type Platform, type StoreEvent, type StoreOrder, type StoreUserActivity,
 } from '../../services/nartstore/storeActivityService';
 
@@ -196,7 +196,7 @@ function OverviewTab({ days, refreshKey }: { days: number; refreshKey: number })
             {data.topErrors.length === 0 && <TableRow><TableCell colSpan={6} sx={{ color: 'text.secondary' }}>Bu dönemde hata kaydı yok.</TableCell></TableRow>}
             {data.topErrors.map((e, i) => (
               <TableRow key={i}>
-                <TableCell><Chip size="small" color="error" variant="outlined" label={EVENT_LABEL[e.eventType] ?? e.eventType} /></TableCell>
+                <TableCell><Chip size="small" color={kindColor(errorKind(e.eventType, e.status))} variant="outlined" label={eventLabel(e.eventType, e.status)} /></TableCell>
                 <TableCell sx={{ maxWidth: 420 }}>{e.message}</TableCell>
                 <TableCell><Typography variant="caption" sx={{ fontFamily: 'monospace' }}>{[e.endpoint, e.status && e.status !== '0' ? e.status : null].filter(Boolean).join(' · ') || '—'}</Typography></TableCell>
                 <TableCell align="right">{e.count}</TableCell><TableCell align="right">{e.people}</TableCell><TableCell>{fmtTime(e.lastAt)}</TableCell>
@@ -283,7 +283,7 @@ function EventsTab({ days, refreshKey, user, onClearUser, onUser, fixedGroup }: 
                     </Tooltip>
                   ) : <Typography variant="body2" color="text.secondary">Misafir <Typography component="span" variant="caption" sx={{ fontFamily: 'monospace' }}>{e.visitorId?.slice(-6)}</Typography></Typography>}
                 </TableCell>
-                <TableCell><Chip size="small" label={EVENT_LABEL[e.eventType] ?? e.eventType} color={ERROR_TYPES.has(e.eventType) ? 'error' : e.eventType === 'order_submit' ? 'success' : 'default'} variant={ERROR_TYPES.has(e.eventType) ? 'outlined' : 'filled'} /></TableCell>
+                <TableCell><Chip size="small" label={eventLabel(e.eventType, e.metadata?.status)} color={ERROR_TYPES.has(e.eventType) ? kindColor(errorKind(e.eventType, e.metadata?.status)) : e.eventType === 'order_submit' ? 'success' : 'default'} variant={ERROR_TYPES.has(e.eventType) ? 'outlined' : 'filled'} /></TableCell>
                 <TableCell><Typography variant="body2">{e.productTitle ?? '—'}</Typography>{e.storeName && <Typography variant="caption" color="text.secondary">{e.storeName}</Typography>}</TableCell>
                 <TableCell sx={{ maxWidth: 380 }}><Typography variant="body2" sx={{ wordBreak: 'break-word' }}>{detailOf(e) || '—'}</Typography></TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>{deviceLabel(e.deviceType, e.source)}</TableCell>

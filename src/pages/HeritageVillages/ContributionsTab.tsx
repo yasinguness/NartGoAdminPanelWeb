@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Alert, Box, Button, Chip, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
+import { useRole } from '../../hooks/useRole';
 import { errorText } from '../../services/heritageReviewService';
 import { heritageVillageService, type ContributionItem, type VillageContributions } from '../../services/heritageVillageService';
 
@@ -146,6 +147,8 @@ function Lines({ item }: { item: ContributionItem }) {
 }
 
 function PendingCard({ item, busy, onDecide, onTrustChanged }: { item: ContributionItem; busy: boolean; onDecide: (approve: boolean, note?: string, values?: Record<string, string>) => void; onTrustChanged?: () => void }) {
+  // Güvenilir katkıcı ayarı yöneticide (sunucu: HeritageRoles.ADMIN).
+  const { isAdmin } = useRole();
   const [note, setNote] = useState('');
   const [rejecting, setRejecting] = useState(false);
   // Düzeltme bildiriminde doğru değer yoksa onaylayan yazar (ad ya da tarihçe metni); bugünkü değerle başlar.
@@ -187,7 +190,7 @@ function PendingCard({ item, busy, onDecide, onTrustChanged }: { item: Contribut
               title={unchanged ? 'Önce doğru değeri yazın.' : undefined}
               onClick={() => onDecide(true, undefined, field && item.needsValue ? { [field]: value.trim() } : undefined)}>Onayla</Button>
             <Button size="small" color="error" disabled={busy} onClick={() => setRejecting(true)}>Reddet</Button>
-            {item.contributorId && (
+            {item.contributorId && isAdmin && (
               <Button size="small" disabled={busy} sx={{ ml: 'auto' }}
                 onClick={() => { const next = item.contributorTrusted ? 'untrusted' : 'trusted'; void heritageVillageService.setContributorTrust(item.contributorId!, next).then(() => onTrustChanged?.()); }}>
                 {item.contributorTrusted ? 'Güvenilir katkıcılıktan çıkar' : 'Güvenilir katkıcı yap'}

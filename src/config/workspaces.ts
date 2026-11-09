@@ -53,7 +53,7 @@ export const WORKSPACES: Workspace[] = [
         roles: [
             ROLES.ADMIN, ROLES.EVENT_ORGANIZATOR, ROLES.EDITOR, ROLES.ASSOCIATION,
             ROLES.CHECK_IN_STAFF, ROLES.RAFFLE_MODERATOR, ROLES.ROLE_BUSINESS,
-            ROLES.ROLE_RAFFLE_ADMIN, ROLES.STORE_ADMIN,
+            ROLES.ROLE_RAFFLE_ADMIN, ROLES.STORE_ADMIN, ROLES.NART_VILLAGE_EDITOR,
         ],
         defaultPath: '/dashboard',
         sidebarBg: '#0F1A14',

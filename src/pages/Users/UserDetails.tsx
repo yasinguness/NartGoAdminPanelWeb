@@ -80,6 +80,7 @@ import { adminNotificationService } from '../../services/notification/adminNotif
 import { adminAuditService } from '../../services/admin/adminAuditService';
 import type { AdminAuditLogEntry } from '../../types/admin/adminAuditLog';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
+import { heritageEditorService } from '../../services/heritageEditorService';
 import type { NbMember } from '../../services/nartbusiness/nbTypes';
 import { TIER_LABEL, STATUS_LABEL } from '../../utils/nbDisplay';
 import LtvCard from '../User360/components/LtvCard';
@@ -131,6 +132,58 @@ const ACCOUNT_TYPE_LABELS: Record<string, string> = {
  * kayıtlar userId ile doğrulanıyor — aynı e-postayı taşıyan başka bir kayıt
  * yanlışlıkla eşleşmesin.
  */
+/**
+ * Köy Editörü rolü (Keycloak nart_village_editor). Editör yalnız Ortak Hafıza ekranlarını görür ve
+ * tek kayıt kararları verir; toplu işler yöneticide kalır. Değişiklik kullanıcının bir sonraki girişinde etkili olur.
+ */
+function VillageEditorCard({ userId }: { userId: string }) {
+  const { enqueueSnackbar } = useSnackbar();
+  const [editor, setEditor] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    heritageEditorService.status(userId).then((v) => { if (alive) setEditor(v); }).catch(() => { if (alive) setEditor(null); });
+    return () => { alive = false; };
+  }, [userId]);
+  const apply = async () => {
+    setBusy(true);
+    try {
+      const next = editor ? await heritageEditorService.revoke(userId) : await heritageEditorService.grant(userId);
+      setEditor(next);
+      enqueueSnackbar(next ? 'Köy Editörü yapıldı. Bir sonraki girişinde etkili olur.' : 'Köy Editörü rolü kaldırıldı.', { variant: 'success' });
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } };
+      enqueueSnackbar(err?.response?.data?.message ?? 'Rol değiştirilemedi.', { variant: 'error' });
+    } finally { setBusy(false); setConfirm(false); }
+  };
+  return (
+    <Stack spacing={1.5}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        {editor === null ? <CircularProgress size={18} /> : <Chip size="small" color={editor ? 'success' : 'default'} label={editor ? 'Köy Editörü' : 'Rol Yok'} />}
+        <Typography variant="body2" color="text.secondary">
+          Köy Editörü yalnız Ortak Hafıza ekranlarını (köy kayıtları, konum inceleme, sülale atlası) görür; konum, katkı ve birleştirme kararı verir, yeni köy ekler. Köy silme ve toplu işler yöneticide kalır.
+        </Typography>
+      </Stack>
+      <Box>
+        <Button variant={editor ? 'outlined' : 'contained'} color={editor ? 'error' : 'primary'} disabled={busy || editor === null} onClick={() => setConfirm(true)}>
+          {editor ? 'Köy Editörü rolünü kaldır' : 'Köy Editörü yap'}
+        </Button>
+      </Box>
+      <ConfirmDialog
+        open={confirm}
+        title={editor ? 'Köy Editörü rolü kaldırılsın mı?' : 'Köy Editörü yapılsın mı?'}
+        message={editor ? 'Kullanıcı Ortak Hafıza ekranlarına bir sonraki girişinde erişemez.' : 'Kullanıcı bir sonraki girişinde Ortak Hafıza ekranlarını görür ve köy kayıtlarında karar verebilir.'}
+        confirmText={editor ? 'Kaldır' : 'Köy Editörü yap'}
+        severity={editor ? 'warning' : 'info'}
+        onConfirm={() => void apply()}
+        onClose={() => setConfirm(false)}
+        loading={busy}
+      />
+    </Stack>
+  );
+}
+
 function NbMembershipCard({ userId, email }: { userId: string; email?: string }) {
   const navigate = useNavigate();
   const [member, setMember] = useState<NbMember | null>(null);
@@ -844,6 +897,11 @@ export default function UserDetails() {
               {/* İlişkili veri: bu kullanıcının diğer modüllerdeki karşılığı. */}
               <PageSection title="NartBusiness Üyeliği">
                 <NbMembershipCard userId={user.id} email={user.email} />
+              </PageSection>
+
+              <Divider sx={{ my: 4 }} />
+              <PageSection title="Ortak Hafıza Yetkisi">
+                <VillageEditorCard userId={user.id} />
               </PageSection>
 
               <Divider sx={{ my: 4 }} />
