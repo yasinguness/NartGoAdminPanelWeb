@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Autocomplete, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent,
   DialogTitle, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { nbAdminService } from '../../services/nartbusiness/nbAdminService';
-import { nbIntakeService, type IntakeRow, type IntakeLink, type IntakeContact } from '../../services/nartbusiness/nbIntakeService';
+import { nbIntakeService, trackLabels, type IntakeRow, type IntakeLink, type IntakeContact } from '../../services/nartbusiness/nbIntakeService';
 import type { NbMember, Sector } from '../../services/nartbusiness/nbTypes';
 import { nbErrorMessage } from '../../services/nartbusiness/nbErrorMessage';
 import { nbFormatPhone, nbWhatsAppLink } from '../../services/nartbusiness/nbPhone';
+import NbIntakeTracking from './NbIntakeTracking';
 const labels: Record<string,string> = { INVITED: 'Yanıt bekleniyor', PENDING: 'Yayın onayı bekliyor',
   ACKNOWLEDGED: 'Şimdilik ihtiyaç yok', APPROVED: 'Yayımlandı', REJECTED: 'Yayımlanmadı' };
 const times: Record<string,string> = { WITHIN_7_DAYS: '7 gün içinde', WITHIN_30_DAYS: '30 gün içinde', WITHIN_60_DAYS: '60 gün içinde', FLEXIBLE: 'Esnek' };
@@ -93,7 +94,8 @@ export default function NbNeedIntakes() {
     finally { setBusy(false); }
   }
   async function inspect(row: IntakeRow) {
-    setReview(row); setCodes((row.items || []).map(() => '')); setConfirmed(false); setNote(''); setContacts([]);
+    // Paylaş akışında önerilen sektör ön seçili gelir; admin değiştirebilir.
+    setReview(row); setCodes((row.items || []).map(() => row.draft?.sectorSuggestion || '')); setConfirmed(false); setNote(''); setContacts([]);
     if (row.contactQuoteIds.length) {
       try { setContacts(await nbIntakeService.contacts(row.id)); } catch(e) { setError(nbErrorMessage(e)); }
     }
@@ -154,6 +156,8 @@ export default function NbNeedIntakes() {
               variant={row.revoked ? 'outlined' : 'filled'}
               label={row.revoked ? 'Bağlantılar iptal edildi' : labels[row.status]} />
             {row.origin==='MEMBER_HOME' && <Chip size="small" color="info" variant="outlined" label="Üye ana sayfadan gönderdi" />}
+            {row.trackStatus && <Chip size="small" variant="outlined" label={`Üye görüyor: ${row.trackStatus==='FORWARDED' && row.forwardedMemberIds?.length ? `${row.forwardedMemberIds.length} firmaya iletildi` : trackLabels[row.trackStatus]}`} />}
+            {row.draft?.hideCompany && <Chip size="small" color="warning" variant="outlined" label="Firma adı gizli istiyor" />}
             {expired && row.origin!=='MEMBER_HOME' && <Chip size="small" variant="outlined" label="Form süresi dolmuş" />}
             {row.contactQuoteIds.length>0 && <Chip color={row.contactPending ? 'warning' : 'success'}
               variant={row.contactPending ? 'filled' : 'outlined'} size="small"
@@ -183,6 +187,7 @@ export default function NbNeedIntakes() {
         {review.status==='PENDING' && !review.revoked && <TextField select fullWidth size="small" label="İlan sektörü" sx={{mt:2}} value={codes[index] || ''} onChange={e=>setCodes(current=>current.map((v,i)=>i===index?e.target.value:v))}>{sectors.filter(s=>s.active && !s.parentCode).map(s=><MenuItem key={s.code} value={s.code}>{s.nameTr}</MenuItem>)}</TextField>}
       </Box>)}
       {review?.status==='PENDING' && !review.revoked && <><FormControlLabel sx={{mt:2}} control={<Checkbox checked={confirmed} onChange={e=>setConfirmed(e.target.checked)} />} label="Yanıtı üyenin kayıtlı iletişim kanalından teyit ettim; yayın için uygun." /><TextField fullWidth multiline minRows={2} label="Yayımlamama gerekçesi" inputProps={{maxLength:1000}} value={note} onChange={e=>setNote(e.target.value)} sx={{mt:2}} /></>}
+      {review && <NbIntakeTracking row={review} busy={busy} run={run} onRow={setReview} />}
       {review?.reviewNote && <Alert severity="info" sx={{mt:2}}>{review.reviewNote}</Alert>}
       {review?.listingIds.map(id=><Typography key={id} sx={{mt:1}}><a href={`/nartbusiness/listings?q=${encodeURIComponent(review.items?.[review.listingIds.indexOf(id)]?.title || '')}`}>Yayımlanan ilan: {id}</a></Typography>)}
       {contacts.length>0 && <Box sx={{mt:3}}><Typography fontWeight={600}>Üyenin görüşmek istediği firmalar</Typography>{contacts.map(c=><Box key={c.id} sx={{py:1}}><Typography>{c.supplierCompanyName || c.supplierDisplayName} · {c.price} {c.currency}</Typography><Typography variant="caption">Üye kimliği: {c.supplierMemberId}</Typography></Box>)}<Typography variant="body2">Üyeler ekranındaki kayıtlı kanallardan tanıştırmayı takip edin. Bu istek teklif kabulü değildir.</Typography>{review?.contactNote && <Alert severity="info" sx={{mt:2}}>{review.contactNote}</Alert>}{review?.contactPending && !review.revoked && <><TextField fullWidth multiline minRows={2} label="Görüşme takip notu" inputProps={{maxLength:1000}} value={note} onChange={e=>setNote(e.target.value)} sx={{mt:2}} /><Button sx={{mt:1}} disabled={busy || !note.trim()} onClick={()=>run(async()=>{await nbIntakeService.completeContacts(review.id,note);setReview(null);setNotice("Görüşme takibi kaydedildi.");})}>Takibi tamamla</Button></>}</Box>}
