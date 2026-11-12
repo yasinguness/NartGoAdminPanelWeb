@@ -3,6 +3,9 @@ import { Link as RouterLink } from 'react-router-dom';
 import { Alert, Box, Button, Chip, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useRole } from '../../hooks/useRole';
+import SendToAdminDialog, { AdminRequestBadge } from '../../components/heritage/SendToAdminDialog';
+import { useAdminRequestTargets } from '../../hooks/useAdminRequestTargets';
+import type { AdminRequestTarget } from '../../services/heritageEditorService';
 import { errorText } from '../../services/heritageReviewService';
 import { heritageVillageService, type ContributionItem, type VillageContributions } from '../../services/heritageVillageService';
 
@@ -17,6 +20,10 @@ const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString('tr-TR',
 export default function ContributionsTab({ villageId, data, onChange }: { villageId: string; data: VillageContributions; onChange: () => void }) {
   const { enqueueSnackbar } = useSnackbar();
   const [busy, setBusy] = useState<string | null>(null);
+  // Teyitli kaydı kaldıran öneri: editör onaylayamaz, yöneticiye gönderir.
+  const { isAdmin } = useRole();
+  const requests = useAdminRequestTargets(!isAdmin && data.pending.some((c) => c.removesVerified));
+  const [sending, setSending] = useState<ContributionItem | null>(null);
 
   const act = async (key: string, fn: () => Promise<void>, done: string) => {
     setBusy(key);
@@ -37,8 +44,14 @@ export default function ContributionsTab({ villageId, data, onChange }: { villag
         <Section title="Onay bekleyen öneriler" hint="Onaylanan bilgi köy sayfasına girer; reddedilen yayına girmez. Not yazmak isteğe bağlı.">
           {data.pending.map((c) => (
             <PendingCard key={c.id} item={c} busy={busy === c.id} onTrustChanged={onChange}
+              adminRequest={requests.get('contribution', c.id)} onSendToAdmin={() => setSending(c)}
               onDecide={(approve, note, values) => act(c.id, () => heritageVillageService.reviewContribution(villageId, c.id, approve, note, values), approve ? 'Onaylandı, köy sayfasına eklendi.' : 'Reddedildi.')} />
           ))}
+          {sending && (
+            <SendToAdminDialog open kind="contribution" target={sending.id} subject={sending.title}
+              onClose={() => setSending(null)}
+              onSent={(already) => { setSending(null); void requests.reload(); enqueueSnackbar(already ? 'Bu öneri zaten yöneticide bekliyor.' : 'Yöneticiye gönderildi.', { variant: 'success' }); }} />
+          )}
         </Section>
       )}
 
@@ -59,8 +72,12 @@ export default function ContributionsTab({ villageId, data, onChange }: { villag
                   {c.disputes.map((d, i) => <Typography key={i} variant="body2" color="error.main">İtiraz: {d.reason || 'gerekçe yazılmamış'}</Typography>)}
                 </Box>
                 <Stack direction="row" spacing={1}>
-                  <Button size="small" variant="contained" disabled={busy === c.id}
-                    onClick={() => act(c.id, () => heritageVillageService.resolveCommunity(villageId, c.type, c.id, 'keep'), 'Kabul edildi.')}>Doğru, kabul et</Button>
+                  <Button size="small" variant="contained" color={c.disputes.length ? 'warning' : 'primary'} disabled={busy === c.id}
+                    onClick={() => {
+                      // İtiraz edilmiş kayıt: kabul itirazı kapatır, bu yüzden açıkça sorulur.
+                      if (c.disputes.length && !window.confirm(`"${c.label}" için ${c.disputes.length} itiraz var. İtiraza rağmen kabul edilsin mi? İtiraz kapanır ve kayıt teyitli olur.`)) return;
+                      void act(c.id, () => heritageVillageService.resolveCommunity(villageId, c.type, c.id, 'keep'), 'Kabul edildi.');
+                    }}>{c.disputes.length ? 'İtiraza rağmen kabul et' : 'Doğru, kabul et'}</Button>
                   <Button size="small" color="error" disabled={busy === c.id}
                     onClick={() => { if (window.confirm(`"${c.label}" bu köyden kaldırılsın mı?`)) void act(c.id, () => heritageVillageService.resolveCommunity(villageId, c.type, c.id, 'remove'), 'Kaldırıldı.'); }}>Kaldır</Button>
                 </Stack>
@@ -146,7 +163,7 @@ function Lines({ item }: { item: ContributionItem }) {
   );
 }
 
-function PendingCard({ item, busy, onDecide, onTrustChanged }: { item: ContributionItem; busy: boolean; onDecide: (approve: boolean, note?: string, values?: Record<string, string>) => void; onTrustChanged?: () => void }) {
+function PendingCard({ item, busy, onDecide, onTrustChanged, adminRequest, onSendToAdmin }: { item: ContributionItem; busy: boolean; onDecide: (approve: boolean, note?: string, values?: Record<string, string>) => void; onTrustChanged?: () => void; adminRequest?: AdminRequestTarget; onSendToAdmin?: () => void }) {
   // Güvenilir katkıcı ayarı yöneticide (sunucu: HeritageRoles.ADMIN).
   const { isAdmin } = useRole();
   const [note, setNote] = useState('');
@@ -156,6 +173,12 @@ function PendingCard({ item, busy, onDecide, onTrustChanged }: { item: Contribut
   const [value, setValue] = useState(field ? item.current?.[field] ?? '' : '');
   const familyFix = item.type === 'correction' && item.targetType === 'family' && item.needsValue;
   const unchanged = Boolean(field && item.needsValue && value.trim() === (item.current?.[field] ?? '').trim());
+  // Bu öneriye ait oylar (köy konum teyidi değil). "Yanlış" oyu varsa onay, itiraza rağmen verilen bir karardır: not istenir.
+  const votes = (item.votesYes ?? 0) + (item.votesNo ?? 0);
+  const contested = (item.votesNo ?? 0) > 0;
+  const [approving, setApproving] = useState(false);
+  // Teyitli kaydı kaldırma: onay yalnız yöneticide (sunucu da 403 döner).
+  const adminOnly = !isAdmin && Boolean(item.removesVerified);
   return (
     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
       <Stack direction="row" spacing={1} alignItems="center">
@@ -166,11 +189,22 @@ function PendingCard({ item, busy, onDecide, onTrustChanged }: { item: Contribut
         <Alert severity="info" sx={{ my: 1 }}>Köylü oyunda: {item.votesYes ?? 0} doğru · {item.votesNo ?? 0} yanlış. Köyün üyeleri karar verir; anlaşmazlık ya da 14 gün kararsızlıkta size düşer. İsterseniz şimdi karar verebilirsiniz.</Alert>
       )}
       {!item.inVoting && item.escalationReason && <Alert severity="warning" sx={{ my: 1 }}>Size düştü: {item.escalationReason}</Alert>}
+      {!item.inVoting && votes > 0 && (
+        <Typography variant="body2" sx={{ my: 0.5 }}>
+          Bu öneriye köylü oyu: <b>{item.votesYes ?? 0} doğru</b> · <b style={{ color: contested ? '#b3412a' : undefined }}>{item.votesNo ?? 0} yanlış</b>
+        </Typography>
+      )}
       <Typography variant="caption" color="text.secondary">
         {item.contributorTrusted && <Chip size="small" color="success" variant="outlined" label="Güvenilir katkıcı" sx={{ mr: 1 }} />}
         {item.contributor ?? 'Kullanıcı'}{item.contributorApproved ? ` · daha önce ${item.contributorApproved} katkısı onaylandı` : ' · ilk katkısı'}{item.source === 'app' ? ' · uygulamadan' : item.source === 'web' ? ' · webden' : ''}
       </Typography>
       <Lines item={item} />
+      {adminOnly && (
+        <Alert severity="warning" sx={{ mt: 1.5 }} action={adminRequest?.status === 'open' ? <AdminRequestBadge value={adminRequest} /> : undefined}>
+          Kaldırılmak istenen kayıt köylülerce teyit edilmiş. Bu öneriyi yalnız yönetici onaylayabilir; kaldırılması gerektiğini düşünüyorsanız yöneticiye gönderin, değilse reddedin.
+          {adminRequest?.status === 'declined' && <Box sx={{ mt: 0.5 }}><AdminRequestBadge value={adminRequest} /></Box>}
+        </Alert>
+      )}
       {field && item.needsValue && !rejecting && (
         <TextField size="small" fullWidth sx={{ mt: 1.5 }} multiline={field === 'narrative'} minRows={field === 'narrative' ? 3 : undefined}
           label={field === 'name' ? 'Doğru ad' : 'Doğru tarihçe metni'} value={value} onChange={(e) => setValue(e.target.value)}
@@ -183,12 +217,28 @@ function PendingCard({ item, busy, onDecide, onTrustChanged }: { item: Contribut
         <TextField size="small" fullWidth sx={{ mt: 1.5 }} label="Ret nedeni (isteğe bağlı)" value={note} onChange={(e) => setNote(e.target.value)}
           placeholder="Örnek: kaynak yok, başka köyle karıştırılmış" />
       )}
+      {approving && (
+        <TextField size="small" fullWidth required autoFocus sx={{ mt: 1.5 }} label="Neden onaylıyorsunuz? (zorunlu)" value={note} onChange={(e) => setNote(e.target.value)}
+          helperText={`Köylülerden ${item.votesNo} kişi "yanlış" dedi. Not kayıt geçmişinde görünür.`}
+          placeholder="Örnek: köyden iki kişiyle telefonda konuştum; doğru ad bu." />
+      )}
       <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-        {!rejecting ? (
+        {approving ? (
           <>
-            <Button size="small" variant="contained" disabled={busy || familyFix || unchanged || (field !== null && item.needsValue && !value.trim())}
+            <Button size="small" variant="contained" color="warning" disabled={busy || !note.trim()}
+              onClick={() => onDecide(true, note.trim(), field && item.needsValue ? { [field]: value.trim() } : undefined)}>İtiraza rağmen onayla</Button>
+            <Button size="small" disabled={busy} onClick={() => { setApproving(false); setNote(''); }}>Vazgeç</Button>
+          </>
+        ) : !rejecting && adminOnly ? (
+          <>
+            <Button size="small" variant="contained" disabled={busy || adminRequest?.status === 'open'} onClick={onSendToAdmin}>Yöneticiye gönder</Button>
+            <Button size="small" color="error" disabled={busy} onClick={() => setRejecting(true)}>Reddet</Button>
+          </>
+        ) : !rejecting ? (
+          <>
+            <Button size="small" variant="contained" color={contested ? 'warning' : 'primary'} disabled={busy || familyFix || unchanged || (field !== null && item.needsValue && !value.trim())}
               title={unchanged ? 'Önce doğru değeri yazın.' : undefined}
-              onClick={() => onDecide(true, undefined, field && item.needsValue ? { [field]: value.trim() } : undefined)}>Onayla</Button>
+              onClick={() => { if (contested) { setApproving(true); return; } onDecide(true, undefined, field && item.needsValue ? { [field]: value.trim() } : undefined); }}>{contested ? 'İtiraza rağmen onayla' : 'Onayla'}</Button>
             <Button size="small" color="error" disabled={busy} onClick={() => setRejecting(true)}>Reddet</Button>
             {item.contributorId && isAdmin && (
               <Button size="small" disabled={busy} sx={{ ml: 'auto' }}

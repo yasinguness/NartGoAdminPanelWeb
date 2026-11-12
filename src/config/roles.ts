@@ -137,6 +137,7 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   { path: '/users', roles: ADMIN_ONLY, description: 'Kullanıcı yönetimi' },
   { path: '/heritage/villages', roles: HERITAGE, description: 'Köy yönetimi: ekle, düzenle, kaldır, ad ve sülale' },
   { path: '/heritage/locations', roles: HERITAGE, description: 'Köy konumu inceleme kuyruğu' },
+  { path: '/heritage/editor-desk', roles: ADMIN_ONLY, description: 'Köy Editörünün yöneticiye gönderdiği kararlar ve editör hareketleri' },
   { path: '/heritage/families', roles: HERITAGE, description: 'Sülale atlası: içe aktarma, birleştirme, Instagram yorumları' },
   { path: '/users/360', roles: ADMIN_ONLY, description: 'User 360\u00b0 destek g\u00f6r\u00fcn\u00fcm\u00fc' },
   { path: '/associations', roles: [ROLES.ADMIN, ROLES.ASSOCIATION], description: 'Dernekler' },

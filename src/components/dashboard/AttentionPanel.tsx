@@ -8,7 +8,7 @@ import { featuredAdminService, type FeaturedList } from '../../services/business
 import { storeActivityService, type Overview } from '../../services/nartstore/storeActivityService';
 import { sellerOutreachService } from '../../services/nartstore/sellerOutreachService';
 import { heritageVillageService, type PendingSummary } from '../../services/heritageVillageService';
-import { heritageEditorService } from '../../services/heritageEditorService';
+import { heritageAdminRequestService, heritageEditorService } from '../../services/heritageEditorService';
 import { api } from '../../services/api';
 import { jobMonitorService } from '../../services/jobMonitor/jobMonitorService';
 
@@ -118,7 +118,7 @@ export default function AttentionPanel() {
       heritageVillageService.pendingSummary(PANEL_REQ).then((h: PendingSummary | null) => {
         if (!h) return;
         push({ key: 'h-disputed', n: h.communityDisputed, title: 'Ortak Hafıza’da tartışmalı kayıt',
-          hint: 'itiraz edildi', urgency: 'today', to: '/heritage/families?tab=4' });
+          hint: 'itiraz edildi', urgency: 'today', to: '/heritage/families?tab=6' });
         push({ key: 'h-decidable', n: h.decidableTasks, title: 'Karara hazır köy sorusu',
           urgency: 'today', to: '/heritage/villages?pending=1' });
         push({ key: 'h-location', n: h.locationQueue, title: 'Köy konumu incelemesi',
@@ -126,18 +126,23 @@ export default function AttentionPanel() {
         push({ key: 'h-village', n: h.villageContributions, title: 'Köy bilgisi önerisi',
           urgency: 'week', to: '/heritage/villages?pending=1' });
         push({ key: 'h-family', n: h.familySuggestions, title: 'Yeni sülale önerisi',
-          urgency: 'week', to: '/heritage/families?tab=3' });
+          urgency: 'week', to: '/heritage/families?tab=5' });
         push({ key: 'h-ig', n: h.instagramComments, title: 'Instagram yorumu içe aktarılmayı bekliyor',
-          hint: 'toplu işlenebilir', urgency: 'week', to: '/heritage/families?tab=2' });
+          hint: 'toplu işlenebilir', urgency: 'week', to: '/heritage/families?tab=4' });
       }),
 
       // Köy Editörü gözetimi (docs/plan/nartgo-koy-editoru.md): editörün eklediği köyler ve son 24 saatteki kararları.
       heritageEditorService.actions().then((e) => {
         push({ key: 'h-editor-villages', n: e.newVillages7d, title: 'Köy Editörünün eklediği yeni köy',
-          hint: 'son 7 gün, bir göz atın', urgency: 'week', to: '/heritage/villages' });
+          hint: 'son 7 gün, bir göz atın', urgency: 'week', to: '/heritage/editor-desk?tab=1' });
         push({ key: 'h-editor-actions', n: e.last24h, title: 'Köy Editörü kararı',
-          hint: 'son 24 saat', urgency: 'week', to: '/heritage/villages' });
+          hint: 'son 24 saat', urgency: 'week', to: '/heritage/editor-desk?tab=1' });
       }),
+
+      // Köy Editörünün yöneticiye gönderdiği kararlar (teyitli kaydı kaldırma, halklar arası birleştirme, köyü kaldırma).
+      heritageAdminRequestService.list('open').then((r) =>
+        push({ key: 'h-editor-requests', n: r.open, title: 'Köy Editörünün size gönderdiği karar',
+          hint: 'yalnız yönetici verebilir', urgency: 'today', to: '/heritage/editor-desk' })),
 
       featuredAdminService.list(PANEL_REQ).then((f: FeaturedList) => {
         const soon = f.items.filter((x) => x.remainingDays != null && x.remainingDays <= 7);

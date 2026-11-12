@@ -5,6 +5,9 @@ import {
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useRole } from '../../hooks/useRole';
+import SendToAdminDialog, { AdminRequestBadge } from '../../components/heritage/SendToAdminDialog';
+import { useAdminRequestTargets } from '../../hooks/useAdminRequestTargets';
+import { familyPairKey } from '../../services/heritageEditorService';
 import { errorText } from '../../services/heritageReviewService';
 import {
   familyAtlasService, parseCommentFile,
@@ -23,7 +26,7 @@ export default function HeritageFamilies() {
   // Köy Editörü: kaynak listesi içe aktarma sekmesi gizli (sekme sırası değişmesin diye yalnız görünmez).
   const { isAdmin } = useRole();
   // ?tab=: panel ana sayfasındaki "bekleyenler" kartı doğrudan ilgili sekmeye götürür.
-  const [tab, setTab] = useState(() => Math.min(4, Math.max(0, Number(new URLSearchParams(window.location.search).get('tab')) || 0)));
+  const [tab, setTab] = useState(() => Math.min(6, Math.max(0, Number(new URLSearchParams(window.location.search).get('tab')) || 0)));
   return (
     <Box>
       <Typography variant="h5" fontWeight={700}>Sülale atlası</Typography>
@@ -567,15 +570,31 @@ function MergePanel() {
   const [data, setData] = useState<{ total: number; items: MergeItem[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<{ id: string; summary: string } | null>(null);
+  // Varsayılan: ortak köyü çok olan çiftler önce (birleşme olasılığı yüksek olanlar).
+  const [sort, setSort] = useState<'shared' | 'score'>('shared');
+  // Kiril yazım çelişkisinde kalacak yazım (çift anahtarı → yazım).
+  const [cyrPick, setCyrPick] = useState<Record<string, string>>({});
+  // Halklar arası çift: editör yöneticiye gönderir (docs/plan/nartgo-koy-editoru.md, Faz 4).
+  const requests = useAdminRequestTargets(!isAdmin);
+  const [sending, setSending] = useState<MergeItem | null>(null);
   const load = useCallback(async () => {
-    try { setData(await familyAtlasService.mergeQueue(100)); } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); }
-  }, [enqueueSnackbar]);
+    try { setData(await familyAtlasService.mergeQueue(100, sort)); } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); }
+  }, [enqueueSnackbar, sort]);
   useEffect(() => { void load(); }, [load]);
 
   const decide = async (it: MergeItem, action: 'merge' | 'distinct', keep?: number) => {
     setBusy(true);
     try {
       const r = await familyAtlasService.decide(it.a.id, it.b.id, action, keep);
+      // Kiril yazım: seçilen yazım kalan kayıtta değilse kalan kayda yazılır (birleştirme kalan kaydın yazımını korur).
+      if (action === 'merge' && keep != null) {
+        const kept = keep === it.a.id ? it.a : it.b, other = keep === it.a.id ? it.b : it.a;
+        const want = cyrPick[pairKey(it)] ?? kept.cyrillic ?? other.cyrillic ?? '';
+        if (want && want !== (kept.cyrillic ?? '')) {
+          try { await familyAtlasService.setCyrillic(keep, want); }
+          catch { enqueueSnackbar('Birleştirildi; Kiril yazım kaydedilemedi, sülale sayfasından düzeltin.', { variant: 'warning' }); }
+        }
+      }
       setLast({ id: r.decisionId, summary: r.summary });
       setData((d) => d && { total: d.total - 1, items: d.items.filter((x) => x !== it) });
     } catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); } finally { setBusy(false); }
@@ -592,6 +611,10 @@ function MergePanel() {
     <Stack spacing={2}>
       {isAdmin && <CleanupBox onApplied={() => void load()} />}
       {isAdmin && <CrossRaceMergeBox onApplied={() => void load()} />}
+      <TextField size="small" select label="Sıra" value={sort} onChange={(e) => setSort(e.target.value as 'shared' | 'score')} sx={{ maxWidth: 300 }}>
+        <MenuItem value="shared">Ortak köyü çok olanlar önce</MenuItem>
+        <MenuItem value="score">Ad benzerliğine göre</MenuItem>
+      </TextField>
       <Alert severity="info">
         {data.total.toLocaleString('tr-TR')} aday çift. Aynı köydeki benzer sülaleleri önce o köyün üyeleri oylar (3 “aynı” köyde birleştirir, iki köy “aynı” derse katalog birleşir; 2 “farklı” ayırır). Köylülerin karar veremediği çiftler en üstte, oylaması süren çiftler en altta. Köyü olan kayıtlar önce gelir. Farklı kabile ya da halktaki benzer adlar önerilmez; yazım anahtarı birebir aynıysa uyarıyla gelir.
         <b> Aynı adı taşımak aynı soydan gelmek demek değildir</b>: emin değilsen “Farklı” de ya da atla.
@@ -618,17 +641,54 @@ function MergePanel() {
             <Side s={it.b} />
           </Box>
           <Divider sx={{ my: 1.5 }} />
+          {(() => {
+            const keep = suggestedKeep(it);
+            const links = it.a.villageCount + it.b.villageCount - it.sharedVillages;
+            const spellings = new Set([...it.a.spellings, ...it.b.spellings, it.a.name, it.b.name]).size;
+            const cyrConflict = !!it.a.cyrillic && !!it.b.cyrillic && it.a.cyrillic !== it.b.cyrillic;
+            return (
+              <Box sx={{ mb: 1.5 }}>
+                <Typography variant="body2">
+                  Birleşirse: <b>{links} köy bağı</b> tek kayıtta toplanır{it.sharedVillages ? `, ${it.sharedVillages} ortak köy tekilleşir` : ''}, <b>{spellings} yazım</b> korunur.
+                  {' '}Önerilen kalan kayıt: <b>“{keep.name}” #{keep.id}</b> ({it.a.villageCount !== it.b.villageCount ? 'daha çok köy bağı' : it.a.spellings.length !== it.b.spellings.length ? 'daha çok yazım çeşidi' : 'daha eski kayıt'}).
+                </Typography>
+                {cyrConflict && (
+                  <TextField size="small" select label="Kiril yazımlar farklı; hangisi kalsın?" sx={{ mt: 1, minWidth: 280 }}
+                    value={cyrPick[pairKey(it)] ?? keep.cyrillic ?? ''} onChange={(e) => setCyrPick((m) => ({ ...m, [pairKey(it)]: e.target.value }))}>
+                    <MenuItem value={it.a.cyrillic!}>{it.a.cyrillic} (#{it.a.id})</MenuItem>
+                    <MenuItem value={it.b.cyrillic!}>{it.b.cyrillic} (#{it.b.id})</MenuItem>
+                  </TextField>
+                )}
+              </Box>
+            );
+          })()}
           {!isAdmin && !sameRace(it) && (
-            <Alert severity="warning" sx={{ mb: 1 }}>Halk bilgisi farklı ({it.a.race || 'boş'} / {it.b.race || 'boş'}). Bu iki kaydı yalnız yönetici birleştirebilir; “Farklı sülale” diyebilir ya da atlayabilirsiniz.</Alert>
+            <Alert severity="warning" sx={{ mb: 1 }}
+              action={requests.get('family_merge', familyPairKey(it.a.id, it.b.id))?.status === 'open'
+                ? <AdminRequestBadge value={requests.get('family_merge', familyPairKey(it.a.id, it.b.id))} />
+                : <Button size="small" color="inherit" onClick={() => setSending(it)}>Yöneticiye gönder</Button>}>
+              Halk bilgisi farklı ({it.a.race || 'boş'} / {it.b.race || 'boş'}). Bu iki kaydı yalnız yönetici birleştirebilir. Aynı aile olduğunu düşünüyorsanız yöneticiye gönderin; değilse “Farklı sülale” deyin.
+              {requests.get('family_merge', familyPairKey(it.a.id, it.b.id))?.status === 'declined' && (
+                <Box sx={{ mt: 0.5 }}><AdminRequestBadge value={requests.get('family_merge', familyPairKey(it.a.id, it.b.id))} /></Box>
+              )}
+            </Alert>
           )}
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Button size="small" variant="contained" disabled={busy || (!isAdmin && !sameRace(it))} onClick={() => void decide(it, 'merge', it.a.id)}>Aynı sülale · “{it.a.name}” kalsın</Button>
-            <Button size="small" variant="outlined" disabled={busy || (!isAdmin && !sameRace(it))} onClick={() => void decide(it, 'merge', it.b.id)}>Aynı sülale · “{it.b.name}” kalsın</Button>
-            <Button size="small" color="inherit" variant="outlined" disabled={busy} onClick={() => void decide(it, 'distinct')}>Farklı sülale</Button>
+            {[it.a, it.b].map((side) => (
+              <Button key={side.id} size="small" variant={suggestedKeep(it).id === side.id ? 'contained' : 'outlined'} disabled={busy || (!isAdmin && !sameRace(it))}
+                onClick={() => void decide(it, 'merge', side.id)}>Aynı sülale · “{side.name}” kalsın{suggestedKeep(it).id === side.id ? ' (önerilen)' : ''}</Button>
+            ))}
+            <Button size="small" color="inherit" variant="outlined" disabled={busy} title="Bu çift bir daha aday olarak gelmez." onClick={() => void decide(it, 'distinct')}>Farklı sülale · bir daha önerme</Button>
           </Stack>
         </Paper>
       ))}
       {data.items.length === 0 && <Typography color="text.secondary">Önerilecek çift kalmadı.</Typography>}
+      {sending && (
+        <SendToAdminDialog open kind="family_merge" target={familyPairKey(sending.a.id, sending.b.id)}
+          subject={`“${sending.a.name}” (${sending.a.race || 'halk boş'}) ve “${sending.b.name}” (${sending.b.race || 'halk boş'})`}
+          onClose={() => setSending(null)}
+          onSent={(already) => { setSending(null); void requests.reload(); enqueueSnackbar(already ? 'Bu çift zaten yöneticide bekliyor.' : 'Yöneticiye gönderildi.', { variant: 'success' }); }} />
+      )}
     </Stack>
   );
 }
@@ -1005,6 +1065,15 @@ function Side({ s }: { s: MergeSide }) {
 }
 
 // ── Instagram yorumları ─────────────────────────────────────────────
+
+const pairKey = (it: MergeItem) => `${Math.min(it.a.id, it.b.id)}-${Math.max(it.a.id, it.b.id)}`;
+/** Kalacak kayıt önerisi: daha çok köy bağı, eşitse daha çok yazım, o da eşitse eski (küçük) kimlik. */
+const suggestedKeep = (it: MergeItem) => {
+  const { a, b } = it;
+  if (a.villageCount !== b.villageCount) return a.villageCount > b.villageCount ? a : b;
+  if (a.spellings.length !== b.spellings.length) return a.spellings.length > b.spellings.length ? a : b;
+  return a.id < b.id ? a : b;
+};
 
 /** Sunucudaki editör kuralıyla aynı (HeritageFamilyAtlasService.decide): biri boş, diğeri doluysa farklı sayılır. */
 const raceKey = (r?: string | null) => (r ?? '').trim().toLocaleLowerCase('tr') || '-';

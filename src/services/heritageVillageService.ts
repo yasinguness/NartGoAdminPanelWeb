@@ -26,7 +26,12 @@ export interface VillageRow {
   family_count: number;
   /** Onay bekleyen kullanıcı katkısı + teyit bekleyen/tartışmalı topluluk kaydı (konum katkıları hariç). */
   pending_count: number;
+  /** Köyde tartışmalı (itiraz edilmiş) ad ya da sülale var. */
+  disputed?: boolean;
 }
+
+/** Köy listesi görünümleri; panelde süzgeç kartları. */
+export type VillageView = 'all' | 'pending' | 'noLocation' | 'disputed';
 
 export interface VillageList {
   total: number;
@@ -37,6 +42,8 @@ export interface VillageList {
   countries: string[];
   pendingWithoutLocation: number;
   villagesWithPending: number;
+  /** Arama/il/ülke/durum süzgecinden sonra her görünümün köy sayısı (eski sunucuda yok). */
+  counts?: Record<VillageView, number>;
 }
 
 export interface PendingSummary {
@@ -71,6 +78,8 @@ export interface ContributionItem {
   escalationReason?: string | null;
   contributorId?: string | null;
   contributorTrusted?: boolean;
+  /** Kaldırma önerisi köylülerce teyitli/kabul edilmiş bir kaydı hedefliyor: onay yalnız yöneticide. */
+  removesVerified?: boolean;
 }
 
 export interface CommunityItem {
@@ -173,7 +182,7 @@ export const emptyBody = (): VillageBody => ({
 });
 
 export const heritageVillageService = {
-  async list(params: { q?: string; province?: string; country?: string; status?: string; pendingOnly?: boolean; page?: number; size?: number }): Promise<VillageList> {
+  async list(params: { q?: string; province?: string; country?: string; status?: string; pendingOnly?: boolean; view?: VillageView; page?: number; size?: number }): Promise<VillageList> {
     return unwrap(await api.get(ROOT, { params }));
   },
   async detail(id: string): Promise<VillageDetail> {

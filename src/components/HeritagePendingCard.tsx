@@ -13,11 +13,11 @@ export default function HeritagePendingCard({ compact = false }: { compact?: boo
   if (!data) return null;
   const rows = [
     { n: data.villageContributions, label: 'köy bilgisi önerisi (ad, sülale, tarihçe, düzeltme)', to: '/heritage/villages?pending=1' },
-    { n: data.communityDisputed, label: 'tartışmalı kayıt (itiraz edilmiş ad/sülale)', to: '/heritage/families?tab=4' },
-    { n: data.familySuggestions, label: 'atlasta olmayan yeni sülale önerisi', to: '/heritage/families?tab=3' },
+    { n: data.communityDisputed, label: 'tartışmalı kayıt (itiraz edilmiş ad/sülale)', to: '/heritage/families?tab=6' },
+    { n: data.familySuggestions, label: 'atlasta olmayan yeni sülale önerisi', to: '/heritage/families?tab=5' },
     { n: data.decidableTasks, label: 'karara hazır köy sorusu (3+ oy)', to: '/heritage/villages?pending=1' },
     { n: data.locationQueue, label: 'konum incelemesi', to: '/heritage/locations' },
-    { n: data.instagramComments, label: 'Instagram yorumu', to: '/heritage/families?tab=2' },
+    { n: data.instagramComments, label: 'Instagram yorumu', to: '/heritage/families?tab=4' },
   ].filter((r) => r.n > 0);
   if (!rows.length) return null;
   const total = rows.reduce((a, r) => a + r.n, 0);

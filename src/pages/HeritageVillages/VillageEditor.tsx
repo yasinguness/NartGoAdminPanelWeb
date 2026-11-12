@@ -6,6 +6,8 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { useSnackbar } from 'notistack';
 import { useRole } from '../../hooks/useRole';
+import SendToAdminDialog, { AdminRequestBadge } from '../../components/heritage/SendToAdminDialog';
+import { useAdminRequestTargets } from '../../hooks/useAdminRequestTargets';
 import { errorText } from '../../services/heritageReviewService';
 import {
   ACTION_LABEL, CONFIDENCE_LABEL, COUNTRIES, PRECISION_LABEL, countryLabel, emptyBody, heritageVillageService,
@@ -34,6 +36,9 @@ export default function VillageEditor({ villageId, onClose, onChanged, initialTa
   // Köyü kaldırma / geri alma yöneticide; Köy Editörü düzenler ve yeni köy ekler.
   const { isAdmin } = useRole();
   const { enqueueSnackbar } = useSnackbar();
+  // Köyü kaldırmak yöneticide; editör gerekçesiyle yöneticiye önerir.
+  const requests = useAdminRequestTargets(!isAdmin);
+  const [sendRemove, setSendRemove] = useState(false);
   const [id, setId] = useState<string | null>(villageId === 'new' ? null : villageId);
   const [detail, setDetail] = useState<VillageDetail | null>(null);
   const [body, setBody] = useState<VillageBody>(emptyBody());
@@ -196,6 +201,17 @@ export default function VillageEditor({ villageId, onClose, onChanged, initialTa
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 2 }}>
         {detail && isAdmin && (
           <Button color={removed ? 'primary' : 'error'} onClick={() => void removeOrRestore()} disabled={saving}>{removed ? 'Geri al' : 'Köyü kaldır'}</Button>
+        )}
+        {detail && !isAdmin && !removed && (requests.get('village_remove', detail.id)?.status === 'open'
+          ? <AdminRequestBadge value={requests.get('village_remove', detail.id)} />
+          : <>
+              <Button color="error" onClick={() => setSendRemove(true)}>Kaldırılmasını yöneticiye öner</Button>
+              <AdminRequestBadge value={requests.get('village_remove', detail.id)} />
+            </>)}
+        {detail && sendRemove && (
+          <SendToAdminDialog open kind="village_remove" target={detail.id} subject={`${detail.official_name} köyünü kaldırma`}
+            onClose={() => setSendRemove(false)}
+            onSent={(already) => { setSendRemove(false); void requests.reload(); enqueueSnackbar(already ? 'Bu köy zaten yöneticide bekliyor.' : 'Yöneticiye gönderildi.', { variant: 'success' }); }} />
         )}
         <Box sx={{ flex: 1 }} />
         <Button onClick={onClose}>Kapat</Button>

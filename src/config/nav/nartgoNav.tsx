@@ -186,6 +186,7 @@ export const nartgoNavSections: NavSection[] = [
             { text: 'Köy Kayıtları', icon: <VillageIcon />, path: '/heritage/villages' },
             { text: 'Köy Konum İncelemesi', icon: <PlaceIcon />, path: '/heritage/locations' },
             { text: 'Sülale Atlası', icon: <FamilyIcon />, path: '/heritage/families' },
+            { text: 'Köy Editörü Masası', icon: <FactCheckIcon />, path: '/heritage/editor-desk', allowedRoles: ['ADMIN'] },
         ],
     },
     {

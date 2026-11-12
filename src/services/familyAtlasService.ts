@@ -295,7 +295,7 @@ export const familyAtlasService = {
   },
   async cleanupDryRun(): Promise<CleanupReport> { return unwrap(await api.get(`${ROOT}/cleanup/dry-run`)); },
   async cleanupApply(): Promise<CleanupReport> { return unwrap(await api.post(`${ROOT}/cleanup`)); },
-  async mergeQueue(limit = 100): Promise<{ total: number; items: MergeItem[] }> { return unwrap(await api.get(`${ROOT}/merge-queue`, { params: { limit } })); },
+  async mergeQueue(limit = 100, sort: 'score' | 'shared' = 'score'): Promise<{ total: number; items: MergeItem[] }> { return unwrap(await api.get(`${ROOT}/merge-queue`, { params: { limit, sort } })); },
   async decide(familyA: number, familyB: number, action: 'merge' | 'distinct', keep?: number): Promise<{ decisionId: string; summary: string }> {
     return unwrap(await api.post(`${ROOT}/merge`, { familyA, familyB, action, keep }));
   },

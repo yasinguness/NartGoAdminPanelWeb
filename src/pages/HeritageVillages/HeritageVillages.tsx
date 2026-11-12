@@ -8,10 +8,18 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import { errorText } from '../../services/heritageReviewService';
-import { CONFIDENCE_LABEL, countryLabel, heritageVillageService, type VillageList } from '../../services/heritageVillageService';
+import { CONFIDENCE_LABEL, countryLabel, heritageVillageService, type VillageList, type VillageView } from '../../services/heritageVillageService';
 import VillageEditor, { CONTRIBUTIONS_TAB } from './VillageEditor';
 
 const PAGE = 50;
+
+/** Süzgeç kartları: tıklanınca tablo o görünüme geçer (sunucu `view`). */
+const VIEWS: { v: VillageView; label: string; hint: string }[] = [
+  { v: 'all', label: 'Tüm köyler', hint: 'arama ve il süzgecine göre' },
+  { v: 'pending', label: 'Karar bekleyen', hint: 'katkı, düzeltme ya da itiraz' },
+  { v: 'noLocation', label: 'Konum eksik', hint: 'koordinatsız ya da ilçe düzeyi' },
+  { v: 'disputed', label: 'Tartışmalı', hint: 'itiraz edilmiş ad ya da sülale' },
+];
 
 /**
  * Köyler: ekleme, düzenleme, kaldırma, Çerkesçe ad ve sülale yönetimi. Türkiye dışı köyler (Kosova vb.) buradan eklenir.
@@ -27,17 +35,22 @@ export default function HeritageVillages() {
   const [data, setData] = useState<VillageList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [editing, setEditing] = useState<{ id: string; tab: number } | null>(null);
   const [searchParams] = useSearchParams();
-  const [pendingOnly, setPendingOnly] = useState(searchParams.get('pending') === '1');
+  // ?village=<id> (yönetici talepleri masası) köyü doğrudan açar; &tab=katki katkı sekmesine gider.
+  const [editing, setEditing] = useState<{ id: string; tab: number } | null>(() => {
+    const id = searchParams.get('village');
+    return id ? { id, tab: searchParams.get('tab') === 'katki' ? CONTRIBUTIONS_TAB : 0 } : null;
+  });
+  // ?pending=1 (admin ana sayfası bağlantıları) "Karar bekleyen" görünümünü açar.
+  const [view, setView] = useState<VillageView>(searchParams.get('pending') === '1' ? 'pending' : 'all');
 
   useEffect(() => { const t = window.setTimeout(() => { setQuery(q); setPage(0); }, 300); return () => window.clearTimeout(t); }, [q]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setData(await heritageVillageService.list({ q: query, province, country, status, pendingOnly, page, size: PAGE })); setError(''); }
+    try { setData(await heritageVillageService.list({ q: query, province, country, status, view, pendingOnly: view === 'pending', page, size: PAGE })); setError(''); }
     catch (e) { setError(errorText(e)); } finally { setLoading(false); }
-  }, [query, province, country, status, pendingOnly, page]);
+  }, [query, province, country, status, view, page]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -53,11 +66,24 @@ export default function HeritageVillages() {
         Bir köyü açıp adını, konumunu, Çerkesçe adlarını ve sülalelerini düzenleyebilirsiniz.
       </Typography>
       <HeritagePendingCard />
-      {data && data.villagesWithPending > 0 && !pendingOnly && (
-        <Alert severity="warning" sx={{ mb: 2 }} action={<Button size="small" onClick={() => { setPendingOnly(true); setPage(0); }}>Göster</Button>}>
-          {data.villagesWithPending} köyde kullanıcıların verdiği ve onay bekleyen bilgi var (ad, sülale, tarihçe, düzeltme).
-        </Alert>
-      )}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5, mb: 2 }} role="group" aria-label="Köy görünümü">
+        {VIEWS.map((x) => {
+          const on = view === x.v;
+          const n = data?.counts?.[x.v] ?? (x.v === 'pending' ? data?.villagesWithPending : x.v === 'all' ? data?.total : undefined);
+          return (
+            <Paper key={x.v} component="button" type="button" variant="outlined" aria-pressed={on}
+              onClick={() => { setView(x.v); setPage(0); }}
+              sx={{ p: 1.5, textAlign: 'left', cursor: 'pointer', font: 'inherit', bgcolor: on ? 'action.selected' : 'background.paper',
+                borderColor: on ? 'primary.main' : 'divider', borderWidth: on ? 2 : 1, '&:hover': { borderColor: 'primary.main' } }}>
+              <Typography variant="body2" color="text.secondary">{x.label}</Typography>
+              <Typography variant="h5" fontWeight={700} color={x.v !== 'all' && (n ?? 0) > 0 ? (x.v === 'disputed' ? 'error.main' : 'warning.main') : 'text.primary'}>
+                {n == null ? '–' : n.toLocaleString('tr-TR')}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">{x.hint}</Typography>
+            </Paper>
+          );
+        })}
+      </Box>
       {data && data.pendingWithoutLocation > 0 && (
         <Alert severity="info" sx={{ mb: 2 }} action={<Button component={RouterLink} to="/heritage/locations" size="small">İncele</Button>}>
           {data.pendingWithoutLocation} köy kaydının konumu henüz yok. Konum inceleme masasında "Konumsuz" sekmesinden tamamlanır.
@@ -75,8 +101,6 @@ export default function HeritageVillages() {
             <MenuItem value="">Tümü</MenuItem>
             {(data?.provinces ?? []).map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
           </TextField>
-          <Chip label="Onay bekleyenler" color={pendingOnly ? 'warning' : 'default'} variant={pendingOnly ? 'filled' : 'outlined'}
-            onClick={() => { setPendingOnly((v) => !v); setPage(0); }} sx={{ alignSelf: 'center', flexShrink: 0 }} />
           <TextField size="small" select label="Durum" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }} sx={{ minWidth: 150 }}>
             <MenuItem value="approved">Yayında</MenuItem>
             <MenuItem value="removed">Kaldırılanlar</MenuItem>
@@ -94,16 +118,16 @@ export default function HeritageVillages() {
           </TableHead>
           <TableBody>
             {loading && <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4 }}><CircularProgress size={24} /></TableCell></TableRow>}
-            {!loading && data?.items.length === 0 && <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>Köy bulunamadı. Aradığınız köy yoksa "Yeni köy ekle" ile açın.</TableCell></TableRow>}
+            {!loading && data?.items.length === 0 && <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>{view === 'all' ? 'Köy bulunamadı. Aradığınız köy yoksa "Yeni köy ekle" ile açın.' : 'Bu görünümde köy yok.'}</TableCell></TableRow>}
             {!loading && data?.items.map((v) => (
               <TableRow key={v.id} hover sx={{ cursor: 'pointer', opacity: v.status === 'removed' ? 0.6 : 1 }} onClick={() => setEditing({ id: v.id, tab: v.pending_count > 0 ? CONTRIBUTIONS_TAB : 0 })}>
-                <TableCell><Stack direction="row" spacing={1} alignItems="center"><Typography fontWeight={600}>{v.official_name}</Typography>{v.pending_count > 0 && <Chip size="small" color="warning" label={`${v.pending_count} onay bekliyor`} />}</Stack>{v.admin_type === 'neighbourhood' && <Typography variant="caption" color="text.secondary">Mahalle</Typography>}</TableCell>
+                <TableCell><Stack direction="row" spacing={1} alignItems="center"><Typography fontWeight={600}>{v.official_name}</Typography>{v.pending_count > 0 && <Chip size="small" color="warning" label={`${v.pending_count} Karar Bekliyor`} />}{v.disputed && <Chip size="small" color="error" variant="outlined" label="Tartışmalı" />}</Stack>{v.admin_type === 'neighbourhood' && <Typography variant="caption" color="text.secondary">Mahalle</Typography>}</TableCell>
                 <TableCell>{v.district}, {v.province}</TableCell>
                 <TableCell>{countryLabel(v.country_code)}</TableCell>
                 <TableCell>
                   <Chip size="small" variant="outlined" label={CONFIDENCE_LABEL[v.confidence] ?? v.confidence} color={v.confidence === 'admin_verified' || v.confidence === 'community_verified' ? 'success' : 'default'} />
                   {v.location_precision === 'HISTORICAL' && <Chip size="small" sx={{ ml: 0.5 }} label="Tarihî" />}
-                  {v.location_precision === 'DISTRICT' && <Chip size="small" color="info" variant="outlined" sx={{ ml: 0.5 }} label="İlçe düzeyi" />}
+                  {v.location_precision === 'DISTRICT' && <Chip size="small" color="info" variant="outlined" sx={{ ml: 0.5 }} label="İlçe Düzeyi" />}
                 </TableCell>
                 <TableCell align="right">{v.family_count}</TableCell>
                 <TableCell>{v.merged_into ? <Chip size="small" label="Birleştirildi" /> : v.status === 'removed' ? <Chip size="small" color="warning" label="Kaldırıldı" /> : <Chip size="small" color="success" variant="outlined" label="Yayında" />}</TableCell>

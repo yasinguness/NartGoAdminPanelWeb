@@ -29,9 +29,9 @@ const TABS: { k: ReviewTab; label: string; dot: string }[] = [
   { k: 'asked', label: 'Toplulukta', dot: '#6a4c93' },
 ];
 const CHIP: Record<ReviewReason, { label: string; cls: string }> = {
-  dist: { label: 'İlçe', cls: 'rchip rDist' }, dup: { label: 'Yakın tekrar', cls: 'rchip rDup' },
-  water: { label: 'Sınır / su', cls: 'rchip rWater' }, none: { label: 'Konumsuz', cls: 'rchip rNone' },
-  comm: { label: 'Üye önerisi', cls: 'rchip rComm' }, mid: { label: 'Orta güven', cls: 'rchip rMid' },
+  dist: { label: 'İlçe', cls: 'rchip rDist' }, dup: { label: 'Yakın Tekrar', cls: 'rchip rDup' },
+  water: { label: 'Sınır / Su', cls: 'rchip rWater' }, none: { label: 'Konumsuz', cls: 'rchip rNone' },
+  comm: { label: 'Üye Önerisi', cls: 'rchip rComm' }, mid: { label: 'Orta Güven', cls: 'rchip rMid' },
 };
 type SessionStatus = { st: 'ok' | 'rej' | 'ask' | 'skip'; text: string; decisionId?: string };
 const ST: Record<SessionStatus['st'], { label: string; cls: string }> = {
@@ -70,6 +70,8 @@ export default function HeritageLocations() {
   const [pos, setPos] = useState<Record<string, LatLng>>({});
   const [status, setStatus] = useState<Record<string, SessionStatus>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  // Nokta haritaya tıklanarak elle konduysa (aday seçilmeden). Kayıttaki noktadan 1 km'den uzaksa not istenir.
+  const [manual, setManual] = useState<Record<string, boolean>>({});
   const [moving, setMoving] = useState(false);
   const [finding, setFinding] = useState(false);
   // Kayıtta il/ilçe yoksa (koordinatsız ya da eksik önerilmiş köy) onayla birlikte gönderilir.
@@ -191,6 +193,10 @@ export default function HeritageLocations() {
     return () => { live = false; };
   }, [sel, moved, areaProvince, areaDistrict, previews]);
   const point = moved ?? original;
+  // Öneriden belirgin sapma: elle konan nokta kayıttakinden 1 km'den uzaksa kararın nedeni not olarak istenir.
+  const overrideM = sel && manual[sel] && moved && original ? distanceM(original, moved) : 0;
+  const noteText = sel ? (notes[sel] ?? '').trim() : '';
+  const needNote = overrideM > 1000 && !noteText;
   const st = sel ? status[sel] : undefined;
   const decided = Boolean(st && st.st !== 'skip');
 
@@ -224,6 +230,7 @@ export default function HeritageLocations() {
   };
   const onMapPick = (p: LatLng) => {
     setPoint(p);
+    if (sel) setManual((m) => ({ ...m, [sel]: true }));
     if (detail?.checks.some((c) => c.key === 'loc')) setResolution('loc', original ? 'move' : 'place');
     setMoving(false);
   };
@@ -355,6 +362,14 @@ export default function HeritageLocations() {
       else if (k === 'r' && !decided) { e.preventDefault(); setRejOpen((v) => !v); }
       else if (k === 's') { e.preventDefault(); skip(); }
       else if (k === 'm' && !decided && detail) { e.preventDefault(); setMoving((v) => !v); }
+      else if ((k === 'j' || k === 'k') && visible.length) {
+        // Karar vermeden listede gezinme: J sonraki, K önceki.
+        e.preventDefault();
+        const i = visible.findIndex((q) => q.id === sel);
+        const to = visible[(Math.max(0, i) + (k === 'j' ? 1 : visible.length - 1)) % visible.length];
+        if (to) setSel(to.id);
+      }
+      else if (k === 'u' && toast && !busy) { e.preventDefault(); void undo(toast.undo); }
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
@@ -385,6 +400,7 @@ export default function HeritageLocations() {
   else if (eff.loc === 'district' && !point && missingArea && !(area.province.trim() && area.district.trim())) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: 'İlçe düzeyinde onay için il ve ilçeyi yazın.', run: () => undefined };
   else if (unresolved.length) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: `Önce karar ver: ${[...new Set(why)].join(', ')}`, run: () => undefined };
   else if (eff.loc === 'abroad' && !country) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: 'Köyün bulunduğu ülkeyi seçin.', run: () => undefined };
+  else if (needNote) primary = { label: 'Onayla', cls: 'btnP', dis: true, why: 'Nokta kayıttakinden uzağa taşındı; nedenini aşağıya kısa bir notla yazın.', run: () => undefined };
   else primary = { label: 'Onayla', cls: 'btnP', dis: false, run: () => void approve() };
   primaryRef.current = () => { if (!primary.dis && !busy) primary.run(); };
 
@@ -472,7 +488,7 @@ export default function HeritageLocations() {
                     <span className="qChips">
                       {q.state === 'asked' && <span className="rchip rAsk">Toplulukta</span>}
                       {q.reasons.map((r) => <span key={r} className={CHIP[r].cls}>{CHIP[r].label}</span>)}
-                      {(q.familyLinks ?? 0) > 0 && <span className="rchip rComm">{q.familyLinks} sülale bekliyor</span>}
+                      {(q.familyLinks ?? 0) > 0 && <span className="rchip rComm">{q.familyLinks} Sülale Bekliyor</span>}
                     </span>
                     {!qs && <span className={recCls}><Arrow />{q.recommendation.title}</span>}
                   </button>
@@ -653,7 +669,7 @@ export default function HeritageLocations() {
                           {!decided && (
                             <button type="button" className="mini" aria-pressed={on} onClick={() => {
                               if (isCurrent) { setPoint(null); if (explicit.loc === 'move') setResolution('loc', undefined); }
-                              else { setPoint({ lat: c.latitude, lng: c.longitude }); if (detail.checks.some((k) => k.key === 'loc')) setResolution('loc', original ? 'move' : 'place'); }
+                              else { setPoint({ lat: c.latitude, lng: c.longitude }); setManual((m) => ({ ...m, [detail.id]: false })); if (detail.checks.some((k) => k.key === 'loc')) setResolution('loc', original ? 'move' : 'place'); }
                               setMoving(false);
                             }}>{on ? 'Seçili' : 'Bu noktayı seç'}</button>
                           )}
@@ -681,7 +697,7 @@ export default function HeritageLocations() {
                           {h.undoable && !h.undone_at && <button type="button" className="mini" style={{ marginTop: 6 }} disabled={busy} onClick={() => void undo([{ id: detail.id, decisionId: h.id }])}>Bu kararı geri al</button>}
                         </div>
                       ))}
-                      <label htmlFor="karar-notu" style={{ display: 'block', fontWeight: 700, fontSize: 13, margin: '14px 0 6px' }}>Karar notu <span style={{ fontWeight: 500, color: 'var(--muted)' }}>(isteğe bağlı, kayıt geçmişinde görünür)</span></label>
+                      <label htmlFor="karar-notu" style={{ display: 'block', fontWeight: 700, fontSize: 13, margin: '14px 0 6px' }}>Karar notu <span style={{ fontWeight: 500, color: 'var(--muted)' }}>(kayıt geçmişinde görünür; nokta 1 km'den uzağa taşındıysa zorunlu)</span></label>
                       <textarea id="karar-notu" className="note" value={notes[detail.id] ?? ''} maxLength={900} onChange={(e) => setNotes((n) => ({ ...n, [detail.id]: e.target.value }))} placeholder="Örneğin: köyden bir üye telefonda teyit etti." />
                     </>
                   )}
@@ -695,6 +711,13 @@ export default function HeritageLocations() {
               <div className="rej">
                 <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--ember)' }}>Neden reddediyorsun?</div>
                 <div className="rejOpts">{queue.rejectReasons.map((o) => <button key={o} type="button" className="rejOpt" disabled={busy} onClick={() => void reject(o)}>{o}</button>)}</div>
+                {detail && <textarea aria-label="Ret notu (isteğe bağlı)" className="note" style={{ minHeight: 44 }} value={notes[detail.id] ?? ''} maxLength={900} onChange={(e) => setNotes((n) => ({ ...n, [detail.id]: e.target.value }))} placeholder="Not (isteğe bağlı): ör. köy bu ilçede değil, komşu ilçedeki kayıtla aynı." />}
+              </div>
+            )}
+            {detail && !decided && overrideM > 1000 && (
+              <div className="rej" style={{ borderColor: '#ecd9b5', background: '#fbf3e4' }}>
+                <label htmlFor="sapma-notu" style={{ fontWeight: 700, fontSize: 13, color: 'var(--amber)' }}>Nokta kayıttakinden {meters(overrideM)} uzakta. Neden taşıdınız?</label>
+                <textarea id="sapma-notu" className="note" style={{ minHeight: 48 }} value={notes[detail.id] ?? ''} maxLength={900} onChange={(e) => setNotes((n) => ({ ...n, [detail.id]: e.target.value }))} placeholder="Örneğin: uydu görüntüsünde köy evleri burada; kayıttaki nokta ilçe merkezine düşüyordu." />
               </div>
             )}
             {detail && !decided && !unresolved.length && point && (
@@ -710,7 +733,7 @@ export default function HeritageLocations() {
               <button type="button" className="btnS btnDanger" aria-expanded={rejOpen} disabled={busy || decided || !detail} onClick={() => setRejOpen((v) => !v)}>Reddet</button>
               <button type="button" className="btnS" onClick={skip}>Atla</button>
             </div>
-            <div className="keys">Kısayollar: <span className="kbd">A</span> onayla <span className="kbd">R</span> reddet <span className="kbd">S</span> atla <span className="kbd">M</span> taşı</div>
+            <div className="keys">Kısayollar: <span className="kbd">A</span> onayla <span className="kbd">R</span> reddet <span className="kbd">S</span> atla <span className="kbd">M</span> taşı <span className="kbd">J</span>/<span className="kbd">K</span> sonraki, önceki <span className="kbd">U</span> geri al</div>
           </div>
         </aside>
       </div>
