@@ -10,6 +10,8 @@ const Users = lazy(() => import('./pages/Users'));
 const UserDetails = lazy(() => import('./pages/Users/UserDetails'));
 const UserActivity = lazy(() => import('./pages/Users/UserActivity'));
 const NartLiveUsers = lazy(() => import('./pages/NartLive/NartLiveUsers'));
+const ContactInbox = lazy(() => import('./pages/ContactInbox/ContactInbox'));
+const MessagingInsights = lazy(() => import('./pages/Messaging/MessagingInsights'));
 const HeritageLocations = lazy(() => import('./pages/HeritageLocations/HeritageLocations'));
 const HeritageFamilies = lazy(() => import('./pages/HeritageFamilies/HeritageFamilies'));
 const HeritageEditorDesk = lazy(() => import('./pages/HeritageEditorDesk/HeritageEditorDesk'));
@@ -212,6 +214,8 @@ function App() {
                 <Route path="users" element={<Users />} />
                 <Route path="user-activity" element={<UserActivity />} />
                 <Route path="nartlive/users" element={<NartLiveUsers />} />
+                <Route path="support/contact" element={<ContactInbox />} />
+                <Route path="engagement/messaging" element={<MessagingInsights />} />
                 <Route path="heritage/locations" element={<HeritageLocations />} />
                 <Route path="heritage/villages" element={<HeritageVillages />} />
                 <Route path="heritage/families" element={<HeritageFamilies />} />

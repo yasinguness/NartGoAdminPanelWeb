@@ -228,6 +228,7 @@ export const nartgoNavSections: NavSection[] = [
             { text: 'Uzun Süre Giriş Yapmayanlar', icon: <PersonOffIcon />, path: '/engagement/inactive-users' },
             { text: 'Giriş Sıklığı', icon: <TrendingUpIcon />, path: '/engagement/login-frequency' },
             { text: 'Ürün Kullanım Analitiği', icon: <BarChartIcon />, path: '/engagement/product-analytics' },
+            { text: 'Mesajlaşma Özeti', icon: <BarChartIcon />, path: '/engagement/messaging' },
         ],
     },
     {
@@ -245,6 +246,7 @@ export const nartgoNavSections: NavSection[] = [
         allowedRoles: ['ADMIN'],
         items: [
             { text: 'Müşteri Destek Talepleri', icon: <SupportIcon />, path: '/customer-support' },
+            { text: 'İletişim Mesajları', icon: <SupportIcon />, path: '/support/contact' },
             { text: 'Zamanlanmış Görevler', icon: <JobIcon />, path: '/ops/jobs' },
             { text: 'İşlenemeyen Mesajlar (DLQ)', icon: <DlqIcon />, path: '/ops/dlq' },
         ],
