@@ -103,7 +103,10 @@ export const nartgoNavSections: NavSection[] = [
     {
         title: 'Genel Bakış',
         items: [
-            { text: 'Kontrol Paneli', icon: <DashboardIcon />, path: '/dashboard' },
+            // ROLE_ROUTE_MAP'te /dashboard bu dört role açık. Kısıt yazılmazsa
+            // köy editörü gibi başka roller bağlantıyı görüp 403 alıyor.
+            { text: 'Kontrol Paneli', icon: <DashboardIcon />, path: '/dashboard',
+              allowedRoles: ['ADMIN', 'EVENT_ORGANIZATOR', 'EDITOR', 'ASSOCIATION'] },
             { text: 'Yönetici Özeti', icon: <ExecutiveIcon />, path: '/executive', allowedRoles: ['ADMIN'] },
         ],
     },

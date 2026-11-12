@@ -95,7 +95,13 @@ export default function HeritageLocations() {
     try {
       const q = await heritageReviewService.queue();
       setQueue(q);
-      setSel((cur) => (cur && q.items.some((i) => i.id === cur) ? cur : q.items.find((i) => i.state === 'pending')?.id ?? q.items[0]?.id ?? null));
+      // `q` boş gövdeyle dönebiliyor (sunucu hatası, yetkisiz yanıt, 204).
+      // Güncelleyici render sırasında çalıştığı için buradaki try/catch onu
+      // yakalayamıyordu: `q.items` patlayınca sayfa bomboş kalıyordu.
+      const list = q?.items ?? [];
+      setSel((cur) => (cur && list.some((i) => i.id === cur)
+        ? cur
+        : list.find((i) => i.state === 'pending')?.id ?? list[0]?.id ?? null));
     } catch (e) { setLoadError(errorText(e)); }
   }, []);
   useEffect(() => { void loadQueue(); }, [loadQueue]);

@@ -78,6 +78,16 @@ type RouteAccess = { path: string; roles: Role[]; description?: string };
 
 export const ROLE_ROUTE_MAP: RouteAccess[] = [
   // ── Genel ──
+  /*
+   * Kök adres yalnız yönlendirme yapar: `RoleLanding` rolü okuyup kullanıcıyı
+   * kendi iniş sayfasına gönderir, kendi başına hiçbir şey göstermez.
+   *
+   * Haritada olmadığı için default-deny devreye giriyor ve `/admin/` adresine
+   * giren admin olmayan herkes "Erişim Reddedildi" görüyordu — yönlendirmeyi
+   * yapacak bileşen hiç çalışamıyordu. Erişim kontrolü yönlendirilen sayfada
+   * zaten uygulanıyor.
+   */
+  { path: '/', roles: AUTHENTICATED, description: 'Rol bazlı iniş yönlendirmesi' },
   { path: '/dashboard', roles: [...ORG, ROLES.EDITOR, ROLES.ASSOCIATION], description: 'Ana kontrol paneli' },
   { path: '/executive', roles: ADMIN_ONLY, description: 'Stratejik KPI kontrol paneli' },
 
