@@ -41,7 +41,9 @@ import { nb } from '../../theme/nbBrand';
 const GRID = 'minmax(0,1.8fr) 90px minmax(0,2.2fr) 150px 220px';
 const WEEKDAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
-type FilterKey = 'pending' | 'withItems' | 'sent';
+type FilterKey = 'pending' | 'withItems' | 'sent' | 'whatsapp';
+
+const FREQ_LABEL = { WEEKLY: 'her dönem', BIWEEKLY: 'iki haftada bir', OFF: 'bülten kapalı' } as const;
 
 export default function NbWeeklyDigest() {
   const [week, setWeek] = useState<NbDigestWeek | null>(null);
@@ -76,6 +78,8 @@ export default function NbWeeklyDigest() {
       if (filter === 'pending') return !d.emailSent && !d.whatsappSent && d.tenders.length > 0;
       if (filter === 'withItems') return d.tenders.length > 0;
       if (filter === 'sent') return d.emailSent || d.whatsappSent;
+      // WhatsApp kuyruğu: izin veren ve bu dönem WhatsApp'tan almamış üyeler.
+      if (filter === 'whatsapp') return !!d.whatsappOptIn && !d.whatsappSent && d.frequency !== 'OFF';
       return true;
     });
   }, [week, filter, search]);
@@ -177,6 +181,7 @@ export default function NbWeeklyDigest() {
             { key: 'pending', label: 'Gönderilmedi', active: filter === 'pending', onToggle: () => setFilter((f) => (f === 'pending' ? null : 'pending')) },
             { key: 'withItems', label: 'Bülteni hazır', active: filter === 'withItems', onToggle: () => setFilter((f) => (f === 'withItems' ? null : 'withItems')) },
             { key: 'sent', label: 'Gönderildi', active: filter === 'sent', onToggle: () => setFilter((f) => (f === 'sent' ? null : 'sent')) },
+            { key: 'whatsapp', label: 'WhatsApp kuyruğu', active: filter === 'whatsapp', onToggle: () => setFilter((f) => (f === 'whatsapp' ? null : 'whatsapp')) },
           ]}
           trailing={
             <Button size="small" variant="contained" disabled={busy === 'all' || counts.withItems === counts.email} onClick={sendWeek}>
@@ -206,7 +211,10 @@ export default function NbWeeklyDigest() {
                 <Typography sx={{ fontSize: 12.5, fontWeight: 600 }} noWrap>
                   {d.companyName || 'Firma adı girilmemiş'}
                 </Typography>
-                <Typography sx={{ fontSize: 11, color: nb.textFaint }}>{[d.city, d.status].filter(Boolean).join(' · ')}</Typography>
+                <Typography sx={{ fontSize: 11, color: nb.textFaint }}>
+                  {[d.city, d.status, d.frequency && d.frequency !== 'WEEKLY' ? FREQ_LABEL[d.frequency] : null,
+                    d.whatsappOptIn ? `WhatsApp izni${d.whatsappNumber ? `: ${d.whatsappNumber}` : ''}` : null].filter(Boolean).join(' · ')}
+                </Typography>
               </Box>
               <Typography sx={{ fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{d.tenders.length}</Typography>
               <Typography sx={{ fontSize: 12, color: nb.textMuted }} noWrap>
@@ -215,7 +223,7 @@ export default function NbWeeklyDigest() {
               <Stack direction="row" spacing={0.5}>
                 {d.emailSent && <Box sx={nbPill('good')}>e-posta</Box>}
                 {d.whatsappSent && <Box sx={nbPill('good')}>WhatsApp</Box>}
-                {!d.emailSent && !d.whatsappSent && <Box sx={nbPill('neutral')}>gönderilmedi</Box>}
+                {!d.emailSent && !d.whatsappSent && <Box sx={nbPill('neutral')}>{d.skippedByPreference ? 'tercih gereği atlanacak' : 'gönderilmedi'}</Box>}
               </Stack>
               <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                 <Button size="small" disabled={busy === d.memberId} onClick={() => openPreview(d)}>
@@ -224,7 +232,7 @@ export default function NbWeeklyDigest() {
                 <Button
                   size="small"
                   variant="outlined"
-                  disabled={busy === d.memberId || d.emailSent || d.tenders.length === 0}
+                  disabled={busy === d.memberId || d.emailSent || d.tenders.length === 0 || d.frequency === 'OFF'}
                   onClick={() => run(d.memberId, () => nbOpsService.digestSendEmail(d.memberId), 'Bülten e-postası gönderildi', 'E-posta gönderilemedi.')}
                 >
                   E-posta

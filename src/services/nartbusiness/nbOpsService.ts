@@ -358,6 +358,13 @@ export interface NbDigest {
   weekStart: string;
   emailSent: boolean;
   whatsappSent: boolean;
+  /** Üyenin bülten sıklığı tercihi (portal İşletmem › Bildirim tercihleri). */
+  frequency?: 'WEEKLY' | 'BIWEEKLY' | 'OFF';
+  /** Üye yanıt ve fırsatları WhatsApp'tan almak istiyor. */
+  whatsappOptIn?: boolean;
+  whatsappNumber?: string | null;
+  /** Tercih yüzünden bu dönem otomatik gitmeyecek. */
+  skippedByPreference?: boolean;
 }
 
 export interface NbDigestWeek {
