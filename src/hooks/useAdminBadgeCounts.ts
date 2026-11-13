@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { nbAdminService } from '../services/nartbusiness/nbAdminService';
 import { emailTemplateService } from '../services/emailTemplateService';
 import { heritageVillageService } from '../services/heritageVillageService';
+import { deskQueueTotal, heritageDeskService } from '../services/heritageDeskService';
 
 /**
  * Admin "müdahale bekleyen" kuyruk sayıları — sidebar nav badge'lerini besler.
@@ -23,6 +24,7 @@ export interface AdminBadgeCounts {
   '/nartbusiness/trial-center': number;
   '/business-claims': number;
   '/email-logs': number;
+  '/heritage/desk': number;
   '/heritage/villages': number;
   '/heritage/locations': number;
   '/heritage/families': number;
@@ -37,6 +39,7 @@ const EMPTY: AdminBadgeCounts = {
   '/nartbusiness/trial-center': 0,
   '/business-claims': 0,
   '/email-logs': 0,
+  '/heritage/desk': 0,
   '/heritage/villages': 0,
   '/heritage/locations': 0,
   '/heritage/families': 0,
@@ -68,7 +71,7 @@ async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 }
 
 async function fetchCounts(): Promise<AdminBadgeCounts> {
-  const [stats, moderation, opinions, news, claims, emailFailed, tasksToday, heritage] = await Promise.all([
+  const [stats, moderation, opinions, news, claims, emailFailed, tasksToday, heritage, desk] = await Promise.all([
     // Üyelik dashboard istatistikleri — verification + members badge'lerini besler.
     safe(async () => {
       const s: any = await nbAdminService.getDashboardStats(BADGE_REQ);
@@ -115,6 +118,8 @@ async function fetchCounts(): Promise<AdminBadgeCounts> {
     }, 0),
     // Köy ve sülale: yönetici kararı bekleyen işler (köylü teyidi bekleyenler sayılmaz, kendiliğinden kesinleşir)
     safe(() => heritageVillageService.pendingSummary(BADGE_REQ), null),
+    // Köy Masası: karar bekleyen fotoğraf, ses kaydı, kaldırma isteği ve gizlenen duyuru
+    safe(async () => deskQueueTotal((await heritageDeskService.summary(BADGE_REQ)).pending), 0),
   ]);
 
   return {
@@ -129,6 +134,7 @@ async function fetchCounts(): Promise<AdminBadgeCounts> {
     '/business-claims': claims,
     '/email-logs': emailFailed,
     // Köyler: kullanıcı katkıları ve karara hazır köy soruları
+    '/heritage/desk': desk,
     '/heritage/villages': (heritage?.villageContributions ?? 0) + (heritage?.decidableTasks ?? 0),
     '/heritage/locations': heritage?.locationQueue ?? 0,
     // Sülale Atlası: tartışmalı kayıtlar, yeni sülale önerileri, Instagram yorumları
