@@ -27,7 +27,7 @@ const KIND_LABEL: Record<Kind, string> = {
   removal: 'Kaldırma İsteği',
   photo: 'Fotoğraf',
   voice: 'Ses Kaydı',
-  announcement: 'Gizlenen Duyuru',
+  announcement: 'Bekleyen Duyuru',
 };
 const KIND_COLOR: Record<Kind, 'error' | 'default' | 'warning'> = { removal: 'error', photo: 'default', voice: 'default', announcement: 'warning' };
 /** Kaldırma isteği kişisel veri talebidir: her zaman en üstte. Sonra eskiden yeniye. */
@@ -94,7 +94,7 @@ export default function HeritageDesk() {
     if (pending.status === 'fulfilled') pending.value.items.forEach((p) => items.push({ kind: 'photo', id: p.id, at: p.createdAt, village: p.villageName, photo: p }));
     if (voices.status === 'fulfilled') voices.value.items.forEach((v) => items.push({ kind: 'voice', id: v.id, at: v.createdAt, village: v.villageName, voice: v }));
     if (announcements.status === 'fulfilled') {
-      announcements.value.items.filter((a) => a.status === 'hidden')
+      announcements.value.items.filter((a) => a.status === 'hidden' || a.status === 'pending')
         .forEach((a) => items.push({ kind: 'announcement', id: a.id, at: a.createdAt, village: a.villageName, announcement: a }));
     }
     items.sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || new Date(a.at).getTime() - new Date(b.at).getTime());
@@ -222,13 +222,15 @@ export default function HeritageDesk() {
           <Typography variant="body2" color="text.secondary">
             {[a.eventDate ? a.eventDate.slice(0, 10) : null, a.eventTime, a.place].filter(Boolean).join(' · ')}
           </Typography>
-          <Alert severity="warning" sx={{ mt: 1, py: 0 }}>{a.reports} şikâyet{a.reasons ? `: ${a.reasons}` : ''}. Duyuru şu an gizli.</Alert>
+          {a.status === 'pending'
+            ? <Alert severity="info" sx={{ mt: 1, py: 0 }}>Doğrulama bekleyen taziye. Yayınlanınca köye bildirim gider.</Alert>
+            : <Alert severity="warning" sx={{ mt: 1, py: 0 }}>{a.reports} şikâyet{a.reasons ? `: ${a.reasons}` : ''}. Duyuru şu an gizli.</Alert>}
         </>
       );
       actions = (
         <Stack direction="row" spacing={1}>
           <Button size="small" variant="outlined" disabled={disabled}
-            onClick={() => void act(item, 'Duyuru yeniden yayında.', (n) => heritageAnnouncementService.decide(a.id, 'restore', n))}>Yeniden Yayınla</Button>
+            onClick={() => void act(item, a.status === 'pending' ? 'Taziye yayınlandı, köye bildirim gitti.' : 'Duyuru yeniden yayında.', (n) => heritageAnnouncementService.decide(a.id, 'restore', n))}>{a.status === 'pending' ? 'Yayınla' : 'Yeniden Yayınla'}</Button>
           <Button size="small" color="error" variant="contained" disabled={disabled}
             onClick={() => void act(item, 'Duyuru kaldırıldı.', (n) => heritageAnnouncementService.decide(a.id, 'remove', n))}>Kaldır</Button>
         </Stack>
@@ -280,7 +282,7 @@ export default function HeritageDesk() {
         {tile('Kaldırma İsteği', p?.removals ?? 0, 'fotoğraf gizli, karar bekliyor', () => set({ sekme: 'bekleyenler', tur: 'removal' }), undefined, true)}
         {tile('Fotoğraf', p?.photos ?? 0, 'yayın öncesi inceleme', () => set({ sekme: 'bekleyenler', tur: 'photo' }))}
         {tile('Ses Kaydı', p?.voices ?? 0, 'dinleyin, yayınlayın', () => set({ sekme: 'bekleyenler', tur: 'voice' }))}
-        {tile('Gizlenen Duyuru', p?.announcements ?? 0, 'üç şikâyetle gizlendi', () => set({ sekme: 'bekleyenler', tur: 'announcement' }))}
+        {tile('Bekleyen Duyuru', p?.announcements ?? 0, 'gizlenen ya da onay bekleyen taziye', () => set({ sekme: 'bekleyenler', tur: 'announcement' }))}
         {tile('Göç Yolu', p?.migration ?? 0, 'ipucu var, yol girilmemiş', null, '/heritage/migration')}
         {tile('Editör Başvurusu', p?.editorRequests ?? 0, 'yalnız yönetici karar verir', null, '/heritage/village-editors')}
       </Stack>

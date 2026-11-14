@@ -29,8 +29,8 @@ export interface ReportedAnnouncement {
   place: string | null;
   eventDate: string | null;
   eventTime: string | null;
-  /** published: şikâyet aldı ama yayında; hidden: 3 şikâyetle gizlendi. */
-  status: 'published' | 'hidden';
+  /** published: şikâyet aldı ama yayında; hidden: 3 şikâyetle gizlendi; pending: doğrulama bekleyen taziye. */
+  status: 'published' | 'hidden' | 'pending';
   createdAt: string;
   villageName: string;
   villageSlug: string;
@@ -41,10 +41,10 @@ export interface ReportedAnnouncement {
 }
 
 export const heritageAnnouncementService = {
-  async queue(config?: Record<string, unknown>): Promise<{ items: ReportedAnnouncement[]; hidden: number }> {
+  async queue(config?: Record<string, unknown>): Promise<{ items: ReportedAnnouncement[]; hidden: number; pending: number }> {
     return unwrap(await api.get(ROOT, config));
   },
-  /** restore: şikâyetler silinir, yeniden yayında. remove: kaldırılır. */
+  /** restore: bekleyen taziye yayınlanır ya da şikâyetler silinip yeniden yayına alınır. remove: kaldırılır. */
   async decide(id: string, decision: 'restore' | 'remove', note?: string): Promise<void> {
     await api.post(`${ROOT}/${id}/decision`, { decision, note });
   },

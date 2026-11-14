@@ -39,7 +39,7 @@ import BulkSendProgressDialog from './BulkSendProgressDialog';
 
 // ── Types ─────────────────────────────────────────────────────────
 
-interface SelectedUser {
+export interface SelectedUser {
     id: string;
     email: string;
     displayName: string;
@@ -60,11 +60,13 @@ interface Props {
     onSuccess?: () => void;
     /** If provided, dialog acts as a picker — calls this with selected emails instead of sending */
     onSelectionComplete?: (emails: string[]) => void;
+    /** Kullanıcılar listesinden "Bildirim gönder": seçim hazır gelir, yazma adımı açılır. */
+    initialSelected?: SelectedUser[];
 }
 
 // ── Component ─────────────────────────────────────────────────────
 
-export default function UserSelectionDialog({ open, onClose, onSuccess, onSelectionComplete }: Props) {
+export default function UserSelectionDialog({ open, onClose, onSuccess, onSelectionComplete, initialSelected }: Props) {
     // ── Search / pagination ────────────────────────────────────
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(0);
@@ -78,6 +80,14 @@ export default function UserSelectionDialog({ open, onClose, onSuccess, onSelect
     const [content, setContent] = useState('');
     const [type, setType] = useState<string>(NotificationType.ANNOUNCEMENT);
     const [priority, setPriority] = useState<NotificationPriority>(NotificationPriority.NORMAL);
+
+    // Kullanıcılar listesinden gelindiyse seçim dolu açılır.
+    useEffect(() => {
+        if (open && initialSelected && initialSelected.length > 0) {
+            setSelected(new Map(initialSelected.map((u) => [u.id, u])));
+            setComposeOpen(true);
+        }
+    }, [open, initialSelected]);
     const [sendPush, setSendPush] = useState(true);
     const [sendEmail, setSendEmail] = useState(false);
     const [sending, setSending] = useState(false);

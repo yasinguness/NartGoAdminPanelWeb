@@ -160,6 +160,8 @@ function LayoutShell({ workspace, canSwitch }: LayoutShellProps) {
             const found = s.items.find((i) => location.pathname === i.path);
             if (found) return found.text;
         }
+        // Detay sayfaları: üst bölümün başlığı ("/users/:id" → "Kullanıcı detayı").
+        if (/^\/users\/[^/]+$/.test(location.pathname)) return 'Kullanıcı detayı';
         return 'Kontrol Paneli';
     }, [location.pathname, workspace.nav]);
 

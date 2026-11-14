@@ -24,7 +24,7 @@ const when = (a: ReportedAnnouncement) => {
 
 export default function HeritageAnnouncements() {
   const { enqueueSnackbar } = useSnackbar();
-  const [data, setData] = useState<{ items: ReportedAnnouncement[]; hidden: number } | null>(null);
+  const [data, setData] = useState<{ items: ReportedAnnouncement[]; hidden: number; pending: number } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -51,13 +51,13 @@ export default function HeritageAnnouncements() {
     <Box>
       <Typography variant="h5" fontWeight={700}>Köy Duyuruları</Typography>
       <Typography color="text.secondary" sx={{ mb: 2, maxWidth: 820 }}>
-        Şikâyet alan düğün, taziye, mevlit ve şenlik duyuruları. Üç ayrı şikâyet alan duyuru kendiliğinden gizlenir.
-        Uygunsa yeniden yayına alın, değilse kaldırın.
+        Şikâyet alan duyurular ve doğrulama bekleyen taziyeler. Üç ayrı şikâyet alan duyuru kendiliğinden gizlenir. Taziye,
+        köy editörü ya da iki köylü doğrulayınca yayınlanır; burada "Yayına al" da yayınlar ve köye bildirim gönderir.
       </Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {!data && !error && <CircularProgress size={24} />}
       {data && data.items.length === 0 && (
-        <Typography color="text.secondary">Şikâyet alan duyuru yok.</Typography>
+        <Typography color="text.secondary">Şikâyet alan ya da doğrulama bekleyen duyuru yok.</Typography>
       )}
       {data && data.items.length > 0 && (
         <Paper variant="outlined" sx={{ borderRadius: 2, overflowX: 'auto' }}>
@@ -78,6 +78,7 @@ export default function HeritageAnnouncements() {
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
                       <Chip size="small" label={ANNOUNCEMENT_KIND_LABEL[a.kind] ?? a.kind} />
                       {a.status === 'hidden' && <Chip size="small" color="warning" label="Gizlendi" />}
+                      {a.status === 'pending' && <Chip size="small" color="info" label="Doğrulama Bekliyor" />}
                     </Stack>
                     <Typography fontWeight={700}>{a.title}</Typography>
                     {when(a) && <Typography variant="body2" color="text.secondary">{when(a)}</Typography>}
