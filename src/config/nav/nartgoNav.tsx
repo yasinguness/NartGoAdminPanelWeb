@@ -186,10 +186,13 @@ export const nartgoNavSections: NavSection[] = [
         title: 'Ortak Hafıza · Köy & Sülale',
         allowedRoles: ['ADMIN', 'NART_VILLAGE_EDITOR'],
         items: [
+            { text: 'Köy Masası', icon: <FactCheckIcon />, path: '/heritage/desk' },
             { text: 'Köy Kayıtları', icon: <VillageIcon />, path: '/heritage/villages' },
             { text: 'Köy Konum İncelemesi', icon: <PlaceIcon />, path: '/heritage/locations' },
             { text: 'Sülale Atlası', icon: <FamilyIcon />, path: '/heritage/families' },
+            { text: 'Göç Yolu', icon: <PlaceIcon />, path: '/heritage/migration' },
             { text: 'Köy Editörü Masası', icon: <FactCheckIcon />, path: '/heritage/editor-desk', allowedRoles: ['ADMIN'] },
+            { text: 'Köy Editörleri', icon: <FactCheckIcon />, path: '/heritage/village-editors', allowedRoles: ['ADMIN'] },
         ],
     },
     {

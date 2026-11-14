@@ -9,6 +9,11 @@ import { storeActivityService, type Overview } from '../../services/nartstore/st
 import { sellerOutreachService } from '../../services/nartstore/sellerOutreachService';
 import { heritageVillageService, type PendingSummary } from '../../services/heritageVillageService';
 import { heritageAdminRequestService, heritageEditorService } from '../../services/heritageEditorService';
+import { heritageAnnouncementService } from '../../services/heritageAnnouncementService';
+import { heritageVoiceService } from '../../services/heritageVoiceService';
+import { heritagePhotoService } from '../../services/heritagePhotoService';
+import { heritageMigrationService } from '../../services/heritageMigrationService';
+import { heritageVillageEditorService } from '../../services/heritageVillageEditorService';
 import { api } from '../../services/api';
 import { jobMonitorService } from '../../services/jobMonitor/jobMonitorService';
 
@@ -143,6 +148,37 @@ export default function AttentionPanel() {
       heritageAdminRequestService.list('open').then((r) =>
         push({ key: 'h-editor-requests', n: r.open, title: 'Köy Editörünün size gönderdiği karar',
           hint: 'yalnız yönetici verebilir', urgency: 'today', to: '/heritage/editor-desk' })),
+
+      // Köy duyuruları: 3 şikâyetle gizlenen duyuru karar bekliyor (docs/plan/nartgo-koy-geri-gelme.md).
+      heritageAnnouncementService.queue(PANEL_REQ).then((a) => {
+        push({ key: 'h-ann-hidden', n: a.hidden, title: 'Şikâyetle gizlenen köy duyurusu',
+          hint: 'yayına alın ya da kaldırın', urgency: 'today', to: '/heritage/desk?tur=announcement' });
+        push({ key: 'h-ann-reported', n: a.items.length - a.hidden, title: 'Şikâyet alan köy duyurusu',
+          hint: 'henüz yayında', urgency: 'week', to: '/heritage/announcements' });
+      }),
+
+      // Büyüklerden ses kaydı: onaylanmadan yayınlanmaz (docs/plan/nartgo-koy-geri-gelme.md).
+      heritageVoiceService.queue('pending', PANEL_REQ).then((v) =>
+        push({ key: 'h-voice-pending', n: v.pending, title: 'İnceleme bekleyen ses kaydı',
+          hint: 'dinleyin, yayınlayın ya da reddedin', urgency: 'today', to: '/heritage/desk?tur=voice' })),
+
+      // Eski fotoğraf arşivi: onaylanmadan yayınlanmaz; kaldırma talebi kişisel veri talebidir.
+      heritagePhotoService.queue('pending', PANEL_REQ).then((p) => {
+        push({ key: 'h-photo-removal', n: p.requested, title: 'Kaldırılması istenen arşiv fotoğrafı',
+          hint: 'şu an gizli; kaldırın ya da yeniden yayınlayın', urgency: 'today', to: '/heritage/desk?tur=removal' });
+        push({ key: 'h-photo-pending', n: p.pending, title: 'İnceleme bekleyen arşiv fotoğrafı',
+          hint: 'yayınlayın ya da reddedin', urgency: 'today', to: '/heritage/desk?tur=photo' });
+      }),
+
+      // Göç yolu: tarihçesi ya da ses kaydı gelen, yolu henüz girilmemiş köyler (docs/plan/nartgo-goc-yolu.md).
+      heritageMigrationService.queue(PANEL_REQ).then((m) =>
+        push({ key: 'h-migration-waiting', n: m.waiting, title: 'Göç yolu girilebilecek köy',
+          hint: 'tarihçesi ya da ses kaydı var', urgency: 'week', to: '/heritage/migration' })),
+
+      // Köy editörlüğü başvuruları: yalnız yönetici karar verir (docs/plan/nartgo-koy-editoru-koy-bazli.md).
+      heritageVillageEditorService.list('requested', PANEL_REQ).then((e) =>
+        push({ key: 'h-village-editor-requests', n: e.requested, title: 'Köy editörlüğü başvurusu',
+          hint: 'onaylayın ya da reddedin', urgency: 'today', to: '/heritage/village-editors' })),
 
       featuredAdminService.list(PANEL_REQ).then((f: FeaturedList) => {
         const soon = f.items.filter((x) => x.remainingDays != null && x.remainingDays <= 7);

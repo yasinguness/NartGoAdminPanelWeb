@@ -54,7 +54,10 @@ export interface NartStoreApplication {
   ibanMasked?: string | null;
   accountHolderName?: string | null;
   whatYouSell?: string | null;
+  /** PRODUCT, REAL_ESTATE, VEHICLE, SERVICE; eski başvuruda boş. */
+  sellKinds?: string[];
   city?: string | null;
+  district?: string | null;
   address?: string | null;
   rejectionReason?: string | null;
   submittedAt?: string | null;

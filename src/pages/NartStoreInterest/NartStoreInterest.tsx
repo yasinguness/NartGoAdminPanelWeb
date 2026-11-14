@@ -13,6 +13,9 @@ import {
   NartStoreApplicationStatus,
 } from '../../services/nartstore/nartStoreInterestService';
 
+/** Mobil satıcı başvurusundaki türler. */
+const SELL_KIND_LABELS: Record<string, string> = { PRODUCT: 'Ürün', REAL_ESTATE: 'Emlak', VEHICLE: 'Araç', SERVICE: 'Hizmet' };
+
 /**
  * NartStore: satıcı başvuruları ve "Açılınca haber ver" listesi.
  *
@@ -213,6 +216,7 @@ function Applications() {
               <Detail label="Başvuran" value={[selected.applicantName, selected.applicantEmail].filter(Boolean).join(' · ')} />
               <Detail label="E-posta doğrulandı" value={selected.applicantEmailVerified ? 'Evet' : 'Hayır'} />
               <Detail label="Telefon" value={selected.applicantPhone} />
+              <Detail label="Satış türü" value={(selected.sellKinds ?? []).map((k) => SELL_KIND_LABELS[k] ?? k).join(', ')} />
               <Detail label="Ne satacak" value={selected.whatYouSell} />
               <Detail label="Tür" value={selected.merchantType === 'COMPANY' ? 'Şirket' : 'Bireysel'} />
               <Detail label="Şirket" value={selected.companyName} />
@@ -220,7 +224,7 @@ function Applications() {
               <Detail label="T.C. kimlik no" value={selected.tcknMasked} />
               <Detail label="IBAN" value={selected.ibanMasked} />
               <Detail label="Hesap sahibi" value={selected.accountHolderName} />
-              <Detail label="Adres" value={[selected.address, selected.city].filter(Boolean).join(', ')} />
+              <Detail label="Adres" value={[selected.address, selected.district, selected.city].filter(Boolean).join(', ')} />
               <Detail label="Ret gerekçesi" value={selected.rejectionReason} />
               <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 2 }}>
                 Kimlik ve IBAN maskeli gösterilir. Tam kayıt için{' '}

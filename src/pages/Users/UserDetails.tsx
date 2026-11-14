@@ -5,7 +5,6 @@ import {
   Typography,
   Grid,
   Button,
-  Avatar,
   Stack,
   Tab,
   Tabs,
@@ -23,26 +22,14 @@ import {
   Tooltip,
 } from '@mui/material';
 import {
-  Edit as EditIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
   History as ActivityIcon,
-  ShoppingBag as OrdersIcon,
-  EmojiEvents as PointsIcon,
-  Notifications as NotifyIcon,
-  AdminPanelSettings as AdminIcon,
-  Dangerous as DangerIcon,
-  CloudUpload as UploadIcon,
   Delete as DeleteIcon,
-  VerifiedUser as VerifiedIcon,
-  Mail as MailIcon,
-  Block as BlockIcon,
-  LockReset as PasswordResetIcon,
   Refresh as RefreshIcon,
   Send as SendIcon,
   Login as LoginIcon,
   FilterAlt as FilterIcon,
-  Star as StarIcon,
   AccessTime as LastActivityIcon,
   Public as GlobeIcon,
   Devices as DeviceIcon,
@@ -52,7 +39,6 @@ import { useSnackbar } from 'notistack';
 import {
   UserDTO,
   UserStatusEnum,
-  AccountType,
   Language,
   LanguageDisplayNames,
   UserActivitySummary,
@@ -62,6 +48,11 @@ import {
   UserSessionDto,
 } from '../../types/users/userModel';
 import UserLoginStatsPanel from './components/UserLoginStatsPanel';
+import { HometownCard, UserDetailHeader, UserGeneralTab } from './UserDetailParts';
+import { userSearchService, type UserOverview } from '../../services/user/userSearchService';
+import { filtersFromParams, serverQuery } from './userFilters';
+import { au } from '../../theme/adminUsers';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import UserGamificationRewardsPanel from './components/UserGamificationRewardsPanel';
 import {
   AdminBulkNotificationRequest,
@@ -71,9 +62,9 @@ import { NotificationPriority, NotificationType } from '../../types/notification
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
-import { PageContainer, PageHeader, PageSection } from '../../components/Page';
+import { PageContainer, PageSection } from '../../components/Page';
 import { FormGrid } from '../../components/Form';
-import { StatusChip, DataTable, StatCard } from '../../components/Data';
+import { DataTable } from '../../components/Data';
 import { LoadingState, ErrorState, ConfirmDialog } from '../../components/Feedback';
 import { userService } from '../../services/user/userService';
 import { adminNotificationService } from '../../services/notification/adminNotificationService';
@@ -343,6 +334,16 @@ export default function UserDetails() {
 
   // ── UI ────────────────────────────────────
   const [tabValue, setTabValue] = useState(0);
+  const [searchParams] = useSearchParams();
+  const listQuery = searchParams.toString();
+  const [overview, setOverview] = useState<UserOverview | null>(null);
+  const [nav, setNav] = useState<{ index: number; total: number; prevId?: string; nextId?: string } | null>(null);
+  const loadOverview = useCallback(() => {
+    if (!id) return;
+    userSearchService.overview(id).then(setOverview).catch(() => setOverview(null));
+    userSearchService.neighbors(serverQuery(filtersFromParams(new URLSearchParams(listQuery))), id).then(setNav).catch(() => setNav(null));
+  }, [id, listQuery]);
+  useEffect(() => { setOverview(null); loadOverview(); }, [loadOverview]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -503,8 +504,8 @@ export default function UserDetails() {
 
   const handleTabChange = (_: React.SyntheticEvent, val: number) => {
     setTabValue(val);
-    if (val === 2 && !ordersSummary) void fetchOrders(user?.email);
-    if (val === 1) {
+    if (val === 3 && !ordersSummary) void fetchOrders(user?.email);
+    if (val === 2) {
       if (logs.length === 0) fetchLogs(0);
       if (!sessionSummary && sessions.length === 0) fetchSessions(0);
       if (userAuditLogs.length === 0) fetchUserAuditLogs();
@@ -651,120 +652,53 @@ export default function UserDetails() {
   if (!user) return <ErrorState title="Kullanıcı Bulunamadı" onRetry={() => navigate('/users')} />;
 
   const displayName = user.displayName || `${user.firstName} ${user.lastName}`.trim() || user.email;
-  const isBlocked = user.userStatus === UserStatusEnum.BLOCKED;
 
   return (
     <PageContainer>
-      {/* ── Header ── */}
-      <PageHeader
-        title={displayName}
-        subtitle={`Kullanıcı Kimliği: ${user.id}`}
-        onBack={() => navigate('/users')}
-        breadcrumbs={[
-          { label: 'Panel', href: '/dashboard' },
-          { label: 'Kullanıcılar', href: '/users' },
-          { label: displayName },
-        ]}
-        actions={
-          editing ? (
-            <Stack direction="row" spacing={1}>
-              <Button startIcon={<CancelIcon />} onClick={() => { setEditing(false); setFormData(user); }}>
-                İptal
-              </Button>
-              <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave} disabled={saving}>
-                {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-              </Button>
-            </Stack>
-          ) : (
-            <Stack direction="row" spacing={1}>
-              
-              <Button variant="contained" startIcon={<EditIcon />} onClick={() => setEditing(true)}>
-                Kullanıcıyı Düzenle
-              </Button>
-            </Stack>
-          )
-        }
-      />
+      {/* ── Üst gezinme: liste, önceki/sonraki (filtreli liste) ── */}
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1.5} flexWrap="wrap" sx={{ mb: 2.5 }}>
+        <Typography sx={{ color: au.muted, fontSize: 13 }}>
+          <Box component={RouterLink} to={`/users${listQuery ? `?${listQuery}` : ''}`} sx={{ color: au.muted, textDecoration: 'none' }}>Kullanıcılar</Box>
+          {' › '}
+          <Box component="span" sx={{ color: au.text }}>{displayName}</Box>
+        </Typography>
+        {nav && nav.total > 0 && (
+          <Stack direction="row" alignItems="center" gap={1} sx={{ fontSize: 13, color: au.muted }}>
+            <Button component={RouterLink} disabled={!nav.prevId} to={nav.prevId ? `/users/${nav.prevId}${listQuery ? `?${listQuery}` : ''}` : '#'}
+              sx={{ minHeight: 40, px: 1.5, bgcolor: au.surface, border: `1px solid ${au.chipBorder}`, borderRadius: '10px', fontWeight: 600, textTransform: 'none', color: au.text }}>
+              ‹ Önceki
+            </Button>
+            <span>{nav.index > 0 ? `${nav.index} / ${nav.total}` : `— / ${nav.total}`}{listQuery ? ' (filtreli liste)' : ''}</span>
+            <Button component={RouterLink} disabled={!nav.nextId} to={nav.nextId ? `/users/${nav.nextId}${listQuery ? `?${listQuery}` : ''}` : '#'}
+              sx={{ minHeight: 40, px: 1.5, bgcolor: au.surface, border: `1px solid ${au.chipBorder}`, borderRadius: '10px', fontWeight: 600, textTransform: 'none', color: au.text }}>
+              Sonraki ›
+            </Button>
+          </Stack>
+        )}
+      </Stack>
 
-      {/* ── Hero Card ── */}
-      <Paper sx={{ p: 4, mb: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-        <Grid container spacing={4} alignItems="center">
-          <Grid item>
-            <Box sx={{ position: 'relative' }}>
-              <Avatar
-                src={user.imageUrl}
-                sx={{ width: 120, height: 120, borderRadius: 3, border: '4px solid', borderColor: 'divider' }}
-              >
-                {user.firstName?.[0] ?? '?'}
-              </Avatar>
-              <Tooltip title="Fotoğraf yükle">
-                <IconButton
-                  size="small"
-                  sx={{ position: 'absolute', bottom: -10, right: -10, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
-                >
-                  <UploadIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          </Grid>
-          <Grid item xs>
-            <Stack spacing={1}>
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                <Typography variant="h4" fontWeight={800}>{displayName}</Typography>
-                <StatusChip status={user.userStatus} />
-                <StatusChip
-                  status={user.accountType}
-                  color={user.accountType === AccountType.BUSINESS ? 'secondary' : 'info'}
-                  label={user.accountType === AccountType.BUSINESS ? 'İşletme' : 'Bireysel'}
-                />
-              </Stack>
-              <Typography variant="body1" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <MailIcon fontSize="small" />
-                {user.email}
-                {user.role.includes('ADMIN') && <VerifiedIcon sx={{ color: 'primary.main', fontSize: 18 }} />}
-              </Typography>
-              <Stack direction="row" spacing={3} sx={{ mt: 2 }} flexWrap="wrap">
-                <Box>
-                  <Typography variant="caption" color="text.secondary" display="block">Kayıt Tarihi</Typography>
-                  <Typography variant="body2" fontWeight={600}>
-                    {user.createdAt ? format(new Date(user.createdAt), 'dd MMMM yyyy', { locale: tr }) : '-'}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary" display="block">Son Giriş</Typography>
-                  <Typography variant="body2" fontWeight={600}>
-                    {activitySummary?.lastLoginAt
-                      ? format(new Date(activitySummary.lastLoginAt), 'dd MMM yyyy HH:mm', { locale: tr })
-                      : 'Hiç giriş yapmadı'}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary" display="block">Profil Tamamlama</Typography>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Box sx={{ width: 100, height: 6, bgcolor: 'grey.100', borderRadius: 3, overflow: 'hidden' }}>
-                      <Box sx={{ width: `${activitySummary?.profileCompletionPercent ?? 0}%`, height: '100%', bgcolor: 'success.main' }} />
-                    </Box>
-                    <Typography variant="caption" fontWeight={700}>{activitySummary?.profileCompletionPercent ?? 0}%</Typography>
-                  </Stack>
-                </Box>
-              </Stack>
-            </Stack>
-          </Grid>
-        </Grid>
-      </Paper>
+      {editing ? (
+        <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1.5} flexWrap="wrap"
+          sx={{ mb: 3, p: 2, bgcolor: au.goldTint, borderRadius: '14px', color: au.goldText }}>
+          <Typography sx={{ fontWeight: 700 }}>Düzenleme açık: ham değerler (doğum tarihi, adres, telefon) yalnız burada görünür.</Typography>
+          <Stack direction="row" spacing={1}>
+            <Button startIcon={<CancelIcon />} onClick={() => { setEditing(false); setFormData(user); }}>Vazgeç</Button>
+            <Button variant="contained" startIcon={<SaveIcon />} onClick={async () => { await handleSave(); loadOverview(); }} disabled={saving} sx={{ bgcolor: au.primary }}>
+              {saving ? 'Kaydediliyor…' : 'Kaydet'}
+            </Button>
+          </Stack>
+        </Stack>
+      ) : null}
 
-      {/* ── Quick Stats ── */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard title="Platform Puanı (XP)" value={activitySummary?.gamificationPoints ?? 0} icon={<PointsIcon color="warning" />} />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard title="Toplam Giriş" value={activitySummary?.totalLogins ?? 0} icon={<LoginIcon color="info" />} />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard title="Rozetler" value={activitySummary?.badges ?? 0} icon={<StarIcon color="success" />} />
-        </Grid>
-      </Grid>
+      <Box sx={{ mb: 3 }}>
+        <UserDetailHeader
+          o={overview}
+          onEdit={() => { setTabValue(0); setEditing(true); }}
+          onNotify={() => setTabValue(5)}
+          onPasswordReset={() => openConfirm('passwordReset')}
+          onPhotoRemoved={() => { loadOverview(); fetchData(); }}
+        />
+      </Box>
 
       {/* ── Tabs ── */}
       <Paper sx={{ borderRadius: 4, mb: 4, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
@@ -772,23 +706,52 @@ export default function UserDetails() {
           <Tabs
             value={tabValue}
             onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{ minHeight: 64 }}
+            aria-label="Kullanıcı bölümleri"
+            sx={{ minHeight: 52, '& .MuiTabs-flexContainer': { flexWrap: 'wrap' }, '& .MuiTabs-indicator': { bgcolor: au.primary, height: 3 },
+              '& .MuiTab-root': { minHeight: 52, textTransform: 'none', fontSize: 14.5, color: au.textSoft }, '& .Mui-selected': { color: `${au.primary} !important`, fontWeight: 700 } }}
           >
-            <Tab icon={<EditIcon fontSize="small" />} iconPosition="start" label="Profil & Bilgiler" sx={{ minHeight: 64, fontWeight: 700 }} />
-            <Tab icon={<ActivityIcon fontSize="small" />} iconPosition="start" label="Aktivite & Loglar" sx={{ minHeight: 64, fontWeight: 700 }} />
-            <Tab icon={<OrdersIcon fontSize="small" />} iconPosition="start" label="Siparişler" sx={{ minHeight: 64, fontWeight: 700 }} />
-            <Tab icon={<PointsIcon fontSize="small" />} iconPosition="start" label="Ödüller & Puanlar" sx={{ minHeight: 64, fontWeight: 700 }} />
-            <Tab icon={<NotifyIcon fontSize="small" />} iconPosition="start" label="Bildirim Gönder" sx={{ minHeight: 64, fontWeight: 700 }} />
-            <Tab icon={<AdminIcon fontSize="small" />} iconPosition="start" label="Yönetici Notları" sx={{ minHeight: 64, fontWeight: 700 }} />
-            <Tab icon={<DangerIcon fontSize="small" />} iconPosition="start" label="Tehlikeli İşlemler" sx={{ minHeight: 64, fontWeight: 700 }} />
+            {['Genel', 'Memleket ve sülale', 'Aktivite', 'Siparişler', 'Ödüller', 'Bildirimler', 'Notlar'].map((l) => (
+              <Tab key={l} label={l} />
+            ))}
           </Tabs>
         </Box>
 
         <Box>
           {/* ─── Tab 0: Profile & Info ─── */}
           <TabPanel value={tabValue} index={0}>
+            {!editing ? (
+              overview ? (
+                <Box sx={{ px: 3 }}>
+                  <UserGeneralTab
+                    o={overview}
+                    notes={adminNotes}
+                    onAddNote={async (text) => {
+                      if (!id) return;
+                      const res = await userService.addAdminNote(id, text);
+                      setAdminNotes((n) => [res.data, ...n]);
+                    }}
+                    onEdit={() => setEditing(true)}
+                    onBlock={async (reason, unblock) => {
+                      if (!id) return;
+                      const r = await userSearchService.bulk([id], unblock ? 'unblock' : 'block', { reason });
+                      enqueueSnackbar(r.failed.length ? 'İşlem yapılamadı' : unblock ? 'Engel kaldırıldı' : 'Kullanıcı engellendi',
+                        { variant: r.failed.length ? 'error' : 'success' });
+                      loadOverview();
+                      fetchData();
+                    }}
+                    onDelete={async (reason) => {
+                      if (!id) return;
+                      await userService.addAdminNote(id, `Hesap silme sebebi: ${reason}`);
+                      await userService.deleteAccountById(id);
+                      enqueueSnackbar('Hesap silindi', { variant: 'success' });
+                      navigate(`/users${listQuery ? `?${listQuery}` : ''}`);
+                    }}
+                  />
+                </Box>
+              ) : (
+                <Box sx={{ px: 3, py: 6, textAlign: 'center', color: au.muted }}>Özet yüklenemedi. Sayfayı yenileyin.</Box>
+              )
+            ) : (
             <Box sx={{ px: 3 }}>
               {/* Sunucu bu bayrağı set ediyor ama hiçbir yerde gösterilmiyordu;
                   oysa "neyi eksik?" sorusunun sorulacağı yer burası. */}
@@ -913,10 +876,21 @@ export default function UserDetails() {
                 </FormGrid>
               </PageSection>
             </Box>
+            )}
           </TabPanel>
 
-          {/* ─── Tab 1: Activity Logs ─── */}
+          {/* ─── Tab 1: Memleket ve sülale ─── */}
           <TabPanel value={tabValue} index={1}>
+            <Box sx={{ px: 3, maxWidth: 820 }}>
+              {overview ? <HometownCard o={overview} onEdit={() => { setTabValue(0); setEditing(true); }} /> : <Box sx={{ color: au.muted }}>Yükleniyor…</Box>}
+              <Typography sx={{ mt: 2, fontSize: 12.5, color: au.muted }}>
+                Memleket ve sülale özel nitelikli veridir. Bu bilgiler yalnız yöneticilere görünür; değişiklikler denetim kaydına yazılır.
+              </Typography>
+            </Box>
+          </TabPanel>
+
+          {/* ─── Tab 2: Activity Logs ─── */}
+          <TabPanel value={tabValue} index={2}>
             <Box sx={{ px: 3 }}>
               <PageSection
                 title="Son Oturum"
@@ -1352,7 +1326,7 @@ export default function UserDetails() {
           </TabPanel>
 
           {/* ─── Tab 2: Orders (placeholder) ─── */}
-          <TabPanel value={tabValue} index={2}>
+          <TabPanel value={tabValue} index={3}>
             <Box sx={{ px: 3 }}>
               <Stack spacing={3}>
                 <LtvCard data={ordersSummary} loading={ordersLoading} />
@@ -1366,7 +1340,7 @@ export default function UserDetails() {
           </TabPanel>
 
           {/* ─── Tab 3: Gamification ─── */}
-          <TabPanel value={tabValue} index={3}>
+          <TabPanel value={tabValue} index={4}>
             <Box sx={{ px: 3 }}>
               <UserGamificationRewardsPanel
                 userId={id!}
@@ -1377,7 +1351,7 @@ export default function UserDetails() {
           </TabPanel>
 
           {/* ─── Tab 4: Send Notification ─── */}
-          <TabPanel value={tabValue} index={4}>
+          <TabPanel value={tabValue} index={5}>
             <Box sx={{ px: 3 }}>
               <PageSection title="Kullanıcıya Bildirim Gönder">
                 <Alert severity="info" sx={{ mb: 3 }}>
@@ -1458,7 +1432,7 @@ export default function UserDetails() {
           </TabPanel>
 
           {/* ─── Tab 5: Admin Notes ─── */}
-          <TabPanel value={tabValue} index={5}>
+          <TabPanel value={tabValue} index={6}>
             <Box sx={{ px: 3 }}>
               <PageSection title="Yönetici Notları">
                 <Stack spacing={3}>
@@ -1499,80 +1473,6 @@ export default function UserDetails() {
             </Box>
           </TabPanel>
 
-          {/* ─── Tab 6: Dangerous Actions ─── */}
-          <TabPanel value={tabValue} index={6}>
-            <Box sx={{ px: 3 }}>
-              <Alert severity="warning" sx={{ mb: 3 }}>
-                Bu sayfadaki işlemler geri alınamaz veya kullanıcı deneyimini doğrudan etkiler. Dikkatli olun.
-              </Alert>
-              <PageSection title="Kritik İşlemler">
-                <Grid container spacing={3}>
-                  {/* Password Reset */}
-                  <Grid item xs={12} md={4}>
-                    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <PasswordResetIcon color="warning" />
-                        <Typography variant="subtitle1" fontWeight={700}>Şifre Sıfırlama</Typography>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
-                        Kullanıcıya kayıtlı e-posta adresine şifre sıfırlama bağlantısı gönderir.
-                      </Typography>
-                      <Button variant="outlined" color="warning" fullWidth onClick={() => openConfirm('passwordReset')}>
-                        Sıfırlama Bağlantısı Gönder
-                      </Button>
-                    </Paper>
-                  </Grid>
-
-                  {/* Block / Unblock */}
-                  <Grid item xs={12} md={4}>
-                    <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, borderColor: 'error.light', height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <BlockIcon color="error" />
-                        <Typography variant="subtitle1" fontWeight={700}>
-                          {isBlocked ? 'Kullanıcı Engeli Kaldır' : 'Kullanıcıyı Engelle'}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
-                        {isBlocked
-                          ? 'Engelli kullanıcının hesabını yeniden aktif eder.'
-                          : 'Kullanıcının sisteme girişini engeller. Mevcut oturumlar sonlandırılır.'}
-                      </Typography>
-                      {isBlocked ? (
-                        <Button variant="outlined" color="success" fullWidth onClick={() => openConfirm('unblock')}>
-                          Engeli Kaldır
-                        </Button>
-                      ) : (
-                        <Button variant="outlined" color="error" fullWidth onClick={() => openConfirm('block')}>
-                          Engelle
-                        </Button>
-                      )}
-                    </Paper>
-                  </Grid>
-
-                  {/* Delete */}
-                  <Grid item xs={12} md={4}>
-                    <Paper sx={{ p: 3, borderRadius: 2, bgcolor: 'error.main', color: 'white', height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <DeleteIcon />
-                        <Typography variant="subtitle1" fontWeight={700}>Hesabı Kalıcı Sil</Typography>
-                      </Box>
-                      <Typography variant="body2" sx={{ opacity: 0.85, flexGrow: 1 }}>
-                        Kullanıcıya ait tüm veriler, siparişler ve aktivite kayıtları kalıcı olarak silinir. Bu işlem geri alınamaz.
-                      </Typography>
-                      <Button
-                        variant="contained"
-                        sx={{ bgcolor: 'white', color: 'error.main', '&:hover': { bgcolor: 'grey.100' } }}
-                        fullWidth
-                        onClick={() => openConfirm('delete')}
-                      >
-                        Kalıcı Olarak Sil
-                      </Button>
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </PageSection>
-            </Box>
-          </TabPanel>
         </Box>
       </Paper>
 

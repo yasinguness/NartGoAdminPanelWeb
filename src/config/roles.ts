@@ -149,6 +149,12 @@ export const ROLE_ROUTE_MAP: RouteAccess[] = [
   { path: '/heritage/locations', roles: HERITAGE, description: 'Köy konumu inceleme kuyruğu' },
   { path: '/heritage/editor-desk', roles: ADMIN_ONLY, description: 'Köy Editörünün yöneticiye gönderdiği kararlar ve editör hareketleri' },
   { path: '/heritage/families', roles: HERITAGE, description: 'Sülale atlası: içe aktarma, birleştirme, Instagram yorumları' },
+  { path: '/heritage/announcements', roles: HERITAGE, description: 'Köy duyuruları: şikâyet alan ve gizlenen duyurular' },
+  { path: '/heritage/voices', roles: HERITAGE, description: 'Büyüklerden ses kaydı: yayın öncesi inceleme' },
+  { path: '/heritage/photos', roles: HERITAGE, description: 'Eski fotoğraf arşivi: yayın öncesi inceleme ve kaldırma talepleri' },
+  { path: '/heritage/desk', roles: HERITAGE, description: 'Köy Masası: bekleyen fotoğraf, ses kaydı, kaldırma isteği ve duyurular tek kuyrukta; köy özeti ve sayılar' },
+  { path: '/heritage/migration', roles: HERITAGE, description: 'Göç yolu: köyün köken yeri ve durakları, kaynaklı' },
+  { path: '/heritage/village-editors', roles: ADMIN_ONLY, description: 'Köye bağlı köy editörleri: adaylar, davet, başvuru kararı' },
   { path: '/users/360', roles: ADMIN_ONLY, description: 'User 360\u00b0 destek g\u00f6r\u00fcn\u00fcm\u00fc' },
   { path: '/associations', roles: [ROLES.ADMIN, ROLES.ASSOCIATION], description: 'Dernekler' },
 
