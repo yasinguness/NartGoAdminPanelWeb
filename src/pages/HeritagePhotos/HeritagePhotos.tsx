@@ -20,6 +20,8 @@ const DONE: Record<PhotoDecision, string> = {
   remove: 'Fotoğraf kaldırıldı, dosya silindi.',
   keep: 'Fotoğraf yeniden yayında.',
   clear_names: 'İsim önerileri silindi.',
+  people_yes: 'İnsan var olarak işaretlendi; "Tanıyorum" sorulacak.',
+  people_no: 'İnsan yok olarak işaretlendi; "Tanıyorum" sorulmayacak.',
 };
 const DESTRUCTIVE: Partial<Record<PhotoDecision, string>> = {
   reject: 'Fotoğraf dosyası kalıcı olarak silinecek. Devam edilsin mi?',
@@ -105,10 +107,18 @@ export default function HeritagePhotos() {
                     </Typography>
                     {p.caption && <Typography variant="body2">{p.caption}</Typography>}
                     {p.year && <Typography variant="body2" color="text.secondary">Yaklaşık {p.year}</Typography>}
+                    {p.hasPeople === false && (
+                      <Typography variant="body2" color="text.secondary">Fotoğrafta insan yok (manzara, köyün görünümü)</Typography>
+                    )}
                     {p.names && (
                       <Typography variant="body2" sx={{ mt: 1 }}>
                         <b>İsim önerileri:</b> {p.names}
                       </Typography>
+                    )}
+                    {p.uploaderConsent === false && (
+                      <Alert severity="info" sx={{ mt: 1, py: 0 }}>
+                        Ekleyen, fotoğraftakilerin haberi olduğunu belirtmedi. Yüzler net görünüyorsa buna göre karar verin.
+                      </Alert>
                     )}
                     {p.removalRequests > 0 && (
                       <Alert severity="warning" sx={{ mt: 1, py: 0 }}>
@@ -128,6 +138,12 @@ export default function HeritagePhotos() {
                       onChange={(e) => setNotes((n) => ({ ...n, [p.id]: e.target.value }))}
                       sx={{ mb: 1 }}
                     />
+                    {p.hasPeople !== undefined && (
+                      <Button size="small" variant="text" sx={{ mb: 1, px: 0 }} disabled={busy === p.id}
+                        onClick={() => decide(p, p.hasPeople ? 'people_no' : 'people_yes')}>
+                        {p.hasPeople ? 'İnsan Yok Olarak İşaretle' : 'İnsan Var Olarak İşaretle'}
+                      </Button>
+                    )}
                     {p.status === 'pending' ? (
                       <Stack direction="row" spacing={1}>
                         <Button size="small" variant="contained" disabled={busy === p.id} onClick={() => decide(p, 'approve')}>Yayınla</Button>

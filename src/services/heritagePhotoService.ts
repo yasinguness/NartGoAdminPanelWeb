@@ -13,7 +13,8 @@ const unwrap = <T,>(response: { data: unknown }): T => {
 
 /** pending: inceleme bekleyen. requested: kaldırılması istenip gizlenen. published: yayındakiler. */
 export type PhotoQueue = 'pending' | 'requested' | 'published';
-export type PhotoDecision = 'approve' | 'reject' | 'remove' | 'keep' | 'clear_names';
+/** people_yes / people_no: fotoğrafta insan var mı; yoksa uygulamada "Tanıyorum" sorulmaz. */
+export type PhotoDecision = 'approve' | 'reject' | 'remove' | 'keep' | 'clear_names' | 'people_yes' | 'people_no';
 
 export interface ArchivePhoto {
   id: string;
@@ -33,6 +34,13 @@ export interface ArchivePhoto {
   removalReasons: string | null;
   /** İsim önerileri, " | " ile ayrılmış. */
   names: string | null;
+  /**
+   * Ekleyen "Fotoğraftakilerin ya da yakınlarının haberi var" kutusunu işaretledi mi.
+   * Eski fotoğrafta isteğe bağlı (2026-11-17), albümde zorunlu. Eski sunucu göndermez.
+   */
+  uploaderConsent?: boolean;
+  /** Fotoğrafta insan var mı (ekleyen belirtir). false ise "Tanıyorum" sorulmaz. Eski sunucu göndermez. */
+  hasPeople?: boolean;
 }
 
 export const heritagePhotoService = {

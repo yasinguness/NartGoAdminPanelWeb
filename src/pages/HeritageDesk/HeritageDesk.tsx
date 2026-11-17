@@ -171,6 +171,11 @@ export default function HeritageDesk() {
             {[p.albumTitle ? `Albüm: ${p.albumTitle}` : 'Eski fotoğraf', p.year ? `yaklaşık ${p.year}` : null].filter(Boolean).join(' · ')}
           </Typography>
           {p.names && <Typography variant="body2" sx={{ mt: 0.5 }}><b>Yazılan isimler:</b> {p.names}</Typography>}
+          {p.uploaderConsent === false && (
+            <Alert severity="info" sx={{ mt: 1, py: 0 }}>
+              Ekleyen, fotoğraftakilerin haberi olduğunu belirtmedi. Yüzler net görünüyorsa buna göre karar verin.
+            </Alert>
+          )}
           {item.kind === 'removal' && (
             <Alert severity="warning" sx={{ mt: 1, py: 0 }}>
               {p.removalRequests} kişi kaldırılmasını istedi{p.removalReasons ? `: ${p.removalReasons}` : ''}. Fotoğraf şu an gizli.
