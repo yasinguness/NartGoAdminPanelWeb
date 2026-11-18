@@ -3,13 +3,15 @@ import {
   Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Typography,
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
+import { AddEditorDialog, MoveEditorDialog, type VillageOption } from './EditorDialogs';
 import { errorText } from '../../services/heritageReviewService';
 import {
   heritageVillageEditorService, type EditorCandidate, type EditorListStatus, type VillageEditorRow,
 } from '../../services/heritageVillageEditorService';
 
 /**
- * Köy editörleri (yalnız yönetici): adaylar, başvurular, yanıt bekleyen davetler ve editörler.
+ * Köy editörleri (yalnız yönetici): adaylar, başvurular, yanıt bekleyen davetler, editörler ve geçmiş.
+ * Ekle (davet ya da hemen editör), köyünü değiştir, editörlüğü kaldır, geçmiş kaydı sil.
  * Bkz. docs/plan/nartgo-koy-editoru-koy-bazli.md
  */
 type TabKey = 'candidates' | EditorListStatus;
@@ -29,6 +31,8 @@ export default function HeritageVillageEditors() {
   const [requested, setRequested] = useState(0);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [adding, setAdding] = useState<{ user: { id: string; label: string }; village: VillageOption } | null | false>(false);
+  const [moving, setMoving] = useState<VillageEditorRow | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -51,21 +55,32 @@ export default function HeritageVillageEditors() {
     finally { setBusy(null); }
   };
 
+  /** Pencereden çağrılır; başarılıysa true döner ve pencere kapanır. */
+  const submit = async (action: () => Promise<void>, done: string) => {
+    try { await action(); enqueueSnackbar(done, { variant: 'success' }); await load(); return true; }
+    catch (e) { enqueueSnackbar(errorText(e), { variant: 'error' }); return false; }
+  };
+
   const loading = !error && (tab === 'candidates' ? candidates === null : rows === null);
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight={700}>Köy Editörleri</Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" gap={2} flexWrap="wrap">
+        <Typography variant="h5" fontWeight={700}>Köy Editörleri</Typography>
+        <Button variant="contained" onClick={() => setAdding(null)}>Editör Ekle</Button>
+      </Stack>
       <Typography color="text.secondary" sx={{ mb: 1, maxWidth: 860 }}>
         Köy editörü yalnız kendi köyünde çalışır ve yalnız onay verir: incelemedeki fotoğrafı ve ses kaydını yayınlar,
         şikâyetle gizlenen duyuruyu yeniden yayına alır. Reddetme, kaldırma ve göç yolu girişi genel editörde kalır.
-        Editörün adı köy sayfasında görünür. Adaylar, son 60 günde kendi köyü için onaylanmış katkısı olan üyelerdir.
+        Editörün adı köy sayfasında görünür. Adaylar, son 60 günde kendi köyü için onaylanmış katkısı olan üyelerdir;
+        listede olmayan birini "Editör Ekle" ile ekleyebilirsiniz.
       </Typography>
       <Tabs value={tab} onChange={(_, v: TabKey) => setTab(v)} sx={{ mb: 2 }}>
         <Tab value="candidates" label="Adaylar" />
         <Tab value="requested" label={`Başvurular · ${requested}`} />
         <Tab value="invited" label="Yanıt Bekleyen Davetler" />
         <Tab value="active" label="Editörler" />
+        <Tab value="closed" label="Geçmiş" />
       </Tabs>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading && <CircularProgress size={24} />}
@@ -118,7 +133,7 @@ export default function HeritageVillageEditors() {
         rows.length === 0
           ? (
             <Typography color="text.secondary">
-              {tab === 'requested' ? 'Bekleyen başvuru yok.' : tab === 'invited' ? 'Yanıt bekleyen davet yok.' : 'Henüz köy editörü yok.'}
+              {tab === 'requested' ? 'Bekleyen başvuru yok.' : tab === 'invited' ? 'Yanıt bekleyen davet yok.' : tab === 'closed' ? 'Geçmiş kayıt yok.' : 'Henüz köy editörü yok.'}
             </Typography>
           )
           : (
@@ -128,7 +143,7 @@ export default function HeritageVillageEditors() {
                   <TableRow>
                     <TableCell>Üye</TableCell>
                     <TableCell>Köy</TableCell>
-                    <TableCell>{tab === 'active' ? 'Editör Olduğu Gün' : 'Tarih'}</TableCell>
+                    <TableCell>{tab === 'active' ? 'Editör Olduğu Gün' : tab === 'closed' ? 'Durum' : 'Tarih'}</TableCell>
                     <TableCell />
                   </TableRow>
                 </TableHead>
@@ -138,8 +153,16 @@ export default function HeritageVillageEditors() {
                     return (
                       <TableRow key={key}>
                         <TableCell>{person(r.name, r.email)}</TableCell>
-                        <TableCell>{r.villageName} · {r.province}</TableCell>
-                        <TableCell>{fmt(tab === 'active' ? r.decidedAt : r.createdAt)}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{r.villageName} · {r.province}</Typography>
+                          {r.member === false && <Chip size="small" label="Köy Üyesi Değil" sx={{ mt: 0.5 }} />}
+                        </TableCell>
+                        <TableCell>
+                          {tab === 'closed' && (
+                            <Chip size="small" label={r.status === 'revoked' ? 'Kaldırıldı' : 'Reddedildi'} sx={{ mr: 1 }} />
+                          )}
+                          {fmt(tab === 'active' || tab === 'closed' ? (r.decidedAt ?? r.createdAt) : r.createdAt)}
+                        </TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} justifyContent="flex-end">
                             {tab === 'requested' && (
@@ -154,7 +177,30 @@ export default function HeritageVillageEditors() {
                                 </Button>
                               </>
                             )}
-                            {tab !== 'requested' && (
+                            {(tab === 'active' || tab === 'invited') && (
+                              <Button size="small" variant="outlined" disabled={busy === key} onClick={() => setMoving(r)}>
+                                Köyünü Değiştir
+                              </Button>
+                            )}
+                            {tab === 'closed' && (
+                              <>
+                                <Button size="small" variant="outlined" disabled={busy === key}
+                                  onClick={() => setAdding({
+                                    user: { id: r.userId, label: r.name ?? r.email ?? 'Adsız' },
+                                    village: { id: r.villageId, label: `${r.villageName} · ${r.province}` },
+                                  })}>
+                                  Yeniden Ekle
+                                </Button>
+                                <Button size="small" color="error" variant="outlined" disabled={busy === key}
+                                  onClick={() => {
+                                    if (window.confirm('Bu geçmiş kayıt kalıcı olarak silinecek. Devam edilsin mi?'))
+                                      void run(key, () => heritageVillageEditorService.remove(r.userId, r.villageId), 'Kayıt silindi.');
+                                  }}>
+                                  Kaydı Sil
+                                </Button>
+                              </>
+                            )}
+                            {(tab === 'active' || tab === 'invited') && (
                               <Button size="small" color="error" variant="outlined" disabled={busy === key}
                                 onClick={() => {
                                   if (window.confirm(tab === 'active' ? 'Bu kişinin köy editörlüğü kaldırılacak. Devam edilsin mi?' : 'Davet geri alınacak. Devam edilsin mi?'))
@@ -173,6 +219,24 @@ export default function HeritageVillageEditors() {
             </Paper>
           )
       )}
+
+      <AddEditorDialog
+        open={adding !== false}
+        initial={adding || null}
+        onClose={() => setAdding(false)}
+        onSubmit={(userId, villageId, direct) => submit(
+          () => heritageVillageEditorService.add(userId, villageId, direct),
+          direct ? 'Üye köy editörü oldu.' : 'Davet gönderildi. Üye uygulamada kabul edince editör olur.',
+        )}
+      />
+      <MoveEditorDialog
+        row={moving}
+        onClose={() => setMoving(null)}
+        onSubmit={(to) => moving ? submit(
+          () => heritageVillageEditorService.move(moving.userId, moving.villageId, to),
+          moving.status === 'active' ? 'Editörlük yeni köye taşındı.' : 'Davet yeni köy için gönderildi.',
+        ) : Promise.resolve(false)}
+      />
     </Box>
   );
 }

@@ -515,7 +515,7 @@ export default function Users() {
                             </span>
                             <Stack role="cell" direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 0 }}>
                               <Avatar src={r.imageUrl ?? undefined} alt="" sx={{ width: 40, height: 40, bgcolor: r.imageUrl ? au.avatar : au.avatarSoft, color: au.muted, fontWeight: 700, fontSize: 14 }}>
-                                {initials(r.name || r.email)}
+                                {initials(r.name || r.email) || undefined}
                               </Avatar>
                               <Box sx={{ minWidth: 0 }}>
                                 <Typography sx={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name || '-'}</Typography>

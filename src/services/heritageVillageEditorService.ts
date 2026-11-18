@@ -26,7 +26,8 @@ export interface EditorCandidate {
   voices: number;
 }
 
-export type EditorListStatus = 'requested' | 'invited' | 'active';
+/** closed: geçmiş (reddedilen başvuru ya da davet, kaldırılan editörlük). */
+export type EditorListStatus = 'requested' | 'invited' | 'active' | 'closed';
 
 export interface VillageEditorRow {
   userId: string;
@@ -35,9 +36,11 @@ export interface VillageEditorRow {
   villageId: string;
   villageName: string;
   province: string;
-  status: EditorListStatus;
+  status: 'requested' | 'invited' | 'active' | 'declined' | 'revoked';
   createdAt: string;
   decidedAt: string | null;
+  /** Kişi o köyün üyesi mi (eski sunucu göndermez). */
+  member?: boolean;
 }
 
 export const heritageVillageEditorService = {
@@ -50,6 +53,18 @@ export const heritageVillageEditorService = {
   /** Kişi uygulamada kabul edince editör olur. */
   async invite(userId: string, villageId: string): Promise<void> {
     await api.post(`${ROOT}/invite`, { userId, villageId });
+  },
+  /** Aday listesine bakmadan ekler. direct: hemen editör olur; değilse davet gider, kişi kabul edince editör olur. */
+  async add(userId: string, villageId: string, direct: boolean): Promise<void> {
+    await api.post(ROOT, { userId, villageId, direct });
+  },
+  /** Editörlüğü ya da yanıtlanmamış daveti başka köye taşır. */
+  async move(userId: string, fromVillageId: string, toVillageId: string): Promise<void> {
+    await api.post(`${ROOT}/move`, { userId, fromVillageId, toVillageId });
+  },
+  /** Yalnız geçmişteki kayıt silinir. */
+  async remove(userId: string, villageId: string): Promise<void> {
+    await api.delete(ROOT, { params: { userId, villageId } });
   },
   /** approve ve decline başvuru için; revoke editörlüğü ya da yanıtlanmamış daveti geri alır. */
   async decide(userId: string, villageId: string, decision: 'approve' | 'decline' | 'revoke'): Promise<void> {
