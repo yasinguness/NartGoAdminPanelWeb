@@ -186,7 +186,9 @@ function NbMembershipCard({ userId, email }: { userId: string; email?: string })
     nbAdminService.listMembers({ q: email, size: 10 })
       .then((page) => {
         if (!alive) return;
-        const hit = (page?.content ?? []).find((m) => m.userId === userId) ?? null;
+        // `?? []` nesneyi yakalamaz; `.find` de `.map` gibi patlar.
+        const rows = Array.isArray(page?.content) ? page.content : [];
+        const hit = rows.find((m) => m.userId === userId) ?? null;
         setMember(hit);
         setState(hit ? 'ok' : 'none');
       })
@@ -476,7 +478,12 @@ export default function UserDetails() {
     setUserAuditLoading(true);
     try {
       const res = await adminAuditService.getLogs({ targetId: id, size: 20 });
-      setUserAuditLogs(res.content);
+      // Sayfa gövdesi beklenen biçimde gelmeyebiliyor (boş yanıt, farklı
+      // sarmalama). Dizi olmayan değer state'e girince `.length === 0`
+      // kontrolü `undefined === 0` ile geçiyor ve render `.map` üzerinde
+      // patlıyordu — sayfa komple beyaz kalıyordu. Kardeş yükleyiciler
+      // (setLogs, setSessions, setAdminNotes) zaten böyle korunuyor.
+      setUserAuditLogs(Array.isArray(res?.content) ? res.content : []);
     } catch {
       // silently ignore
     } finally {
@@ -725,6 +732,7 @@ export default function UserDetails() {
                   <UserGeneralTab
                     o={overview}
                     notes={adminNotes}
+                    birthDate={user?.birthDate}
                     onAddNote={async (text) => {
                       if (!id) return;
                       const res = await userService.addAdminNote(id, text);

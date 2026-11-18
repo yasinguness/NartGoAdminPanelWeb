@@ -74,7 +74,30 @@ export default function UserLoginStatsPanel({ userId }: UserLoginStatsPanelProps
         sourceLimit: options?.sourceLimit ?? sourceLimit,
       });
 
-      setStats(response);
+      // Dizi alanlarını girişte garanti altına al.
+      //
+      // Render tarafı `stats.X.length === 0 ? ... : stats.X.map(...)` deseniyle
+      // yazılmış. Sunucu alanı göndermezse `.length` undefined oluyor,
+      // `undefined === 0` kontrolü geçiyor ve `.map` üzerinde sayfa komple
+      // çöküyordu. Dört alanı tek yerde normalize etmek, dört ayrı render
+      // korumasından daha güvenli: yeni bir dizi alanı eklenince de burası
+      // tek elden kapsar.
+      const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+      // Sayılar da garanti altına alınıyor: `successRate.toFixed(...)` alan
+      // eksik gelince sayfayı düşürüyordu.
+      const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+      setStats(response ? {
+        ...response,
+        totalAttempts: num(response.totalAttempts),
+        successfulLogins: num(response.successfulLogins),
+        failedLogins: num(response.failedLogins),
+        successRate: num(response.successRate),
+        dailyTrend: arr(response.dailyTrend),
+        ipBreakdown: arr(response.ipBreakdown),
+        deviceBreakdown: arr(response.deviceBreakdown),
+        failureReasons: arr<{ reason: string; count: number; ratio: number }>(response.failureReasons)
+          .map((r) => ({ ...r, count: num(r.count), ratio: num(r.ratio) })),
+      } : null);
     } catch (fetchError: any) {
       const message = fetchError.response?.data?.message || fetchError.message || 'Failed to fetch user login stats.';
       setError(message);

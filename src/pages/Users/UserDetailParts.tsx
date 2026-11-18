@@ -1,3 +1,4 @@
+import ImageLightbox from '../../components/ImageLightbox';
 import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
@@ -24,11 +25,14 @@ import { userService } from '../../services/user/userService';
 import type { ActivityLogItem, AdminNote } from '../../types/users/userModel';
 import { AGE_LABEL, TYPE_LABEL } from './userFilters';
 import { StatusBadge } from './userUi';
-import { initials, timeAgo } from './userFormat';
+import { exactAge, fmtBirthDate, initials, timeAgo } from './userFormat';
 
 /**
  * Kullanıcı detayı başlık kartı ve "Genel" sekmesi (tasarım ekran 3, docs/plan/admin-kullanicilar.md).
- * Hassas veriler indirgenir: yaş aralığı, il düzeyi konum, maskeli telefon. Ham değerler yalnız "Düzenle"de.
+ * Hassas veriler indirgenir: il düzeyi konum, maskeli telefon. Ham değerler
+ * yalnız "Düzenle"de. Yaş istisna: doğum tarihi varsa tam yaş gösterilir
+ * (yönetici zaten "Düzenle"de ham tarihi görüyor, aralık fazladan bir adım
+ * demekti); yoksa yaş aralığına düşülür.
  */
 
 const card = { bgcolor: au.surface, border: `1px solid ${au.border}`, borderRadius: '18px', p: 2.5 } as const;
@@ -81,6 +85,7 @@ export function UserDetailHeader({
   const [phone, setPhone] = useState<string | null>(null);
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const [confirmPhoto, setConfirmPhoto] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   useEffect(() => setPhone(null), [o?.id]);
 
@@ -118,10 +123,38 @@ export function UserDetailHeader({
   return (
     <Box component="section" sx={{ ...card, p: 3, display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'center' }}>
       <Stack alignItems="center" spacing={1}>
-        <Avatar src={o.imageUrl ?? undefined} alt="" variant="rounded"
-          sx={{ width: 112, height: 112, borderRadius: '28px', bgcolor: o.imageUrl ? au.avatar : au.avatarSoft, color: au.primary, fontSize: 36, fontWeight: 800 }}>
+        {/* Fotoğraf tıklanınca tam boyutta açılır: 112 pikselde yüzün seçilip
+            seçilmediği anlaşılmıyor, oysa yönetici tam da buna bakıyor.
+            Fotoğrafı olmayan kullanıcıda baş harfler var, tıklanmaz. */}
+        <Avatar
+          src={o.imageUrl ?? undefined}
+          alt={o.imageUrl ? `${o.name || o.email} profil fotoğrafı` : ''}
+          variant="rounded"
+          onClick={o.imageUrl ? () => setPhotoOpen(true) : undefined}
+          role={o.imageUrl ? 'button' : undefined}
+          tabIndex={o.imageUrl ? 0 : undefined}
+          onKeyDown={o.imageUrl ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPhotoOpen(true); } } : undefined}
+          title={o.imageUrl ? 'Büyütmek için tıkla' : undefined}
+          sx={{
+            width: 112, height: 112, borderRadius: '28px',
+            bgcolor: o.imageUrl ? au.avatar : au.avatarSoft, color: au.primary,
+            fontSize: 36, fontWeight: 800,
+            ...(o.imageUrl ? {
+              cursor: 'zoom-in',
+              transition: 'transform .12s, box-shadow .12s',
+              '&:hover': { transform: 'scale(1.03)', boxShadow: '0 6px 20px rgba(0,0,0,0.22)' },
+              '&:focus-visible': { outline: `2px solid ${au.primary}`, outlineOffset: 2 },
+            } : {}),
+          }}
+        >
           {initials(o.name || o.email) || undefined}
         </Avatar>
+        <ImageLightbox
+          src={o.imageUrl}
+          alt={`${o.name || o.email} profil fotoğrafı`}
+          open={photoOpen}
+          onClose={() => setPhotoOpen(false)}
+        />
         {o.imageUrl && (
           <Button onClick={() => setConfirmPhoto(true)} sx={{ minHeight: 36, color: au.danger, fontSize: 12.5, fontWeight: 600, textTransform: 'none' }}>
             Fotoğrafı kaldır
@@ -247,6 +280,7 @@ export function HometownCard({ o, onEdit }: { o: UserOverview; onEdit: () => voi
 export function UserGeneralTab({
   o,
   notes,
+  birthDate,
   onAddNote,
   onEdit,
   onBlock,
@@ -254,6 +288,8 @@ export function UserGeneralTab({
 }: {
   o: UserOverview;
   notes: AdminNote[];
+  /** Tam yaş için; yoksa `o.ageBand` kullanılır. */
+  birthDate?: string | null;
   onAddNote: (text: string) => Promise<void>;
   onEdit: () => void;
   onBlock: (reason: string, unblock: boolean) => Promise<void>;
@@ -267,7 +303,12 @@ export function UserGeneralTab({
   const blocked = o.status === 'BLOCKED';
 
   useEffect(() => {
-    userService.getActivityLog(o.id, 5).then((r) => setEvents(r.data ?? [])).catch(() => setEvents([]));
+    // `?? []` yalnız null/undefined yakalar; gövde dizi yerine nesne gelirse
+    // events bir nesne olur, `.length` undefined döner, `=== 0` koruması
+    // geçer ve render `.map` üzerinde çöker. Dizi olup olmadığına bakmak şart.
+    userService.getActivityLog(o.id, 5)
+      .then((r) => setEvents(Array.isArray(r?.data) ? r.data : []))
+      .catch(() => setEvents([]));
   }, [o.id]);
 
   const row = (label: string, value: React.ReactNode, last = false) => (
@@ -323,7 +364,19 @@ export function UserGeneralTab({
           <Box sx={{ display: 'grid', gridTemplateColumns: '160px 1fr', borderTop: `1px solid ${au.borderSoft}` }}>
             {row('Ad', first || '-')}
             {row('Soyad', rest.join(' ') || '-')}
-            {row('Yaş aralığı', o.ageBand === 'unknown' ? 'Belirtmemiş' : AGE_LABEL[o.ageBand] ?? o.ageBand)}
+            {(() => {
+              const age = exactAge(birthDate);
+              if (age === null) {
+                return row('Yaş aralığı', o.ageBand === 'unknown' ? 'Belirtmemiş' : AGE_LABEL[o.ageBand] ?? o.ageBand);
+              }
+              const born = fmtBirthDate(birthDate);
+              return row('Yaş', (
+                <>
+                  {age}
+                  {born && <Box component="span" sx={{ fontWeight: 400, color: au.muted }}> · {born}</Box>}
+                </>
+              ));
+            })()}
             {row('Şu anki konum', <>{o.currentCity || 'Bilinmiyor'} <Box component="span" sx={{ fontWeight: 400, color: au.muted }}>· yalnız il düzeyi</Box></>)}
             {row('Dil', LANG[o.language ?? ''] ?? o.language ?? '-', true)}
           </Box>

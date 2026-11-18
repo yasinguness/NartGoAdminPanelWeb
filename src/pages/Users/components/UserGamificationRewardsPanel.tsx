@@ -189,7 +189,9 @@ export default function UserGamificationRewardsPanel({
         }
     };
 
-    const items = rewardsPage?.content ?? [];
+    // `content` dizi gelmezse (boş yanıt, farklı sarmalama) aşağıdaki
+    // filter/map çağrıları patlar; burada bir kez garantiye alınıyor.
+    const items = Array.isArray(rewardsPage?.content) ? rewardsPage.content : [];
 
     const totalEarned = items.filter(r => r.points > 0).reduce((s, r) => s + r.points, 0);
     const totalPenalty = items.filter(r => r.points < 0).reduce((s, r) => s + r.points, 0);
