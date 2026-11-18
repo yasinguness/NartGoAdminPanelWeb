@@ -120,7 +120,7 @@ export function UserDetailHeader({
       <Stack alignItems="center" spacing={1}>
         <Avatar src={o.imageUrl ?? undefined} alt="" variant="rounded"
           sx={{ width: 112, height: 112, borderRadius: '28px', bgcolor: o.imageUrl ? au.avatar : au.avatarSoft, color: au.primary, fontSize: 36, fontWeight: 800 }}>
-          {initials(o.name || o.email)}
+          {initials(o.name || o.email) || undefined}
         </Avatar>
         {o.imageUrl && (
           <Button onClick={() => setConfirmPhoto(true)} sx={{ minHeight: 36, color: au.danger, fontSize: 12.5, fontWeight: 600, textTransform: 'none' }}>

@@ -20,8 +20,9 @@ export function timeAgo(iso?: string | null): string {
   return `${Math.floor(days / 365)} yıl önce`;
 }
 
-export const initials = (name: string) =>
-  name
+/** Ad ya da e-posta yoksa (silinmiş, e-postasız hesap) boş döner; Avatar kendi simgesini gösterir. */
+export const initials = (name?: string | null) =>
+  (name ?? '')
     .trim()
     .split(/\s+/)
     .slice(0, 2)
