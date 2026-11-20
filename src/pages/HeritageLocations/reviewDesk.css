@@ -227,3 +227,12 @@
   .hrd .foot{position:sticky;bottom:0}
   .hrd .legend{display:none}
 }
+
+.hrd .contributorFeedback{display:grid;gap:8px;margin:12px 0;min-width:0}
+.hrd .contributorFeedback label{display:grid;gap:4px}
+.hrd .contributorFeedback textarea{box-sizing:border-box;width:100%;padding:10px;font:inherit;resize:vertical}
+.hrd .contributorFeedback .mini{justify-self:start;white-space:normal}
+@media (max-width:800px){
+  .hrd .contributorFeedback .mini{width:100%;min-height:44px}
+  .hrd .contributorFeedback textarea{font-size:16px}
+}

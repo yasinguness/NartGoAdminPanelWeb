@@ -240,6 +240,12 @@ export const adminLoginStatsService = {
     return response.data.data ?? [];
   },
 
+  getLoginCounts: async () => {
+    const response = await api.get<ApiResponse<{ today: number; yesterday: number; thisWeek: number }>>(
+      `${LOGIN_STATS_BASE_PATH}/successful-users`, { skipAuthRedirect: true } as any);
+    return response.data.data;
+  },
+
   getEngagementOverview: async (opts?: Record<string, unknown>): Promise<EngagementOverviewDto> => {
     const response = await api.get<ApiResponse<EngagementOverviewDto>>(`${LOGIN_STATS_BASE_PATH}/engagement/overview`, opts);
     return response.data.data;

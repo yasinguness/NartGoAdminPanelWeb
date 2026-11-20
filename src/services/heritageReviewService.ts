@@ -88,7 +88,7 @@ export interface ReviewDetail extends QueueItem {
   geonames: { id: string; name: string; url: string } | null;
   checks: ReviewCheck[];
   precision: string;
-  contributor: { display_name?: string; total?: number; approved?: number } | null;
+  contributor: { id?: string; display_name?: string; total?: number; approved?: number } | null;
   taskVotes: { question: string; status: string; votes: { answer: string; n: number }[] } | null;
   candidates: ReviewCandidate[];
   nearby: NearbyVillage[];
@@ -148,6 +148,10 @@ const unwrap = <T,>(response: { data: unknown }): T => {
 };
 
 export const heritageReviewService = {
+  async sendFeedback(targetIdentity: string, content: string, clientMessageId: string): Promise<void> {
+    const room = unwrap<{ chatRoomId: number }>(await api.post('/content/live/chat/rooms/direct', { targetIdentity }));
+    await api.post('/content/live/chat/messages', { chatRoomId: room.chatRoomId, content, type: 'TEXT', clientMessageId });
+  },
   async queue(): Promise<QueueResponse> {
     return unwrap(await api.get(`${ROOT}/review`));
   },

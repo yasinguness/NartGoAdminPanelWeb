@@ -31,6 +31,8 @@ import { SavedView, UserRow, UserSearchResult, UserStats, userSearchService } fr
 import UserFilterDrawer, { Pill } from './Users/UserFilterDrawer';
 import { ProfileBar, StatusBadge } from './Users/userUi';
 import { apiMessage, initials, timeAgo } from './Users/userFormat';
+import PasswordDialog from './Users/PasswordDialog';
+import { useRole } from '../hooks/useRole';
 import CreateUserDialog from './Users/CreateUserDialog';
 import UserSelectionDialog from './Notifications/components/UserSelectionDialog';
 import {
@@ -88,6 +90,8 @@ function SelectBox({ label, value, options, onChange, placeholder = 'Tümü' }: 
 
 export default function Users() {
   const navigate = useNavigate();
+  const { isAdmin } = useRole();
+  const [passwordTarget, setPasswordTarget] = useState<UserRow | null>(null);
   const { enqueueSnackbar } = useSnackbar();
   const [params, setParams] = useSearchParams();
   const filters = useMemo(() => filtersFromParams(params), [params]);
@@ -473,7 +477,11 @@ export default function Users() {
           </Stack>
 
           <Box sx={{ overflowX: 'auto' }}>
-            <Box role="table" aria-label="Kullanıcı listesi" sx={{ minWidth: 1060 }}>
+            <Box role="table" aria-label="Kullanıcı listesi" sx={{ minWidth: { xs: 0, md: 1060 }, '@media (max-width:899px)': {
+              '& [role="row"]': { gridTemplateColumns: '40px minmax(0,1fr) 44px', px: 1 },
+              '& [role="row"] > :nth-child(n+3):nth-child(-n+9)': { display: 'none' },
+              '& [role="cell"] button': { minHeight: 44, minWidth: 44 },
+            } }}>
               <Box role="row" sx={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', px: 2.25, py: 1.25, bgcolor: au.surfaceSoft, borderBottom: `1px solid ${au.borderSoft}`, fontSize: 11.5, fontWeight: 700, letterSpacing: '0.08em', color: au.muted }}>
                 <span role="columnheader"><Checkbox size="small" checked={allOnPage} indeterminate={!allOnPage && items.some((r) => selected.has(r.id))} onChange={toggleAll} inputProps={{ 'aria-label': 'Sayfadakilerin tümünü seç' }} /></span>
                 {['KULLANICI', 'DURUM', 'HESAP', 'MEMLEKET', 'KONUM', 'YAŞ', 'PROFİL', 'SON GİRİŞ', ''].map((h, i) => (
@@ -572,6 +580,7 @@ export default function Users() {
 
       {/* Satır menüsü */}
       <Menu anchorEl={rowMenu?.el} open={!!rowMenu} onClose={() => setRowMenu(null)}>
+        {isAdmin && <MenuItem onClick={() => { setPasswordTarget(rowMenu!.row); setRowMenu(null); }}>Şifre değiştir</MenuItem>}
         <MenuItem onClick={() => { const r = rowMenu!.row; setRowMenu(null); navigate(detailHref(r.id)); }}>Detayı aç</MenuItem>
         <MenuItem onClick={() => { const r = rowMenu!.row; setRowMenu(null); setSelected(new Map([[r.id, r]])); setDialog('notify'); }}>Bildirim gönder</MenuItem>
         <MenuItem onClick={() => { const r = rowMenu!.row; setRowMenu(null); setSelected(new Map([[r.id, r]])); openDialog('tag'); }}>Etiketle</MenuItem>
@@ -646,6 +655,7 @@ export default function Users() {
         />
       )}
 
+      {passwordTarget && <PasswordDialog target={passwordTarget} onClose={() => setPasswordTarget(null)} />}
       <CreateUserDialog open={dialog === 'create'} onClose={() => setDialog(null)} onCreated={(id) => { setDialog(null); navigate(`/users/${id}`); }} />
     </Box>
   );

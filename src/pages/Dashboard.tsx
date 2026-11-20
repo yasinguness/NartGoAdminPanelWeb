@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material';
 import EventIcon from '@mui/icons-material/EventAvailable';
@@ -60,6 +61,13 @@ export default function Dashboard() {
   const { isAdmin } = useRole();
   const user = useAuthStore((s) => s.user);
 
+  const loginCounts = useQuery({
+    queryKey: ['dashboard', 'successful-login-users'],
+    queryFn: adminLoginStatsService.getLoginCounts,
+    enabled: isAdmin,
+    refetchInterval: 60_000,
+    staleTime: 0,
+  });
   const [engagement, setEngagement] = useState<EngagementOverviewDto | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [businessCount, setBusinessCount] = useState<number | null>(null);
@@ -143,6 +151,26 @@ export default function Dashboard() {
             onClick={() => navigate('/businesses')}>İşletme ekle</Button>
         </Stack>
       </Stack>
+
+      {isAdmin && (
+        <Box component="section" aria-label="Giriş yapan kullanıcılar" sx={{ mb: 3 }}>
+          <Typography variant="h6">Giriş yapan kullanıcılar</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Türkiye saatine göre her hesap, her dönemde bir kez sayılır.
+          </Typography>
+          {loginCounts.isError ? (
+            <Alert severity="warning" action={<Button onClick={() => void loginCounts.refetch()}>Tekrar dene</Button>}>
+              Giriş sayıları alınamadı.
+            </Alert>
+          ) : (
+            <Box aria-busy={loginCounts.isPending} sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' } }}>
+              <Tile label="Bugün" value={nn(loginCounts.data?.today)} />
+              <Tile label="Dün" value={nn(loginCounts.data?.yesterday)} />
+              <Tile label="Bu hafta" value={nn(loginCounts.data?.thisWeek)} hint="Pazartesiden bugüne" />
+            </Box>
+          )}
+        </Box>
+      )}
 
       {/* ── Açık uyarı ───────────────────────────────────────── */}
       {topAlert && (

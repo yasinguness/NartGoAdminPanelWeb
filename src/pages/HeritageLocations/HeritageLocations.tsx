@@ -54,6 +54,41 @@ const Ext = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
 );
 
+function ContributorFeedback({ recipient, village }: { recipient: string; village: string }) {
+  const { enqueueSnackbar } = useSnackbar();
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState(`Merhaba, ${village} için gönderdiğiniz konumu inceliyoruz. Burada yaşayan veya geçmişte yaşamış Çerkes aileleri hakkında biraz daha bilgi verebilir misiniz? Varsa bir kaynak, belge bağlantısı veya sözlü tarih anlatısı paylaşabilir misiniz?`);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const attempt = useRef<{ content: string; id: string } | null>(null);
+  const send = async () => {
+    const content = message.trim();
+    if (!content || sending) return;
+    setSending(true);
+    setError('');
+    try {
+      if (attempt.current?.content !== content) attempt.current = { content, id: crypto.randomUUID() };
+      await heritageReviewService.sendFeedback(recipient, content, attempt.current.id);
+      enqueueSnackbar(`${village} önerisi için mesaj gönderildi.`, { variant: 'success' });
+      setMessage('');
+      setOpen(false);
+      attempt.current = null;
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setSending(false);
+    }
+  };
+  return <div className="contributorFeedback">
+    <button type="button" className="mini" aria-expanded={open} disabled={sending} onClick={() => setOpen(!open)}>Öneren üyeye mesaj yaz</button>
+    {open && <>
+      <label>Mesajınız<textarea autoFocus rows={5} maxLength={1000} disabled={sending} value={message} onChange={e => setMessage(e.target.value)} /></label>
+      {error && <span role="alert">{error}</span>}
+      <button type="button" className="mini" disabled={sending || !message.trim() || message.length > 1000} onClick={() => void send()}>{sending ? 'Gönderiliyor…' : 'Mesajı gönder'}</button>
+    </>}
+  </div>;
+}
+
 export default function HeritageLocations() {
   const { enqueueSnackbar } = useSnackbar();
   // Toplu işler (ilçe düzeltme, kaynaktan toplu kabul) yalnız yöneticide; Köy Editörü tek kayıt karar verir.
@@ -598,6 +633,7 @@ export default function HeritageLocations() {
                   {detail.sources.map((s) => <span className="tag" key={s} title={s}>Kaynak: {s}</span>)}
                   {detail.contributor && <span className="tag">Öneren: {detail.contributor.display_name ?? 'üye'} · {detail.contributor.approved ?? 0}/{detail.contributor.total ?? 0} kabul</span>}
                 </div>
+                {detail.contributor?.id && <ContributorFeedback key={detail.id} recipient={detail.contributor.id} village={detail.name} />}
                 <div className="coord">
                   <span className="mono coordV">{point ? `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}` : 'Koordinat yok'}</span>
                   {point && <button type="button" className="mini" onClick={() => copy(`${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`)}>{copied ? 'Kopyalandı' : 'Kopyala'}</button>}

@@ -56,6 +56,7 @@ export type BulkResult = { ok: number; skipped: number; failed: { id: string; er
 const base = '/auth/admin/users';
 
 export const userSearchService = {
+  setPassword: async (id: string, newPassword: string) => api.put(`${base}/${id}/password`, { newPassword }),
   search: async (q: Record<string, string>, page: number, size = 25) =>
     (await api.get<UserSearchResult>(`${base}/search`, { params: { ...q, page, size } })).data,
   count: async (q: Record<string, string>) => (await api.get<{ matched: number }>(`${base}/search/count`, { params: q })).data.matched,
