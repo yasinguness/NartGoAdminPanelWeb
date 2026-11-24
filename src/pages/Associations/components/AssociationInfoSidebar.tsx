@@ -9,6 +9,7 @@ import {
 } from '@mui/icons-material';
 import { AssociationTimeline } from '../../../services/association/types';
 import { AssociationDto } from '../../../types/association/associationDto';
+import AssociationPremiumCard from './AssociationPremiumCard';
 
 interface AssociationInfoSidebarProps {
   association: AssociationDto;
@@ -20,6 +21,7 @@ const AssociationInfoSidebar: React.FC<AssociationInfoSidebarProps> = ({ associa
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <AssociationPremiumCard association={association} />
       {/* Contact Information Card */}
       <Card sx={{ borderRadius: 2, boxShadow: 1 }}>
         <CardHeader 

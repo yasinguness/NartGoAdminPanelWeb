@@ -39,6 +39,9 @@ export interface AssociationDto {
   membershipFee?: number;
   membershipDurationMonths?: number;
   hasSubscriptionSystem: boolean;
+  /** NartPremium katılımı (docs/plan/nartgo-premium-dernek.md). */
+  premiumPartner?: boolean;
+  premiumPartnerSince?: string | null;
   activeMemberCount: number;
   totalMemberCount: number;
 

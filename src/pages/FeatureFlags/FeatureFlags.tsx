@@ -47,6 +47,7 @@ const categoryLabels: Record<string, string> = {
   business: 'İşletmeler',
   gamification: 'Puan & Ödüller',
   home: 'Ana Sayfa',
+  premium: 'Abonelik (NartPlus)',
 };
 
 const humanizeCategory = (raw?: string) =>

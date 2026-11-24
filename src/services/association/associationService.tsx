@@ -108,6 +108,13 @@ export const associationService = {
     return response.data;
   },
 
+  /** NartPremium katılımı (docs/plan/nartgo-premium-dernek.md): derneğin onayıyla yönetici açar. */
+  setPremiumPartner: async (id: string, enabled: boolean) => {
+    const response = await api.put<ApiResponse<{ id: string; name: string }>>(
+      `/businesses/associations/premium/admin/${id}/partner`, { enabled });
+    return response.data;
+  },
+
   // Association Statistics
   getAssociationStatistics: async (id: string) => {
     const response = await api.get<ApiResponse<AssociationStatsDto>>(`/businesses/associations/${id}/statistics`);

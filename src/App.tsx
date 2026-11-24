@@ -20,6 +20,7 @@ const HeritageVoices = lazy(() => import('./pages/HeritageVoices/HeritageVoices'
 const HeritagePhotos = lazy(() => import('./pages/HeritagePhotos/HeritagePhotos'));
 const HeritageMigration = lazy(() => import('./pages/HeritageMigration/HeritageMigration'));
 const HeritageVillageEditors = lazy(() => import('./pages/HeritageVillageEditors/HeritageVillageEditors'));
+const GroupRooms = lazy(() => import('./pages/GroupRooms/GroupRooms'));
 const HeritageDesk = lazy(() => import('./pages/HeritageDesk/HeritageDesk'));
 const HeritageVillages = lazy(() => import('./pages/HeritageVillages/HeritageVillages'));
 const NbAuditLog = lazy(() => import('./pages/NartBusiness/NbAuditLog'));
@@ -231,6 +232,7 @@ function App() {
                 <Route path="heritage/photos" element={<HeritagePhotos />} />
                 <Route path="heritage/migration" element={<HeritageMigration />} />
                 <Route path="heritage/village-editors" element={<HeritageVillageEditors />} />
+                <Route path="community/rooms" element={<GroupRooms />} />
                 <Route path="heritage/desk" element={<HeritageDesk />} />
                 <Route path="users/:id" element={<UserDetails />} />
                 {/* 360° ayrı bir sayfaydı ve içeriğinin dördü kullanıcı

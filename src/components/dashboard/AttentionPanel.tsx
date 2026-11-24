@@ -14,6 +14,7 @@ import { heritageVoiceService } from '../../services/heritageVoiceService';
 import { heritagePhotoService } from '../../services/heritagePhotoService';
 import { heritageMigrationService } from '../../services/heritageMigrationService';
 import { heritageVillageEditorService } from '../../services/heritageVillageEditorService';
+import { groupRoomService } from '../../services/groupRoomService';
 import { api } from '../../services/api';
 import { jobMonitorService } from '../../services/jobMonitor/jobMonitorService';
 
@@ -179,6 +180,16 @@ export default function AttentionPanel() {
       heritageVillageEditorService.list('requested', PANEL_REQ).then((e) =>
         push({ key: 'h-village-editor-requests', n: e.requested, title: 'Köy editörlüğü başvurusu',
           hint: 'onaylayın ya da reddedin', urgency: 'today', to: '/heritage/village-editors' })),
+
+      // Sohbet odaları: şikâyet alan mesaj; üç kişiden şikâyet alan zaten gizli (docs/plan/nartgo-sohbet-odalari.md).
+      groupRoomService.reportCount(PANEL_REQ).then((n) =>
+        push({ key: 'room-reports', n, title: 'Odalarda şikâyet edilen mesaj',
+          hint: 'gizleyin ya da sorun yok deyin', urgency: 'today', to: '/community/rooms?sekme=sikayet' })),
+
+      // Çikolata: 30 günde 3+ "kabul etmedi" alan gönderenler (docs/plan/nartgo-cikolata.md).
+      groupRoomService.chocolateStats(7, PANEL_REQ).then((s) =>
+        push({ key: 'chocolate-braked', n: s.brakedSenders, title: 'Çikolatası sık geri çevrilen kişi',
+          hint: 'şikâyet de varsa haftalık hakkı kendiliğinden 1\'e iner', urgency: 'week', to: '/community/rooms?sekme=cikolata' })),
 
       featuredAdminService.list(PANEL_REQ).then((f: FeaturedList) => {
         const soon = f.items.filter((x) => x.remainingDays != null && x.remainingDays <= 7);
