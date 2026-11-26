@@ -384,6 +384,9 @@ function RoomDialog({ room, onClose, onSave }: {
             <MenuItem value="book">Kitap</MenuItem>
             <MenuItem value="language">Dil</MenuItem>
             <MenuItem value="music">Müzik</MenuItem>
+            <MenuItem value="question">Soru işareti</MenuItem>
+            <MenuItem value="village">Köy</MenuItem>
+            <MenuItem value="family">Sülale</MenuItem>
           </TextField>
           <TextField label="Kurallar (her satıra bir kural)" value={rules} onChange={(e) => setRules(e.target.value)} multiline minRows={4} />
           <TextField label="Sabit mesaj" value={pinned} onChange={(e) => setPinned(e.target.value)}
