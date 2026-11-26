@@ -181,9 +181,9 @@ export default function AttentionPanel() {
         push({ key: 'h-village-editor-requests', n: e.requested, title: 'Köy editörlüğü başvurusu',
           hint: 'onaylayın ya da reddedin', urgency: 'today', to: '/heritage/village-editors' })),
 
-      // Sohbet odaları: şikâyet alan mesaj; üç kişiden şikâyet alan zaten gizli (docs/plan/nartgo-sohbet-odalari.md).
+      // Sohbet odaları: şikâyet alan mesaj, konu ya da yorum; üç kişiden şikâyet alan zaten gizli (docs/plan/nartgo-sohbet-odalari.md).
       groupRoomService.reportCount(PANEL_REQ).then((n) =>
-        push({ key: 'room-reports', n, title: 'Odalarda şikâyet edilen mesaj',
+        push({ key: 'room-reports', n, title: 'Odalarda şikâyet edilen mesaj ya da yorum',
           hint: 'gizleyin ya da sorun yok deyin', urgency: 'today', to: '/community/rooms?sekme=sikayet' })),
 
       // Çikolata: 30 günde 3+ "kabul etmedi" alan gönderenler (docs/plan/nartgo-cikolata.md).

@@ -8,17 +8,33 @@ import { useSnackbar } from 'notistack';
 import UserSearchAutocomplete from '../../components/UserSearchAutocomplete';
 import { errorText } from '../../services/heritageReviewService';
 import {
-  groupRoomService, type AdminRoom, type BlockedWord, type ChocolateStats, type AdminRoomRequest, type ResolveAction, type RoomReportItem, type WeekDay,
+  groupRoomService, type AdminRoom, type AdminTopic, type BlockedWord, type ChocolateStats, type AdminRoomRequest, type ResolveAction,
+  type RoomReportItem, type RoomStatus, type WeekDay,
 } from '../../services/groupRoomService';
 import type { UserDTO } from '../../types/users/userModel';
+import { CommentsPanel, TopicReportsPanel, TopicsPanel } from './RoomTopics';
 
 /**
- * Sohbet odaları (yalnız yönetici). Odalar: ad, kurallar, sabit mesaj, haftalık sohbet saati,
- * moderatörler. Şikâyetler: üç farklı kişiden şikâyet alan mesaj kendiliğinden gizlenir, karar burada.
+ * Sohbet odaları (yalnız yönetici). Odalar: ad, kurallar, durum (Açık, Gizli, Kapalı), sohbet akışı, üye konusu,
+ * haftalık sohbet saati, moderatörler. Konular ve yorumlar (v0.5) ayrı sekmelerde. Şikâyetler: üç farklı kişiden
+ * şikâyet alan mesaj, konu ya da yorum kendiliğinden gizlenir, karar burada.
+ * Mobildeki görünürlük: Özellik Bayrakları › Topluluk › rooms.enabled.
  * Bkz. docs/plan/nartgo-sohbet-odalari.md
  */
-type TabKey = 'rooms' | 'reports' | 'words' | 'chocolate';
-const TAB_PARAM: Record<TabKey, string | null> = { rooms: null, reports: 'sikayet', words: 'kelime', chocolate: 'cikolata' };
+type TabKey = 'rooms' | 'topics' | 'comments' | 'reports' | 'words' | 'chocolate';
+const TAB_PARAM: Record<TabKey, string | null> = {
+  rooms: null, topics: 'konu', comments: 'yorum', reports: 'sikayet', words: 'kelime', chocolate: 'cikolata',
+};
+const TAB_BY_PARAM: Record<string, TabKey> = { konu: 'topics', yorum: 'comments', sikayet: 'reports', kelime: 'words', cikolata: 'chocolate' };
+
+const STATUS: { value: RoomStatus; label: string; help: string }[] = [
+  { value: 'ACTIVE', label: 'Açık', help: 'Listede görünür, herkes girer.' },
+  { value: 'HIDDEN', label: 'Gizli', help: 'Uygulamada görünmez; içerik hazırlayıp sonra açabilirsiniz.' },
+  { value: 'ARCHIVED', label: 'Kapalı', help: 'Listeden kalkar, içerik silinmez, eski bağlantı "Bu oda kapatıldı." der.' },
+];
+const statusLabel = (s: RoomStatus) => STATUS.find((x) => x.value === s)?.label ?? s;
+/** Eski sunucu status döndürmez. */
+const statusOf = (r: AdminRoom): RoomStatus => r.status ?? (r.archived ? 'ARCHIVED' : 'ACTIVE');
 
 const DAYS: { value: WeekDay; label: string }[] = [
   { value: 'MONDAY', label: 'Pazartesi' }, { value: 'TUESDAY', label: 'Salı' }, { value: 'WEDNESDAY', label: 'Çarşamba' },
@@ -34,7 +50,11 @@ export default function GroupRooms() {
   const { enqueueSnackbar } = useSnackbar();
   const [params, setParams] = useSearchParams();
   const sekme = params.get('sekme');
-  const tab: TabKey = sekme === 'sikayet' ? 'reports' : sekme === 'kelime' ? 'words' : sekme === 'cikolata' ? 'chocolate' : 'rooms';
+  const tab: TabKey = (sekme && TAB_BY_PARAM[sekme]) || 'rooms';
+  const odaParam = params.get('oda');
+  const roomFilter: number | '' = odaParam ? Number(odaParam) : '';
+  const [commentTopic, setCommentTopic] = useState<{ id: number; title: string } | null>(null);
+  const [topicReportCount, setTopicReportCount] = useState<number | null>(null);
   const [rooms, setRooms] = useState<AdminRoom[] | null>(null);
   const [reports, setReports] = useState<RoomReportItem[] | null>(null);
   const [error, setError] = useState('');
@@ -44,7 +64,7 @@ export default function GroupRooms() {
 
   const load = useCallback(async () => {
     try {
-      if (tab === 'rooms') setRooms(await groupRoomService.rooms());
+      if (tab === 'rooms' || tab === 'topics' || tab === 'comments') setRooms(await groupRoomService.rooms());
       else if (tab === 'reports') setReports(await groupRoomService.reports());
       setError('');
     } catch (e) { setError(errorText(e)); }
@@ -65,6 +85,20 @@ export default function GroupRooms() {
       : action === 'HIDE' ? 'Mesaj gizlendi.' : 'Mesaj gizlendi, kişi bu odada 24 saat yazamayacak.',
   );
 
+  const goTab = (t: TabKey, extra: Record<string, string> = {}) => {
+    const next: Record<string, string> = { ...extra };
+    if (TAB_PARAM[t]) next.sekme = TAB_PARAM[t]!;
+    setParams(next);
+  };
+  const setRoomFilter = (v: number | '') => goTab(tab, v === '' ? {} : { oda: String(v) });
+  const openTopics = (r: AdminRoom) => goTab('topics', { oda: String(r.id) });
+  const showComments = (t: AdminTopic) => { setCommentTopic({ id: t.id, title: t.title }); goTab('comments'); };
+  const setStatus = (r: AdminRoom, status: RoomStatus) => run(`s-${r.id}`, () => groupRoomService.update(r.id, { status }),
+    status === 'ACTIVE' ? `${r.name} açıldı.` : status === 'HIDDEN' ? `${r.name} gizlendi, uygulamada görünmüyor.` : `${r.name} kapatıldı.`);
+  const toggle = (r: AdminRoom, req: AdminRoomRequest, done: string) => run(`t-${r.id}`, () => groupRoomService.update(r.id, req), done);
+  const roomList = rooms ?? [];
+  const reportTotal = reports && topicReportCount !== null ? reports.length + topicReportCount : null;
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" gap={2} flexWrap="wrap">
@@ -72,13 +106,17 @@ export default function GroupRooms() {
         {tab === 'rooms' && <Button variant="contained" onClick={() => setEditing('new')}>Oda Ekle</Button>}
       </Stack>
       <Typography color="text.secondary" sx={{ mb: 1, maxWidth: 860 }}>
-        Odalar herkese açık; yazmak için 18 yaş, ad ve soyad gerekiyor. Moderatör yalnız kendi odasında mesaj gizler
-        ve kişiyi susturur. Üç farklı kişiden şikâyet alan mesaj siz bakana kadar gizli kalır. Oda adına halk, köken
-        ya da bölge adı yazmayın.
+        Odalar herkese açık; yazmak için 18 yaş, ad ve soyad gerekiyor. Odaya giren kişi önce konuları görür, sohbet
+        akışını oda başına açıp kapatabilirsiniz. Moderatör yalnız kendi odasında gizler ve susturur. Üç farklı kişiden
+        şikâyet alan mesaj, konu ya da yorum siz bakana kadar gizli kalır. Oda adına halk, köken ya da bölge adı
+        yazmayın. Odaların hepsini uygulamadan kaldırmak için Özellik Bayrakları › Topluluk › rooms.enabled.
       </Typography>
-      <Tabs value={tab} onChange={(_, v: TabKey) => setParams(TAB_PARAM[v] ? { sekme: TAB_PARAM[v]! } : {})} sx={{ mb: 2 }}>
+      <Tabs value={tab} onChange={(_, v: TabKey) => { if (v !== 'comments') setCommentTopic(null); goTab(v); }} sx={{ mb: 2 }}
+        variant="scrollable" allowScrollButtonsMobile>
         <Tab value="rooms" label="Odalar" />
-        <Tab value="reports" label={`Şikâyetler${reports ? ` · ${reports.length}` : ''}`} />
+        <Tab value="topics" label="Konular" />
+        <Tab value="comments" label="Yorumlar" />
+        <Tab value="reports" label={`Şikâyetler${reportTotal !== null ? ` · ${reportTotal}` : ''}`} />
         <Tab value="words" label="Yasaklı Kelimeler" />
         <Tab value="chocolate" label="Çikolata" />
       </Tabs>
@@ -87,17 +125,21 @@ export default function GroupRooms() {
       {tab === 'rooms' && (rooms === null && !error ? <CircularProgress size={24} /> : (
         <Stack gap={1.5}>
           {(rooms ?? []).map((r) => (
-            <Paper key={r.id} variant="outlined" sx={{ p: 2, borderRadius: 2, opacity: r.archived ? 0.6 : 1 }}>
+            <Paper key={r.id} variant="outlined" sx={{ p: 2, borderRadius: 2, opacity: statusOf(r) === 'ACTIVE' ? 1 : 0.7 }}>
               <Stack direction={{ xs: 'column', md: 'row' }} gap={2} justifyContent="space-between">
                 <Box sx={{ minWidth: 0 }}>
                   <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
                     <Typography fontWeight={700}>{r.name}</Typography>
                     <Typography variant="caption" color="text.secondary">/{r.slug}</Typography>
-                    {r.archived && <Chip size="small" label="Arşivde" />}
+                    <Chip size="small" label={statusLabel(statusOf(r))}
+                      color={statusOf(r) === 'ACTIVE' ? 'success' : statusOf(r) === 'HIDDEN' ? 'warning' : 'default'} />
+                    <Chip size="small" variant="outlined" label={r.chatEnabled === false ? 'Sohbet Kapalı' : 'Sohbet Açık'} />
+                    {r.memberTopics && <Chip size="small" variant="outlined" label="Üye Konu Açabilir" />}
                   </Stack>
                   {r.description && <Typography variant="body2" color="text.secondary">{r.description}</Typography>}
                   <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    {r.memberCount} üye · son 7 gün: {r.lastWeek.messages ?? 0} mesaj, {r.lastWeek.writers ?? 0} kişi yazdı,
+                    {r.memberCount} üye · son 7 gün: {r.lastWeek.topics ?? 0} konu, {r.lastWeek.comments ?? 0} yorum
+                    ({r.lastWeek.commenters ?? 0} kişi), {r.lastWeek.messages ?? 0} sohbet mesajı ({r.lastWeek.writers ?? 0} kişi),
                     {' '}{r.lastWeek.reports ?? 0} şikâyet
                   </Typography>
                   {r.weeklyHour && (
@@ -119,13 +161,23 @@ export default function GroupRooms() {
                     <Button size="small" onClick={() => setAddingTo(r)}>Moderatör Ekle</Button>
                   </Stack>
                 </Box>
-                <Stack direction="row" gap={1} alignItems="flex-start">
-                  <Button size="small" variant="outlined" onClick={() => setEditing(r)}>Düzenle</Button>
-                  <Button size="small" disabled={busy === `a-${r.id}`}
-                    onClick={() => void run(`a-${r.id}`, () => groupRoomService.update(r.id, { archived: !r.archived }),
-                      r.archived ? 'Oda yeniden açıldı.' : 'Oda arşive alındı, artık listede görünmüyor.')}>
-                    {r.archived ? 'Yeniden Aç' : 'Arşive Al'}
-                  </Button>
+                <Stack gap={1} alignItems={{ xs: 'flex-start', md: 'flex-end' }} sx={{ flexShrink: 0 }}>
+                  <Stack direction="row" gap={1} alignItems="center">
+                    <TextField select size="small" label="Durum" value={statusOf(r)} disabled={busy === `s-${r.id}`}
+                      onChange={(e) => void setStatus(r, e.target.value as RoomStatus)} sx={{ minWidth: 120 }}>
+                      {STATUS.map((x) => <MenuItem key={x.value} value={x.value}>{x.label}</MenuItem>)}
+                    </TextField>
+                    <Button size="small" variant="outlined" onClick={() => setEditing(r)}>Düzenle</Button>
+                    <Button size="small" variant="contained" onClick={() => openTopics(r)}>Konular</Button>
+                  </Stack>
+                  <FormControlLabel sx={{ mr: 0 }} label="Sohbet akışı"
+                    control={<Switch size="small" checked={r.chatEnabled !== false} disabled={busy === `t-${r.id}`}
+                      onChange={(e) => void toggle(r, { chatEnabled: e.target.checked },
+                        e.target.checked ? 'Sohbet akışı açıldı.' : 'Sohbet akışı kapandı, odada yalnız konular var.')} />} />
+                  <FormControlLabel sx={{ mr: 0 }} label="Üye konu açabilir"
+                    control={<Switch size="small" checked={!!r.memberTopics} disabled={busy === `t-${r.id}`}
+                      onChange={(e) => void toggle(r, { memberTopics: e.target.checked },
+                        e.target.checked ? 'Üyeler bu odada konu açabilir.' : 'Bu odada konuyu yalnız moderatörler açar.')} />} />
                 </Stack>
               </Stack>
             </Paper>
@@ -133,6 +185,18 @@ export default function GroupRooms() {
         </Stack>
       ))}
 
+      {(tab === 'topics' || tab === 'comments') && rooms === null && !error && <CircularProgress size={24} />}
+      {tab === 'topics' && rooms !== null && (
+        <TopicsPanel rooms={roomList} roomId={roomFilter} onRoomChange={setRoomFilter} onShowComments={showComments} />
+      )}
+      {tab === 'comments' && rooms !== null && (
+        <CommentsPanel rooms={roomList} roomId={roomFilter} onRoomChange={setRoomFilter}
+          topic={commentTopic} onClearTopic={() => setCommentTopic(null)} />
+      )}
+
+      {tab === 'reports' && (
+        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>Sohbet Mesajları</Typography>
+      )}
       {tab === 'reports' && (reports === null && !error ? <CircularProgress size={24} /> : (
         (reports ?? []).length === 0
           ? <Typography color="text.secondary">Açık şikâyet yok.</Typography>
@@ -172,6 +236,12 @@ export default function GroupRooms() {
           )
       ))}
 
+      {tab === 'reports' && (
+        <Box sx={{ mt: 3 }}>
+          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>Konular ve Yorumlar</Typography>
+          <TopicReportsPanel onCount={setTopicReportCount} />
+        </Box>
+      )}
       {tab === 'words' && <BlockedWordsPanel />}
       {tab === 'chocolate' && <ChocolatePanel />}
 
@@ -350,6 +420,9 @@ function RoomDialog({ room, onClose, onSave }: {
   const [day, setDay] = useState<WeekDay>(room?.weeklyHour?.day ?? 'THURSDAY');
   const [time, setTime] = useState(room?.weeklyHour?.time.slice(0, 5) ?? '21:00');
   const [topic, setTopic] = useState(room?.weeklyHour?.topic ?? '');
+  const [status, setStatus] = useState<RoomStatus>(room ? statusOf(room) : 'HIDDEN');
+  const [chatEnabled, setChatEnabled] = useState(room ? room.chatEnabled !== false : false);
+  const [memberTopics, setMemberTopics] = useState(room?.memberTopics ?? false);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -365,6 +438,9 @@ function RoomDialog({ room, onClose, onSave }: {
       weeklyDay: hourOn ? day : null,
       weeklyTime: hourOn ? `${time}:00` : null,
       weeklyTopic: topic.trim(),
+      status,
+      chatEnabled,
+      memberTopics,
     });
     setSaving(false);
   };
@@ -392,6 +468,14 @@ function RoomDialog({ room, onClose, onSave }: {
           <TextField label="Sabit mesaj" value={pinned} onChange={(e) => setPinned(e.target.value)}
             helperText="Boş bırakırsanız ilk kural sabit mesaj olur." />
           <TextField label="Listedeki sıra" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} />
+          <TextField select label="Durum" value={status} onChange={(e) => setStatus(e.target.value as RoomStatus)}
+            helperText={STATUS.find((x) => x.value === status)?.help}>
+            {STATUS.map((x) => <MenuItem key={x.value} value={x.value}>{x.label}</MenuItem>)}
+          </TextField>
+          <FormControlLabel control={<Switch checked={chatEnabled} onChange={(e) => setChatEnabled(e.target.checked)} />}
+            label="Sohbet akışı (WhatsApp grubu gibi mesajlaşma)" />
+          <FormControlLabel control={<Switch checked={memberTopics} onChange={(e) => setMemberTopics(e.target.checked)} />}
+            label="Üye konu açabilir (kapalıyken yalnız moderatör ve yönetici)" />
           <FormControlLabel control={<Switch checked={hourOn} onChange={(e) => setHourOn(e.target.checked)} />} label="Haftalık sohbet saati" />
           {hourOn && (
             <Stack direction="row" gap={1.5}>
