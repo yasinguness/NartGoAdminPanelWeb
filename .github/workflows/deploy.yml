@@ -1,30 +1,91 @@
 name: Build & Deploy
 
+# Derleme GitHub'ın makinesinde, sunucu yalnız dosyaları alır (docs/plan/ci-cd-github-actions.md).
+# Eskiden sunucudaki self-hosted runner derliyor ve `rm -rf /var/www/admin/*` ile önce her şeyi siliyordu:
+# açık tarayıcılar eski asset'leri bulamayıp beyaz ekran görebiliyordu. Artık önce yeni asset'ler, en son
+# index.html gönderilir; eski asset'ler silinmez (deploy.sh ile aynı kural).
+#
+# Secret'lar: DEPLOY_SSH_HOST, DEPLOY_SSH_USER, DEPLOY_SSH_KEY, isteğe bağlı DEPLOY_SSH_PORT (varsayılan 22)
+# Variable'lar: VITE_API_BASE_URL, VITE_GOOGLE_PLACES_API_KEY, VITE_COMMERCE_ORIGIN,
+#   VITE_INSTAGRAM_IMPORT_ENDPOINT, VITE_HERITAGE_SATELLITE_URL, VITE_HERITAGE_SATELLITE_ATTRIBUTION;
+#   isteğe bağlı DEPLOY_DIR (varsayılan /var/www/admin)
+
 on:
   push:
     branches: [master]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Dağıtılacak branch/tag/commit (boş = master)"
+        required: false
+        default: ""
+
+concurrency:
+  group: admin-panel-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  deploy:
-    runs-on: self-hosted
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_POSTBUILD_DEPLOY: "false"
+      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+      VITE_GOOGLE_PLACES_API_KEY: ${{ vars.VITE_GOOGLE_PLACES_API_KEY }}
+      VITE_COMMERCE_ORIGIN: ${{ vars.VITE_COMMERCE_ORIGIN }}
+      VITE_INSTAGRAM_IMPORT_ENDPOINT: ${{ vars.VITE_INSTAGRAM_IMPORT_ENDPOINT }}
+      VITE_HERITAGE_SATELLITE_URL: ${{ vars.VITE_HERITAGE_SATELLITE_URL }}
+      VITE_HERITAGE_SATELLITE_ATTRIBUTION: ${{ vars.VITE_HERITAGE_SATELLITE_ATTRIBUTION }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+      - run: npm ci --no-audit --no-fund
+      # Tip denetimi: `tsc --noEmit` yalnız kök tsconfig'i görür, uygulama tsconfig.app.json'da.
+      - run: npx tsc --noEmit -p tsconfig.app.json
+      - run: npx vite build
+      - run: test -s dist/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: admin-dist
+          path: dist
+          retention-days: 7
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npx vite build
-
-      - name: Deploy
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: admin-dist
+          path: dist
+      - name: SSH anahtarı
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          PORT: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
         run: |
-          rm -rf /var/www/admin/*
-          cp -r dist/* /var/www/admin/
-          echo "Deployed successfully!"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$PORT" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Önce asset'ler, en son index.html
+        env:
+          HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          USER: ${{ secrets.DEPLOY_SSH_USER }}
+          PORT: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
+          DIR: ${{ vars.DEPLOY_DIR || '/var/www/admin' }}
+        run: |
+          SSH="ssh -i ~/.ssh/deploy_key -p $PORT"
+          rsync -az --exclude=/index.html -e "$SSH" dist/ "$USER@$HOST:$DIR/"
+          rsync -az -e "$SSH" dist/index.html "$USER@$HOST:$DIR/index.html"
+          $SSH "$USER@$HOST" "cmp -s '$DIR/index.html' -" < dist/index.html
+          echo "Yayında: $DIR"
