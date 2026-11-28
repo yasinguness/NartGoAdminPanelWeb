@@ -12,8 +12,7 @@ name: Build & Deploy
 
 on:
   push:
-    # Canlı sunucu bu daldan çalışıyor (2026-11-28 kararı); master'a geçince yalnız bu satır değişir.
-    branches: [nb-redesign-faz6]
+    branches: [master]
   workflow_dispatch:
     inputs:
       ref:
