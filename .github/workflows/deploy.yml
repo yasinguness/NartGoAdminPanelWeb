@@ -48,7 +48,8 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci --no-audit --no-fund
+      # Kilit dosyası @mui/lab 7 + @mui/material 5 ile kurulmuş (peer uyuşmazlığı); sürüm hizalanana kadar.
+      - run: npm ci --no-audit --no-fund --legacy-peer-deps
       # Tip denetimi: `tsc --noEmit` yalnız kök tsconfig'i görür, uygulama tsconfig.app.json'da.
       - run: npx tsc --noEmit -p tsconfig.app.json
       - run: npx vite build
