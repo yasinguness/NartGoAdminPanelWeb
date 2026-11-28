@@ -12,11 +12,12 @@ name: Build & Deploy
 
 on:
   push:
-    branches: [master]
+    # Canlı sunucu bu daldan çalışıyor (2026-11-28 kararı); master'a geçince yalnız bu satır değişir.
+    branches: [nb-redesign-faz6]
   workflow_dispatch:
     inputs:
       ref:
-        description: "Dağıtılacak branch/tag/commit (boş = master)"
+        description: "Dağıtılacak branch/tag/commit (boş = bu çalıştırmanın commit'i)"
         required: false
         default: ""
 
